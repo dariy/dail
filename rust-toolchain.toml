@@ -1,0 +1,5 @@
+# Honoured by rustup (CI and dev machines). Distro toolchains ignore it — see AGENTS.md §0.
+[toolchain]
+channel = "1.93"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

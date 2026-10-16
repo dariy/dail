@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+*.pending-snap
+*.snap.new
+# Local dev data and secrets — never commit
+/.dail-dev/
+.env
+*.local.toml
