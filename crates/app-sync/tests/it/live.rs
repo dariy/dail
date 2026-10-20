@@ -337,7 +337,10 @@ async fn plaintext_server_on_a_tls_port_fails_the_handshake() {
         .unwrap_err();
     assert!(err.contains("TLS handshake failed"), "{err}");
     let sent = server.await.unwrap();
-    assert!(!sent.contains("LOGIN") && !sent.contains("pw"));
+    // Only a TLS ClientHello went out. Its random bytes can spell `pw` (about 1 run in 400), so
+    // look for the password quoted, as LOGIN sends it.
+    assert!(sent.starts_with('\u{16}'), "a TLS handshake record");
+    assert!(!sent.contains("LOGIN") && !sent.contains("\"pw\""));
 }
 
 #[tokio::test]
