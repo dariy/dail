@@ -1,0 +1,21 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "See the chart: "
+        },
+        {
+          "text": "[image]",
+          "italic": true,
+          "image": "chart@x"
+        }
+      ]
+    }
+  ]
+}

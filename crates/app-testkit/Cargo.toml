@@ -1,0 +1,26 @@
+[package]
+name = "app-testkit"
+description = "dail test kit: fake IMAP/SMTP backend, in-memory store, fixtures."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+app-io.workspace = true
+app-sync.workspace = true
+parking_lot.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

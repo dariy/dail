@@ -1,4 +1,4 @@
-# cargo-deny: `cargo deny check` (gate 5 of the Verification Loop)
+# cargo-deny: `cargo deny check` (gate 2 of the Verification Loop)
 
 [graph]
 all-features = false
@@ -6,11 +6,22 @@ all-features = false
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # zbus 5's helper crates, merged into zbus 6 and marked unmaintained (not vulnerable). They come
+    # in through `keyring` (Secret Service) and eframe's `accesskit_unix`; neither has a zbus-6
+    # release yet. Drop these once both upgrade.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
+]
 
 [licenses]
 version = 2
+# Some allowances (OFL-1.1, Ubuntu-font-1.0, …) are for the GUI stack that lands in M6.
+unused-allowed-license = "allow"
 allow = [
     "MIT",
+    "0BSD", # quoted_printable (lettre); public-domain-equivalent, more permissive than MIT
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
@@ -31,14 +42,24 @@ multiple-versions = "warn"
 wildcards = "deny"
 allow-wildcard-paths = true
 deny = [
-    # C/C++ TLS & database bindings break the pure-Rust rule (ring is the sanctioned exception).
+    # No C/C++ is compiled in the build (AGENTS.md §5). The parents of cc compile nothing: wayland-backend builds its C
+    # log shim only with its `log` feature (off), and iana-time-zone-haiku and android-activity are only built for
+    # Haiku and Android.
+    { name = "cc", wrappers = ["wayland-backend", "iana-time-zone-haiku", "android-activity"] },
+    # rustls's ring provider compiles C and assembly; app-tls replaces it (ADR 0003).
+    { name = "ring" },
+    { name = "cmake" },
+    { name = "bindgen" },
+    # pkg-config finds system C libraries to link against. Its two users only load them at run time: wayland-sys is
+    # built with `dlopen`, and x11-dl only looks up the library directory.
+    { name = "pkg-config", wrappers = ["wayland-sys", "x11-dl"] },
+    # C/C++ TLS & database bindings break the pure-Rust rule.
     { name = "openssl" },
     { name = "openssl-sys" },
     { name = "native-tls" },
     { name = "aws-lc-sys" },
     { name = "aws-lc-rs" },
     { name = "libsqlite3-sys" },
-    { name = "cmake" },
 ]
 
 [sources]

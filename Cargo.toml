@@ -7,7 +7,10 @@ members = [
     "crates/app-mcp",
     "crates/app-cli",
     "crates/app-gui",
+    "crates/app-front",
+    "crates/app-tui",
     "crates/app-testkit",
+    "crates/app-tls",
     "xtask",
 ]
 default-members = [
@@ -17,13 +20,16 @@ default-members = [
     "crates/app-mcp",
     "crates/app-cli",
     "crates/app-gui",
+    "crates/app-front",
+    "crates/app-tui",
     "crates/app-testkit",
+    "crates/app-tls",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.92" # eframe 0.37 MSRV
+rust-version = "1.92" # eframe 0.35 MSRV (0.36+ needs 1.95)
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/your-org/dail"
 
@@ -51,12 +57,15 @@ app-io = { path = "crates/app-io" }
 app-sync = { path = "crates/app-sync" }
 app-mcp = { path = "crates/app-mcp" }
 app-gui = { path = "crates/app-gui" }
+app-front = { path = "crates/app-front" }
+app-tui = { path = "crates/app-tui" }
 app-testkit = { path = "crates/app-testkit" }
+app-tls = { path = "crates/app-tls" }
 
 # --- Core: pure data crates only (allowed in app-core) ---
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-schemars = "1.2" # JSON Schema -> MCP tool definitions (rmcp requires 1.x)
+schemars = { version = "1.2", features = ["uuid1", "indexmap2"] } # JSON Schema -> MCP tool definitions (rmcp requires 1.x)
 thiserror = "2.0"
 indexmap = { version = "2.14", features = ["serde"] }
 slotmap = { version = "1.1", features = ["serde"] }
@@ -65,33 +74,64 @@ slotmap = { version = "1.1", features = ["serde"] }
 uuid = { version = "1.28", features = ["serde"] }
 
 # --- Mail formats & storage (app-io) ---
-mail-parser = "0.11"
+mail-parser = { version = "0.11", features = ["full_encoding"] } # full_encoding: CJK charsets via encoding_rs (pure Rust)
 mail-builder = "1.0"
 html2text = "0.17"
+html5ever = "0.40" # HTML parser for the reader's documents (already in the tree via html2text and ammonia)
+ammonia = "4.2" # HTML sanitizer for "open original" (shares html5ever with html2text)
+# Full-text index over downloaded bodies (ADR 0005). No default features: they bring zstd, which compiles C.
+tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4-compression"] }
 toml = "1.1"
 redb = "4.4"
 sha2 = "0.11"
 directories = "6.0"
+# Mutexes that don't poison, so no crate needs its own lock-recovery helper (already in the tree via html5ever).
+parking_lot = "0.12"
 
-# --- Network runtime (app-sync) — rustls with `ring`, never aws-lc/openssl ---
+# --- TLS crypto (app-tls, ADR 0003) ---
+zeroize = "1" # wipes keys on drop (already in the tree via rustls)
+getrandom = "0.4" # the OS random source (already in the tree via uuid)
+
+# --- Network runtime (app-sync) — rustls with app-tls (ADR 0003), never ring/aws-lc/openssl ---
 tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
-tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
+# No built-in provider: app-tls is the provider (ADR 0003).
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "logging"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "logging"] }
 webpki-roots = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] } # Stream combinators for async-imap responses
 async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
-lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "tokio1-rustls-tls"] }
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "tokio1-rustls", "rustls-no-provider", "webpki-roots"] } # TLS: app-tls, installed as the default provider
 keyring = "4.2" # default `v1` store set: Secret Service via zbus (pure Rust), Windows Credential Manager
 interprocess = { version = "2.4", features = ["tokio"] }
 
 # --- Agent surfaces ---
-rmcp = { version = "3.5", default-features = false, features = ["server", "macros", "transport-io"] }
+rmcp = { version = "3.5", default-features = false, features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
+# `dail mcp --http` (ADR 0007): HTTP/1.1 on loopback for rmcp's Streamable HTTP service. Pure Rust.
+hyper = { version = "1", default-features = false, features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio", "service"] }
+http-body-util = "0.1" # the 401 answer of `dail mcp --http` (already in the tree via rmcp)
+bytes = "1"
 clap = { version = "4.6", features = ["derive"] }
+rpassword = "7.5" # no-echo password prompt for `dail account add` (app-cli only)
 
 # --- GUI (desktop-native; wasm deferred) ---
-eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11"] }
-egui = "0.37"
+eframe = { version = "0.35", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11"] }
+egui = "0.35"
 nucleo-matcher = "0.3"
 rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
+# Inline (cid:) images in the reader; already in the tree via eframe (png). Pure-Rust decoders only.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+webbrowser = "1.2" # opens links and "open original" in the system browser (app-gui only)
+# Desktop notifications (app-gui only): the freedesktop service over D-Bus on Linux (zbus is already in the tree for
+# the keyring), toasts through WinRT on Windows (the `windows` crate is already in the tree for accesskit).
+zbus = { version = "5.19", default-features = false, features = ["blocking-api", "async-io"] }
+windows = { version = "0.62", features = ["Data_Xml_Dom", "UI_Notifications"] }
+
+# --- Terminal UI (app-tui, ADR 0004) ---
+# crossterm comes through `ratatui::crossterm` (0.29), so the two never drift.
+ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
+ratatui-textarea = { version = "0.9", default-features = false, features = ["crossterm"] }
+unicode-width = "0.2" # column widths for wrapping (already in the tree via ratatui)
 
 # --- Diagnostics ---
 tracing = "0.1"
@@ -100,10 +140,51 @@ anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 
 # --- Testing ---
 insta = { version = "1.49", features = ["json"] }
+egui_kittest = { version = "0.35", default-features = false } # headless GUI tests via the AccessKit tree
 proptest = "1.12"
+# Test oracles for app-tls (docs/plan-tls.md §7.2): pure Rust, dev-dependencies only, never linked into dail.
+x25519-dalek = "2"
+chacha20poly1305 = "0.10"
+p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+p384 = { version = "0.13", default-features = false, features = ["ecdsa"] }
 
-[profile.dev.package."*"]
-opt-level = 2 # keeps egui and mail parsing responsive in debug builds
+[profile.dev.package]
+# Dependencies: opt-level 2 keeps egui and mail parsing responsive in debug builds. They keep only line tables
+# (file:line in backtraces). With full debuginfo each test binary that links egui was ~0.5 GB (now ~0.2 GB) and a gate
+# run left ~26 GB in target/ (now ~9 GB); optimized code has few locals to inspect.
+"*" = { opt-level = 2, debug = "line-tables-only" }
+# The TLS crypto runs at full speed in debug builds and tests (the Wycheproof and handshake tests would crawl at
+# opt-level 0). It keeps full debuginfo: it is a workspace crate.
+app-tls = { opt-level = 2 }
+# Proc macros and the crates they use run only inside the compiler: at opt-level 0 they build in half the time and
+# expand only a little slower. `[profile.dev.build-override]` can't do this, because `package."*"` takes precedence over
+# it, so each crate is named here. The list covers ~85% of that build time; a crate missing from it only builds slower,
+# and cargo warns about an entry that no longer matches a package.
+# Left out on purpose: proc-macro2 and quote (cheap to build, used by every expansion), and wayland-scanner and
+# phf_macros (they generate a lot of code during the build).
+async-recursion = { opt-level = 0, debug = false }
+async-trait = { opt-level = 0, debug = false }
+bytemuck_derive = { opt-level = 0, debug = false }
+cc = { opt-level = 0, debug = false }
+clap_derive = { opt-level = 0, debug = false }
+darling_core = { opt-level = 0, debug = false }
+displaydoc = { opt-level = 0, debug = false }
+futures-macro = { opt-level = 0, debug = false }
+hashify = { opt-level = 0, debug = false }
+pin-project-internal = { opt-level = 0, debug = false }
+rmcp-macros = { opt-level = 0, debug = false }
+schemars_derive = { opt-level = 0, debug = false }
+serde_derive = { opt-level = 0, debug = false }
+serde_derive_internals = { opt-level = 0, debug = false }
+syn = { opt-level = 0, debug = false }
+synstructure = { opt-level = 0, debug = false }
+thiserror-impl = { opt-level = 0, debug = false }
+tokio-macros = { opt-level = 0, debug = false }
+tracing-attributes = { opt-level = 0, debug = false }
+yoke-derive = { opt-level = 0, debug = false }
+zbus_macros = { opt-level = 0, debug = false }
+zerofrom-derive = { opt-level = 0, debug = false }
+zerovec-derive = { opt-level = 0, debug = false }
 
 [profile.release]
 lto = "thin"

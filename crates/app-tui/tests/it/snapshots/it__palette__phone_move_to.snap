@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/palette.rs
+expression: t.screen()
+---
+dail · Message · alice@example.com
+Move to…
+> Filter…
+› Inbox
+  Sent
+  Drafts
+  Archive
+
+
+
+
+
+
+
+
+
+
+
+↑↓ move · Enter choose · Esc back
+synced 9h ago                     ? help

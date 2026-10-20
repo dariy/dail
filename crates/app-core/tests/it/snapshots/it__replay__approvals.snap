@@ -1,0 +1,1057 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0003-0000-000000000000": {
+        "display_name": "alice@example.com",
+        "email": "alice@example.com",
+        "id": "00000000-0000-0003-0000-000000000000",
+        "imap": {
+          "host": "imap.hostinger.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "hostinger",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0003-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.hostinger.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {
+      "00000000-0000-0004-0000-000000000000": {
+        "account": "00000000-0000-0003-0000-000000000000",
+        "bcc": [],
+        "body_text": "Noon at the usual place?",
+        "cc": [],
+        "created_ms": 1700000001000,
+        "id": "00000000-0000-0004-0000-000000000000",
+        "message_id_hdr": "00000000000000040000000000000000@example.com",
+        "send_at": 1700000022000,
+        "subject": "Lunch at noon?",
+        "to": [
+          {
+            "email": "bob@example.org"
+          }
+        ],
+        "updated_ms": 1700000009000
+      }
+    },
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "alice@example.com",
+                    "email": "alice@example.com",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "alice@example.com",
+              "email": "alice@example.com",
+              "id": "00000000-0000-0003-0000-000000000000",
+              "imap": {
+                "host": "imap.hostinger.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "hostinger",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0003-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.hostinger.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account alice@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "subject": "Lunch?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000001000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000006000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Noon?",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Lunch?",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000001000
+            },
+            "kind": "mutation",
+            "name": "create_draft",
+            "ok": true,
+            "undo_label": "Create draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "approvals": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "draft": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "origin": "mcp",
+                        "requested_ms": 1700000002000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "approval",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "approval": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "draft": "00000000-0000-0004-0000-000000000000",
+                "id": "00000000-0000-0005-0000-000000000000",
+                "message": {
+                  "account": "00000000-0000-0003-0000-000000000000",
+                  "attachments": [],
+                  "created_ms": 1700000001000,
+                  "id": "00000000-0000-0004-0000-000000000000",
+                  "message_id": "00000000000000040000000000000000@example.com",
+                  "reply_to": null,
+                  "save_error": null,
+                  "saved_ms": null,
+                  "send_at": null,
+                  "send_error": null,
+                  "sending": false,
+                  "untrusted_content": {
+                    "bcc": [],
+                    "body": "Noon?",
+                    "cc": [],
+                    "in_reply_to": null,
+                    "quote": null,
+                    "subject": "Lunch?",
+                    "to": [
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ]
+                  },
+                  "updated_ms": 1700000001000
+                },
+                "origin": "mcp",
+                "requested_ms": 1700000002000
+              },
+              "state": "awaiting_approval"
+            },
+            "kind": "outbound",
+            "name": "send_draft",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "err": {
+          "command": "approve_request",
+          "error": "origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "approvals": [
+                {
+                  "account": "00000000-0000-0003-0000-000000000000",
+                  "draft": "00000000-0000-0004-0000-000000000000",
+                  "id": "00000000-0000-0005-0000-000000000000",
+                  "message": {
+                    "account": "00000000-0000-0003-0000-000000000000",
+                    "attachments": [],
+                    "created_ms": 1700000001000,
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "message_id": "00000000000000040000000000000000@example.com",
+                    "reply_to": null,
+                    "save_error": null,
+                    "saved_ms": null,
+                    "send_at": null,
+                    "send_error": null,
+                    "sending": false,
+                    "untrusted_content": {
+                      "bcc": [],
+                      "body": "Noon?",
+                      "cc": [],
+                      "in_reply_to": null,
+                      "quote": null,
+                      "subject": "Lunch?",
+                      "to": [
+                        {
+                          "email": "bob@example.org"
+                        }
+                      ]
+                    },
+                    "updated_ms": 1700000001000
+                  },
+                  "origin": "mcp",
+                  "requested_ms": 1700000002000
+                }
+              ]
+            },
+            "kind": "query",
+            "name": "list_approvals",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000005000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000010000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Noon?",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Lunch at noon?",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000005000
+            },
+            "kind": "mutation",
+            "name": "update_draft",
+            "ok": true,
+            "undo_label": "Edit draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "send_at": 1700000016000,
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000005000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_approvals": [
+                      "00000000-0000-0005-0000-000000000000"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000016000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "approval",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "approved": "00000000-0000-0005-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": 1700000016000,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Noon?",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Lunch at noon?",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000005000
+            },
+            "kind": "mutation",
+            "name": "approve_request",
+            "ok": true,
+            "undo_label": "Send"
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000007000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000012000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Send"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "approvals": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "draft": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-000b-0000-000000000000",
+                        "origin": "mcp",
+                        "requested_ms": 1700000008000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "approval",
+                "id": "00000000-0000-000b-0000-000000000000"
+              },
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "approval": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "draft": "00000000-0000-0004-0000-000000000000",
+                "id": "00000000-0000-000b-0000-000000000000",
+                "message": {
+                  "account": "00000000-0000-0003-0000-000000000000",
+                  "attachments": [],
+                  "created_ms": 1700000001000,
+                  "id": "00000000-0000-0004-0000-000000000000",
+                  "message_id": "00000000000000040000000000000000@example.com",
+                  "reply_to": null,
+                  "save_error": null,
+                  "saved_ms": null,
+                  "send_at": null,
+                  "send_error": null,
+                  "sending": false,
+                  "untrusted_content": {
+                    "bcc": [],
+                    "body": "Noon?",
+                    "cc": [],
+                    "in_reply_to": null,
+                    "quote": null,
+                    "subject": "Lunch at noon?",
+                    "to": [
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ]
+                  },
+                  "updated_ms": 1700000007000
+                },
+                "origin": "mcp",
+                "requested_ms": 1700000008000
+              },
+              "state": "awaiting_approval"
+            },
+            "kind": "outbound",
+            "name": "send_draft",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon at the usual place?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000009000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000014000
+              },
+              "effect": "schedule_tick"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_approvals": [
+                      "00000000-0000-000b-0000-000000000000"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "approvals_withdrawn": [
+                "00000000-0000-000b-0000-000000000000"
+              ],
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Noon at the usual place?",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Lunch at noon?",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000009000
+            },
+            "kind": "mutation",
+            "name": "update_draft",
+            "ok": true,
+            "undo_label": "Edit draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "approvals": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "draft": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-000d-0000-000000000000",
+                        "origin": "mcp",
+                        "requested_ms": 1700000010000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "approval",
+                "id": "00000000-0000-000d-0000-000000000000"
+              },
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "approval": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "draft": "00000000-0000-0004-0000-000000000000",
+                "id": "00000000-0000-000d-0000-000000000000",
+                "message": {
+                  "account": "00000000-0000-0003-0000-000000000000",
+                  "attachments": [],
+                  "created_ms": 1700000001000,
+                  "id": "00000000-0000-0004-0000-000000000000",
+                  "message_id": "00000000000000040000000000000000@example.com",
+                  "reply_to": null,
+                  "save_error": null,
+                  "saved_ms": null,
+                  "send_at": null,
+                  "send_error": null,
+                  "sending": false,
+                  "untrusted_content": {
+                    "bcc": [],
+                    "body": "Noon at the usual place?",
+                    "cc": [],
+                    "in_reply_to": null,
+                    "quote": null,
+                    "subject": "Lunch at noon?",
+                    "to": [
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ]
+                  },
+                  "updated_ms": 1700000009000
+                },
+                "origin": "mcp",
+                "requested_ms": 1700000010000
+              },
+              "state": "awaiting_approval"
+            },
+            "kind": "outbound",
+            "name": "send_draft",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon at the usual place?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "send_error": "the user declined to send it",
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000009000
+                      }
+                    ],
+                    "removed_approvals": [
+                      "00000000-0000-000d-0000-000000000000"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "approval",
+                "id": "00000000-0000-000d-0000-000000000000"
+              },
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "draft": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "attachments": [],
+                "created_ms": 1700000001000,
+                "id": "00000000-0000-0004-0000-000000000000",
+                "message_id": "00000000000000040000000000000000@example.com",
+                "reply_to": null,
+                "save_error": null,
+                "saved_ms": null,
+                "send_at": null,
+                "send_error": "the user declined to send it",
+                "sending": false,
+                "untrusted_content": {
+                  "bcc": [],
+                  "body": "Noon at the usual place?",
+                  "cc": [],
+                  "in_reply_to": null,
+                  "quote": null,
+                  "subject": "Lunch at noon?",
+                  "to": [
+                    {
+                      "email": "bob@example.org"
+                    }
+                  ]
+                },
+                "updated_ms": 1700000009000
+              },
+              "rejected": "00000000-0000-000d-0000-000000000000",
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "reject_request",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 15,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0003-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Noon at the usual place?",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "send_at": 1700000022000,
+                        "subject": "Lunch at noon?",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000009000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000022000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": 1700000022000,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Noon at the usual place?",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Lunch at noon?",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000009000
+            },
+            "kind": "outbound",
+            "name": "send_draft",
+            "ok": true,
+            "undo_label": "Send"
+          }
+        }
+      }
+    }
+  ]
+}

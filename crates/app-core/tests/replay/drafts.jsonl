@@ -1,0 +1,14 @@
+# Drafts: a reply to UID 1 (Bob), edited, undone and redone; a forward that is discarded and
+# restored by undo; a new draft with an invalid address is rejected. Account seed 1 (..0001-..0),
+# INBOX seed 2 (..0002-..0), messages seed 3 (UID 1: ..0003-..1).
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "seed": 55340232221128654848, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0002-0000-000000000000", "uid_validity": 3, "uid_next": 2, "total": 1, "unread": 1, "envelopes": [{"uid": 1, "message_id_hdr": "q3@example.org", "from": [{"name": "Bob", "email": "bob@example.org"}], "to": [{"email": "me@example.com"}], "subject": "Q3 numbers", "date_ms": 1699000000000}]}}}}
+{"t": 1700000003000, "seed": 73786976294838206464, "origin": "mcp", "input": {"command": {"cmd": "reply", "args": {"message": "00000000-0000-0003-0000-000000000001", "body": "Thanks!"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "update_draft", "args": {"id": "00000000-0000-0004-0000-000000000000", "body": "Thanks, looks good.", "cc": [{"email": "carol@example.org"}]}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000007000, "seed": 147573952589676412928, "origin": "cli", "input": {"command": {"cmd": "forward", "args": {"message": "00000000-0000-0003-0000-000000000001", "body": "FYI"}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "discard_draft", "args": {"id": "00000000-0000-0008-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000010000, "origin": "cli", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0001-0000-000000000000", "to": [{"email": "nobody"}]}}}}

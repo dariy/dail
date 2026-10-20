@@ -1,0 +1,25 @@
+[package]
+name = "app-core"
+description = "dail core: pure, deterministic state machine (sans-IO)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true

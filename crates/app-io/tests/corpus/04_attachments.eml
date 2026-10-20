@@ -1,0 +1,40 @@
+Message-ID: <att@example.org>
+From: Carol <carol@example.org>
+To: bob@example.com
+Subject: Report and photo
+Date: Tue, 14 Nov 2023 09:41:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+--outer
+Content-Type: multipart/related; boundary="rel"
+
+--rel
+Content-Type: text/html; charset=utf-8
+
+<p>See the chart: <img src="cid:chart@x"></p>
+--rel
+Content-Type: image/png; name="chart.png"
+Content-Disposition: inline; filename="chart.png"
+Content-ID: <chart@x>
+Content-Transfer-Encoding: base64
+
+AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4
+OTo7PD0+Pw==
+--rel--
+
+--outer
+Content-Type: application/pdf; name="Q3 report.pdf"
+Content-Disposition: attachment; filename="=?utf-8?q?Q3_r=C3=A9port.pdf?="
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKJSBmYWtlIHBkZgo=
+--outer
+Content-Type: message/rfc822
+
+Message-ID: <inner@example.org>
+From: Dave <dave@example.org>
+Subject: Forwarded
+
+Inner body.
+--outer--

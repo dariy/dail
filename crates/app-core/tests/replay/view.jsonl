@@ -1,0 +1,21 @@
+# View commands and thread/message queries. Account: line 3. Mailboxes: line 4 (INBOX ..0, Archive ..1).
+# Line 5 threads two messages: thread ..0005-..0, messages ..0005-..1 (read) and ..0005-..2 (unread reply).
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0003-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0003-0000-000000000000", "mailbox": "00000000-0000-0004-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 1, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "Plans", "date_ms": 1699000000000, "flags": {"seen": true}}, {"uid": 2, "message_id_hdr": "two@x", "in_reply_to": "one@x", "subject": "Re: Plans", "date_ms": 1699000001000}]}}}}
+{"t": 1700000003000, "origin": "cli", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "select_threads", "args": {"ids": ["00000000-0000-0005-0000-000000000000"]}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "open_thread", "args": {"id": "00000000-0000-0005-0000-000000000000"}}}}
+{"t": 1700000006000, "origin": "mcp", "input": {"command": {"cmd": "get_thread", "args": {"id": "00000000-0000-0005-0000-000000000000", "include_body": true}}}}
+{"t": 1700000006500, "origin": "mcp", "input": {"command": {"cmd": "get_thread", "args": {"id": "00000000-0000-0005-0000-000000000000", "include_body": true, "rich_body": true}}}}
+{"t": 1700000006600, "origin": "gui", "input": {"command": {"cmd": "expand_messages", "args": {"ids": ["00000000-0000-0005-0000-000000000001"]}}}}
+{"t": 1700000006700, "origin": "mcp", "input": {"command": {"cmd": "collapse_messages", "args": {}}}}
+{"t": 1700000006800, "origin": "gui", "input": {"command": {"cmd": "expand_messages", "args": {"ids": ["00000000-0000-0000-0000-000000000063"]}}}}
+{"t": 1700000006900, "origin": "mcp", "input": {"command": {"cmd": "get_view", "args": {}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "close_thread", "args": {}}}}
+{"t": 1700000008000, "origin": "mcp", "input": {"command": {"cmd": "get_message", "args": {"id": "00000000-0000-0005-0000-000000000002"}}}}
+{"t": 1700000009000, "origin": "mcp", "input": {"command": {"cmd": "open_thread", "args": {"id": "00000000-0000-0000-0000-000000000063"}}}}
+{"t": 1700000020000, "origin": "gui", "input": {"command": {"cmd": "check_threads", "args": {}}}}
+{"t": 1700000021000, "origin": "mcp", "input": {"command": {"cmd": "uncheck_threads", "args": {"ids": ["00000000-0000-0005-0000-000000000000"]}}}}
+{"t": 1700000022000, "origin": "mcp", "input": {"command": {"cmd": "list_contacts", "args": {"query": "b"}}}}
+{"t": 1700000023000, "origin": "mcp", "input": {"command": {"cmd": "open_unified_inbox", "args": {}}}}

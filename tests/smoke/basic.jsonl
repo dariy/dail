@@ -1,0 +1,12 @@
+# Smoke test (AGENTS.md §6, gate 6): `dail batch --backend memory tests/smoke/basic.jsonl`
+# Must exit 0 and print one JSON receipt per command line.
+{"cmd": "get_settings", "args": {}}
+{"cmd": "add_account", "args": {"preset": "gmail", "email": "me@gmail.com", "password": "app-password"}}
+{"cmd": "set_setting", "args": {"key": "poll_secs", "value": 300}}
+{"cmd": "undo"}
+{"cmd": "redo", "args": {}}
+{"cmd": "open_palette", "args": {}}
+{"cmd": "close_palette", "args": {}}
+{"cmd": "get_settings", "args": {}}
+{"cmd": "sync_now"}
+{"cmd": "list_mailboxes"}

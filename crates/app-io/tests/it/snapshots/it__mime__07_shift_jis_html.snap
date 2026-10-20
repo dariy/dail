@@ -1,0 +1,28 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "sjis@example.jp",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "email": "shop@example.jp"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "お知らせ",
+    "date_ms": 1700096400000,
+    "has_attachments": false
+  },
+  "text": "価格は**千円**です。",
+  "text_source": "html",
+  "attachments": []
+}

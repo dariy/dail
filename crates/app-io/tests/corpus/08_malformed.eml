@@ -1,0 +1,9 @@
+From: broken
+Subject: Unterminated multipart
+Date: not a date
+Content-Type: multipart/mixed; boundary="never"
+
+--never
+Content-Type: text/plain
+
+Text before the missing end boundary.

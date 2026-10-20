@@ -1,0 +1,29 @@
+[package]
+name = "app-mcp"
+description = "dail MCP server generated from the command registry."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+app-sync.workspace = true
+bytes.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+rmcp.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

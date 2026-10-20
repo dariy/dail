@@ -1,0 +1,21 @@
+# Search over the cached envelopes. Account: line 4. Mailboxes: line 5 (INBOX ..0, Archive ..1).
+# Line 6 fetches a two-message "Plans" thread (one read, one unread with an attachment) and a starred "Lunch".
+# Line 7 fetches an older message into Archive.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 4, "total": 3, "unread": 2, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "from": [{"name": "Alice", "email": "alice@example.com"}], "subject": "Plans", "date_ms": 1699000000000, "flags": {"seen": true}}, {"uid": 2, "message_id_hdr": "two@x", "in_reply_to": "one@x", "from": [{"email": "bob@example.org"}], "subject": "Re: Plans", "date_ms": 1699000001000, "has_attachments": true}, {"uid": 3, "message_id_hdr": "three@x", "from": [{"email": "bob@example.org"}], "subject": "Lunch", "date_ms": 1699000002000, "flags": {"flagged": true}}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000001", "uid_validity": 4, "uid_next": 2, "total": 1, "unread": 0, "envelopes": [{"uid": 1, "message_id_hdr": "old@x", "from": [{"name": "Alice", "email": "alice@example.com"}], "subject": "Invoice", "date_ms": 1660000000000, "flags": {"seen": true}}]}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "search", "args": {"query": "from:alice"}}}}
+{"t": 1700000005000, "origin": "mcp", "input": {"command": {"cmd": "search", "args": {"query": "in:inbox -is:starred has:attachment", "limit": 10}}}}
+{"t": 1700000006000, "origin": "mcp", "input": {"command": {"cmd": "search", "args": {"query": "before:2023-01-01 OR"}}}}
+{"t": 1700000007000, "origin": "mcp", "input": {"command": {"cmd": "search", "args": {"query": "is:later"}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0005-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "cli", "input": {"command": {"cmd": "set_search", "args": {"query": "is:unread"}}}}
+{"t": 1700000010000, "origin": "cli", "input": {"command": {"cmd": "clear_search", "args": {}}}}
+{"t": 1700000011000, "origin": "cli", "input": {"command": {"cmd": "set_search", "args": {"query": "subject:\"re: plans\""}}}}
+# Server fallback: line 18 starts a round over INBOX and Archive; Archive reports an old message whose body matched,
+# INBOX fails; line 21 finds the merged message for the same query (any case).
+{"t": 1700000012000, "origin": "cli", "input": {"command": {"cmd": "set_search", "args": {"query": "budget"}}}}
+{"t": 1700000013000, "origin": "runtime", "input": {"event": {"event": "search_results", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000001", "uid_validity": 4, "search": "budget", "started_ms": 1700000012000, "mailboxes": 2, "envelopes": [{"uid": 9, "message_id_hdr": "older@x", "from": [{"email": "bob@example.org"}], "subject": "Numbers", "date_ms": 1650000000000, "flags": {"seen": true}}]}}}}
+{"t": 1700000014000, "origin": "runtime", "input": {"event": {"event": "search_failed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "search": "budget", "started_ms": 1700000012000, "mailboxes": 2, "error": "IMAP UID SEARCH in INBOX failed: BAD"}}}}
+{"t": 1700000015000, "origin": "mcp", "input": {"command": {"cmd": "search", "args": {"query": "Budget"}}}}

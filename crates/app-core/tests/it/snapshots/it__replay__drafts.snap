@@ -1,0 +1,1061 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0001-0000-000000000000": {
+        "display_name": "me@example.com",
+        "email": "me@example.com",
+        "id": "00000000-0000-0001-0000-000000000000",
+        "imap": {
+          "host": "imap.hostinger.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "hostinger",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0001-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.hostinger.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {
+      "00000000-0000-0004-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "bcc": [],
+        "body_text": "Thanks, looks good.",
+        "cc": [
+          {
+            "email": "carol@example.org"
+          }
+        ],
+        "created_ms": 1700000003000,
+        "id": "00000000-0000-0004-0000-000000000000",
+        "in_reply_to": "q3@example.org",
+        "message_id_hdr": "00000000000000040000000000000000@example.com",
+        "quote": {
+          "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+          "message": "00000000-0000-0003-0000-000000000001",
+          "style": "reply"
+        },
+        "references": [
+          "q3@example.org"
+        ],
+        "reply_to": "00000000-0000-0003-0000-000000000001",
+        "subject": "Re: Q3 numbers",
+        "to": [
+          {
+            "email": "bob@example.org",
+            "name": "Bob"
+          }
+        ],
+        "updated_ms": 1700000006000
+      },
+      "00000000-0000-0008-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "bcc": [],
+        "body_text": "FYI",
+        "cc": [],
+        "created_ms": 1700000007000,
+        "id": "00000000-0000-0008-0000-000000000000",
+        "message_id_hdr": "00000000000000080000000000000000@example.com",
+        "quote": {
+          "header": "---------- Forwarded message ----------\nFrom: Bob <bob@example.org>\nDate: 2023-11-03 08:26 UTC\nSubject: Q3 numbers\nTo: me@example.com",
+          "message": "00000000-0000-0003-0000-000000000001",
+          "style": "forward"
+        },
+        "references": [
+          "q3@example.org"
+        ],
+        "reply_to": "00000000-0000-0003-0000-000000000001",
+        "subject": "Fwd: Q3 numbers",
+        "to": [],
+        "updated_ms": 1700000007000
+      }
+    },
+    "mailboxes": {
+      "00000000-0000-0002-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0002-0000-000000000000",
+        "path": "INBOX",
+        "role": "inbox",
+        "total": 1,
+        "uid_next": 2,
+        "uid_validity": 3,
+        "unread": 1
+      }
+    },
+    "messages": {
+      "00000000-0000-0003-0000-000000000001": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699000000000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": false
+        },
+        "from": [
+          {
+            "email": "bob@example.org",
+            "name": "Bob"
+          }
+        ],
+        "has_attachments": false,
+        "id": "00000000-0000-0003-0000-000000000001",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0002-0000-000000000000",
+        "message_id_hdr": "q3@example.org",
+        "references": [],
+        "size": 0,
+        "subject": "Q3 numbers",
+        "thread": "00000000-0000-0003-0000-000000000000",
+        "to": [
+          {
+            "email": "me@example.com"
+          }
+        ],
+        "uid": 1
+      }
+    },
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [
+        "00000000-0000-0003-0000-000000000001"
+      ],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {
+        "00000000-0000-0001-0000-000000000000": {
+          "last_error": null,
+          "last_sync_ms": 1700000001000,
+          "pending": 0,
+          "watch": {
+            "state": "watching"
+          }
+        }
+      }
+    },
+    "threads": {
+      "00000000-0000-0003-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "id": "00000000-0000-0003-0000-000000000000",
+        "last_date_ms": 1699000000000,
+        "messages": [
+          "00000000-0000-0003-0000-000000000001"
+        ],
+        "subject": "Q3 numbers"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0001-0000-000000000000",
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0001-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@example.com",
+              "email": "me@example.com",
+              "id": "00000000-0000-0001-0000-000000000000",
+              "imap": {
+                "host": "imap.hostinger.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "hostinger",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0001-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.hostinger.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0002-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "added_or_changed": 1,
+              "mailboxes": 1,
+              "removed": 0
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 1,
+                        "uid_next": 2,
+                        "uid_validity": 3,
+                        "unread": 1
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699000000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": false
+                        },
+                        "from": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0003-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "q3@example.org",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Q3 numbers",
+                        "thread": "00000000-0000-0003-0000-000000000000",
+                        "to": [
+                          {
+                            "email": "me@example.com"
+                          }
+                        ],
+                        "uid": 1
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "id": "00000000-0000-0003-0000-000000000000",
+                        "last_date_ms": 1699000000000,
+                        "messages": [
+                          "00000000-0000-0003-0000-000000000001"
+                        ],
+                        "subject": "Q3 numbers"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0003-0000-000000000001",
+                "path": "INBOX",
+                "uid": 1,
+                "uid_validity": 3
+              },
+              "effect": "fetch_body"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "mailbox": "00000000-0000-0002-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "watch_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0003-0000-000000000000"
+              }
+            ],
+            "data": {
+              "added": 1,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0002-0000-000000000000",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Thanks!",
+                        "cc": [],
+                        "created_ms": 1700000003000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "in_reply_to": "q3@example.org",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "quote": {
+                          "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "reply"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Re: Q3 numbers",
+                        "to": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "updated_ms": 1700000003000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000008000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "message",
+                "id": "00000000-0000-0003-0000-000000000001"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000003000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": "00000000-0000-0003-0000-000000000001",
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Thanks!",
+                "cc": [],
+                "in_reply_to": "q3@example.org",
+                "quote": {
+                  "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                  "message": "00000000-0000-0003-0000-000000000001",
+                  "style": "reply"
+                },
+                "subject": "Re: Q3 numbers",
+                "to": [
+                  {
+                    "email": "bob@example.org",
+                    "name": "Bob"
+                  }
+                ]
+              },
+              "updated_ms": 1700000003000
+            },
+            "kind": "mutation",
+            "name": "reply",
+            "ok": true,
+            "undo_label": "Reply"
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Thanks, looks good.",
+                        "cc": [
+                          {
+                            "email": "carol@example.org"
+                          }
+                        ],
+                        "created_ms": 1700000003000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "in_reply_to": "q3@example.org",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "quote": {
+                          "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "reply"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Re: Q3 numbers",
+                        "to": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "updated_ms": 1700000004000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000009000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000003000,
+              "id": "00000000-0000-0004-0000-000000000000",
+              "message_id": "00000000000000040000000000000000@example.com",
+              "reply_to": "00000000-0000-0003-0000-000000000001",
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Thanks, looks good.",
+                "cc": [
+                  {
+                    "email": "carol@example.org"
+                  }
+                ],
+                "in_reply_to": "q3@example.org",
+                "quote": {
+                  "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                  "message": "00000000-0000-0003-0000-000000000001",
+                  "style": "reply"
+                },
+                "subject": "Re: Q3 numbers",
+                "to": [
+                  {
+                    "email": "bob@example.org",
+                    "name": "Bob"
+                  }
+                ]
+              },
+              "updated_ms": 1700000004000
+            },
+            "kind": "mutation",
+            "name": "update_draft",
+            "ok": true,
+            "undo_label": "Edit draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Thanks!",
+                        "cc": [],
+                        "created_ms": 1700000003000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "in_reply_to": "q3@example.org",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "quote": {
+                          "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "reply"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Re: Q3 numbers",
+                        "to": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "updated_ms": 1700000005000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000010000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Edit draft"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Thanks, looks good.",
+                        "cc": [
+                          {
+                            "email": "carol@example.org"
+                          }
+                        ],
+                        "created_ms": 1700000003000,
+                        "id": "00000000-0000-0004-0000-000000000000",
+                        "in_reply_to": "q3@example.org",
+                        "message_id_hdr": "00000000000000040000000000000000@example.com",
+                        "quote": {
+                          "header": "On 2023-11-03 08:26 UTC, Bob <bob@example.org> wrote:",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "reply"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Re: Q3 numbers",
+                        "to": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "updated_ms": 1700000006000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000011000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "redone": "Edit draft"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Edit draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "FYI",
+                        "cc": [],
+                        "created_ms": 1700000007000,
+                        "id": "00000000-0000-0008-0000-000000000000",
+                        "message_id_hdr": "00000000000000080000000000000000@example.com",
+                        "quote": {
+                          "header": "---------- Forwarded message ----------\nFrom: Bob <bob@example.org>\nDate: 2023-11-03 08:26 UTC\nSubject: Q3 numbers\nTo: me@example.com",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "forward"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Fwd: Q3 numbers",
+                        "to": [],
+                        "updated_ms": 1700000007000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000012000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0008-0000-000000000000"
+              },
+              {
+                "entity": "message",
+                "id": "00000000-0000-0003-0000-000000000001"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000007000,
+              "id": "00000000-0000-0008-0000-000000000000",
+              "message_id": "00000000000000080000000000000000@example.com",
+              "reply_to": "00000000-0000-0003-0000-000000000001",
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "FYI",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": {
+                  "header": "---------- Forwarded message ----------\nFrom: Bob <bob@example.org>\nDate: 2023-11-03 08:26 UTC\nSubject: Q3 numbers\nTo: me@example.com",
+                  "message": "00000000-0000-0003-0000-000000000001",
+                  "style": "forward"
+                },
+                "subject": "Fwd: Q3 numbers",
+                "to": []
+              },
+              "updated_ms": 1700000007000
+            },
+            "kind": "mutation",
+            "name": "forward",
+            "ok": true,
+            "undo_label": "Forward"
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_drafts": [
+                      "00000000-0000-0008-0000-000000000000"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "discarded": "00000000-0000-0008-0000-000000000000",
+              "draft": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "attachments": [],
+                "created_ms": 1700000007000,
+                "id": "00000000-0000-0008-0000-000000000000",
+                "message_id": "00000000000000080000000000000000@example.com",
+                "reply_to": "00000000-0000-0003-0000-000000000001",
+                "save_error": null,
+                "saved_ms": null,
+                "send_at": null,
+                "send_error": null,
+                "sending": false,
+                "untrusted_content": {
+                  "bcc": [],
+                  "body": "FYI",
+                  "cc": [],
+                  "in_reply_to": null,
+                  "quote": {
+                    "header": "---------- Forwarded message ----------\nFrom: Bob <bob@example.org>\nDate: 2023-11-03 08:26 UTC\nSubject: Q3 numbers\nTo: me@example.com",
+                    "message": "00000000-0000-0003-0000-000000000001",
+                    "style": "forward"
+                  },
+                  "subject": "Fwd: Q3 numbers",
+                  "to": []
+                },
+                "updated_ms": 1700000007000
+              }
+            },
+            "kind": "mutation",
+            "name": "discard_draft",
+            "ok": true,
+            "undo_label": "Discard draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "FYI",
+                        "cc": [],
+                        "created_ms": 1700000007000,
+                        "id": "00000000-0000-0008-0000-000000000000",
+                        "message_id_hdr": "00000000000000080000000000000000@example.com",
+                        "quote": {
+                          "header": "---------- Forwarded message ----------\nFrom: Bob <bob@example.org>\nDate: 2023-11-03 08:26 UTC\nSubject: Q3 numbers\nTo: me@example.com",
+                          "message": "00000000-0000-0003-0000-000000000001",
+                          "style": "forward"
+                        },
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "reply_to": "00000000-0000-0003-0000-000000000001",
+                        "subject": "Fwd: Q3 numbers",
+                        "to": [],
+                        "updated_ms": 1700000007000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000014000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Discard draft"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "to",
+          "reason": "`nobody` is not an address like name@example.com"
+        }
+      }
+    }
+  ]
+}

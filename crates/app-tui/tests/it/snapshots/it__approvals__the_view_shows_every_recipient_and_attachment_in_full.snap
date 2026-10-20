@@ -1,0 +1,28 @@
+---
+source: crates/app-tui/tests/it/approvals.rs
+expression: t.screen()
+---
+dail · Conversations
+! An agent wants to send a message — Ctr
+› Q3 numbers
+  From: alice@example.com
+  To: Bob <bob@example.org>
+  Bcc: eve@evil.example
+  │ Hi Bob,
+  │ here they are.
+  │
+  │ Alice
+  @ /home/alice/.ssh/id_ed25519 (411 B)
+
+
+
+
+
+
+
+
+
+
+
+a approve · e edit · r reject · j/k next
+synced 9h ago                     ? help

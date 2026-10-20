@@ -1,0 +1,12 @@
+# Attachments: a draft (..0002-..0) gets two files; the runtime reports one ready and one
+# missing; the missing one is removed, the removal undone (re-checked) and redone.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "gmail", "email": "me@gmail.com"}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "cli", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0001-0000-000000000000", "to": [{"email": "bob@example.org"}], "subject": "Q3"}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "attach_file", "args": {"draft": "00000000-0000-0002-0000-000000000000", "path": "/home/me/q3.pdf"}}}}
+{"t": 1700000003000, "origin": "cli", "input": {"command": {"cmd": "attach_file", "args": {"draft": "00000000-0000-0002-0000-000000000000", "path": "/home/me/missing.txt"}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "attachment_inspected", "args": {"draft": "00000000-0000-0002-0000-000000000000", "path": "/home/me/q3.pdf", "size": 48213, "content_type": "application/pdf"}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "attachment_failed", "args": {"draft": "00000000-0000-0002-0000-000000000000", "path": "/home/me/missing.txt", "error": "cannot read /home/me/missing.txt: No such file or directory"}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "remove_attachment", "args": {"draft": "00000000-0000-0002-0000-000000000000", "index": 1}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000009000, "origin": "cli", "input": {"command": {"cmd": "attach_file", "args": {"draft": "00000000-0000-0002-0000-000000000000", "path": "relative.txt"}}}}

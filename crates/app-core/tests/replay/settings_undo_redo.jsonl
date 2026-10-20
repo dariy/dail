@@ -1,0 +1,13 @@
+# First replay fixture: settings mutation, undo/redo, view commands, events and rejected inputs.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "get_settings", "args": {}}}}
+{"t": 1700000001000, "origin": "cli", "input": {"command": {"cmd": "set_setting", "args": {"key": "poll_secs", "value": 300}}}}
+{"t": 1700000001100, "origin": "runtime", "input": {"event": {"event": "persist_failed", "args": {"error": "disk full"}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "set_setting", "args": {"key": "history_cap", "value": 0}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000003100, "origin": "runtime", "input": {"event": {"event": "persisted", "args": {}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000005000, "origin": "batch", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "open_palette", "args": {}}}}
+{"t": 1700000007000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000007000}}}}
+{"t": 1700000008000, "origin": "mcp", "input": {"command": {"cmd": "set_keybinding", "args": {"command": "archive_threads", "keys": ["y"]}}}}
+{"t": 1700000009000, "origin": "gui", "input": {"command": {"cmd": "set_key_preset", "args": {"preset": "vim"}}}}

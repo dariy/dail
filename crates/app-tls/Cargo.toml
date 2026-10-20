@@ -1,0 +1,27 @@
+[package]
+name = "app-tls"
+description = "dail TLS crypto: the rustls provider for dail's TLS client, in safe Rust (ADR 0003)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+getrandom.workspace = true
+rustls.workspace = true
+sha2.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+chacha20poly1305.workspace = true
+p256.workspace = true
+p384.workspace = true
+proptest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+x25519-dalek.workspace = true

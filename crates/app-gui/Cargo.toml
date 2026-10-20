@@ -1,0 +1,37 @@
+[package]
+name = "app-gui"
+description = "dail desktop GUI (egui)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+app-front.workspace = true
+app-sync.workspace = true
+eframe.workspace = true
+egui.workspace = true
+image.workspace = true
+rfd.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+webbrowser.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true
+egui_kittest.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,9 @@
+//! Integration tests of `app-front`, built as one binary.
+
+mod support;
+
+mod alerts;
+mod body;
+mod keys;
+mod palette;
+mod status;

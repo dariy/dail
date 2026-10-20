@@ -1,0 +1,798 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0008-0000-000000000000": {
+        "display_name": "work@example.org",
+        "email": "work@example.org",
+        "id": "00000000-0000-0008-0000-000000000000",
+        "imap": {
+          "host": "mail.example.org",
+          "port": 143,
+          "security": "starttls"
+        },
+        "preset": "custom",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0008-0000-000000000000"
+        },
+        "smtp": {
+          "host": "mail.example.org",
+          "port": 587,
+          "security": "starttls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "Personal",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0004-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "Personal",
+              "email": "me@gmail.com",
+              "id": "00000000-0000-0004-0000-000000000000",
+              "imap": {
+                "host": "imap.gmail.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "gmail",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0004-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@gmail.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "persisted",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "imap",
+          "reason": "required for the custom preset"
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "err": {
+          "entity": "account",
+          "error": "already_exists",
+          "key": "ME@gmail.com"
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "work@example.org",
+                    "email": "work@example.org",
+                    "id": "00000000-0000-0008-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 143,
+                      "security": "starttls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0008-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 587,
+                      "security": "starttls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "work@example.org",
+              "email": "work@example.org",
+              "id": "00000000-0000-0008-0000-000000000000",
+              "imap": {
+                "host": "mail.example.org",
+                "port": 143,
+                "security": "starttls"
+              },
+              "preset": "custom",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0008-0000-000000000000"
+              },
+              "smtp": {
+                "host": "mail.example.org",
+                "port": 587,
+                "security": "starttls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account work@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "Gmail",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0004-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "Gmail",
+              "email": "me@gmail.com",
+              "id": "00000000-0000-0004-0000-000000000000",
+              "imap": {
+                "host": "imap.gmail.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "gmail",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0004-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "update_account",
+            "ok": true,
+            "undo_label": "Edit account me@gmail.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "Personal",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0004-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Edit account me@gmail.com"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account_removed",
+                  "value": "00000000-0000-0008-0000-000000000000"
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0008-0000-000000000000",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0008-0000-000000000000"
+                }
+              },
+              "effect": "delete_secret"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Add account work@example.org"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "work@example.org",
+                    "email": "work@example.org",
+                    "id": "00000000-0000-0008-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 143,
+                      "security": "starttls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0008-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 587,
+                      "security": "starttls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "redone": "Add account work@example.org"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Add account work@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "host": "imap.gmail.com",
+                  "port": 993,
+                  "security": "tls"
+                },
+                "login": "me@gmail.com",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0004-0000-000000000000"
+                },
+                "smtp": {
+                  "host": "smtp.gmail.com",
+                  "port": 465,
+                  "security": "tls"
+                }
+              },
+              "effect": "verify_account"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0004-0000-000000000000",
+              "verification": "started"
+            },
+            "kind": "query",
+            "name": "test_account",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "account_verify_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 15,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "account_verified",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 16,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "secret_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 17,
+      "result": {
+        "err": {
+          "command": "remove_account",
+          "error": "confirmation_required"
+        }
+      }
+    },
+    {
+      "line": 18,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account_removed",
+                  "value": "00000000-0000-0004-0000-000000000000"
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0004-0000-000000000000"
+                }
+              },
+              "effect": "delete_secret"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "email": "me@gmail.com",
+              "removed": "00000000-0000-0004-0000-000000000000",
+              "undoable": false
+            },
+            "kind": "destructive",
+            "name": "remove_account",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 19,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "secret_deleted",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 20,
+      "result": {
+        "err": {
+          "entity": "account",
+          "error": "not_found",
+          "id": "00000000-0000-0004-0000-000000000000"
+        }
+      }
+    },
+    {
+      "line": 21,
+      "result": {
+        "err": {
+          "command": "update_account",
+          "error": "origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 22,
+      "result": {
+        "err": {
+          "command": "add_account",
+          "error": "origin_not_allowed",
+          "origin": "mcp_allow_send"
+        }
+      }
+    },
+    {
+      "line": 23,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "work@example.org",
+                    "email": "work@example.org",
+                    "id": "00000000-0000-0008-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 143,
+                      "security": "starttls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0008-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 587,
+                      "security": "starttls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0008-0000-000000000000",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0008-0000-000000000000"
+                },
+                "value": "<redacted>"
+              },
+              "effect": "store_secret"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0008-0000-000000000000",
+                "imap": {
+                  "host": "mail.example.org",
+                  "port": 143,
+                  "security": "starttls"
+                },
+                "login": "work@example.org",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0008-0000-000000000000"
+                },
+                "smtp": {
+                  "host": "mail.example.org",
+                  "port": 587,
+                  "security": "starttls"
+                }
+              },
+              "effect": "verify_account"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0008-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0008-0000-000000000000",
+              "verification": "started"
+            },
+            "kind": "mutation",
+            "name": "set_password",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 24,
+      "result": {
+        "err": {
+          "command": "set_password",
+          "error": "origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    }
+  ]
+}

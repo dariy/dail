@@ -1,0 +1,15 @@
+Message-ID: <html@example.org>
+From: Shop <shop@example.net>
+To: bob@example.com
+Subject: =?utf-8?q?Your_order_=E2=9C=93?=
+Date: Mon, 13 Nov 2023 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><style>p { color: red }</style><script>alert('x')</script></head>
+<body><h1>Order shipped</h1>
+<p>Track it <a href=3D"https://evil.example/track?id=3D1">here</a>.</p>
+<img src=3D"https://tracker.example/pixel.gif" alt=3D"">
+<ul><li>One</li><li>Two</li></ul>
+</body></html>

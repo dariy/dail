@@ -1,0 +1,27 @@
+Message-ID: <news@example.net>
+From: Weekly <news@example.net>
+To: bob@example.com
+Subject: This week
+Date: Mon, 13 Nov 2023 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: text/html; charset=utf-8
+
+<!DOCTYPE html><html><head><title>This week</title><style>td { padding: 0 }</style></head>
+<body>
+<div style="display:none;max-height:0;overflow:hidden">Preview text &zwnj;&nbsp;&#847; &zwnj;&nbsp;&#847;</div>
+<table role="presentation" width="100%"><tr><td align="center">
+  <table width="600"><tr><td><img src="https://cdn.example.net/logo.png" alt="Weekly"></td></tr>
+  <tr><td>
+    <h2>Top <em>stories</em></h2>
+    <p>Hello Bob,<br>here is what happened.</p>
+    <ol><li><a href="https://example.net/1">First story</a></li><li>Second, with <code>code</code></li></ol>
+    <blockquote><p>A quote, <b>bold</b> and <s>struck</s>.</p></blockquote>
+    <table><tr><th>Item</th><th>Price</th></tr><tr><td>Tea</td><td>3 &euro;</td></tr></table>
+    <pre>  indented
+    code</pre>
+    <hr>
+    <p><a href="javascript:alert(1)">Unsubscribe</a> &middot; <a href="https://example.net/u?id=1">Preferences</a></p>
+  </td></tr></table>
+</td></tr></table>
+<img src="https://tracker.example.net/open.gif" width="1" height="1">
+</body></html>

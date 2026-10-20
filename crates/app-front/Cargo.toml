@@ -1,0 +1,20 @@
+[package]
+name = "app-front"
+description = "Toolkit-free front-end logic shared by the dail GUI and TUI (ADR 0004)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+nucleo-matcher.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true

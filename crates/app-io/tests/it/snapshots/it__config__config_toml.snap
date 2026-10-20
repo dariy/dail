@@ -1,0 +1,66 @@
+---
+source: crates/app-io/tests/it/config.rs
+expression: text
+---
+# dail configuration, written by dail. Passwords are stored in the OS keyring, never in this file.
+
+[settings]
+undo_send_ms = 10000
+poll_secs = 300
+initial_window = 500
+history_cap = 200
+theme = 0
+text_scale = 100
+notifications = 1
+images_from = ["news@example.org"]
+key_preset = "vim"
+
+[settings.keys]
+archive_threads = ["y"]
+
+[[account]]
+id = "00000000-0000-0000-0000-000000000001"
+display_name = "Account 1"
+email = "a@example.org"
+preset = "custom"
+
+[account.imap]
+host = "mail.example.org"
+port = 143
+security = "starttls"
+
+[account.smtp]
+host = "mail.example.org"
+port = 465
+security = "tls"
+
+[account.secret]
+service = "dail"
+user = "account/00000000-0000-0000-0000-000000000001"
+
+[[account.identity]]
+email = "sales@example.org"
+name = "Sales"
+signature = """
+Sales team
+Example"""
+
+[[account]]
+id = "00000000-0000-0000-0000-000000000002"
+display_name = "Account 2"
+email = "b@example.org"
+preset = "custom"
+
+[account.imap]
+host = "mail.example.org"
+port = 143
+security = "starttls"
+
+[account.smtp]
+host = "mail.example.org"
+port = 465
+security = "tls"
+
+[account.secret]
+service = "dail"
+user = "account/00000000-0000-0000-0000-000000000002"

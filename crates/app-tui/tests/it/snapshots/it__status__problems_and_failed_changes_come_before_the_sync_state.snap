@@ -1,0 +1,5 @@
+---
+source: crates/app-tui/tests/it/status.rs
+expression: last_line(&t.screen())
+---
+keyring failed (+1 more, ? for details)

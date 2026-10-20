@@ -1,0 +1,15 @@
+# An agent drafts a reply and asks to send it; the user edits, approves, undoes, the agent asks again,
+# edits (withdrawing its request), asks again and the user rejects.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "alice@example.com"}}}}
+{"t": 1700000001000, "origin": "mcp", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0003-0000-000000000000", "to": [{"email": "bob@example.org"}], "subject": "Lunch?", "body": "Noon?"}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "send_draft", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "approve_request", "args": {"id": "00000000-0000-0005-0000-000000000000"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "list_approvals", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "update_draft", "args": {"id": "00000000-0000-0004-0000-000000000000", "subject": "Lunch at noon?"}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "approve_request", "args": {"id": "00000000-0000-0005-0000-000000000000"}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000008000, "origin": "mcp", "input": {"command": {"cmd": "send_draft", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "mcp", "input": {"command": {"cmd": "update_draft", "args": {"id": "00000000-0000-0004-0000-000000000000", "body": "Noon at the usual place?"}}}}
+{"t": 1700000010000, "origin": "mcp", "input": {"command": {"cmd": "send_draft", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000011000, "origin": "cli", "input": {"command": {"cmd": "reject_request", "args": {"id": "00000000-0000-000d-0000-000000000000"}}}}
+{"t": 1700000012000, "origin": "mcp_allow_send", "input": {"command": {"cmd": "send_draft", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}

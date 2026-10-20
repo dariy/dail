@@ -1,0 +1,925 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0005-0000-000000000000": {
+        "display_name": "me@gmail.com",
+        "email": "me@gmail.com",
+        "id": "00000000-0000-0005-0000-000000000000",
+        "imap": {
+          "host": "imap.gmail.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "gmail",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0005-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.gmail.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {
+      "00000000-0000-0006-0000-000000000000": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0006-0000-000000000000",
+        "path": "INBOX",
+        "role": "inbox",
+        "total": 1,
+        "uid_next": 2,
+        "uid_validity": 8,
+        "unread": 1
+      },
+      "00000000-0000-0006-0000-000000000001": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0006-0000-000000000001",
+        "path": "[Gmail]/Sent Mail",
+        "role": "sent",
+        "total": 1,
+        "uid_next": 11,
+        "uid_validity": 3,
+        "unread": 0
+      }
+    },
+    "messages": {
+      "00000000-0000-0008-0000-000000000000": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699970000000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": true
+        },
+        "from": [],
+        "has_attachments": false,
+        "id": "00000000-0000-0008-0000-000000000000",
+        "in_reply_to": "q3@example.org",
+        "mailbox": "00000000-0000-0006-0000-000000000001",
+        "message_id_hdr": "re-q3@gmail.com",
+        "references": [
+          "q3@example.org"
+        ],
+        "size": 300,
+        "subject": "Re: Q3 numbers",
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "to": [],
+        "uid": 10
+      },
+      "00000000-0000-000b-0000-000000000001": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699999999000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": false
+        },
+        "from": [],
+        "has_attachments": false,
+        "id": "00000000-0000-000b-0000-000000000001",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0006-0000-000000000000",
+        "message_id_hdr": "new@example.org",
+        "references": [],
+        "size": 100,
+        "subject": "Fresh start",
+        "thread": "00000000-0000-000b-0000-000000000000",
+        "to": [],
+        "uid": 1
+      }
+    },
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [
+        "00000000-0000-000b-0000-000000000001"
+      ],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {
+        "00000000-0000-0005-0000-000000000000": {
+          "last_error": null,
+          "last_sync_ms": 1700000005000,
+          "pending": 0,
+          "watch": {
+            "state": "watching"
+          }
+        }
+      }
+    },
+    "threads": {
+      "00000000-0000-0007-0000-000000000000": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "id": "00000000-0000-0007-0000-000000000000",
+        "last_date_ms": 1699970000000,
+        "messages": [
+          "00000000-0000-0008-0000-000000000000"
+        ],
+        "subject": "Re: Q3 numbers"
+      },
+      "00000000-0000-000b-0000-000000000000": {
+        "account": "00000000-0000-0005-0000-000000000000",
+        "id": "00000000-0000-000b-0000-000000000000",
+        "last_date_ms": 1699999999000,
+        "messages": [
+          "00000000-0000-000b-0000-000000000001"
+        ],
+        "subject": "Fresh start"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@gmail.com",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0005-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0005-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0005-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@gmail.com",
+              "email": "me@gmail.com",
+              "id": "00000000-0000-0005-0000-000000000000",
+              "imap": {
+                "host": "imap.gmail.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "gmail",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0005-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@gmail.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000001",
+                        "path": "[Gmail]/Sent Mail",
+                        "role": "sent",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0006-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0006-0000-000000000001",
+                "path": "[Gmail]/Sent Mail"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000001"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0005-0000-000000000000",
+              "added_or_changed": 2,
+              "mailboxes": 2,
+              "removed": 0
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 7,
+                        "unread": 1
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699954860000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": true
+                        },
+                        "from": [
+                          {
+                            "email": "bob@example.org",
+                            "name": "Bob"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0007-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0006-0000-000000000000",
+                        "message_id_hdr": "q3@example.org",
+                        "references": [],
+                        "size": 812,
+                        "subject": "Q3 numbers",
+                        "thread": "00000000-0000-0007-0000-000000000000",
+                        "to": [],
+                        "uid": 1
+                      },
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699963320000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": false
+                        },
+                        "from": [
+                          {
+                            "email": "carol@example.org"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0007-0000-000000000003",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0006-0000-000000000000",
+                        "message_id_hdr": "lunch@example.org",
+                        "references": [],
+                        "size": 640,
+                        "subject": "Lunch?",
+                        "thread": "00000000-0000-0007-0000-000000000002",
+                        "to": [],
+                        "uid": 2
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000000",
+                        "last_date_ms": 1699954860000,
+                        "messages": [
+                          "00000000-0000-0007-0000-000000000001"
+                        ],
+                        "subject": "Q3 numbers"
+                      },
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000002",
+                        "last_date_ms": 1699963320000,
+                        "messages": [
+                          "00000000-0000-0007-0000-000000000003"
+                        ],
+                        "subject": "Lunch?"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0007-0000-000000000003",
+                "path": "INBOX",
+                "uid": 2,
+                "uid_validity": 7
+              },
+              "effect": "fetch_body"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "mailbox": "00000000-0000-0006-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "watch_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000002"
+              }
+            ],
+            "data": {
+              "added": 2,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0006-0000-000000000000",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000001",
+                        "path": "[Gmail]/Sent Mail",
+                        "role": "sent",
+                        "total": 1,
+                        "uid_next": 11,
+                        "uid_validity": 3,
+                        "unread": 0
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699970000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": true
+                        },
+                        "from": [],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0008-0000-000000000000",
+                        "in_reply_to": "q3@example.org",
+                        "mailbox": "00000000-0000-0006-0000-000000000001",
+                        "message_id_hdr": "re-q3@gmail.com",
+                        "references": [
+                          "q3@example.org"
+                        ],
+                        "size": 300,
+                        "subject": "Re: Q3 numbers",
+                        "thread": "00000000-0000-0007-0000-000000000000",
+                        "to": [],
+                        "uid": 10
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000000",
+                        "last_date_ms": 1699970000000,
+                        "messages": [
+                          "00000000-0000-0007-0000-000000000001",
+                          "00000000-0000-0008-0000-000000000000"
+                        ],
+                        "subject": "Q3 numbers"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000001"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000000"
+              }
+            ],
+            "data": {
+              "added": 1,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0006-0000-000000000001",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 7,
+                        "unread": 0
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699963320000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": true,
+                          "seen": true
+                        },
+                        "from": [
+                          {
+                            "email": "carol@example.org"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0007-0000-000000000003",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0006-0000-000000000000",
+                        "message_id_hdr": "lunch@example.org",
+                        "references": [],
+                        "size": 640,
+                        "subject": "Lunch?",
+                        "thread": "00000000-0000-0007-0000-000000000002",
+                        "to": [],
+                        "uid": 2
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000002",
+                        "last_date_ms": 1699963320000,
+                        "messages": [
+                          "00000000-0000-0007-0000-000000000003"
+                        ],
+                        "subject": "Lunch?"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "from_uid": 1,
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "mailbox": "00000000-0000-0006-0000-000000000000",
+                "path": "INBOX",
+                "to_uid": 2,
+                "uid_validity": 7
+              },
+              "effect": "resync_flags"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000002"
+              }
+            ],
+            "data": {
+              "added": 0,
+              "flags_updated": 1,
+              "located": 0,
+              "mailbox": "00000000-0000-0006-0000-000000000000",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "sync_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 1,
+                        "uid_next": 2,
+                        "uid_validity": 8,
+                        "unread": 1
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699999999000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": false
+                        },
+                        "from": [],
+                        "has_attachments": false,
+                        "id": "00000000-0000-000b-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0006-0000-000000000000",
+                        "message_id_hdr": "new@example.org",
+                        "references": [],
+                        "size": 100,
+                        "subject": "Fresh start",
+                        "thread": "00000000-0000-000b-0000-000000000000",
+                        "to": [],
+                        "uid": 1
+                      }
+                    ],
+                    "removed_messages": [
+                      "00000000-0000-0007-0000-000000000001",
+                      "00000000-0000-0007-0000-000000000003"
+                    ],
+                    "removed_threads": [
+                      "00000000-0000-0007-0000-000000000002"
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000000",
+                        "last_date_ms": 1699970000000,
+                        "messages": [
+                          "00000000-0000-0008-0000-000000000000"
+                        ],
+                        "subject": "Re: Q3 numbers"
+                      },
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "id": "00000000-0000-000b-0000-000000000000",
+                        "last_date_ms": 1699999999000,
+                        "messages": [
+                          "00000000-0000-000b-0000-000000000001"
+                        ],
+                        "subject": "Fresh start"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0005-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0005-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-000b-0000-000000000001",
+                "path": "INBOX",
+                "uid": 1,
+                "uid_validity": 8
+              },
+              "effect": "fetch_body"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0006-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-000b-0000-000000000000"
+              }
+            ],
+            "data": {
+              "added": 1,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0006-0000-000000000000",
+              "uid_validity_reset": true
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

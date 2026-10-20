@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/layout.rs
+expression: t.screen()
+---
+dail · Inbox · alice@example.com
+›●   Carol    Lunch?             Nov 14
+     Bob      Q3 numbers         Nov 14
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+synced 9h ago                     ? help

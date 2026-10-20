@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "news@example.net",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "Weekly",
+        "email": "news@example.net"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "This week",
+    "date_ms": 1699869600000,
+    "has_attachments": false
+  },
+  "text": "Preview text ‌ ͏ ‌ ͏\n\n────────────────────────────────────────────────────────────────────────────────────────────────────\n[Weekly]                                                                                            \n────────────────────────────────────────────────────────────────────────────────────────────────────\n## Top *stories*                                                                                    \n                                                                                                    \nHello Bob,                                                                                          \nhere is what happened.                                                                              \n1. [First story][1]                                                                                 \n2. Second, with `code`                                                                              \n                                                                                                    \n> A quote, **bold** and s̶t̶r̶u̶c̶k̶.                                                                     \n                                                                                                    \n────┬───────────────────────────────────────────────────────────────────────────────────────────────\nItem│Price                                                                                          \n────┼───────────────────────────────────────────────────────────────────────────────────────────────\nTea │3 €                                                                                            \n────┴───────────────────────────────────────────────────────────────────────────────────────────────\n                                                                                                    \n  indented                                                                                          \n    code                                                                                            \n                                                                                                    \n[Unsubscribe][2] · [Preferences][3]                                                                 \n────────────────────────────────────────────────────────────────────────────────────────────────────\n\n[1]: https://example.net/1\n[2]: javascript:alert(1)\n[3]: https://example.net/u?id=1",
+  "text_source": "html",
+  "attachments": []
+}

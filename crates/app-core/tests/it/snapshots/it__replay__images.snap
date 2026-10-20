@@ -1,0 +1,333 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "images_from": [
+        "shop@example.net"
+      ],
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "images_from": [
+                      "news@example.org"
+                    ],
+                    "initial_window": 500,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "sender": "news@example.org",
+              "showing": true
+            },
+            "kind": "mutation",
+            "name": "show_images_from",
+            "ok": true,
+            "undo_label": "Show images from news@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "changed": false,
+              "sender": "news@example.org",
+              "showing": true
+            },
+            "kind": "mutation",
+            "name": "show_images_from",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "images_from": [
+                      "news@example.org",
+                      "shop@example.net"
+                    ],
+                    "initial_window": 500,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "sender": "shop@example.net",
+              "showing": true
+            },
+            "kind": "mutation",
+            "name": "show_images_from",
+            "ok": true,
+            "undo_label": "Show images from shop@example.net"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "images_from": [
+                      "shop@example.net"
+                    ],
+                    "initial_window": 500,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "sender": "news@example.org",
+              "showing": false
+            },
+            "kind": "mutation",
+            "name": "hide_images_from",
+            "ok": true,
+            "undo_label": "Hide images from news@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "images_from": [
+                      "news@example.org",
+                      "shop@example.net"
+                    ],
+                    "initial_window": 500,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "undone": "Hide images from news@example.org"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "images_from": [
+                      "shop@example.net"
+                    ],
+                    "initial_window": 500,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "redone": "Hide images from news@example.org"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Hide images from news@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "sender",
+          "reason": "expected an email address like news@example.org"
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "history_cap": 200,
+              "images_from": [
+                "shop@example.net"
+              ],
+              "initial_window": 500,
+              "notifications": 1,
+              "poll_secs": 120,
+              "text_scale": 100,
+              "theme": 0,
+              "undo_send_ms": 10000
+            },
+            "kind": "query",
+            "name": "get_settings",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

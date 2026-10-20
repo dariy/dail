@@ -1,0 +1,8 @@
+# Mailboxes: a Gmail account is listed (SPECIAL-USE, preset mapping, \Noselect parent), a sync
+# failure surfaces in status, a relisting keeps IDs, drops a vanished folder and clears the error.
+# Line 4's seed is 4 << 64, so the account's ID is 00000000-0000-0004-0000-000000000000.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "gmail", "email": "me@gmail.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "[Gmail]", "delimiter": "/", "selectable": false}, {"path": "[Gmail]/Sent Mail", "delimiter": "/", "special_use": "sent", "selectable": true}, {"path": "[Gmail]/Spam", "delimiter": "/", "selectable": true}, {"path": "Old", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "sync_failed", "args": {"account": "00000000-0000-0004-0000-000000000000", "error": "IMAP imap.gmail.com:993: connect failed: network unreachable"}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "[Gmail]/Sent Mail", "delimiter": "/", "special_use": "sent", "selectable": true}, {"path": "[Gmail]/Spam", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "remove_account", "args": {"id": "00000000-0000-0004-0000-000000000000", "confirm": true}}}}

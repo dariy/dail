@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "jp@example.jp",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "田中",
+        "email": "tanaka@example.jp"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "会議の件",
+    "date_ms": 1700092800000,
+    "has_attachments": false
+  },
+  "text": "こんにちは。明日の会議について。",
+  "text_source": "plain",
+  "attachments": []
+}

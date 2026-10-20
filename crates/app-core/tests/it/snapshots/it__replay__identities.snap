@@ -1,0 +1,508 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0002-0000-000000000000": {
+        "display_name": "me@example.com",
+        "email": "me@example.com",
+        "id": "00000000-0000-0002-0000-000000000000",
+        "identities": [
+          {
+            "email": "sales@example.com",
+            "name": "Sales",
+            "signature": "Sales team"
+          }
+        ],
+        "imap": {
+          "host": "imap.hostinger.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "hostinger",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0002-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.hostinger.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {
+      "00000000-0000-0005-0000-000000000000": {
+        "account": "00000000-0000-0002-0000-000000000000",
+        "bcc": [],
+        "body_text": "Hello",
+        "cc": [],
+        "created_ms": 1700000003000,
+        "from": {
+          "email": "sales@example.com",
+          "name": "Sales"
+        },
+        "id": "00000000-0000-0005-0000-000000000000",
+        "message_id_hdr": "00000000000000050000000000000000@example.com",
+        "subject": "",
+        "to": [],
+        "updated_ms": 1700000004000
+      }
+    },
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0002-0000-000000000000",
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0002-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@example.com",
+              "email": "me@example.com",
+              "id": "00000000-0000-0002-0000-000000000000",
+              "imap": {
+                "host": "imap.hostinger.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "hostinger",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0002-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.hostinger.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0002-0000-000000000000",
+                    "identities": [
+                      {
+                        "email": "sales@example.com",
+                        "name": "Sales",
+                        "signature": "Sales team"
+                      }
+                    ],
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0002-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0002-0000-000000000000",
+              "email": "sales@example.com"
+            },
+            "kind": "mutation",
+            "name": "set_identity",
+            "ok": true,
+            "undo_label": "Set sales@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "err": {
+          "command": "set_identity",
+          "error": "origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0002-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Hello",
+                        "cc": [],
+                        "created_ms": 1700000003000,
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "00000000000000050000000000000000@example.com",
+                        "subject": "",
+                        "to": [],
+                        "updated_ms": 1700000003000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000008000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0005-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0002-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000003000,
+              "id": "00000000-0000-0005-0000-000000000000",
+              "message_id": "00000000000000050000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Hello",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "",
+                "to": []
+              },
+              "updated_ms": 1700000003000
+            },
+            "kind": "mutation",
+            "name": "create_draft",
+            "ok": true,
+            "undo_label": "Create draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0002-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "Hello",
+                        "cc": [],
+                        "created_ms": 1700000003000,
+                        "from": {
+                          "email": "sales@example.com",
+                          "name": "Sales"
+                        },
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "00000000000000050000000000000000@example.com",
+                        "subject": "",
+                        "to": [],
+                        "updated_ms": 1700000004000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000009000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0005-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0002-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000003000,
+              "id": "00000000-0000-0005-0000-000000000000",
+              "message_id": "00000000000000050000000000000000@example.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "Hello",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "",
+                "to": []
+              },
+              "updated_ms": 1700000004000
+            },
+            "kind": "mutation",
+            "name": "set_draft_from",
+            "ok": true,
+            "undo_label": "Change the sender"
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0002-0000-000000000000",
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0002-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0002-0000-000000000000",
+              "email": "sales@example.com"
+            },
+            "kind": "mutation",
+            "name": "remove_identity",
+            "ok": true,
+            "undo_label": "Remove sales@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0002-0000-000000000000",
+                    "identities": [
+                      {
+                        "email": "sales@example.com",
+                        "name": "Sales",
+                        "signature": "Sales team"
+                      }
+                    ],
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0002-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Remove sales@example.com"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

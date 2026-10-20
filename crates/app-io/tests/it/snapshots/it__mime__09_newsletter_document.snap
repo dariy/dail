@@ -1,0 +1,157 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "[Weekly]",
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "level": 2,
+      "spans": [
+        {
+          "text": "Top "
+        },
+        {
+          "text": "stories",
+          "italic": true
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Hello Bob,\nhere is what happened."
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "ordered": true,
+      "start": 1,
+      "items": [
+        [
+          {
+            "type": "paragraph",
+            "spans": [
+              {
+                "text": "First story",
+                "link": "https://example.net/1"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "spans": [
+              {
+                "text": "Second, with "
+              },
+              {
+                "text": "code",
+                "code": true
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "type": "quote",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "spans": [
+            {
+              "text": "A quote, "
+            },
+            {
+              "text": "bold",
+              "bold": true
+            },
+            {
+              "text": " and "
+            },
+            {
+              "text": "struck",
+              "strike": true
+            },
+            {
+              "text": "."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "rows": [
+        [
+          {
+            "header": true,
+            "spans": [
+              {
+                "text": "Item",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "header": true,
+            "spans": [
+              {
+                "text": "Price",
+                "bold": true
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "spans": [
+              {
+                "text": "Tea"
+              }
+            ]
+          },
+          {
+            "spans": [
+              {
+                "text": "3 €"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "type": "preformatted",
+      "text": "  indented\n    code"
+    },
+    {
+      "type": "rule"
+    },
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Unsubscribe · "
+        },
+        {
+          "text": "Preferences",
+          "link": "https://example.net/u?id=1"
+        }
+      ]
+    }
+  ]
+}

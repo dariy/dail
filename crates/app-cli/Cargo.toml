@@ -1,0 +1,52 @@
+[package]
+name = "app-cli"
+description = "dail, a keyboard-driven email client that agents can drive: GUI, TUI, CLI and MCP server."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "dail"
+path = "src/main.rs"
+
+[dependencies]
+app-core.workspace = true
+app-io.workspace = true
+app-sync.workspace = true
+app-mcp.workspace = true
+app-gui.workspace = true
+app-tui.workspace = true
+# ADR 0001: `--backend memory` ships in the binary.
+app-testkit.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+getrandom.workspace = true
+rpassword.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["io-std"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# `cargo deb -p app-cli` (packaging/README.md): the `dail` binary, its desktop entry and icon.
+[package.metadata.deb]
+name = "dail"
+maintainer = "dail developers"
+copyright = "dail developers"
+extended-description = """\
+A local-first, keyboard-driven email client (IMAP/SMTP) with a desktop GUI, a terminal UI, \
+a CLI and an MCP server, so that agents can drive it like the user does."""
+section = "mail"
+priority = "optional"
+depends = "$auto"
+recommends = "gnome-keyring | kwalletmanager"
+assets = [
+    ["target/release/dail", "usr/bin/", "755"],
+    ["../../packaging/linux/dail.desktop", "usr/share/applications/", "644"],
+    ["../../packaging/linux/dail.svg", "usr/share/icons/hicolor/scalable/apps/", "644"],
+]

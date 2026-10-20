@@ -1,0 +1,182 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "discovery": {
+        "email": "me@nowhere.example",
+        "found": {
+          "Err": "autoconfig.nowhere.example: no such host"
+        }
+      },
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "domain": "example.org",
+                "email": "Me@Example.ORG"
+              },
+              "effect": "discover_servers"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "domain": "example.org",
+              "email": "Me@Example.ORG",
+              "state": "started"
+            },
+            "kind": "query",
+            "name": "discover_servers",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "servers_discovered",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "domain": "nowhere.example",
+                "email": "me@nowhere.example"
+              },
+              "effect": "discover_servers"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "domain": "nowhere.example",
+              "email": "me@nowhere.example",
+              "state": "started"
+            },
+            "kind": "query",
+            "name": "discover_servers",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "discovery_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "email",
+          "reason": "expected an address like me@example.org"
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "domain": "example.org",
+                "email": "Me@Example.ORG"
+              },
+              "effect": "discover_servers"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "domain": "example.org",
+              "email": "Me@Example.ORG",
+              "state": "started"
+            },
+            "kind": "query",
+            "name": "discover_servers",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

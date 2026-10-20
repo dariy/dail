@@ -1,0 +1,54 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "att@example.org",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "Carol",
+        "email": "carol@example.org"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "Report and photo",
+    "date_ms": 1699954860000,
+    "has_attachments": true
+  },
+  "text": "See the chart:",
+  "text_source": "html",
+  "attachments": [
+    {
+      "part": 3,
+      "filename": "chart.png",
+      "content_type": "image/png",
+      "size": 64,
+      "inline": true,
+      "content_id": "chart@x"
+    },
+    {
+      "part": 4,
+      "filename": "Q3 réport.pdf",
+      "content_type": "application/pdf",
+      "size": 20,
+      "inline": false,
+      "content_id": null
+    },
+    {
+      "part": 5,
+      "filename": null,
+      "content_type": "message/rfc822",
+      "size": 97,
+      "inline": false,
+      "content_id": null
+    }
+  ]
+}

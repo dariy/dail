@@ -1,0 +1,29 @@
+[package]
+name = "app-tui"
+description = "dail terminal UI (ratatui), for SSH sessions from phones and tablets (ADR 0004)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+app-front.workspace = true
+app-sync.workspace = true
+ratatui.workspace = true
+ratatui-textarea.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+unicode-width.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true
+insta.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,34 @@
+[package]
+name = "app-io"
+description = "dail I/O formats: MIME, config, local store."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+ammonia.workspace = true
+app-core.workspace = true
+directories.workspace = true
+html2text.workspace = true
+html5ever.workspace = true
+mail-builder.workspace = true
+mail-parser.workspace = true
+parking_lot.workspace = true
+redb.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tantivy.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+insta.workspace = true

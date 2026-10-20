@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "alt@example.org",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "News",
+        "email": "news@example.org"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "Alternative",
+    "date_ms": 1699866000000,
+    "has_attachments": false
+  },
+  "text": "The plain version wins.",
+  "text_source": "plain",
+  "attachments": []
+}

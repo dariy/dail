@@ -1,0 +1,13 @@
+# Archive and undo on Hostinger: the move is shown at once, the op moves it on the server, a fetch
+# locates the new UID, undo moves it back the same way. Account: line 4. Mailboxes: line 5
+# (INBOX ..0005-..0, Archive ..0005-..1). Line 6: thread ..0006-..0, message ..0006-..1.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 2, "total": 1, "unread": 0, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "Plans", "date_ms": 1699000000000, "size": 120, "flags": {"seen": true}}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000001", "uid_validity": 5, "uid_next": 9, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "archive_threads", "args": {"ids": ["00000000-0000-0006-0000-000000000000"]}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "remote_op_succeeded", "args": {"op": "00000000-0000-0008-0000-000000000000"}}}}
+{"t": 1700000006000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000001", "uid_validity": 5, "uid_next": 10, "total": 1, "unread": 0, "envelopes": [{"uid": 9, "message_id_hdr": "one@x", "subject": "Plans", "date_ms": 1699000000000, "size": 120, "flags": {"seen": true}}]}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000008000, "origin": "runtime", "input": {"event": {"event": "remote_op_succeeded", "args": {"op": "00000000-0000-000b-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 1, "unread": 0, "envelopes": [{"uid": 2, "message_id_hdr": "one@x", "subject": "Plans", "date_ms": 1699000000000, "size": 120, "flags": {"seen": true}}]}}}}

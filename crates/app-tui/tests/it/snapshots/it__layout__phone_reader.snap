@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/layout.rs
+expression: t.screen()
+---
+dail · Message · alice@example.com
+Lunch?
+
+From: Carol <carol@example.org>
+To: alice@example.com
+Date: 2023-11-14 12:02 UTC (19h ago)
+
+Loading…
+
+
+
+
+
+
+
+
+
+
+
+synced 9h ago                     ? help

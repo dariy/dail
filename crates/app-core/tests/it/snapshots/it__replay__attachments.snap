@@ -1,0 +1,966 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0001-0000-000000000000": {
+        "display_name": "me@gmail.com",
+        "email": "me@gmail.com",
+        "id": "00000000-0000-0001-0000-000000000000",
+        "imap": {
+          "host": "imap.gmail.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "gmail",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0001-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.gmail.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {
+      "00000000-0000-0002-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "attachments": [
+          {
+            "name": "q3.pdf",
+            "path": "/home/me/q3.pdf",
+            "state": {
+              "content_type": "application/pdf",
+              "size": 48213,
+              "state": "ready"
+            }
+          }
+        ],
+        "bcc": [],
+        "body_text": "",
+        "cc": [],
+        "created_ms": 1700000001000,
+        "id": "00000000-0000-0002-0000-000000000000",
+        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+        "subject": "Q3",
+        "to": [
+          {
+            "email": "bob@example.org"
+          }
+        ],
+        "updated_ms": 1700000008000
+      }
+    },
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@gmail.com",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0001-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0001-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@gmail.com",
+              "email": "me@gmail.com",
+              "id": "00000000-0000-0001-0000-000000000000",
+              "imap": {
+                "host": "imap.gmail.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "gmail",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0001-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@gmail.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000001000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000006000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000001000
+            },
+            "kind": "mutation",
+            "name": "create_draft",
+            "ok": true,
+            "undo_label": "Create draft"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "state": "checking"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000002000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000007000
+              },
+              "effect": "schedule_tick"
+            },
+            {
+              "args": {
+                "draft": "00000000-0000-0002-0000-000000000000",
+                "path": "/home/me/q3.pdf"
+              },
+              "effect": "inspect_attachment"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [
+                {
+                  "name": "q3.pdf",
+                  "path": "/home/me/q3.pdf",
+                  "state": {
+                    "state": "checking"
+                  }
+                }
+              ],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000002000
+            },
+            "kind": "mutation",
+            "name": "attach_file",
+            "ok": true,
+            "undo_label": "Attach file"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "state": "checking"
+                            }
+                          },
+                          {
+                            "name": "missing.txt",
+                            "path": "/home/me/missing.txt",
+                            "state": {
+                              "state": "checking"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000003000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000008000
+              },
+              "effect": "schedule_tick"
+            },
+            {
+              "args": {
+                "draft": "00000000-0000-0002-0000-000000000000",
+                "path": "/home/me/missing.txt"
+              },
+              "effect": "inspect_attachment"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [
+                {
+                  "name": "q3.pdf",
+                  "path": "/home/me/q3.pdf",
+                  "state": {
+                    "state": "checking"
+                  }
+                },
+                {
+                  "name": "missing.txt",
+                  "path": "/home/me/missing.txt",
+                  "state": {
+                    "state": "checking"
+                  }
+                }
+              ],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000003000
+            },
+            "kind": "mutation",
+            "name": "attach_file",
+            "ok": true,
+            "undo_label": "Attach file"
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 48213,
+                              "state": "ready"
+                            }
+                          },
+                          {
+                            "name": "missing.txt",
+                            "path": "/home/me/missing.txt",
+                            "state": {
+                              "state": "checking"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000003000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [
+                {
+                  "name": "q3.pdf",
+                  "path": "/home/me/q3.pdf",
+                  "state": {
+                    "content_type": "application/pdf",
+                    "size": 48213,
+                    "state": "ready"
+                  }
+                },
+                {
+                  "name": "missing.txt",
+                  "path": "/home/me/missing.txt",
+                  "state": {
+                    "state": "checking"
+                  }
+                }
+              ],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000003000
+            },
+            "kind": null,
+            "name": "attachment_inspected",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 48213,
+                              "state": "ready"
+                            }
+                          },
+                          {
+                            "name": "missing.txt",
+                            "path": "/home/me/missing.txt",
+                            "state": {
+                              "error": "cannot read /home/me/missing.txt: No such file or directory",
+                              "state": "failed"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000003000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [
+                {
+                  "name": "q3.pdf",
+                  "path": "/home/me/q3.pdf",
+                  "state": {
+                    "content_type": "application/pdf",
+                    "size": 48213,
+                    "state": "ready"
+                  }
+                },
+                {
+                  "name": "missing.txt",
+                  "path": "/home/me/missing.txt",
+                  "state": {
+                    "error": "cannot read /home/me/missing.txt: No such file or directory",
+                    "state": "failed"
+                  }
+                }
+              ],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000003000
+            },
+            "kind": null,
+            "name": "attachment_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 48213,
+                              "state": "ready"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000006000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000011000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "attachments": [
+                {
+                  "name": "q3.pdf",
+                  "path": "/home/me/q3.pdf",
+                  "state": {
+                    "content_type": "application/pdf",
+                    "size": 48213,
+                    "state": "ready"
+                  }
+                }
+              ],
+              "created_ms": 1700000001000,
+              "id": "00000000-0000-0002-0000-000000000000",
+              "message_id": "00000000000000020000000000000000@gmail.com",
+              "reply_to": null,
+              "save_error": null,
+              "saved_ms": null,
+              "send_at": null,
+              "send_error": null,
+              "sending": false,
+              "untrusted_content": {
+                "bcc": [],
+                "body": "",
+                "cc": [],
+                "in_reply_to": null,
+                "quote": null,
+                "subject": "Q3",
+                "to": [
+                  {
+                    "email": "bob@example.org"
+                  }
+                ]
+              },
+              "updated_ms": 1700000006000
+            },
+            "kind": "mutation",
+            "name": "remove_attachment",
+            "ok": true,
+            "undo_label": "Remove attachment"
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 48213,
+                              "state": "ready"
+                            }
+                          },
+                          {
+                            "name": "missing.txt",
+                            "path": "/home/me/missing.txt",
+                            "state": {
+                              "state": "checking"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000007000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000012000
+              },
+              "effect": "schedule_tick"
+            },
+            {
+              "args": {
+                "draft": "00000000-0000-0002-0000-000000000000",
+                "path": "/home/me/missing.txt"
+              },
+              "effect": "inspect_attachment"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "undone": "Remove attachment"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "drafts": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/home/me/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 48213,
+                              "state": "ready"
+                            }
+                          }
+                        ],
+                        "bcc": [],
+                        "body_text": "",
+                        "cc": [],
+                        "created_ms": 1700000001000,
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "message_id_hdr": "00000000000000020000000000000000@gmail.com",
+                        "subject": "Q3",
+                        "to": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "updated_ms": 1700000008000
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "at_ms": 1700000013000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "draft",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "redone": "Remove attachment"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Remove attachment"
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "path",
+          "reason": "must be an absolute file path"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+# Pending ops: mark_read runs (op ..0008-..0), star waits (op ..0009-..0). The first op fails and
+# waits 2 s; it is listed, retried at once, fails again, and is discarded (reverting UID 1 to
+# unread); the star op then starts and cannot be discarded while running. Account: line 5.
+# INBOX: line 6. Line 7: messages ..0007-..1 (UID 1) and ..0007-..3 (UID 2).
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 2, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "One", "date_ms": 1699000000000}, {"uid": 2, "message_id_hdr": "two@x", "subject": "Two", "date_ms": 1699000001000}]}}}}
+{"t": 1700000003000, "origin": "cli", "input": {"command": {"cmd": "mark_read", "args": {"messages": ["00000000-0000-0007-0000-000000000001"]}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "star", "args": {"messages": ["00000000-0000-0007-0000-000000000003"]}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "remote_op_failed", "args": {"op": "00000000-0000-0008-0000-000000000000", "error": "IMAP SELECT INBOX failed: connection reset"}}}}
+{"t": 1700000005500, "origin": "mcp", "input": {"command": {"cmd": "list_pending_ops", "args": {}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "retry_pending_ops", "args": {}}}}
+{"t": 1700000007000, "origin": "runtime", "input": {"event": {"event": "remote_op_failed", "args": {"op": "00000000-0000-0008-0000-000000000000", "error": "IMAP SELECT INBOX failed: connection reset"}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "discard_pending_op", "args": {"id": "00000000-0000-0008-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "mcp", "input": {"command": {"cmd": "discard_pending_op", "args": {"id": "00000000-0000-0009-0000-000000000000"}}}}

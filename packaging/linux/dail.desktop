@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=dail
+GenericName=Mail Client
+Comment=Keyboard-driven email client that agents can drive too
+Exec=dail gui
+Icon=dail
+Terminal=false
+Categories=Network;Email;
+Keywords=mail;email;imap;smtp;
+StartupWMClass=dail

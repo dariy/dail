@@ -1,0 +1,44 @@
+---
+source: crates/app-tui/tests/it/layout.rs
+expression: t.screen()
+---
+dail · Inbox · alice@example.com
+┌ Mailboxes ─────────────┐┌ Inbox ───────────────────────────────────────┐┌ Message ───────────────────────────────────┐
+│alice@example.com       ││›●   Carol      Lunch?                 Nov 14 ││Lunch?                                      │
+│▸ Inbox 1               ││     Bob        Q3 numbers             Nov 14 ││                                            │
+│  Sent                  ││                                              ││From: Carol <carol@example.org>             │
+│  Drafts                ││                                              ││To: alice@example.com                       │
+│  Archive               ││                                              ││Date: 2023-11-14 12:02 UTC (19h ago)        │
+│                        ││                                              ││                                            │
+│                        ││                                              ││Loading…                                    │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+│                        ││                                              ││                                            │
+└────────────────────────┘└──────────────────────────────────────────────┘└────────────────────────────────────────────┘
+synced 9h ago                                                                                                     ? help

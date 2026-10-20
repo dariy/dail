@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/shell.rs
+expression: t.screen()
+---
+dail · Conversations
+No accounts yet.
+
+Press Enter to add one here, or run in
+another shell:
+
+  dail account add --profile work
+
+The account shows up here once it is
+added.
+
+
+
+
+
+
+
+
+
+no accounts                       ? help

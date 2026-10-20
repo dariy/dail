@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "plain@example.org",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "Alice Example",
+        "email": "alice@example.org"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "Plain text",
+    "date_ms": 1699880400000,
+    "has_attachments": false
+  },
+  "text": "Hi Bob,\n\nPlain UTF-8 body with an émoji 🙂.\n\n-- \nAlice",
+  "text_source": "plain",
+  "attachments": []
+}

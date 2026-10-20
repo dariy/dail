@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/reader.rs
+expression: t.screen()
+---
+dail · Message · alice@example.com
+Q3 numbers
+
+From: Bob <bob@example.org>
+To: alice@example.com
+Date: 2023-11-14 09:41 UTC (22h ago)
+
+Hi Alice,
+the numbers:
+https://example.org/q3?view=full&year=20
+23
+
+Bob
+
+Attachments (1)
+  q3.pdf · 120 KB · application/pdf
+
+Links (1)
+
+synced 9h ago                     ? help

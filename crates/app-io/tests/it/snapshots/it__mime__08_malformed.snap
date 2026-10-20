@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": null,
+    "in_reply_to": null,
+    "references": [],
+    "from": [],
+    "to": [],
+    "cc": [],
+    "subject": "Unterminated multipart",
+    "date_ms": 0,
+    "has_attachments": true
+  },
+  "text": "Text before the missing end boundary.",
+  "text_source": "plain",
+  "attachments": [
+    {
+      "part": 1,
+      "filename": null,
+      "content_type": "text/plain",
+      "size": 39,
+      "inline": false,
+      "content_id": null
+    }
+  ]
+}

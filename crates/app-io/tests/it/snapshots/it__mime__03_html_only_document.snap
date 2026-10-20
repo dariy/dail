@@ -1,0 +1,59 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "heading",
+      "level": 1,
+      "spans": [
+        {
+          "text": "Order shipped"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Track it "
+        },
+        {
+          "text": "here",
+          "link": "https://evil.example/track?id=1"
+        },
+        {
+          "text": "."
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "ordered": false,
+      "start": 1,
+      "items": [
+        [
+          {
+            "type": "paragraph",
+            "spans": [
+              {
+                "text": "One"
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "spans": [
+              {
+                "text": "Two"
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ]
+}

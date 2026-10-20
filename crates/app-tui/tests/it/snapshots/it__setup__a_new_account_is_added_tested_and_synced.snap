@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/setup.rs
+expression: t.screen()
+---
+dail · Conversations
+No accounts yet.
+
+Press Enter to add one here, or run in
+another shell:
+
+  dail account add --preset gmail
+--email you@gmail.com
+
+The account shows up here once it is
+added.
+
+
+
+
+
+
+
+
+no accounts                       ? help

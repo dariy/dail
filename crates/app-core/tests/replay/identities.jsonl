@@ -1,0 +1,8 @@
+# Sending addresses: an alias with a signature, an agent refused, a mailbox default, removal and undo.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "set_identity", "args": {"account": "00000000-0000-0002-0000-000000000000", "email": "sales@example.com", "name": "Sales", "signature": "Sales team"}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "set_identity", "args": {"account": "00000000-0000-0002-0000-000000000000", "email": "evil@example.com"}}}}
+{"t": 1700000003000, "origin": "cli", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0002-0000-000000000000", "body": "Hello"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "set_draft_from", "args": {"id": "00000000-0000-0005-0000-000000000000", "email": "sales@example.com"}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "remove_identity", "args": {"account": "00000000-0000-0002-0000-000000000000", "email": "sales@example.com"}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}

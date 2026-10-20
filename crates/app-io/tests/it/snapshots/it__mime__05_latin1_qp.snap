@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "latin@example.de",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "Jürgen Müller",
+        "email": "juergen@example.de"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "Grüße – Preis 50 €",
+    "date_ms": 1700046000000,
+    "has_attachments": false
+  },
+  "text": "Grüße aus Köln – ça va? 50 €",
+  "text_source": "plain",
+  "attachments": []
+}

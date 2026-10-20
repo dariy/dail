@@ -1,0 +1,7 @@
+# discover_servers (ADR 0006): a lookup that finds the servers, one that fails, a bad address.
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "discover_servers", "args": {"email": " Me@Example.ORG "}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "servers_discovered", "args": {"email": "Me@Example.ORG", "imap": {"host": "imap.example.org", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.org", "port": 587, "security": "starttls"}, "source": "https://autoconfig.example.org/mail/config-v1.1.xml"}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "discover_servers", "args": {"email": "me@nowhere.example"}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "discovery_failed", "args": {"email": "me@nowhere.example", "error": "autoconfig.nowhere.example: no such host"}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "discover_servers", "args": {"email": "not-an-address"}}}}
+{"t": 1700000006000, "origin": "mcp", "input": {"command": {"cmd": "discover_servers", "args": {"email": "Me@Example.ORG"}}}}

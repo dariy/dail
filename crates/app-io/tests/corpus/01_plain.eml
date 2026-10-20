@@ -1,0 +1,14 @@
+Message-ID: <plain@example.org>
+From: Alice Example <alice@example.org>
+To: bob@example.com
+Subject: Plain text
+Date: Mon, 13 Nov 2023 08:00:00 -0500
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hi Bob,
+
+Plain UTF-8 body with an émoji 🙂.
+
+-- 
+Alice

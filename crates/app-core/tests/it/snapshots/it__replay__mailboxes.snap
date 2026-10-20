@@ -1,0 +1,494 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@gmail.com",
+                    "email": "me@gmail.com",
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "imap": {
+                      "host": "imap.gmail.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "gmail",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0004-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.gmail.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@gmail.com",
+              "email": "me@gmail.com",
+              "id": "00000000-0000-0004-0000-000000000000",
+              "imap": {
+                "host": "imap.gmail.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "gmail",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0004-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.gmail.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@gmail.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000001",
+                        "path": "[Gmail]/Sent Mail",
+                        "role": "sent",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000002",
+                        "path": "[Gmail]/Spam",
+                        "role": "junk",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000003",
+                        "path": "Old",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "path": "[Gmail]/Sent Mail"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000002",
+                "path": "[Gmail]/Spam"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000003",
+                "path": "Old"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000001"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000002"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000003"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0004-0000-000000000000",
+              "added_or_changed": 4,
+              "mailboxes": 4,
+              "removed": 0
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "sync_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_mailboxes": [
+                      "00000000-0000-0005-0000-000000000003"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "path": "[Gmail]/Sent Mail"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@gmail.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.gmail.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000002",
+                "path": "[Gmail]/Spam"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000003"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0004-0000-000000000000",
+              "added_or_changed": 0,
+              "mailboxes": 3,
+              "removed": 1
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account_removed",
+                  "value": "00000000-0000-0004-0000-000000000000"
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_mailboxes": [
+                      "00000000-0000-0005-0000-000000000000",
+                      "00000000-0000-0005-0000-000000000001",
+                      "00000000-0000-0005-0000-000000000002"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0004-0000-000000000000"
+                }
+              },
+              "effect": "delete_secret"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "email": "me@gmail.com",
+              "removed": "00000000-0000-0004-0000-000000000000",
+              "undoable": false
+            },
+            "kind": "destructive",
+            "name": "remove_account",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

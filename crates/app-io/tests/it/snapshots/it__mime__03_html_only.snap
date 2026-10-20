@@ -1,0 +1,29 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: parsed
+---
+{
+  "headers": {
+    "message_id": "html@example.org",
+    "in_reply_to": null,
+    "references": [],
+    "from": [
+      {
+        "name": "Shop",
+        "email": "shop@example.net"
+      }
+    ],
+    "to": [
+      {
+        "email": "bob@example.com"
+      }
+    ],
+    "cc": [],
+    "subject": "Your order ✓",
+    "date_ms": 1699869600000,
+    "has_attachments": false
+  },
+  "text": "# Order shipped\n\nTrack it [here][1].\n* One\n* Two\n\n[1]: https://evil.example/track?id=1",
+  "text_source": "html",
+  "attachments": []
+}

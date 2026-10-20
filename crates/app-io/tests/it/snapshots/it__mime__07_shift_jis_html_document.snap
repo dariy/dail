@@ -1,0 +1,23 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "価格は"
+        },
+        {
+          "text": "千円",
+          "bold": true
+        },
+        {
+          "text": "です。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "accounts": [
+    {
+      "email": "alice@example.com",
+      "mailboxes": [
+        {
+          "path": "INBOX",
+          "special_use": "inbox",
+          "uid_validity": 1,
+          "messages": [
+            {
+              "uid": 1,
+              "flags": ["\\Seen"],
+              "raw": "Message-ID: <q3@example.org>\r\nFrom: Bob <bob@example.org>\r\nTo: alice@example.com\r\nSubject: Q3 numbers\r\nDate: Tue, 14 Nov 2023 09:41:00 +0000\r\n\r\nHi Alice, the Q3 numbers are attached.\r\n"
+            },
+            {
+              "uid": 2,
+              "flags": [],
+              "raw": "Message-ID: <lunch@example.org>\r\nFrom: Carol <carol@example.org>\r\nTo: alice@example.com\r\nSubject: Lunch?\r\nDate: Tue, 14 Nov 2023 12:02:00 +0000\r\n\r\nLunch at noon?\r\n"
+            }
+          ]
+        },
+        { "path": "Sent", "special_use": "sent", "uid_validity": 1, "messages": [] },
+        { "path": "Drafts", "special_use": "drafts", "uid_validity": 1, "messages": [] },
+        { "path": "Archive", "special_use": "archive", "uid_validity": 1, "messages": [] }
+      ]
+    }
+  ]
+}

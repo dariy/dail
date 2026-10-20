@@ -1,0 +1,14 @@
+# Draft saves: a draft (..0003-..0) on an account with Drafts is saved after 5 s idle; the
+# first save fails and is retried; after it lands the draft is discarded (deleting the server
+# copy) and closing the session saves nothing. Account seed 1, mailboxes seed 2.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.com", "display_name": "Me Example", "imap": {"host": "imap.example.com", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.com", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Drafts", "delimiter": "/", "special_use": "drafts", "selectable": true}]}}}}
+{"t": 1700000002000, "seed": 55340232221128654848, "origin": "mcp", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0001-0000-000000000000", "to": [{"email": "bob@example.org"}], "subject": "Lunch?", "body": "Noon?"}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000004000}}}}
+{"t": 1700000007000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000007000}}}}
+{"t": 1700000008000, "origin": "runtime", "input": {"event": {"event": "draft_save_failed", "args": {"draft": "00000000-0000-0003-0000-000000000000", "error": "IMAP APPEND to Drafts failed: connection reset"}}}}
+{"t": 1700000068000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000068000}}}}
+{"t": 1700000069000, "origin": "runtime", "input": {"event": {"event": "draft_saved", "args": {"draft": "00000000-0000-0003-0000-000000000000", "revision": 1700000002000}}}}
+{"t": 1700000070000, "origin": "cli", "input": {"command": {"cmd": "discard_draft", "args": {"id": "00000000-0000-0003-0000-000000000000"}}}}
+{"t": 1700000071000, "origin": "runtime", "input": {"event": {"event": "draft_deleted", "args": {"draft": "00000000-0000-0003-0000-000000000000"}}}}
+{"t": 1700000072000, "origin": "runtime", "input": {"event": {"event": "closing", "args": {}}}}

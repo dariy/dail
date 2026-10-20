@@ -1,0 +1,1840 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0004-0000-000000000000": {
+        "display_name": "me@example.com",
+        "email": "me@example.com",
+        "id": "00000000-0000-0004-0000-000000000000",
+        "imap": {
+          "host": "imap.hostinger.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "hostinger",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0004-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.hostinger.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {
+      "00000000-0000-0005-0000-000000000000": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0005-0000-000000000000",
+        "path": "INBOX",
+        "role": "inbox",
+        "total": 3,
+        "uid_next": 4,
+        "uid_validity": 3,
+        "unread": 2
+      },
+      "00000000-0000-0005-0000-000000000001": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0005-0000-000000000001",
+        "path": "Archive",
+        "role": "archive",
+        "total": 1,
+        "uid_next": 2,
+        "uid_validity": 4,
+        "unread": 0
+      }
+    },
+    "messages": {
+      "00000000-0000-0006-0000-000000000001": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699000000000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": true
+        },
+        "from": [
+          {
+            "email": "alice@example.com",
+            "name": "Alice"
+          }
+        ],
+        "has_attachments": false,
+        "id": "00000000-0000-0006-0000-000000000001",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0005-0000-000000000000",
+        "message_id_hdr": "one@x",
+        "references": [],
+        "size": 0,
+        "subject": "Plans",
+        "thread": "00000000-0000-0006-0000-000000000000",
+        "to": [],
+        "uid": 1
+      },
+      "00000000-0000-0006-0000-000000000002": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699000001000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": false
+        },
+        "from": [
+          {
+            "email": "bob@example.org"
+          }
+        ],
+        "has_attachments": true,
+        "id": "00000000-0000-0006-0000-000000000002",
+        "in_reply_to": "one@x",
+        "mailbox": "00000000-0000-0005-0000-000000000000",
+        "message_id_hdr": "two@x",
+        "references": [],
+        "size": 0,
+        "subject": "Re: Plans",
+        "thread": "00000000-0000-0006-0000-000000000000",
+        "to": [],
+        "uid": 2
+      },
+      "00000000-0000-0006-0000-000000000004": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1699000002000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": true,
+          "seen": false
+        },
+        "from": [
+          {
+            "email": "bob@example.org"
+          }
+        ],
+        "has_attachments": false,
+        "id": "00000000-0000-0006-0000-000000000004",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0005-0000-000000000000",
+        "message_id_hdr": "three@x",
+        "references": [],
+        "size": 0,
+        "subject": "Lunch",
+        "thread": "00000000-0000-0006-0000-000000000003",
+        "to": [],
+        "uid": 3
+      },
+      "00000000-0000-0007-0000-000000000001": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1660000000000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": true
+        },
+        "from": [
+          {
+            "email": "alice@example.com",
+            "name": "Alice"
+          }
+        ],
+        "has_attachments": false,
+        "id": "00000000-0000-0007-0000-000000000001",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0005-0000-000000000001",
+        "message_id_hdr": "old@x",
+        "references": [],
+        "size": 0,
+        "subject": "Invoice",
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "to": [],
+        "uid": 1
+      },
+      "00000000-0000-0013-0000-000000000001": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "body": {
+          "state": "not_fetched"
+        },
+        "cc": [],
+        "date_ms": 1650000000000,
+        "flags": {
+          "answered": false,
+          "draft": false,
+          "flagged": false,
+          "seen": true
+        },
+        "from": [
+          {
+            "email": "bob@example.org"
+          }
+        ],
+        "has_attachments": false,
+        "id": "00000000-0000-0013-0000-000000000001",
+        "in_reply_to": null,
+        "mailbox": "00000000-0000-0005-0000-000000000001",
+        "message_id_hdr": "older@x",
+        "references": [],
+        "size": 0,
+        "subject": "Numbers",
+        "thread": "00000000-0000-0013-0000-000000000000",
+        "to": [],
+        "uid": 9
+      }
+    },
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [
+        "00000000-0000-0006-0000-000000000002",
+        "00000000-0000-0006-0000-000000000004"
+      ],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "searches": [
+        {
+          "account": "00000000-0000-0004-0000-000000000000",
+          "hits": [],
+          "pending": 2,
+          "query": "is:unread",
+          "updated_ms": 1700000009000
+        },
+        {
+          "account": "00000000-0000-0004-0000-000000000000",
+          "hits": [],
+          "pending": 2,
+          "query": "subject:\"re: plans\"",
+          "updated_ms": 1700000011000
+        },
+        {
+          "account": "00000000-0000-0004-0000-000000000000",
+          "hits": [
+            "00000000-0000-0013-0000-000000000001"
+          ],
+          "last_error": "IMAP UID SEARCH in INBOX failed: BAD",
+          "pending": 0,
+          "query": "budget",
+          "updated_ms": 1700000014000
+        }
+      ],
+      "sync": {
+        "00000000-0000-0004-0000-000000000000": {
+          "last_error": null,
+          "last_sync_ms": 1700000002000,
+          "pending": 0,
+          "watch": {
+            "state": "watching"
+          }
+        }
+      }
+    },
+    "threads": {
+      "00000000-0000-0006-0000-000000000000": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "id": "00000000-0000-0006-0000-000000000000",
+        "last_date_ms": 1699000001000,
+        "messages": [
+          "00000000-0000-0006-0000-000000000001",
+          "00000000-0000-0006-0000-000000000002"
+        ],
+        "subject": "Plans"
+      },
+      "00000000-0000-0006-0000-000000000003": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "id": "00000000-0000-0006-0000-000000000003",
+        "last_date_ms": 1699000002000,
+        "messages": [
+          "00000000-0000-0006-0000-000000000004"
+        ],
+        "subject": "Lunch"
+      },
+      "00000000-0000-0007-0000-000000000000": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "id": "00000000-0000-0007-0000-000000000000",
+        "last_date_ms": 1660000000000,
+        "messages": [
+          "00000000-0000-0007-0000-000000000001"
+        ],
+        "subject": "Invoice"
+      },
+      "00000000-0000-0013-0000-000000000000": {
+        "account": "00000000-0000-0004-0000-000000000000",
+        "id": "00000000-0000-0013-0000-000000000000",
+        "last_date_ms": 1650000000000,
+        "messages": [
+          "00000000-0000-0013-0000-000000000001"
+        ],
+        "subject": "Numbers"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": "00000000-0000-0005-0000-000000000000",
+      "palette_open": false,
+      "search": "budget",
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0004-0000-000000000000",
+                    "imap": {
+                      "host": "imap.hostinger.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "hostinger",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0004-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.hostinger.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@example.com",
+              "email": "me@example.com",
+              "id": "00000000-0000-0004-0000-000000000000",
+              "imap": {
+                "host": "imap.hostinger.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "hostinger",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0004-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.hostinger.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000001",
+                        "path": "Archive",
+                        "role": "archive",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "path": "Archive"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000001"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0004-0000-000000000000",
+              "added_or_changed": 2,
+              "mailboxes": 2,
+              "removed": 0
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 3,
+                        "uid_next": 4,
+                        "uid_validity": 3,
+                        "unread": 2
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699000000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": true
+                        },
+                        "from": [
+                          {
+                            "email": "alice@example.com",
+                            "name": "Alice"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0006-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "one@x",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Plans",
+                        "thread": "00000000-0000-0006-0000-000000000000",
+                        "to": [],
+                        "uid": 1
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699000001000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": false
+                        },
+                        "from": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "has_attachments": true,
+                        "id": "00000000-0000-0006-0000-000000000002",
+                        "in_reply_to": "one@x",
+                        "mailbox": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "two@x",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Re: Plans",
+                        "thread": "00000000-0000-0006-0000-000000000000",
+                        "to": [],
+                        "uid": 2
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699000002000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": true,
+                          "seen": false
+                        },
+                        "from": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0006-0000-000000000004",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "three@x",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Lunch",
+                        "thread": "00000000-0000-0006-0000-000000000003",
+                        "to": [],
+                        "uid": 3
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_date_ms": 1699000001000,
+                        "messages": [
+                          "00000000-0000-0006-0000-000000000001",
+                          "00000000-0000-0006-0000-000000000002"
+                        ],
+                        "subject": "Plans"
+                      },
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-0006-0000-000000000003",
+                        "last_date_ms": 1699000002000,
+                        "messages": [
+                          "00000000-0000-0006-0000-000000000004"
+                        ],
+                        "subject": "Lunch"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0006-0000-000000000004",
+                "path": "INBOX",
+                "uid": 3,
+                "uid_validity": 3
+              },
+              "effect": "fetch_body"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0006-0000-000000000002",
+                "path": "INBOX",
+                "uid": 2,
+                "uid_validity": 3
+              },
+              "effect": "fetch_body"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "watch_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0006-0000-000000000000"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0006-0000-000000000003"
+              }
+            ],
+            "data": {
+              "added": 3,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0005-0000-000000000000",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0005-0000-000000000001",
+                        "path": "Archive",
+                        "role": "archive",
+                        "total": 1,
+                        "uid_next": 2,
+                        "uid_validity": 4,
+                        "unread": 0
+                      }
+                    ],
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1660000000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": true
+                        },
+                        "from": [
+                          {
+                            "email": "alice@example.com",
+                            "name": "Alice"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0007-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0005-0000-000000000001",
+                        "message_id_hdr": "old@x",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Invoice",
+                        "thread": "00000000-0000-0007-0000-000000000000",
+                        "to": [],
+                        "uid": 1
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-0007-0000-000000000000",
+                        "last_date_ms": 1660000000000,
+                        "messages": [
+                          "00000000-0000-0007-0000-000000000001"
+                        ],
+                        "subject": "Invoice"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000001"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0007-0000-000000000000"
+              }
+            ],
+            "data": {
+              "added": 1,
+              "flags_updated": 0,
+              "located": 0,
+              "mailbox": "00000000-0000-0005-0000-000000000001",
+              "uid_validity_reset": false
+            },
+            "kind": null,
+            "name": "envelopes_fetched",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 2,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "from",
+                        "value": "alice"
+                      }
+                    }
+                  ]
+                },
+                "search": "from:alice",
+                "started_ms": 1700000004000
+              },
+              "effect": "search_mailbox"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "mailboxes": 2,
+                "path": "Archive",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "from",
+                        "value": "alice"
+                      }
+                    }
+                  ]
+                },
+                "search": "from:alice",
+                "started_ms": 1700000004000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "from:alice",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "state": "started"
+                }
+              ],
+              "threads": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": true,
+                  "id": "00000000-0000-0006-0000-000000000000",
+                  "last_date_ms": 1699000001000,
+                  "matches": [
+                    "00000000-0000-0006-0000-000000000001"
+                  ],
+                  "messages": 2,
+                  "unread": 1,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "alice@example.com",
+                        "name": "Alice"
+                      },
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Plans"
+                  }
+                },
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": false,
+                  "id": "00000000-0000-0007-0000-000000000000",
+                  "last_date_ms": 1660000000000,
+                  "matches": [
+                    "00000000-0000-0007-0000-000000000001"
+                  ],
+                  "messages": 1,
+                  "unread": 0,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "alice@example.com",
+                        "name": "Alice"
+                      }
+                    ],
+                    "subject": "Invoice"
+                  }
+                }
+              ],
+              "total": 2
+            },
+            "kind": "query",
+            "name": "search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 1,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "is",
+                        "value": "starred"
+                      },
+                      "negated": true
+                    },
+                    {
+                      "condition": {
+                        "field": "has_attachment"
+                      }
+                    }
+                  ]
+                },
+                "search": "in:inbox -is:starred has:attachment",
+                "started_ms": 1700000005000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "limit": 10,
+              "offset": 0,
+              "query": "in:inbox -is:starred has:attachment",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "state": "started"
+                }
+              ],
+              "threads": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": true,
+                  "id": "00000000-0000-0006-0000-000000000000",
+                  "last_date_ms": 1699000001000,
+                  "matches": [
+                    "00000000-0000-0006-0000-000000000002"
+                  ],
+                  "messages": 2,
+                  "unread": 1,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "alice@example.com",
+                        "name": "Alice"
+                      },
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Plans"
+                  }
+                }
+              ],
+              "total": 1
+            },
+            "kind": "query",
+            "name": "search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "limit": 500,
+                "search": "before:2023-01-01 or",
+                "words": [
+                  "OR"
+                ]
+              },
+              "effect": "search_index"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 2,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "before",
+                        "value": {
+                          "day": 1,
+                          "month": 1,
+                          "year": 2023
+                        }
+                      }
+                    },
+                    {
+                      "condition": {
+                        "field": "text",
+                        "value": "OR"
+                      }
+                    }
+                  ]
+                },
+                "search": "before:2023-01-01 or",
+                "started_ms": 1700000006000
+              },
+              "effect": "search_mailbox"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "mailboxes": 2,
+                "path": "Archive",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "before",
+                        "value": {
+                          "day": 1,
+                          "month": 1,
+                          "year": 2023
+                        }
+                      }
+                    },
+                    {
+                      "condition": {
+                        "field": "text",
+                        "value": "OR"
+                      }
+                    }
+                  ]
+                },
+                "search": "before:2023-01-01 or",
+                "started_ms": 1700000006000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "before:2023-01-01 OR",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "state": "started"
+                }
+              ],
+              "threads": [],
+              "total": 0
+            },
+            "kind": "query",
+            "name": "search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "query",
+          "reason": "at column 4: unknown `is:later`; use is:unread, is:read or is:starred"
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000000"
+              }
+            ],
+            "data": {
+              "mailbox": "00000000-0000-0005-0000-000000000000"
+            },
+            "kind": "view",
+            "name": "open_mailbox",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 2,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "is",
+                        "value": "unread"
+                      }
+                    }
+                  ]
+                },
+                "search": "is:unread",
+                "started_ms": 1700000009000
+              },
+              "effect": "search_mailbox"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "mailboxes": 2,
+                "path": "Archive",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "is",
+                        "value": "unread"
+                      }
+                    }
+                  ]
+                },
+                "search": "is:unread",
+                "started_ms": 1700000009000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "is:unread",
+              "search": "is:unread",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "error": null,
+                  "hits": 0,
+                  "state": "searching"
+                }
+              ],
+              "threads": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": true,
+                  "has_attachments": false,
+                  "id": "00000000-0000-0006-0000-000000000003",
+                  "last_date_ms": 1699000002000,
+                  "matches": [
+                    "00000000-0000-0006-0000-000000000004"
+                  ],
+                  "messages": 1,
+                  "unread": 1,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Lunch"
+                  }
+                },
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": true,
+                  "id": "00000000-0000-0006-0000-000000000000",
+                  "last_date_ms": 1699000001000,
+                  "matches": [
+                    "00000000-0000-0006-0000-000000000002"
+                  ],
+                  "messages": 2,
+                  "unread": 1,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "alice@example.com",
+                        "name": "Alice"
+                      },
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Plans"
+                  }
+                }
+              ],
+              "total": 2
+            },
+            "kind": "view",
+            "name": "set_search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "cleared": "is:unread"
+            },
+            "kind": "view",
+            "name": "clear_search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 15,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 2,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "subject",
+                        "value": "re: plans"
+                      }
+                    }
+                  ]
+                },
+                "search": "subject:\"re: plans\"",
+                "started_ms": 1700000011000
+              },
+              "effect": "search_mailbox"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "mailboxes": 2,
+                "path": "Archive",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "subject",
+                        "value": "re: plans"
+                      }
+                    }
+                  ]
+                },
+                "search": "subject:\"re: plans\"",
+                "started_ms": 1700000011000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "subject:\"re: plans\"",
+              "search": "subject:\"re: plans\"",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "error": null,
+                  "hits": 0,
+                  "state": "searching"
+                }
+              ],
+              "threads": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": true,
+                  "id": "00000000-0000-0006-0000-000000000000",
+                  "last_date_ms": 1699000001000,
+                  "matches": [
+                    "00000000-0000-0006-0000-000000000002"
+                  ],
+                  "messages": 2,
+                  "unread": 1,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "alice@example.com",
+                        "name": "Alice"
+                      },
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Plans"
+                  }
+                }
+              ],
+              "total": 1
+            },
+            "kind": "view",
+            "name": "set_search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 18,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "limit": 500,
+                "search": "budget",
+                "words": [
+                  "budget"
+                ]
+              },
+              "effect": "search_index"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000000",
+                "mailboxes": 2,
+                "path": "INBOX",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "text",
+                        "value": "budget"
+                      }
+                    }
+                  ]
+                },
+                "search": "budget",
+                "started_ms": 1700000012000
+              },
+              "effect": "search_mailbox"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0004-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0004-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 200,
+                "mailbox": "00000000-0000-0005-0000-000000000001",
+                "mailboxes": 2,
+                "path": "Archive",
+                "query": {
+                  "terms": [
+                    {
+                      "condition": {
+                        "field": "text",
+                        "value": "budget"
+                      }
+                    }
+                  ]
+                },
+                "search": "budget",
+                "started_ms": 1700000012000
+              },
+              "effect": "search_mailbox"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "budget",
+              "search": "budget",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "error": null,
+                  "hits": 0,
+                  "state": "searching"
+                }
+              ],
+              "threads": [],
+              "total": 0
+            },
+            "kind": "view",
+            "name": "set_search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 19,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1650000000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": true
+                        },
+                        "from": [
+                          {
+                            "email": "bob@example.org"
+                          }
+                        ],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0013-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0005-0000-000000000001",
+                        "message_id_hdr": "older@x",
+                        "references": [],
+                        "size": 0,
+                        "subject": "Numbers",
+                        "thread": "00000000-0000-0013-0000-000000000000",
+                        "to": [],
+                        "uid": 9
+                      }
+                    ],
+                    "threads": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "id": "00000000-0000-0013-0000-000000000000",
+                        "last_date_ms": 1650000000000,
+                        "messages": [
+                          "00000000-0000-0013-0000-000000000001"
+                        ],
+                        "subject": "Numbers"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0005-0000-000000000001"
+              },
+              {
+                "entity": "thread",
+                "id": "00000000-0000-0013-0000-000000000000"
+              }
+            ],
+            "data": {
+              "added": 1,
+              "error": null,
+              "hits": 1,
+              "mailbox": "00000000-0000-0005-0000-000000000001",
+              "search": "budget"
+            },
+            "kind": null,
+            "name": "search_results",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 20,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "added": 0,
+              "error": "IMAP UID SEARCH in INBOX failed: BAD",
+              "hits": 0,
+              "mailbox": "00000000-0000-0005-0000-000000000000",
+              "search": "budget"
+            },
+            "kind": null,
+            "name": "search_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 21,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "limit": 500,
+                "search": "budget",
+                "words": [
+                  "Budget"
+                ]
+              },
+              "effect": "search_index"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "limit": 50,
+              "offset": 0,
+              "query": "Budget",
+              "server": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "error": "IMAP UID SEARCH in INBOX failed: BAD",
+                  "hits": 1,
+                  "state": "done"
+                }
+              ],
+              "threads": [
+                {
+                  "account": "00000000-0000-0004-0000-000000000000",
+                  "flagged": false,
+                  "has_attachments": false,
+                  "id": "00000000-0000-0013-0000-000000000000",
+                  "last_date_ms": 1650000000000,
+                  "matches": [
+                    "00000000-0000-0013-0000-000000000001"
+                  ],
+                  "messages": 1,
+                  "unread": 0,
+                  "untrusted_content": {
+                    "from": [
+                      {
+                        "email": "bob@example.org"
+                      }
+                    ],
+                    "subject": "Numbers"
+                  }
+                }
+              ],
+              "total": 1
+            },
+            "kind": "query",
+            "name": "search",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

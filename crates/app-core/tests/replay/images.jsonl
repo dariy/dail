@@ -1,0 +1,9 @@
+# Inline images per sender: show (normalized), repeat (no-op), hide, undo/redo, a rejected sender, an agent.
+{"t": 1700000000000, "origin": "gui", "input": {"command": {"cmd": "show_images_from", "args": {"sender": "News@Example.org"}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "show_images_from", "args": {"sender": "news@example.org"}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "show_images_from", "args": {"sender": "shop@example.net"}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "hide_images_from", "args": {"sender": "news@example.org"}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "show_images_from", "args": {"sender": "not an address"}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "get_settings", "args": {}}}}

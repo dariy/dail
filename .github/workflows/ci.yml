@@ -1,0 +1,51 @@
+# Runs the Verification Loop (AGENTS.md §6) on every push and pull request, as parallel jobs that each run
+# `cargo xtask verify <gates>`: fmt and deny once (neither depends on the OS; the deny graph covers every
+# target), and clippy next to test + smoke on Ubuntu and Windows. clippy only builds metadata and test builds
+# code, so one job running all three would share little more than build scripts.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # A fresh checkout gains nothing from incremental caches; they only take disk and cache space.
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # rustup reads rust-toolchain.toml (channel + rustfmt + clippy) on the first cargo call.
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo xtask verify fmt deny
+
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask verify clippy
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask verify test smoke

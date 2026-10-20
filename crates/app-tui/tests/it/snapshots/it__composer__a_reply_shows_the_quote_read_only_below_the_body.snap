@@ -1,0 +1,24 @@
+---
+source: crates/app-tui/tests/it/composer.rs
+expression: t.screen()
+---
+dail · Draft · alice@example.com
+Reply · draft
+From: alice@example.com
+To: Bob <bob@example.org>
+Subject: Re: Q3 numbers
+────────────────────────────────────────
+Thanks!
+
+
+
+
+
+
+
+
+On 2023-11-14 09:41 UTC, Bob
+<bob@example.org> wrote:
+(the original is added below when sent)
+Ctrl+S send · Ctrl+O $EDITOR · Ctrl+K “A
+“Reply” z undo · synced 9h ago    ? help
