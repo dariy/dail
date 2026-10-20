@@ -142,8 +142,13 @@ pub fn backup_if_due(dirs: &ProfileDirs, now: SystemTime) -> Result<Option<Backu
     std::fs::create_dir_all(&tmp).map_err(|err| IoError::fs(&tmp, err))?;
     for file in present {
         let to = tmp.join(file);
-        let copied = std::fs::copy(dirs.root().join(file), &to)
-            .and_then(|_| std::fs::File::open(&to).and_then(|f| f.sync_all()));
+        let copied = std::fs::copy(dirs.root().join(file), &to).and_then(|_| {
+            // Windows refuses to flush a handle opened read-only.
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&to)
+                .and_then(|f| f.sync_all())
+        });
         if let Err(err) = copied {
             let _ = std::fs::remove_dir_all(&tmp);
             return Err(IoError::fs(&to, err));

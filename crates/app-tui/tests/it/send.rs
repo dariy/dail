@@ -64,8 +64,11 @@ fn a_typed_path_is_attached_with_home_expanded_and_its_state_shows() {
     t.typed("~/notes.txt");
     t.key(KeyCode::Enter);
     let sent = t.pump();
-    let home = std::env::var("HOME").unwrap();
-    let path = format!("{home}/notes.txt");
+    let home = std::env::var(if cfg!(windows) { "USERPROFILE" } else { "HOME" }).unwrap();
+    let path = std::path::Path::new(&home)
+        .join("notes.txt")
+        .to_string_lossy()
+        .into_owned();
     assert_eq!(
         sent[0],
         Command::AttachFile {
