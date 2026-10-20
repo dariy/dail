@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Embedded into dail.exe by crates/app-cli/build.rs. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <!-- Windows 11 24H2+: no console window when started from Explorer, the Start menu or a
+           shortcut (the GUI opens alone); a terminal that runs `dail ...` is still shared, so the
+           CLI, TUI and `dail mcp` work as before. Older Windows ignores this element. -->
+      <consoleAllocationPolicy xmlns="http://schemas.microsoft.com/SMI/2024/WindowsSettings">detached</consoleAllocationPolicy>
+    </windowsSettings>
+  </application>
+</assembly>
