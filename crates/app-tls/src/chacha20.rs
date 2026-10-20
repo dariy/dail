@@ -27,12 +27,12 @@ fn quarter_round(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
 fn initial_state(key: &[u8; 32], counter: u32, nonce: &[u8; 12]) -> [u32; 16] {
     let mut s = [0u32; 16];
     s[..4].copy_from_slice(&CONSTANTS);
-    for (word, bytes) in s[4..12].iter_mut().zip(key.chunks_exact(4)) {
-        *word = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    for (word, bytes) in s[4..12].iter_mut().zip(key.as_chunks::<4>().0) {
+        *word = u32::from_le_bytes(*bytes);
     }
     s[12] = counter;
-    for (word, bytes) in s[13..].iter_mut().zip(nonce.chunks_exact(4)) {
-        *word = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+    for (word, bytes) in s[13..].iter_mut().zip(nonce.as_chunks::<4>().0) {
+        *word = u32::from_le_bytes(*bytes);
     }
     s
 }
@@ -53,8 +53,8 @@ pub(crate) fn block(key: &[u8; 32], counter: u32, nonce: &[u8; 12]) -> [u8; BLOC
         quarter_round(&mut s, 3, 4, 9, 14);
     }
     let mut out = [0u8; BLOCK_LEN];
-    for ((bytes, word), init) in out.chunks_exact_mut(4).zip(&s).zip(&initial) {
-        bytes.copy_from_slice(&word.wrapping_add(*init).to_le_bytes());
+    for ((bytes, word), init) in out.as_chunks_mut::<4>().0.iter_mut().zip(&s).zip(&initial) {
+        *bytes = word.wrapping_add(*init).to_le_bytes();
     }
     s.zeroize();
     initial.zeroize();

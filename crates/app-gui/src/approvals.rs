@@ -25,6 +25,7 @@ pub fn show(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>
         ),
     );
     egui::ScrollArea::vertical()
+        .id_salt("approvals")
         .max_height(240.0)
         .auto_shrink([false, true])
         .show(ui, |ui| {

@@ -212,10 +212,7 @@ impl Threader {
 pub fn normalize_subject(subject: &str) -> (String, bool) {
     let mut rest = subject.trim();
     let mut prefixed = false;
-    loop {
-        let Some((head, tail)) = rest.split_once(':') else {
-            break;
-        };
+    while let Some((head, tail)) = rest.split_once(':') {
         let head = head.trim().to_lowercase();
         // `Re[2]` / `Re(2)` counters.
         let word = head

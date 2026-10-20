@@ -52,7 +52,9 @@ pub fn show(
     }
     let cursor = state.view.selected.last().copied().or(state.view.thread);
     let focused = state.view.focus == Pane::List;
-    let mut scroll = egui::ScrollArea::vertical().auto_shrink([false, false]);
+    let mut scroll = egui::ScrollArea::vertical()
+        .id_salt("list")
+        .auto_shrink([false, false]);
     if cursor != local.scrolled_to
         && let Some(index) = cursor.and_then(|c| rows.iter().position(|r| *r == c))
     {
@@ -61,7 +63,7 @@ pub fn show(
         let visible = ui.available_height();
         let offset = ui
             .ctx()
-            .data(|d| d.get_temp::<f32>(ui.id().with("list-offset")))
+            .data(|d| d.get_temp::<f32>(ui.scope_id().with("list-offset")))
             .unwrap_or(0.0);
         if top < offset || top + ROW_HEIGHT > offset + visible {
             scroll = scroll.vertical_scroll_offset((top - visible / 3.0).max(0.0));
@@ -109,9 +111,9 @@ pub fn show(
             }
         }
     });
-    let offset = output.state.offset.y;
+    let offset = output.state.clamped_offset().y;
     ui.ctx()
-        .data_mut(|d| d.insert_temp(ui.id().with("list-offset"), offset));
+        .data_mut(|d| d.insert_temp(ui.scope_id().with("list-offset"), offset));
 }
 
 fn header(
@@ -300,12 +302,7 @@ fn row(
         ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
     let name = row_name(summary, look.checked, now_ms);
     response.widget_info(|| {
-        egui::WidgetInfo::selected(
-            egui::WidgetType::SelectableLabel,
-            true,
-            selected || open,
-            &name,
-        )
+        egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
     });
     let painter = ui.painter();
     if open || selected || look.checked {
@@ -336,7 +333,7 @@ fn row(
     child.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         if look.checked {
-            ui.label(RichText::new("✓").color(p.ink));
+            ui.label(RichText::new("✔").color(p.ink));
         }
         if let Some(tag) = look.tag {
             let (rect, _) = ui.allocate_exact_size(Vec2::new(4.0, 12.0), Sense::hover());

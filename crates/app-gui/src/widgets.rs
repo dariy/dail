@@ -33,7 +33,7 @@ pub fn count(ui: &mut Ui, p: &Palette, n: impl ToString, strong: bool) {
     let galley = ui.painter().layout_no_wrap(text.clone(), mono(10.5), fg);
     let size = Vec2::new(galley.size().x + 10.0, 16.0);
     let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, &text));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &text));
     ui.painter().rect_filled(rect, CornerRadius::same(2), fill);
     let pos = rect.center() - galley.size() / 2.0;
     ui.painter().galley(pos, galley, fg);
@@ -117,7 +117,7 @@ pub fn icon_button(ui: &mut Ui, color: Color32, glyph: &str, label: &str) -> egu
     let response = ui
         .add(egui::Button::new(RichText::new(glyph).color(color)).frame(false))
         .on_hover_text(label);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     response
 }
 

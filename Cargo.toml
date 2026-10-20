@@ -29,7 +29,7 @@ default-members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.92" # eframe 0.35 MSRV (0.36+ needs 1.95)
+rust-version = "1.95" # eframe/egui-winit 0.37 MSRV
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/your-org/dail"
 
@@ -93,7 +93,7 @@ zeroize = "1" # wipes keys on drop (already in the tree via rustls)
 getrandom = "0.4" # the OS random source (already in the tree via uuid)
 
 # --- Network runtime (app-sync) — rustls with app-tls (ADR 0003), never ring/aws-lc/openssl ---
-tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal"] }
 # No built-in provider: app-tls is the provider (ADR 0003).
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "logging"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "logging"] }
@@ -105,7 +105,7 @@ keyring = "4.2" # default `v1` store set: Secret Service via zbus (pure Rust), W
 interprocess = { version = "2.4", features = ["tokio"] }
 
 # --- Agent surfaces ---
-rmcp = { version = "3.5", default-features = false, features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
+rmcp = { version = "3.6", default-features = false, features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
 # `dail mcp --http` (ADR 0007): HTTP/1.1 on loopback for rmcp's Streamable HTTP service. Pure Rust.
 hyper = { version = "1", default-features = false, features = ["server", "http1"] }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio", "service"] }
@@ -115,8 +115,8 @@ clap = { version = "4.6", features = ["derive"] }
 rpassword = "7.5" # no-echo password prompt for `dail account add` (app-cli only)
 
 # --- GUI (desktop-native; wasm deferred) ---
-eframe = { version = "0.35", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11"] }
-egui = "0.35"
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11"] }
+egui = { version = "0.37", features = ["monochrome_emoji_fonts"] } # the symbols the UI draws (✉, ⚠, …): default_fonts left them out in 0.37
 nucleo-matcher = "0.3"
 rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
 # Inline (cid:) images in the reader; already in the tree via eframe (png). Pure-Rust decoders only.
@@ -140,13 +140,13 @@ anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 
 # --- Testing ---
 insta = { version = "1.49", features = ["json"] }
-egui_kittest = { version = "0.35", default-features = false } # headless GUI tests via the AccessKit tree
+egui_kittest = { version = "0.37", default-features = false } # headless GUI tests via the AccessKit tree
 proptest = "1.12"
 # Test oracles for app-tls (docs/plan-tls.md §7.2): pure Rust, dev-dependencies only, never linked into dail.
-x25519-dalek = "2"
-chacha20poly1305 = "0.10"
-p256 = { version = "0.13", default-features = false, features = ["ecdsa"] }
-p384 = { version = "0.13", default-features = false, features = ["ecdsa"] }
+x25519-dalek = "3"
+chacha20poly1305 = "0.11"
+p256 = { version = "0.14", default-features = false, features = ["ecdsa"] }
+p384 = { version = "0.14", default-features = false, features = ["ecdsa"] }
 
 [profile.dev.package]
 # Dependencies: opt-level 2 keeps egui and mail parsing responsive in debug builds. They keep only line tables

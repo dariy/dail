@@ -205,7 +205,7 @@ impl Wizard {
         if self.shown.replace((self.step, status)) != Some((self.step, status)) {
             ctx.request_repaint();
         }
-        let modal = egui::Modal::new(egui::Id::new("account-wizard"))
+        let modal = egui::Modal::new(egui::Id::unique("account-wizard"))
             .frame(
                 egui::Frame::new()
                     .fill(p.surface)

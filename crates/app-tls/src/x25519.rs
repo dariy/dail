@@ -77,8 +77,8 @@ fn fe_to_bytes(f: &Fe) -> [u8; LEN] {
         (t[3] >> 39) | (t[4] << 12),
     ];
     let mut out = [0u8; LEN];
-    for (chunk, word) in out.chunks_exact_mut(8).zip(words) {
-        chunk.copy_from_slice(&word.to_le_bytes());
+    for (chunk, word) in out.as_chunks_mut::<8>().0.iter_mut().zip(words) {
+        *chunk = word.to_le_bytes();
     }
     t.zeroize();
     out

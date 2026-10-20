@@ -7,6 +7,13 @@ use app_core::{Command, CommandName, Origin};
 use app_gui::{Bridge, Purpose, Request};
 use app_sync::{IpcClient, IpcServer};
 
+/// Runs a frame without a UI. Nothing paints it, so its texture changes are dropped on purpose.
+fn empty_frame(ctx: &egui::Context) {
+    ctx.run_ui(egui::RawInput::default(), |_| {})
+        .textures_delta
+        .clear();
+}
+
 #[test]
 fn submits_in_order_and_returns_replies_with_their_purpose() {
     let rt = runtime();
@@ -42,9 +49,14 @@ fn state_changes_are_visible_and_request_a_repaint() {
     let (_backend, session) = rt.block_on(session());
     let ctx = egui::Context::default();
     let (bridge, _task) = Bridge::start(rt.handle(), session, ctx.clone());
-    // Settle the first frame so that only later repaint requests count.
-    let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
-    let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
+    // Settle the first frames (egui sends the window theme in its second) so that only later repaint
+    // requests count.
+    for _ in 0..10 {
+        empty_frame(&ctx);
+        if !ctx.has_requested_repaint() {
+            break;
+        }
+    }
     assert!(!ctx.has_requested_repaint());
     bridge.submit(Request::user(add_alice()));
     wait_for_replies(&bridge);
@@ -88,8 +100,8 @@ fn an_agent_attached_over_ipc_changes_what_the_gui_shows() {
     // Frames until the UI is idle: the sync's state changes wake it once more after the start.
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
-        let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
+        empty_frame(&ctx);
+        empty_frame(&ctx);
         if !ctx.has_requested_repaint() {
             break;
         }

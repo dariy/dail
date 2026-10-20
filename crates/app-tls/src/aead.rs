@@ -452,10 +452,10 @@ mod tests {
             aad in proptest::collection::vec(any::<u8>(), 0..64),
             plain in proptest::collection::vec(any::<u8>(), 0..300),
         ) {
-            use chacha20poly1305::{AeadInPlace, ChaCha20Poly1305, KeyInit};
+            use chacha20poly1305::{AeadInOut, ChaCha20Poly1305, KeyInit};
             let oracle = ChaCha20Poly1305::new(&key.into());
             let mut expected = plain.clone();
-            let expected_tag = oracle.encrypt_in_place_detached(&nonce.into(), &aad, &mut expected).unwrap();
+            let expected_tag = oracle.encrypt_inout_detached(&nonce.into(), &aad, expected.as_mut_slice().into()).unwrap();
             let mut data = plain;
             let tag = seal(&key, &nonce, &aad, &mut data).unwrap();
             prop_assert_eq!(data, expected);

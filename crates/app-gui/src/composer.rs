@@ -148,7 +148,7 @@ impl ComposerState {
                 |from| from.email.clone(),
             );
             ui.horizontal(|ui| {
-                ui.label(RichText::new("From").color(p.faint));
+                let label = ui.label(RichText::new("From").color(p.faint));
                 let aliases: Vec<String> = account
                     .map(|a| {
                         std::iter::once(a.email.clone())
@@ -175,7 +175,9 @@ impl ComposerState {
                                     }));
                                 }
                             }
-                        });
+                        })
+                        .response
+                        .labelled_by(label.id);
                 } else {
                     ui.label(RichText::new(from).color(p.secondary));
                 }
@@ -218,6 +220,7 @@ impl ComposerState {
             let footer = 46.0;
             let height = (ui.available_height() - footer).max(120.0);
             egui::ScrollArea::vertical()
+                .id_salt(("body", draft.id))
                 .max_height(height)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
@@ -505,14 +508,14 @@ impl ComposerState {
 }
 
 /// Files dropped on the window become attachments of the open draft; while files are dragged
-/// over it, a hint says so. Only files with a path (not browser data) can be attached.
+/// over it, a hint says so. Only files whose path is valid UTF-8 can be attached.
 fn dropped_files(ui: &Ui, p: &Palette, draft: DraftId, queue: &mut Vec<Request>) {
     let (hovering, dropped) = ui.input(|i| {
         let paths: Vec<String> = i
             .raw
             .dropped_files
             .iter()
-            .filter_map(|f| f.path.as_ref()?.to_str().map(str::to_owned))
+            .filter_map(|f| f.path().to_str().map(str::to_owned))
             .collect();
         (!i.raw.hovered_files.is_empty(), paths)
     });
@@ -525,7 +528,7 @@ fn dropped_files(ui: &Ui, p: &Palette, draft: DraftId, queue: &mut Vec<Request>)
     }
     if hovering {
         let rect = ui.ctx().content_rect();
-        egui::Area::new(egui::Id::new("drop-to-attach"))
+        egui::Area::new(egui::Id::unique("drop-to-attach"))
             .order(egui::Order::Foreground)
             .fixed_pos(rect.min)
             .interactable(false)

@@ -207,6 +207,7 @@ pub fn show(
     }
     ui.add_space(12.0);
     egui::ScrollArea::vertical()
+        .id_salt("reader")
         .auto_shrink([false, false])
         .show(ui, |ui| {
             ui.set_max_width(ui.available_width().min(760.0));
@@ -293,11 +294,11 @@ fn collapsed_row(
     let response = ui
         .interact(
             frame.response.rect,
-            ui.id().with(("expand", message.id)),
+            ui.scope_id().with(("expand", message.id)),
             egui::Sense::click(),
         )
         .on_hover_cursor(egui::CursorIcon::PointingHand);
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
     if response.clicked() {
         queue.push(Request::user(Command::ExpandMessages {
             ids: vec![message.id],
@@ -363,12 +364,11 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                 let label = format!("Collapse message from {}", sender(message));
                 let response = ui.interact(
                     header.response.rect,
-                    ui.id().with(("collapse", message.id)),
+                    ui.scope_id().with(("collapse", message.id)),
                     egui::Sense::click(),
                 );
-                response.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &label)
-                });
+                response
+                    .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
                 if response.clicked() {
                     queue.push(Request::user(Command::CollapseMessages {
                         ids: vec![message.id],

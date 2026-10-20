@@ -87,7 +87,7 @@ impl PaletteState {
         if escape && !self.inner.back() {
             queue.push(Request::user(Command::ClosePalette {}));
         }
-        let id = egui::Id::new("palette");
+        let id = egui::Id::unique("palette");
         let selected = self.inner.selected();
         let modal = egui::Modal::new(id)
             .area(
@@ -127,6 +127,7 @@ impl PaletteState {
                     });
                 ui.separator();
                 egui::ScrollArea::vertical()
+                    .id_salt("palette")
                     .max_height(380.0)
                     .auto_shrink([false, true])
                     .show(ui, |ui| {

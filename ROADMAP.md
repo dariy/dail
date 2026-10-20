@@ -200,7 +200,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] Attachments: preview images and text in the reader; PDFs open in the browser's viewer (a private temporary
   copy). Other types are saved, not opened: there is no "open with" for attacker files
 - [x] Attachments: drag files into the composer to attach them
-- [ ] Attachments: drag out of the reader — blocked: eframe/winit 0.35 cannot start an OS drag; revisit when egui can
+- [ ] Attachments: drag out of the reader — blocked: eframe 0.37 / winit 0.30 cannot start an OS drag; revisit when egui can
 
 **Sync & performance**
 - [x] IMAP IDLE push for INBOX (+ fallback polling)
@@ -245,7 +245,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] i18n scaffolding (UI strings table): `app_front::i18n` keys with English templates and a pseudo-locale
   (`DAIL_LANG=pseudo`); the shared status texts use it
 - [ ] i18n: move the GUI's and TUI's own labels into the strings table; a first real translation
-- [ ] RTL layout — split from i18n, blocked: egui 0.35 has no bidirectional text or mirrored layouts (RTL mail shows in
+- [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub
   Actions matrix CI (Ubuntu + Windows) exists already

@@ -70,6 +70,7 @@ pub fn show(
     });
     ui.add_space(12.0);
     egui::ScrollArea::vertical()
+        .id_salt("sidebar")
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let focused = state.view.focus == Pane::Sidebar;
@@ -187,9 +188,7 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
     } else {
         row.name.clone()
     };
-    response.widget_info(|| {
-        egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, true, open, &name)
-    });
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, &name));
     if open {
         ui.painter().rect_filled(rect, 4.0, p.subtle);
         if focused {

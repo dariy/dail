@@ -114,7 +114,7 @@ pub const fn palettes(setting: u64) -> (Palette, Palette, ThemePreference) {
 
 /// The installed `(light, dark)` palettes, in the context's memory.
 fn installed_id() -> egui::Id {
-    egui::Id::new("dail-theme-installed")
+    egui::Id::unique("dail-theme-installed")
 }
 
 /// The palette in effect for `ctx`.
@@ -152,7 +152,7 @@ pub fn apply(ctx: &egui::Context, setting: u64) {
 /// Keyboard zoom (Ctrl + plus/minus/0, egui's own) lasts until the window closes; the setting
 /// is what is kept (writing each step back would make it an undo step).
 pub fn zoom(ctx: &egui::Context, setting: u64) {
-    let applied = egui::Id::new("dail-text-scale");
+    let applied = egui::Id::unique("dail-text-scale");
     if ctx.data(|d| d.get_temp::<u64>(applied)) != Some(setting) {
         ctx.data_mut(|d| d.insert_temp(applied, setting));
         ctx.set_zoom_factor(setting as f32 / 100.0);

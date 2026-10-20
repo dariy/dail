@@ -101,13 +101,10 @@ impl Poly1305 {
             self.block(&block, 1 << 40);
             self.buffered = 0;
         }
-        let mut blocks = data.chunks_exact(BLOCK_LEN);
-        for chunk in &mut blocks {
-            let mut block = [0u8; BLOCK_LEN];
-            block.copy_from_slice(chunk);
-            self.block(&block, 1 << 40);
+        let (blocks, rest) = data.as_chunks::<BLOCK_LEN>();
+        for block in blocks {
+            self.block(block, 1 << 40);
         }
-        let rest = blocks.remainder();
         self.buffer[..rest.len()].copy_from_slice(rest);
         self.buffered = rest.len();
     }

@@ -701,7 +701,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
 `Lang` at startup from `$DAIL_LANG` (`Shell::set_lang`, `Tui::with_lang_tag`). Besides English there is a
 pseudo-locale (`DAIL_LANG=pseudo`): accented, a third longer and bracketed, so hard-coded and clipped strings show.
 The status texts (problems, hints, fixes, sync and pending summaries) are in the table; the GUI's and TUI's own labels
-move over later. Right-to-left: egui 0.35 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
+move over later. Right-to-left: egui 0.37 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
 mail shows in logical order and the layout is not mirrored; bidi control characters from mail cannot reorder the UI
 (the TUI replaces them, `text::is_unsafe`; notifications drop them).
 
@@ -805,7 +805,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   tags each account with a colour (`theme::account_color`, by its position); the list's rows carry their account's colour.
   The TUI titles the unified list *All inboxes*.
 - **Checked threads:** Ctrl (Cmd) + click checks or unchecks a row, Shift + click checks every row from the cursor to it,
-  `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show `✓` (the TUI too).
+  `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show `✔` (`✓` in the TUI; the GUI fonts have no `✓`).
   While threads are checked the list header shows *N checked* with *Archive*, *Trash*, *Mark read*, *Mark unread*,
   *Star* and *Uncheck all*, and every triage key or palette command acts on the checked threads (`palette::targets`).
 - **Conversation:** messages oldest first. By default the unread ones and the newest are expanded and the others are
@@ -1230,6 +1230,6 @@ AppImage, MSI and a release workflow are still to come (`ROADMAP.md`).
 | MCP | `rmcp` | Official Rust SDK; schemars 1.x |
 | HTTP server | `hyper` 1 + `hyper-util` (app-mcp) | `dail mcp --http` on loopback (ADR 0007); pure Rust |
 | TUI | `ratatui` 0.30 (crossterm 0.29 through `ratatui::crossterm`), `ratatui-textarea` 0.9 | Immediate-mode terminal UI with a `TestBackend` for headless tests; pure Rust (ADR 0004) |
-| GUI | `eframe`/`egui` 0.35 (newest with MSRV 1.92; glow, accesskit, wayland, x11); `egui_kittest` for tests | Immediate mode suits a projection-of-state UI |
+| GUI | `eframe`/`egui` 0.37 (MSRV 1.95; glow, accesskit, wayland, x11); `egui_kittest` for tests | Immediate mode suits a projection-of-state UI |
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |

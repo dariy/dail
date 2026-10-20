@@ -100,7 +100,7 @@ impl Toasts {
         }
         ctx.request_repaint_after(std::time::Duration::from_millis(500));
         let mut dismiss = None;
-        egui::Area::new(egui::Id::new("toasts"))
+        egui::Area::new(egui::Id::unique("toasts"))
             .anchor(Align2::CENTER_BOTTOM, Vec2::new(0.0, -40.0))
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {

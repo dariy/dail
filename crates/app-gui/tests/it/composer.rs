@@ -10,6 +10,22 @@ use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
 use egui_kittest::kittest::{By, Queryable};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+/// A file dropped from the file manager: egui only hands the composer its path.
+#[derive(Debug)]
+struct PathFile(PathBuf);
+
+impl egui::DroppedFile for PathFile {
+    fn path(&self) -> &Path {
+        &self.0
+    }
+
+    fn bytes(&self) -> Result<Vec<u8>, String> {
+        Err("not read by the composer".into())
+    }
+}
 
 /// A harness with a new, open draft.
 fn composing() -> (Harness<'static, Gui>, DraftId) {
@@ -202,21 +218,16 @@ fn dropped_files_are_attached() {
         path: Some("/home/alice/q3.pdf".into()),
         ..Default::default()
     });
-    // egui repaints for as long as files hover: one frame at a time.
-    h.step();
+    // egui repaints for as long as files hover: one frame at a time. The hint's area sizes
+    // itself, unseen, in its first frame.
+    h.run_steps(2);
     h.get_by_label("Drop the files to attach them");
     h.input_mut().hovered_files.clear();
     for path in ["/home/alice/q3.pdf", "/home/alice/notes.txt"] {
-        h.input_mut().dropped_files.push(egui::DroppedFile {
-            path: Some(path.into()),
-            ..Default::default()
-        });
+        h.input_mut()
+            .dropped_files
+            .push(Arc::new(PathFile(path.into())));
     }
-    // Dropped browser data has no path: nothing to attach.
-    h.input_mut().dropped_files.push(egui::DroppedFile {
-        name: "image.png".into(),
-        ..Default::default()
-    });
     h.run();
     assert_eq!(
         h.state_mut().pump(),
