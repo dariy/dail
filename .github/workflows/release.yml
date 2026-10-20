@@ -1,0 +1,41 @@
+# Builds the release packages on demand (Actions → release → Run workflow): a zip with `dail.exe` on Windows, and a
+# tar.gz and a .deb on Ubuntu, each with a .sha256. They run the same scripts as a local release build (scripts/) and
+# are uploaded as the run's artifacts.
+name: release
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      # rustup reads rust-toolchain.toml (channel + rustfmt + clippy) on the first cargo call.
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: ./scripts/release-windows.ps1
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dail-windows
+          path: dist/*
+          if-no-files-found: error
+
+  ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+      - run: ./scripts/release-ubuntu.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dail-ubuntu
+          path: dist/*
+          if-no-files-found: error
