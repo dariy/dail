@@ -11,7 +11,6 @@ use std::path::Path;
 /// Modules that still hold literal sizes, radii, margins and spaces.
 const ALLOWLIST: &[&str] = &[
     "approvals.rs",
-    "composer.rs",
     "palette.rs",
     "shell.rs",
     "toasts.rs",

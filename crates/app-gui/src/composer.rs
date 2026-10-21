@@ -105,48 +105,58 @@ impl ComposerState {
             dropped_files(ui, t, draft.id, queue);
         }
 
-        ui.add_space(10.0);
-        ui.horizontal(|ui| {
-            let title = compose::title(draft);
-            ui.label(
-                RichText::new(title)
-                    .size(20.0)
-                    .strong()
-                    .family(crate::theme::semibold())
-                    .color(t.text_strong),
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui::secondary(ui, t, "Close", Some("Esc"), true) {
-                    self.flush(state, queue);
-                    queue.push(Request::user(Command::CloseComposer {}));
+        // Header: the title, the save state as a chip, *Close*.
+        ui.allocate_ui_with_layout(
+            egui::Vec2::new(ui.available_width(), t.m.frame.pane_header),
+            egui::Layout::left_to_right(egui::Align::Center),
+            |ui| {
+                ui.spacing_mut().item_spacing.x = t.m.space.sm;
+                let title = compose::title(draft);
+                ui.label(ui::text(&t.type_scale.headline_md, title, t.text_strong));
+                if let Some(error) = &draft.save_error {
+                    ui::badge(ui, t, "NOT SAVED", ui::Badge::Outline)
+                        .on_hover_text(format!("Draft save failed: {error}"));
+                    ui.label(ui::text(
+                        &t.type_scale.label_sm,
+                        format!("Draft save failed: {error}"),
+                        t.danger,
+                    ));
+                } else {
+                    let status = compose::draft_status(state, draft, now_ms);
+                    ui.label(ui::text(&t.type_scale.label_sm, status, t.text_muted));
                 }
-                let status = compose::draft_status(state, draft, now_ms);
-                ui.label(
-                    RichText::new(status)
-                        .font(ui::mono(11.0))
-                        .color(t.text_muted),
-                );
-            });
-        });
-        if let Some(error) = &draft.send_error {
-            ui.colored_label(ui.visuals().error_fg_color, format!("Not sent: {error}"));
-            if let Some(hint) = app_front::status::send_hint(state, draft.account, error, self.lang)
-            {
-                ui.label(RichText::new(hint).size(11.5).color(t.text_secondary));
-            }
-        }
-        if let Some(error) = &draft.save_error {
-            ui.label(RichText::new(format!("Draft save failed: {error}")).color(t.text_muted));
-        }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui::icon_button(ui, t, t.text_secondary, Icon::Close, "Close (Esc)")
+                        .clicked()
+                    {
+                        self.flush(state, queue);
+                        queue.push(Request::user(Command::CloseComposer {}));
+                    }
+                });
+            },
+        );
         if state.view.focus == Pane::Composer {
             let rect = ui.min_rect();
             ui.painter().hline(
                 rect.x_range(),
-                rect.bottom() + 4.0,
-                egui::Stroke::new(1.0, t.text_strong),
+                rect.bottom(),
+                egui::Stroke::new(t.m.stroke.hairline, t.focus),
             );
+        } else {
+            ui::divider(ui, t);
         }
-        ui.add_space(10.0);
+        if let Some(error) = &draft.send_error {
+            ui.add_space(t.m.space.sm);
+            ui.label(ui::text(
+                &t.type_scale.body_md,
+                format!("Not sent: {error}"),
+                t.danger,
+            ));
+            if let Some(hint) = app_front::status::send_hint(state, draft.account, error, self.lang)
+            {
+                ui.label(ui::text(&t.type_scale.body_sm, hint, t.text_secondary));
+            }
+        }
 
         ui.add_enabled_ui(!locked, |ui| {
             let account = state.accounts.get(&draft.account);
@@ -155,7 +165,7 @@ impl ComposerState {
                 |from| from.email.clone(),
             );
             ui.horizontal(|ui| {
-                let label = ui.label(RichText::new("From").color(t.text_muted));
+                let label = field_label(ui, t, "From");
                 let aliases: Vec<String> = account
                     .map(|a| {
                         std::iter::once(a.email.clone())
@@ -186,29 +196,29 @@ impl ComposerState {
                         .response
                         .labelled_by(label.id);
                 } else {
-                    ui.label(RichText::new(from).color(t.text_secondary));
+                    ui.label(ui::text(&t.type_scale.body_md, from, t.text_secondary));
+                }
+                if !self.show_cc {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let cc = ui::text(&t.type_scale.label_md, "Cc/Bcc", t.text_muted);
+                        if ui::ghost(ui, t, cc).clicked() {
+                            self.show_cc = true;
+                        }
+                    });
                 }
             });
-            ui.separator();
+            ui::divider(ui, t);
             for field in Field::ALL {
                 if field != Field::To && !self.show_cc {
                     continue;
                 }
                 self.recipients(ui, t, state, draft, field, queue);
-                ui.separator();
-            }
-            if !self.show_cc
-                && ui
-                    .add(
-                        egui::Button::new(RichText::new("Cc/Bcc").color(t.text_muted)).frame(false),
-                    )
-                    .clicked()
-            {
-                self.show_cc = true;
+                ui::divider(ui, t);
             }
             ui.horizontal(|ui| {
-                let label = ui.label(RichText::new("Subject").color(t.text_muted));
+                let label = field_label(ui, t, "Subject");
                 let edit = egui::TextEdit::singleline(&mut self.subject)
+                    .font(ui::font(&t.type_scale.body_md))
                     .frame(egui::Frame::NONE)
                     .hint_text("Subject")
                     .desired_width(f32::INFINITY);
@@ -224,16 +234,17 @@ impl ComposerState {
                     self.flush(state, queue);
                 }
             });
-            ui.separator();
-            self.attachments(ui, t, draft, queue);
-            let footer = 46.0;
-            let height = (ui.available_height() - footer).max(120.0);
+            ui::divider(ui, t);
+            ui.add_space(t.m.space.sm);
+            let footer = t.m.frame.reader_toolbar;
+            let height = (ui.available_height() - footer).max(t.m.overlays.palette_list_max / 3.0);
             egui::ScrollArea::vertical()
                 .id_salt(("body", draft.id))
                 .max_height(height)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     let edit = egui::TextEdit::multiline(&mut self.body)
+                        .font(ui::font(&t.type_scale.body_lg))
                         .frame(egui::Frame::NONE)
                         .hint_text("Write your message…")
                         .desired_width(f32::INFINITY)
@@ -250,19 +261,21 @@ impl ComposerState {
                         self.flush(state, queue);
                     }
                     if let Some(quote) = &draft.quote {
-                        ui.add_space(8.0);
-                        ui.label(RichText::new(&quote.header).color(t.text_muted));
-                        ui.label(
-                            RichText::new("(the original is added below when sent)")
-                                .size(11.0)
-                                .color(t.text_muted),
-                        );
+                        ui.add_space(t.m.space.md);
+                        ui.label(ui::text(
+                            &t.type_scale.body_md,
+                            &quote.header,
+                            t.text_secondary,
+                        ));
+                        ui::caption(ui, t, "The original is added below when sent");
                     }
                 });
         });
 
-        ui.separator();
-        ui.horizontal(|ui| {
+        // Footer: attach and the attachment chips; *Discard* and *Send* on the right.
+        ui::divider(ui, t);
+        ui.horizontal_wrapped(|ui| {
+            ui.set_min_height(t.m.frame.reader_toolbar);
             if locked {
                 if draft.send_at.is_some()
                     && !draft.sending
@@ -272,16 +285,22 @@ impl ComposerState {
                 }
                 return;
             }
-            let ready = compose::sendable(draft);
-            if ui::primary(ui, t, "Send", Some("Ctrl+Enter"), ready) {
-                self.flush(state, queue);
-                queue.push(Request::user(Command::SendDraft { id: draft.id }));
-            }
-            if ui::secondary(ui, t, "Attach files…", None, self.files.is_none()) {
-                self.pick_files(ui.ctx());
-            }
+            ui.add_enabled_ui(self.files.is_none(), |ui| {
+                if ui::icon_button(ui, t, t.text_secondary, Icon::AttachFile, "Attach files…")
+                    .clicked()
+                {
+                    self.pick_files(ui.ctx());
+                }
+            });
+            self.attachments(ui, t, draft, queue);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui::secondary(ui, t, "Discard", None, true) {
+                let ready = compose::sendable(draft);
+                if ui::primary(ui, t, "Send", Some("Ctrl+Enter"), ready) {
+                    self.flush(state, queue);
+                    queue.push(Request::user(Command::SendDraft { id: draft.id }));
+                }
+                let discard = ui::text(&t.type_scale.body_md, "Discard", t.text_secondary);
+                if ui::ghost(ui, t, discard).clicked() {
                     queue.push(Request::user(Command::DiscardDraft { id: draft.id }));
                 }
             });
@@ -337,46 +356,46 @@ impl ComposerState {
         let mut next: Option<Vec<Addr>> = None;
         let mut focused = false;
         ui.horizontal_wrapped(|ui| {
-            let label = ui.label(RichText::new(field.label()).color(t.text_muted));
+            let label = field_label(ui, t, field.label());
             for (i, addr) in current.iter().enumerate() {
-                egui::Frame::new()
-                    .fill(t.selected)
-                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
-                    .corner_radius(4)
-                    .inner_margin(egui::Margin::symmetric(6, 1))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.spacing_mut().item_spacing.x = 4.0;
-                            ui.label(RichText::new(format::full(addr)).color(t.text_strong))
-                                .on_hover_text(&addr.email);
-                            if ui::icon_button(
-                                ui,
-                                t,
-                                t.text_muted,
-                                Icon::Close,
-                                &format!("Remove {}", addr.email),
-                            )
-                            .clicked()
-                            {
-                                let mut list = current.to_vec();
-                                list.remove(i);
-                                next = Some(list);
-                            }
-                        });
+                chip(t).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = t.m.space.xs;
+                        ui.label(ui::text(
+                            &t.type_scale.body_sm,
+                            format::full(addr),
+                            t.text_strong,
+                        ))
+                        .on_hover_text(&addr.email);
+                        if ui::icon_button(
+                            ui,
+                            t,
+                            t.text_muted,
+                            Icon::Close,
+                            &format!("Remove {}", addr.email),
+                        )
+                        .clicked()
+                        {
+                            let mut list = current.to_vec();
+                            list.remove(i);
+                            next = Some(list);
+                        }
                     });
+                });
             }
             let index = field as usize;
             let Some(input) = self.inputs.get_mut(index) else {
                 return;
             };
             let edit = egui::TextEdit::singleline(input)
+                .font(ui::font(&t.type_scale.body_md))
                 .frame(egui::Frame::NONE)
                 .hint_text(if current.is_empty() {
                     "name@example.com"
                 } else {
                     ""
                 })
-                .desired_width(ui.available_width().max(160.0));
+                .desired_width((ui.available_width() - t.m.space.sm).max(t.m.frame.rail * 2.0));
             let response = ui.add(edit).labelled_by(label.id);
             if response.has_focus() {
                 focused = true;
@@ -405,9 +424,9 @@ impl ComposerState {
             if !picks.is_empty() {
                 ui.vertical(|ui| {
                     for addr in picks {
-                        let label = RichText::new(format::full(&addr)).color(t.text_secondary);
-                        if ui
-                            .add(egui::Button::new(label).frame(false))
+                        let label =
+                            ui::text(&t.type_scale.body_sm, format::full(&addr), t.text_secondary);
+                        if ui::ghost(ui, t, label)
                             .on_hover_text("Add this recipient")
                             .clicked()
                         {
@@ -438,44 +457,35 @@ impl ComposerState {
                     AttachmentState::Ready { size, .. } => (format::size(*size), false),
                     AttachmentState::Failed { error } => (error.clone(), true),
                 };
-                egui::Frame::new()
-                    .fill(t.selected)
-                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
-                    .corner_radius(4)
-                    .inner_margin(egui::Margin::symmetric(6, 2))
-                    .show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui::icon_label(
-                                ui,
-                                t,
-                                Icon::AttachFile,
-                                &attachment.name,
-                                t.text_strong,
-                                &format!("📎 {}", attachment.name),
-                            )
-                            .on_hover_text(&attachment.path);
-                            let detail = RichText::new(detail).size(11.0);
-                            if failed {
-                                ui.colored_label(ui.visuals().error_fg_color, detail);
-                            } else {
-                                ui.label(detail.color(t.text_muted));
-                            }
-                            if ui::icon_button(
-                                ui,
-                                t,
-                                t.text_muted,
-                                Icon::Close,
-                                &format!("Remove {}", attachment.name),
-                            )
-                            .clicked()
-                            {
-                                queue.push(Request::user(Command::RemoveAttachment {
-                                    draft: draft.id,
-                                    index,
-                                }));
-                            }
-                        });
+                chip(t).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui::icon_label(
+                            ui,
+                            t,
+                            Icon::AttachFile,
+                            &attachment.name,
+                            t.text_strong,
+                            &format!("📎 {}", attachment.name),
+                        )
+                        .on_hover_text(&attachment.path);
+                        let color = if failed { t.danger } else { t.text_muted };
+                        ui.label(ui::text(&t.type_scale.label_sm, detail, color));
+                        if ui::icon_button(
+                            ui,
+                            t,
+                            t.text_muted,
+                            Icon::Close,
+                            &format!("Remove {}", attachment.name),
+                        )
+                        .clicked()
+                        {
+                            queue.push(Request::user(Command::RemoveAttachment {
+                                draft: draft.id,
+                                index,
+                            }));
+                        }
                     });
+                });
             }
         });
         ui.separator();
@@ -551,18 +561,40 @@ fn dropped_files(ui: &Ui, t: &Tokens, draft: DraftId, queue: &mut Vec<Request>) 
             .fixed_pos(rect.min)
             .interactable(false)
             .show(ui.ctx(), |ui| {
+                // The drop zone: a `border_strong` frame over the scrim.
                 egui::Frame::new()
                     .fill(t.canvas.gamma_multiply(0.85))
+                    .stroke(egui::Stroke::new(t.m.stroke.indicator, t.border_strong))
                     .show(ui, |ui| {
                         ui.set_min_size(rect.size());
                         ui.centered_and_justified(|ui| {
-                            ui.label(
-                                RichText::new("Drop the files to attach them")
-                                    .size(18.0)
-                                    .color(t.text_strong),
-                            );
+                            ui.label(ui::text(
+                                &t.type_scale.headline_lg,
+                                "Drop the files to attach them",
+                                t.text_strong,
+                            ));
                         });
                     });
             });
     }
+}
+
+/// A field's label in the fixed label column: `label_md` in `text_muted`.
+fn field_label(ui: &mut Ui, t: &Tokens, text: &str) -> egui::Response {
+    ui.add_sized(
+        egui::Vec2::new(t.m.frame.rail, t.m.controls.button),
+        egui::Label::new(ui::text(&t.type_scale.label_md, text, t.text_muted)),
+    )
+}
+
+/// A recipient or attachment chip: `raised`, `border`, radius `sm`.
+fn chip(t: &Tokens) -> egui::Frame {
+    egui::Frame::new()
+        .fill(t.raised)
+        .stroke(egui::Stroke::new(t.m.stroke.hairline, t.border))
+        .corner_radius(ui::radius(t.m.radius.sm))
+        .inner_margin(egui::Margin::symmetric(
+            t.m.space.xs as i8 + 2,
+            t.m.space.xs as i8 / 2,
+        ))
 }
