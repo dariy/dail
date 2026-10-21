@@ -14,7 +14,6 @@ const ALLOWLIST: &[&str] = &[
     "attachments.rs",
     "composer.rs",
     "document.rs",
-    "list.rs",
     "palette.rs",
     "reader.rs",
     "shell.rs",

@@ -885,9 +885,14 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   repaints only on demand, and on some Wayland compositors eglSwapBuffers blocks the UI thread otherwise.
 - Layout: a resizable sidebar (accounts and their mailboxes from `app_core::listing::mailboxes`, unread counts; collapsed
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
-  mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible) with a search box, and the
-  reader (toolbar acting on the open thread, one card per message, body text). The list's rows and its unread count are
-  computed once per `AppState.revision` (`list::RowCache`), so a frame with 100k threads costs ~0.5 ms. `app_core::listing` holds these read-only
+  mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
+  reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
+  unread badge, *Clear* during a search, the checked-threads bar) and the footer; its rows come in two densities
+  (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
+  clip, message count and the date in mono; then the subject), and compact, 40 px on one line (the sender in a fixed
+  column). Hover and selection fills, the keyboard cursor's 2 px bar and the hairline come from `ui::row_frame`. The
+  list's rows and its unread count are computed once per `AppState.revision` (`list::RowCache`), so a frame with 100k
+  threads costs ~0.7 ms. `app_core::listing` holds these read-only
   projections; the queries use the same functions, so the GUI never re-derives the rules. Bodies are blobs only the
   session can read: the reader sends a background `get_thread {include_body: true, rich_body: true}` whenever the open
   thread or one of its body states changes. A user `create_draft`/`reply`/`reply_all`/`forward` is followed by `open_composer` for the

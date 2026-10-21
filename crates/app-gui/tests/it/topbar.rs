@@ -149,3 +149,20 @@ fn the_list_footer_counts_the_conversations() {
     h.run();
     h.get_by_label("2 CONVERSATIONS");
 }
+
+#[test]
+fn cozy_rows_are_48_high() {
+    use egui_kittest::kittest::NodeT;
+    let state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    h.run();
+    let row = h.get(
+        By::new()
+            .role(Role::Button)
+            .predicate(|n| n.label().is_some_and(|l| l.contains("Lunch?"))),
+    );
+    let rect = row.accesskit_node().bounding_box().unwrap();
+    assert!((rect.height() - 48.0).abs() < 0.5, "{rect:?}");
+}

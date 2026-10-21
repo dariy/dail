@@ -3,7 +3,7 @@
 
 use app_core::{AppState, Command, Pane, ThreadId, ThreadSummary, listing};
 use app_theme::Icon;
-use egui::{Align, Layout, RichText, Sense, Ui, Vec2};
+use egui::{Align, Layout, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
 use crate::theme::Tokens;
@@ -11,8 +11,30 @@ use crate::ui;
 use app_front::format;
 use app_front::mailbox::mailbox_name;
 
-/// Height of one row.
-pub const ROW_HEIGHT: f32 = 52.0;
+/// How the rows are laid out: two lines (48) or one (40). The `list_density` setting picks it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Density {
+    /// Two lines: the sender and the marks, then the subject.
+    #[default]
+    Cozy,
+    /// One line: sender, subject, date.
+    Compact,
+}
+
+impl Density {
+    /// The density of `state`'s settings (cozy until the setting exists).
+    pub fn of(_state: &AppState) -> Self {
+        Self::Cozy
+    }
+
+    /// The height of a row.
+    pub fn height(self, t: &Tokens) -> f32 {
+        match self {
+            Self::Cozy => t.m.rows.cozy,
+            Self::Compact => t.m.rows.compact,
+        }
+    }
+}
 
 /// UI-local state of the list.
 #[derive(Debug, Default)]
@@ -33,22 +55,21 @@ pub fn show(
 ) {
     header(ui, t, state, rows.unread, queue);
     let rows = rows.ids.as_slice();
-    ui.add_space(4.0);
-    ui.separator();
+    ui::divider(ui, t);
     if rows.is_empty() {
-        ui.add_space(24.0);
-        ui.vertical_centered(|ui| {
-            let text = if state.view.search.is_some() {
-                "No matching conversations."
-            } else if state.view.mailbox.is_some() {
-                "No conversations here."
-            } else {
-                "Pick a mailbox."
-            };
-            ui.label(RichText::new(text).color(t.text_muted));
-        });
+        let text = if state.view.search.is_some() {
+            "No matching conversations."
+        } else if state.view.mailbox.is_some() {
+            "No conversations here."
+        } else {
+            "Pick a mailbox."
+        };
+        ui::empty_state(ui, t, text, &[]);
         return;
     }
+    let density = Density::of(state);
+    let row_height = density.height(t);
+    ui.spacing_mut().item_spacing.y = 0.0;
     let cursor = state.view.selected.last().copied().or(state.view.thread);
     let focused = state.view.focus == Pane::List;
     let mut scroll = egui::ScrollArea::vertical()
@@ -57,14 +78,13 @@ pub fn show(
     if cursor != local.scrolled_to
         && let Some(index) = cursor.and_then(|c| rows.iter().position(|r| *r == c))
     {
-        let spacing = ui.spacing().item_spacing.y;
-        let top = index as f32 * (ROW_HEIGHT + spacing);
+        let top = index as f32 * row_height;
         let visible = ui.available_height();
         let offset = ui
             .ctx()
             .data(|d| d.get_temp::<f32>(ui.scope_id().with("list-offset")))
             .unwrap_or(0.0);
-        if top < offset || top + ROW_HEIGHT > offset + visible {
+        if top < offset || top + row_height > offset + visible {
             scroll = scroll.vertical_scroll_offset((top - visible / 3.0).max(0.0));
         }
         local.scrolled_to = cursor;
@@ -75,7 +95,7 @@ pub fn show(
         .as_deref()
         .map(app_front::highlight::words)
         .unwrap_or_default();
-    let output = scroll.show_rows(ui, ROW_HEIGHT, rows.len(), |ui, range| {
+    let output = scroll.show_rows(ui, row_height, rows.len(), |ui, range| {
         for id in &rows[range] {
             if let Some(thread) = state.threads.get(id) {
                 let summary = ThreadSummary::of(state, thread);
@@ -91,7 +111,7 @@ pub fn show(
                     cursor: focused && cursor == Some(*id),
                     marks: &marks,
                 };
-                match row(ui, t, &summary, &look, now_ms) {
+                match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
                         queue.push(Request::user(Command::OpenThread { id: *id }));
                     }
@@ -116,39 +136,42 @@ pub fn show(
 
 fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut Vec<Request>) {
     // The search lives in the top bar's pill (the palette, UI-5).
-    ui.add_space(t.m.space.md);
-    ui.horizontal(|ui| {
-        let title = match (&state.view.search, state.view.mailbox) {
-            (Some(query), _) => format!("Search: {query}"),
-            (None, _) if state.view.unified => "All inboxes".to_owned(),
-            (None, Some(mailbox)) => state
-                .mailboxes
-                .get(&mailbox)
-                .map_or_else(String::new, mailbox_name),
-            (None, None) => "dail".to_owned(),
-        };
-        ui.add(
-            egui::Label::new(
-                RichText::new(title)
-                    .size(18.0)
-                    .strong()
-                    .family(crate::theme::semibold())
-                    .color(t.text_strong),
-            )
-            .truncate(),
-        );
-        if unread > 0 {
-            ui::count(ui, t, format!("{unread} unread"), true);
-        }
-        if state.view.search.is_some() {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui::secondary(ui, t, "Clear", None, true) {
-                    queue.push(Request::user(Command::ClearSearch {}));
-                }
-            });
-        }
-    });
-    bulk_bar(ui, t, state, queue);
+    let title = match (&state.view.search, state.view.mailbox) {
+        (Some(query), _) => format!("Search: {query}"),
+        (None, _) if state.view.unified => "All inboxes".to_owned(),
+        (None, Some(mailbox)) => state
+            .mailboxes
+            .get(&mailbox)
+            .map_or_else(String::new, mailbox_name),
+        (None, None) => "dail".to_owned(),
+    };
+    egui::Frame::new()
+        .inner_margin(egui::Margin::symmetric(t.m.space.md as i8, 0))
+        .show(ui, |ui| {
+            ui.allocate_ui_with_layout(
+                Vec2::new(ui.available_width(), t.m.frame.pane_header),
+                Layout::left_to_right(Align::Center),
+                |ui| {
+                    ui.spacing_mut().item_spacing.x = t.m.space.sm;
+                    ui.add(
+                        egui::Label::new(ui::text(&t.type_scale.headline_md, title, t.text_strong))
+                            .truncate(),
+                    );
+                    if unread > 0 {
+                        ui::count(ui, t, format!("{unread} unread"), true);
+                    }
+                    // The right side: *Clear* during a search (room for the list toolbar later).
+                    if state.view.search.is_some() {
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui::secondary(ui, t, "Clear", None, true) {
+                                queue.push(Request::user(Command::ClearSearch {}));
+                            }
+                        });
+                    }
+                },
+            );
+            bulk_bar(ui, t, state, queue);
+        });
 }
 
 /// While threads are checked: how many, and the actions that apply to all of them.
@@ -157,14 +180,13 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
     if checked.is_empty() {
         return;
     }
-    ui.add_space(6.0);
     ui.horizontal_wrapped(|ui| {
-        ui.label(
-            RichText::new(format!("{} checked", checked.len()))
-                .strong()
-                .family(crate::theme::semibold())
-                .color(t.text_strong),
-        );
+        ui.label(ui::text_at(
+            &t.type_scale.body_md,
+            600,
+            format!("{} checked", checked.len()),
+            t.text_strong,
+        ));
         let ids = || checked.clone();
         let actions: [(&str, Command); 5] = [
             (
@@ -318,111 +340,154 @@ fn row(
     t: &Tokens,
     summary: &ThreadSummary<'_>,
     look: &RowLook<'_>,
+    density: Density,
     now_ms: i64,
 ) -> Option<Click> {
     let (selected, open, cursor) = (look.selected, look.open, look.cursor);
-    let (rect, response) =
-        ui.allocate_exact_size(Vec2::new(ui.available_width(), ROW_HEIGHT), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(
+        Vec2::new(ui.available_width(), density.height(t)),
+        Sense::click(),
+    );
     let name = row_name(summary, look.checked, now_ms);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
     });
-    let painter = ui.painter();
-    if open || selected || look.checked {
-        painter.rect_filled(rect, 0.0, t.selected);
-    } else if response.hovered() {
-        painter.rect_filled(rect, 0.0, t.hover);
-    }
-    if cursor {
-        painter.rect_filled(
-            egui::Rect::from_min_size(rect.min, Vec2::new(2.0, rect.height())),
-            0.0,
-            t.focus,
-        );
-    }
-    painter.hline(
-        rect.x_range(),
-        rect.bottom(),
-        egui::Stroke::new(1.0, t.border_subtle),
+    ui::row_frame(
+        ui,
+        t,
+        rect,
+        ui::RowState {
+            hovered: response.hovered(),
+            selected: open || selected || look.checked,
+            cursor,
+            hairline: true,
+        },
     );
     let unread = summary.unread > 0;
+    let body = &t.type_scale.body_md;
+    let sender_text = {
+        let senders = format::names(&summary.senders);
+        if senders.is_empty() {
+            "(no sender)".to_owned()
+        } else {
+            senders
+        }
+    };
+    let sender = if unread {
+        ui::text_at(body, 600, sender_text, t.text_strong)
+    } else {
+        ui::text(body, sender_text, t.text_secondary)
+    };
+    let subject = if summary.thread.subject.trim().is_empty() {
+        "(no subject)"
+    } else {
+        summary.thread.subject.as_str()
+    };
+    let subject_color = if unread { t.text } else { t.text_secondary };
+    let subject_job = ui::marked(t, subject, look.marks, ui::font(body), subject_color);
+    let date = format::short_date(summary.thread.last_date_ms, now_ms);
+    let date_color = if unread { t.text } else { t.text_muted };
     let mut child = ui.new_child(
         egui::UiBuilder::new()
-            .max_rect(rect.shrink2(Vec2::new(12.0, 6.0)))
+            .max_rect(rect.shrink2(Vec2::new(t.m.space.md, t.m.space.xs)))
             .layout(Layout::top_down(Align::Min))
             .accessibility_parent(response.id),
     );
-    child.spacing_mut().item_spacing.y = 2.0;
-    child.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 6.0;
+    child.spacing_mut().item_spacing = Vec2::new(t.m.space.sm - 2.0, 0.0);
+    // The marks before the sender: check, account tag, unread pip.
+    let lead = |ui: &mut Ui| {
         if look.checked {
-            ui::icon(ui, Icon::Check, 16.0, t.text_strong, false);
+            ui::icon(
+                ui,
+                Icon::CheckBox,
+                t.m.controls.icon_sm,
+                t.text_strong,
+                true,
+            );
         }
         if let Some(tag) = look.tag {
-            let (rect, _) = ui.allocate_exact_size(Vec2::new(4.0, 12.0), Sense::hover());
-            ui.painter().rect_filled(rect, 1.0, tag);
+            let (rect, _) =
+                ui.allocate_exact_size(Vec2::new(t.m.space.xs, t.m.space.md), Sense::hover());
+            ui.painter()
+                .rect_filled(rect, ui::radius(t.m.radius.sm), tag);
         }
         ui::pip(ui, t, t.text_strong, unread);
-        let date = format::short_date(summary.thread.last_date_ms, now_ms);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.label(RichText::new(date).font(ui::mono(11.0)).color(t.text_muted));
-            if summary.messages.len() > 1 {
-                ui.label(
-                    RichText::new(summary.messages.len().to_string())
-                        .font(ui::mono(10.5))
-                        .color(t.text_muted),
-                );
-            }
-            if summary.has_attachments {
-                ui::icon(ui, Icon::AttachFile, 14.0, t.text_muted, false);
-            }
-            if summary.flagged {
-                ui::icon(ui, Icon::Star, 14.0, t.text_strong, true);
-            }
-            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                let senders = format::names(&summary.senders);
-                let text = RichText::new(if senders.is_empty() {
-                    "(no sender)".to_owned()
-                } else {
-                    senders
-                });
-                let text = if unread {
-                    text.strong()
-                        .family(crate::theme::semibold())
-                        .color(t.text_strong)
-                } else {
-                    text.color(t.text_secondary)
-                };
-                ui.add(egui::Label::new(text).truncate().selectable(false));
-            });
-        });
-    });
-    child.horizontal(|ui| {
-        ui.add_space(14.0);
-        let subject = if summary.thread.subject.trim().is_empty() {
-            "(no subject)"
-        } else {
-            summary.thread.subject.as_str()
-        };
-        let color = if unread {
-            t.text_strong
-        } else {
-            t.text_secondary
-        };
-        if look.marks.is_empty() {
-            let text = RichText::new(subject).color(color);
-            ui.add(egui::Label::new(text).truncate().selectable(false));
-        } else {
-            let job = ui::marked(
-                t,
-                subject,
-                look.marks,
-                egui::FontId::proportional(13.0),
-                color,
-            );
-            ui.add(egui::Label::new(job).truncate().selectable(false));
+    };
+    // The marks after: star, attachment, message count, date (right to left).
+    let trail = |ui: &mut Ui| {
+        ui.label(ui::text(&t.type_scale.label_sm, date.clone(), date_color));
+        if summary.messages.len() > 1 {
+            ui.label(ui::text(
+                &t.type_scale.code_badge,
+                summary.messages.len().to_string(),
+                t.text_muted,
+            ));
         }
-    });
+        if summary.has_attachments {
+            ui::icon(
+                ui,
+                Icon::AttachFile,
+                t.m.controls.icon_xs,
+                t.text_muted,
+                false,
+            );
+        }
+        if summary.flagged {
+            ui::icon(ui, Icon::Star, t.m.controls.icon_xs, t.text_strong, true);
+        }
+    };
+    let line = child.available_width();
+    match density {
+        Density::Cozy => {
+            let half = child.available_height() / 2.0;
+            child.allocate_ui_with_layout(
+                Vec2::new(line, half),
+                Layout::left_to_right(Align::Center),
+                |ui| {
+                    lead(ui);
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        trail(ui);
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            ui.add(egui::Label::new(sender).truncate().selectable(false));
+                        });
+                    });
+                },
+            );
+            child.allocate_ui_with_layout(
+                Vec2::new(line, half),
+                Layout::left_to_right(Align::Center),
+                |ui| {
+                    // Under the sender, past the pip.
+                    ui.add_space(t.m.controls.unread_pip + t.m.space.sm);
+                    ui.add(egui::Label::new(subject_job).truncate().selectable(false));
+                },
+            );
+        }
+        Density::Compact => {
+            child.allocate_ui_with_layout(
+                Vec2::new(line, child.available_height()),
+                Layout::left_to_right(Align::Center),
+                |ui| {
+                    lead(ui);
+                    let column = (line / 3.0).min(t.m.frame.sidebar * 0.625);
+                    ui.allocate_ui_with_layout(
+                        Vec2::new(column, ui.available_height()),
+                        Layout::left_to_right(Align::Center),
+                        |ui| {
+                            ui.set_width(column);
+                            ui.add(egui::Label::new(sender).truncate().selectable(false));
+                        },
+                    );
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        trail(ui);
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            ui.add(egui::Label::new(subject_job).truncate().selectable(false));
+                        });
+                    });
+                },
+            );
+        }
+    }
     if !response.clicked() {
         return None;
     }

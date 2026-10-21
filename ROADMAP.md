@@ -299,8 +299,8 @@ independent.
 ### B — The surfaces
 - [x] UI-5 [gui]: Frame: sidebar (brand, *Compose*, nav rows, *Settings*), 56 px rail, top bar (search pill → palette,
   sync state, status chip); the status bar goes away and its parts move (D7, D8); ARCHITECTURE §7.1
-- [ ] UI-6 [gui] [front]: Thread list: 48 px header with unread badge, cozy (48) and compact (40) rows, footer with key
-  hints, undo label and count; `scale` tests before and after
+- [x] UI-6 [gui] [front]: Thread list: 48 px header with unread badge, cozy (48) and compact (40) rows, footer with key
+  hints, undo label and count; `scale` tests before and after (100k threads: 0.76 → 0.73 ms a frame)
 - [ ] UI-7 [gui]: Reader: 48 px toolbar, `headline_xl` subject, sender card, collapsed messages, body, attachment
   cards, links, empty state
 - [ ] UI-8 [gui]: Composer: header with save state, labelled hairline fields, chips, `body_lg` body, footer, drop zone

@@ -291,7 +291,7 @@ impl Shell {
                         list::footer(ui, &t, state, &rows, undo.as_deref(), &mut queue);
                     });
                 egui::Frame::new()
-                    .inner_margin(egui::Margin::symmetric(t.m.space.md as i8, 0))
+                    .inner_margin(egui::Margin::ZERO)
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
