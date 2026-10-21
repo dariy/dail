@@ -16,7 +16,7 @@ widgets. A future web front-end and the TUI (UI-16) may read the same tokens.
 - A new crate, `crates/app-theme`, with no internal dependency and `serde` as its only external one. Not an
   `app-front` module: tokens need nothing from `app-core`, and the fonts and icons (UI-2, UI-3) are assets the
   front-end logic crate should not carry. Edges: `app-theme ← (nothing internal)`; `app-gui` takes it in UI-4,
-  `app-tui` only with UI-16.
+  `app-tui` with UI-16 (opt-in `tui_colors`, ADR 0004 amendment).
 - **Three layers.** Primitives (grey values, type scale, spacing, radii) → roles per theme (`Surface`) → components
   (`app_gui::ui`, UI-4), which read roles and metrics only. The egui adapter converts a `Theme` once per change.
 - **Roles.** `base`, `canvas`, `raised`, `hover`, `selected`, `emphasis`, `scrim`, `border_subtle`, `border`,

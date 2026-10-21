@@ -686,6 +686,9 @@ pub enum SettingKey {
     /// Thread list rows: 0 = cozy (two lines), 1 = compact (one line), 2 = preview (three lines
     /// with the snippet).
     ListDensity,
+    /// TUI colours: 0 = the terminal's own (bold, dim, reverse), 1 = the active theme's roles in
+    /// truecolor (`NO_COLOR` still turns them off).
+    TuiColors,
 }
 
 impl SettingKey {
@@ -699,6 +702,7 @@ impl SettingKey {
         Self::TextScale,
         Self::Notifications,
         Self::ListDensity,
+        Self::TuiColors,
     ];
 
     /// The key's `snake_case` name.
@@ -712,6 +716,7 @@ impl SettingKey {
             Self::TextScale => "text_scale",
             Self::Notifications => "notifications",
             Self::ListDensity => "list_density",
+            Self::TuiColors => "tui_colors",
         }
     }
 
@@ -726,6 +731,7 @@ impl SettingKey {
             Self::TextScale => (50, 300),
             Self::Notifications => (0, 1),
             Self::ListDensity => (0, 2),
+            Self::TuiColors => (0, 1),
         }
     }
 
@@ -740,6 +746,7 @@ impl SettingKey {
             Self::TextScale => settings.text_scale,
             Self::Notifications => settings.notifications,
             Self::ListDensity => settings.list_density,
+            Self::TuiColors => settings.tui_colors,
         }
     }
 
@@ -754,6 +761,7 @@ impl SettingKey {
             Self::TextScale => settings.text_scale = value,
             Self::Notifications => settings.notifications = value,
             Self::ListDensity => settings.list_density = value,
+            Self::TuiColors => settings.tui_colors = value,
         }
     }
 }

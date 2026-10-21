@@ -267,6 +267,9 @@ pub struct Settings {
     /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px), 2 = preview
     /// (three lines with the snippet, 72 px).
     pub list_density: u64,
+    /// TUI colours: 0 = the terminal's own (default, ADR 0004), 1 = the active theme's roles in
+    /// truecolor (UI-16).
+    pub tui_colors: u64,
     /// GUI text and widget size in percent.
     pub text_scale: u64,
     /// Desktop notifications while the GUI is in the background: 0 = off, 1 = on.
@@ -321,6 +324,7 @@ impl Default for Settings {
             theme_light: DEFAULT_LIGHT_THEME.to_owned(),
             theme_dark: DEFAULT_DARK_THEME.to_owned(),
             list_density: 0,
+            tui_colors: 0,
             text_scale: 100,
             notifications: 1,
             images_from: BTreeSet::new(),

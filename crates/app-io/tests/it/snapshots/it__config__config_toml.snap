@@ -13,6 +13,7 @@ theme = 0
 theme_light = "dail-light"
 theme_dark = "dail-dark"
 list_density = 0
+tui_colors = 0
 text_scale = 100
 notifications = 1
 images_from = ["news@example.org"]

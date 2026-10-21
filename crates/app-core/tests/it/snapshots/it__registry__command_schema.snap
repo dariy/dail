@@ -491,6 +491,11 @@ expression: command_schema()
           "const": "list_density",
           "description": "Thread list rows: 0 = cozy (two lines), 1 = compact (one line), 2 = preview (three lines\nwith the snippet).",
           "type": "string"
+        },
+        {
+          "const": "tui_colors",
+          "description": "TUI colours: 0 = the terminal's own (bold, dim, reverse), 1 = the active theme's roles in\ntruecolor (`NO_COLOR` still turns them off).",
+          "type": "string"
         }
       ]
     },

@@ -452,6 +452,7 @@ dependencies = [
  "app-front",
  "app-sync",
  "app-testkit",
+ "app-theme",
  "insta",
  "ratatui",
  "ratatui-textarea",

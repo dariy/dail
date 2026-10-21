@@ -3,6 +3,7 @@
 - Status: accepted
 - Date: 2026-10-18
 - Plan: `ROADMAP.md`, Wave 1.5
+- Amended: 2026-10-21 (UI-16, opt-in theme colours; see the end)
 
 ## Context
 
@@ -62,3 +63,17 @@ a file dialog would open on the host, not on the phone.
   GUI in the desktop session is the workaround.
 - An attached TUI reads the whole state snapshot again after each change notification. That is fine for a few
   thousand messages; deltas come later.
+
+## Amendment — opt-in theme colours (UI-16, 2026-10-21)
+
+- **Context.** ADR 0008 put the GUI's colour roles in `app-theme`. Some users want the TUI to look like the GUI, and
+  truecolor terminals are common now (the mosh and tmux the TUI is built for pass it through).
+- **Decision.** The terminal's own colours stay the default. A setting, `tui_colors` (0 = terminal, 1 = truecolor),
+  turns on one pass over the finished frame that maps the widgets' attributes onto the active theme's roles (fills
+  onto backgrounds, text roles onto foregrounds, reverse onto `selected`, box drawing onto `border`). The widgets do
+  not change: they still draw with bold, dim and reverse only. `NO_COLOR` wins over the setting. `app-tui` gets the
+  edge `app-tui ← app-theme` (no toolkit, `serde` only).
+- **Consequences.** The TUI cannot read the desktop's light or dark preference, so "follow the system" paints the dark
+  theme. A terminal without truecolor approximates the colours or shows them wrongly; the setting is opt-in for that
+  reason. The tests check that the default frame has no colour, that every cell is painted with the setting, and that
+  `NO_COLOR` keeps the frame plain.

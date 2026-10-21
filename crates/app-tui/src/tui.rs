@@ -84,6 +84,8 @@ pub enum EditOutcome {
 /// UI-local state that is not part of `AppState`.
 pub struct Tui {
     clock: fn() -> i64,
+    /// `NO_COLOR` is set: never paint the theme's colours.
+    no_color: bool,
     /// The language of the shared texts (`app_front::i18n`).
     lang: app_front::i18n::Lang,
     quit: bool,
@@ -128,6 +130,7 @@ impl Default for Tui {
     fn default() -> Self {
         Self {
             clock: system_now_ms,
+            no_color: false,
             lang: app_front::i18n::Lang::default(),
             quit: false,
             setup_hint: "dail account add --preset gmail --email you@gmail.com".to_owned(),
@@ -239,8 +242,26 @@ impl Tui {
             || self.notice.is_some()
     }
 
-    /// Draws one frame of `state`.
+    /// Draws one frame of `state`, in the theme's colours when `tui_colors` asks for them and
+    /// `NO_COLOR` is unset (UI-16).
     pub fn draw(&mut self, frame: &mut Frame, state: &AppState) {
+        self.draw_widgets(frame, state);
+        if state.settings.tui_colors == 1 && !self.no_color {
+            crate::colors::paint(
+                frame.buffer_mut(),
+                &crate::colors::theme_of(&state.settings),
+            );
+        }
+    }
+
+    /// Tells the TUI that `NO_COLOR` is set: it keeps the terminal's colours whatever
+    /// `tui_colors` says.
+    pub fn with_no_color(mut self, no_color: bool) -> Self {
+        self.no_color = no_color;
+        self
+    }
+
+    fn draw_widgets(&mut self, frame: &mut Frame, state: &AppState) {
         let total = frame.area();
         let banner = approvals::banner(state);
         let [header, banner_area, body, status] = Layout::vertical([

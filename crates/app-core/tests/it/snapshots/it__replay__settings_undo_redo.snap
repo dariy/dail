@@ -26,6 +26,7 @@ expression: first
       "theme": 0,
       "theme_dark": "dail-dark",
       "theme_light": "dail-light",
+      "tui_colors": 0,
       "undo_send_ms": 10000
     },
     "status": {
@@ -68,6 +69,7 @@ expression: first
               "theme": 0,
               "theme_dark": "dail-dark",
               "theme_light": "dail-light",
+              "tui_colors": 0,
               "undo_send_ms": 10000
             },
             "kind": "query",
@@ -97,6 +99,7 @@ expression: first
                     "theme": 0,
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
+                    "tui_colors": 0,
                     "undo_send_ms": 10000
                   }
                 }
@@ -172,6 +175,7 @@ expression: first
                     "theme": 0,
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
+                    "tui_colors": 0,
                     "undo_send_ms": 10000
                   }
                 }
@@ -235,6 +239,7 @@ expression: first
                     "theme": 0,
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
+                    "tui_colors": 0,
                     "undo_send_ms": 10000
                   }
                 }
@@ -327,6 +332,7 @@ expression: first
                     "theme": 0,
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
+                    "tui_colors": 0,
                     "undo_send_ms": 10000
                   }
                 }
@@ -379,6 +385,7 @@ expression: first
                     "theme": 0,
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
+                    "tui_colors": 0,
                     "undo_send_ms": 10000
                   }
                 }

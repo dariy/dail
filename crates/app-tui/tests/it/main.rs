@@ -4,6 +4,7 @@ mod support;
 
 mod approvals;
 mod attached;
+mod colors;
 mod composer;
 mod keys;
 mod layout;

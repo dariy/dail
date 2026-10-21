@@ -6,6 +6,7 @@
 //! `app_sync::Bridge`, so tests drive [`Tui`] headlessly with ratatui's `TestBackend`.
 
 pub mod approvals;
+pub mod colors;
 pub mod composer;
 pub mod editor;
 pub mod keys;

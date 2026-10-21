@@ -15,9 +15,9 @@ dail · Conversations
 │text_scale      100                                                           │
 │notifications   1                                                             │
 │list_density    0                                                             │
+│tui_colors      0                                                             │
 │theme_light     dail-light                                                    │
 │theme_dark      dail-dark                                                     │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │
