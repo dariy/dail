@@ -186,6 +186,9 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] [tui] Mouse and touch: the wheel (a swipe) scrolls, a tap selects or opens; a key turns mouse capture off, so that the terminal's own selection can copy a link
 - [x] [tui] Account setup: preset → address (servers for custom) → masked password (straight into `add_account` as a `Secret`, the buffer cleared) → `test_account` → `sync_now`. Until then `dail account add` in a shell does it
 
+### UI — Visual refresh and the theme library (`docs/requests/2026-10-21-ui.md`)
+- [x] UI-1: ADR 0008 and the `app-theme` crate: colour roles, type scale, metrics, built-in themes, contrast audit
+
 ---
 
 ## Wave 2 — Polish: "pleasant, fast, robust"

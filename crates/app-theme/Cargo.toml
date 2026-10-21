@@ -1,0 +1,19 @@
+[package]
+name = "app-theme"
+description = "Toolkit-free design tokens and built-in themes for the dail front-ends (ADR 0008)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+# UI-2 adds the bundled fonts and names their licences here: `(MIT OR Apache-2.0) AND OFL-1.1 AND Apache-2.0`.
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

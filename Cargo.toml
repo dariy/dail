@@ -11,6 +11,7 @@ members = [
     "crates/app-tui",
     "crates/app-testkit",
     "crates/app-tls",
+    "crates/app-theme",
     "xtask",
 ]
 default-members = [
@@ -24,6 +25,7 @@ default-members = [
     "crates/app-tui",
     "crates/app-testkit",
     "crates/app-tls",
+    "crates/app-theme",
 ]
 
 [workspace.package]
@@ -61,6 +63,7 @@ app-front = { path = "crates/app-front" }
 app-tui = { path = "crates/app-tui" }
 app-testkit = { path = "crates/app-testkit" }
 app-tls = { path = "crates/app-tls" }
+app-theme = { path = "crates/app-theme" }
 
 # --- Core: pure data crates only (allowed in app-core) ---
 serde = { version = "1.0", features = ["derive"] }

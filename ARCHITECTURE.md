@@ -41,6 +41,7 @@ graph LR
   cli[app-cli<br/>`dail` binary]
   tk[app-testkit<br/>fake transport]
   tls[app-tls<br/>TLS crypto provider]
+  theme[app-theme<br/>design tokens]
 
   io --> core
   sync --> core
@@ -92,6 +93,11 @@ status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signat
 `keymap` (chords, bindings, `resolve`, the sequence state) and `palette` (the flows, rows, `nucleo-matcher` ranking
 and `Palette`, the state of an open palette without drawing: query, cursor, second step; `choose` returns the
 commands to submit or keeps the next step).
+
+`app-theme` (ADR 0008) holds the design tokens without a toolkit: colour roles in two surface groups (content and
+chrome), the type scale, the metrics, the built-in themes (`dail-dark`, `dail-light`, `dail-dark-hc`,
+`dail-light-hc`) and the WCAG contrast `audit`, a unit test over every built-in. It depends on `serde` only. Nothing
+uses it yet; the GUI's egui adapter takes it in UI-4.
 
 ## 4. Core model (`app-core`)
 
@@ -1231,5 +1237,6 @@ AppImage, MSI and a release workflow are still to come (`ROADMAP.md`).
 | HTTP server | `hyper` 1 + `hyper-util` (app-mcp) | `dail mcp --http` on loopback (ADR 0007); pure Rust |
 | TUI | `ratatui` 0.30 (crossterm 0.29 through `ratatui::crossterm`), `ratatui-textarea` 0.9 | Immediate-mode terminal UI with a `TestBackend` for headless tests; pure Rust (ADR 0004) |
 | GUI | `eframe`/`egui` 0.37 (MSRV 1.95; glow, accesskit, wayland, x11); `egui_kittest` for tests | Immediate mode suits a projection-of-state UI |
+| Design tokens | `app-theme` (serde only) | Themes stay data, (de)serializable for theme files later (ADR 0008) |
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |
