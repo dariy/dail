@@ -221,7 +221,13 @@ impl Wizard {
                 } else {
                     "Add an account"
                 };
-                ui.label(RichText::new(title).size(20.0).strong().color(p.ink));
+                ui.label(
+                    RichText::new(title)
+                        .size(20.0)
+                        .strong()
+                        .family(crate::theme::semibold())
+                        .color(p.ink),
+                );
                 let step = match (self.existing, self.step) {
                     (true, Step::Test) => format!("{}  Connection", self.email),
                     (true, _) => self.email.clone(),
@@ -249,13 +255,18 @@ impl Wizard {
         for (preset, title, hint) in PRESETS {
             let chosen = self.preset == *preset;
             let response = ui.add(
-                egui::Button::new(RichText::new(*title).strong().color(p.ink))
-                    .selected(chosen)
-                    .stroke(egui::Stroke::new(
-                        1.0,
-                        if chosen { p.ink } else { p.border },
-                    ))
-                    .min_size(egui::vec2(ui.available_width(), 30.0)),
+                egui::Button::new(
+                    RichText::new(*title)
+                        .strong()
+                        .family(crate::theme::semibold())
+                        .color(p.ink),
+                )
+                .selected(chosen)
+                .stroke(egui::Stroke::new(
+                    1.0,
+                    if chosen { p.ink } else { p.border },
+                ))
+                .min_size(egui::vec2(ui.available_width(), 30.0)),
             );
             if response.clicked() {
                 self.preset = *preset;

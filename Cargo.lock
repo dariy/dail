@@ -323,6 +323,7 @@ dependencies = [
  "app-front",
  "app-sync",
  "app-testkit",
+ "app-theme",
  "eframe",
  "egui",
  "egui_kittest",

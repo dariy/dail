@@ -39,7 +39,13 @@ pub fn show(
     let mut actions = SidebarActions::default();
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new("✉ dail").size(17.0).strong().color(p.ink));
+        ui.label(
+            RichText::new("✉ dail")
+                .size(17.0)
+                .strong()
+                .family(crate::theme::semibold())
+                .color(p.ink),
+        );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if widgets::icon_button(ui, p.secondary, "«", "Collapse sidebar (Ctrl+B)").clicked() {
                 queue.push(Request::user(Command::ToggleSidebar {}));
@@ -210,9 +216,13 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
     child.label(RichText::new(row.icon).color(p.secondary));
     let name = RichText::new(&row.name).color(if open { p.ink } else { p.secondary });
     child.add(
-        egui::Label::new(if open { name.strong() } else { name })
-            .truncate()
-            .selectable(false),
+        egui::Label::new(if open {
+            name.strong().family(crate::theme::semibold())
+        } else {
+            name
+        })
+        .truncate()
+        .selectable(false),
     );
     if row.unread > 0 {
         child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

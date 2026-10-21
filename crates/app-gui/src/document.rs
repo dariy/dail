@@ -238,7 +238,7 @@ impl Out<'_> {
         }
         let mut rich = RichText::new(text).size(size).color(self.p.ink);
         if span.bold {
-            rich = rich.strong();
+            rich = rich.strong().family(crate::theme::semibold());
         }
         if span.italic {
             rich = rich.italics();

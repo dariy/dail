@@ -15,6 +15,7 @@ workspace = true
 app-core.workspace = true
 app-front.workspace = true
 app-sync.workspace = true
+app-theme.workspace = true
 eframe.workspace = true
 egui.workspace = true
 image.workspace = true

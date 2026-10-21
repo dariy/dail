@@ -107,7 +107,13 @@ impl ComposerState {
         ui.add_space(10.0);
         ui.horizontal(|ui| {
             let title = compose::title(draft);
-            ui.label(RichText::new(title).size(20.0).strong().color(p.ink));
+            ui.label(
+                RichText::new(title)
+                    .size(20.0)
+                    .strong()
+                    .family(crate::theme::semibold())
+                    .color(p.ink),
+            );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if widgets::action(ui, p, "Close", Some("Esc"), true) {
                     self.flush(state, queue);

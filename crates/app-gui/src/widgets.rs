@@ -4,9 +4,9 @@ use egui::{Color32, CornerRadius, FontId, RichText, Sense, Stroke, Ui, Vec2};
 
 use crate::theme::Palette;
 
-/// Monospace font for counts, dates and key hints.
+/// JetBrains Mono at 500 for counts, dates and key hints.
 pub fn mono(size: f32) -> FontId {
-    FontId::monospace(size)
+    crate::theme::mono(size, 500)
 }
 
 /// A keyboard shortcut badge, e.g. `Ctrl+K`.
@@ -87,11 +87,16 @@ pub fn primary(ui: &mut Ui, p: &Palette, label: &str, keys: Option<&str>, enable
         Some(keys) => format!("{label}   {keys}"),
         None => label.to_owned(),
     };
-    let button = egui::Button::new(RichText::new(text).color(p.on_ink).strong())
-        .fill(p.ink)
-        .stroke(Stroke::NONE)
-        .corner_radius(CornerRadius::same(4))
-        .min_size(Vec2::new(0.0, 26.0));
+    let button = egui::Button::new(
+        RichText::new(text)
+            .color(p.on_ink)
+            .strong()
+            .family(crate::theme::semibold()),
+    )
+    .fill(p.ink)
+    .stroke(Stroke::NONE)
+    .corner_radius(CornerRadius::same(4))
+    .min_size(Vec2::new(0.0, 26.0));
     ui.add_enabled(enabled, button).clicked()
 }
 

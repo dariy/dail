@@ -7,6 +7,7 @@ mod accessibility;
 mod approvals;
 mod bridge;
 mod composer;
+mod fonts;
 mod keys;
 mod layout;
 mod palette;

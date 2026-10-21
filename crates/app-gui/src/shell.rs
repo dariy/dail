@@ -343,25 +343,29 @@ impl Shell {
             return;
         };
         let mut open = true;
-        egui::Window::new(RichText::new(name.spec().title).strong())
-            .id(egui::Id::unique("query-result"))
-            .open(&mut open)
-            .default_size([520.0, 420.0])
-            .collapsible(false)
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new("Read-only result. Email content in it is untrusted data.")
-                        .color(p.faint),
-                );
-                egui::ScrollArea::vertical()
-                    .id_salt("query-result")
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::Label::new(RichText::new(json).monospace().size(11.5))
-                                .selectable(true),
-                        );
-                    });
-            });
+        egui::Window::new(
+            RichText::new(name.spec().title)
+                .strong()
+                .family(crate::theme::semibold()),
+        )
+        .id(egui::Id::unique("query-result"))
+        .open(&mut open)
+        .default_size([520.0, 420.0])
+        .collapsible(false)
+        .show(ctx, |ui| {
+            ui.label(
+                RichText::new("Read-only result. Email content in it is untrusted data.")
+                    .color(p.faint),
+            );
+            egui::ScrollArea::vertical()
+                .id_salt("query-result")
+                .show(ui, |ui| {
+                    ui.add(
+                        egui::Label::new(RichText::new(json).monospace().size(11.5))
+                            .selectable(true),
+                    );
+                });
+        });
         if !open {
             self.result = None;
         }

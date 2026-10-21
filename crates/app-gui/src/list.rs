@@ -150,7 +150,16 @@ fn header(
                 .map_or_else(String::new, mailbox_name),
             (None, None) => "dail".to_owned(),
         };
-        ui.add(egui::Label::new(RichText::new(title).size(18.0).strong().color(p.ink)).truncate());
+        ui.add(
+            egui::Label::new(
+                RichText::new(title)
+                    .size(18.0)
+                    .strong()
+                    .family(crate::theme::semibold())
+                    .color(p.ink),
+            )
+            .truncate(),
+        );
         if unread > 0 {
             widgets::count(ui, p, format!("{unread} unread"), true);
         }
@@ -177,6 +186,7 @@ fn bulk_bar(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>
         ui.label(
             RichText::new(format!("{} checked", checked.len()))
                 .strong()
+                .family(crate::theme::semibold())
                 .color(p.ink),
         );
         let ids = || checked.clone();
@@ -364,7 +374,7 @@ fn row(
                     senders
                 });
                 let text = if unread {
-                    text.strong().color(p.ink)
+                    text.strong().family(crate::theme::semibold()).color(p.ink)
                 } else {
                     text.color(p.secondary)
                 };

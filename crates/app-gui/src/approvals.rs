@@ -44,7 +44,12 @@ fn card_ui(ui: &mut Ui, p: &Palette, card: &Card, queue: &mut Vec<Request>) {
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                ui.label(RichText::new(&card.subject).strong().color(p.ink));
+                ui.label(
+                    RichText::new(&card.subject)
+                        .strong()
+                        .family(crate::theme::semibold())
+                        .color(p.ink),
+                );
                 if !card.from.is_empty() {
                     ui.label(RichText::new(format!("from {}", card.from)).color(p.faint));
                 }

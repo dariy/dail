@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A typeface family. The fonts arrive with UI-2.
+/// A typeface family; the bundled fonts are in [`crate::fonts`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Face {

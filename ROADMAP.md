@@ -288,9 +288,9 @@ independent.
 
 ### A — The library
 - [x] UI-1: ADR 0008 and the `app-theme` crate: colour roles, type scale, metrics, built-in themes, contrast audit
-- [ ] UI-2 [gui]: Fonts: Geist and JetBrains Mono (variable) in `app-theme/assets/fonts/`, three weights through
+- [x] UI-2 [gui]: Fonts: Geist and JetBrains Mono (variable) in `app-theme/assets/fonts/`, three weights through
   `FontTweak::coords`, egui's fonts as fallbacks, `TextStyle` mapped onto the type scale; licence texts in the `.deb`;
-  binary size measured before and after
+  binary size measured before and after (release `dail`: 37 583 824 → 38 000 464 bytes, +407 KB)
 - [ ] UI-3 [gui]: Icons: a Material Symbols Outlined subset and `app_theme::Icon` replace every emoji glyph; role icons
   total over `MailboxRole`; ARCHITECTURE §7.1 (the missing `✓`)
 - [ ] UI-4 [gui]: egui adapter (`app_gui::theme` → `Tokens`, `Visuals` per theme, chrome visuals), component kit

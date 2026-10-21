@@ -8,6 +8,7 @@
 pub mod audit;
 pub mod builtin;
 pub mod color;
+pub mod fonts;
 pub mod metrics;
 pub mod surface;
 pub mod theme;
@@ -15,6 +16,7 @@ pub mod type_scale;
 
 pub use audit::{Problem, audit};
 pub use color::{Rgba, contrast, hex};
+pub use fonts::FontFile;
 pub use metrics::Metrics;
 pub use surface::Surface;
 pub use theme::{Appearance, Theme};

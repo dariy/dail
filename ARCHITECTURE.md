@@ -52,6 +52,7 @@ graph LR
   gui --> sync
   gui --> core
   gui --> front
+  gui --> theme
   tui --> sync
   tui --> core
   tui --> front
@@ -96,8 +97,10 @@ commands to submit or keeps the next step).
 
 `app-theme` (ADR 0008) holds the design tokens without a toolkit: colour roles in two surface groups (content and
 chrome), the type scale, the metrics, the built-in themes (`dail-dark`, `dail-light`, `dail-dark-hc`,
-`dail-light-hc`) and the WCAG contrast `audit`, a unit test over every built-in. It depends on `serde` only. Nothing
-uses it yet; the GUI's egui adapter takes it in UI-4.
+`dail-light-hc`) and the WCAG contrast `audit`, a unit test over every built-in. It depends on `serde` only. It also
+bundles the fonts (`fonts`: Geist and JetBrains Mono, variable in `wght`, with their OFL texts). `app-gui` registers
+each font once per weight (400, 500, 600) as the families `sans`, `sans-500`, `sans-600`, `mono`, `mono-500` and
+`mono-600`, with egui's own fonts as fallbacks, and maps egui's `TextStyle`s onto the type scale.
 
 ## 4. Core model (`app-core`)
 

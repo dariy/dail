@@ -196,7 +196,13 @@ pub fn show(
     } else {
         &thread.subject
     };
-    ui.label(RichText::new(subject).size(22.0).strong().color(p.ink));
+    ui.label(
+        RichText::new(subject)
+            .size(22.0)
+            .strong()
+            .family(crate::theme::semibold())
+            .color(p.ink),
+    );
     if state.view.focus == Pane::Reader {
         let rect = ui.min_rect();
         ui.painter().hline(
@@ -352,9 +358,14 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                     );
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.add(
-                            egui::Label::new(RichText::new(from).strong().color(p.ink))
-                                .truncate()
-                                .selectable(false),
+                            egui::Label::new(
+                                RichText::new(from)
+                                    .strong()
+                                    .family(crate::theme::semibold())
+                                    .color(p.ink),
+                            )
+                            .truncate()
+                            .selectable(false),
                         );
                     });
                 });
