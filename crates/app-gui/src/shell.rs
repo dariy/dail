@@ -179,7 +179,7 @@ impl Shell {
         }
         theme::apply(ui.ctx(), state.settings.theme);
         theme::zoom(ui.ctx(), state.settings.text_scale);
-        let p = theme::palette(ui.ctx());
+        let t = theme::tokens(ui.ctx());
         let now_ms = (self.clock)();
         self.saver.receive(&mut queue);
         if let Some((thread, cmd)) = self.bodies.refresh(state) {
@@ -191,14 +191,14 @@ impl Shell {
         // A copy (~1.6 MB at 100k) is cheaper than borrowing the cache across the frame.
         let rows = self.rows.of(state).clone();
         let ctx = ui.ctx().clone();
-        let asked = self.palette.show(&ctx, &p, state, &mut queue);
+        let asked = self.palette.show(&ctx, &t, state, &mut queue);
         if asked.wizard {
             self.wizard.open();
         }
         if let Some(account) = asked.password {
             self.wizard.reenter(state, account);
         }
-        self.wizard.show(&ctx, &p, state, &mut queue);
+        self.wizard.show(&ctx, &t, state, &mut queue);
         if !state.view.palette_open && !self.wizard.is_open() {
             let actions = self.keys.handle(&ctx, state);
             if !actions.is_empty() {
@@ -217,21 +217,21 @@ impl Shell {
                 }
             }
         }
-        self.show_result(&ctx, &p);
-        self.toasts.show(&ctx, &p, state, now_ms, &mut queue);
+        self.show_result(&ctx, &t);
+        self.toasts.show(&ctx, &t, state, now_ms, &mut queue);
 
         let status_bar = Panel::bottom("status-bar")
             .exact_size(28.0)
             .frame(
                 egui::Frame::new()
-                    .fill(p.surface)
-                    .stroke(egui::Stroke::new(1.0, p.border))
+                    .fill(t.base)
+                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
                     .inner_margin(egui::Margin::symmetric(12, 0)),
             )
             .show(ui, |ui| {
                 statusbar::show(
                     ui,
-                    &p,
+                    &t,
                     state,
                     self.toasts.undo_label(),
                     now_ms,
@@ -242,15 +242,20 @@ impl Shell {
         if let Some(account) = status_bar.inner {
             self.wizard.reenter(state, account);
         }
+        // The sidebar draws with the chrome group (dark in `dail-light`), egui's widgets too.
+        let chrome = t.chrome();
         let bar = egui::Frame::new()
-            .fill(p.surface)
+            .fill(chrome.base)
             .inner_margin(egui::Margin::symmetric(12, 0));
         if state.view.sidebar_collapsed {
             Panel::left("sidebar-rail")
                 .exact_size(44.0)
                 .resizable(false)
                 .frame(bar)
-                .show(ui, |ui| sidebar::rail(ui, &p, &mut queue));
+                .show(ui, |ui| {
+                    ui.style_mut().visuals = theme::chrome_visuals(&t);
+                    sidebar::rail(ui, &chrome, &mut queue);
+                });
         } else {
             Panel::left("sidebar")
                 .default_size(220.0)
@@ -258,7 +263,8 @@ impl Shell {
                 .resizable(true)
                 .frame(bar)
                 .show(ui, |ui| {
-                    if sidebar::show(ui, &p, state, &mut queue).add_account {
+                    ui.style_mut().visuals = theme::chrome_visuals(&t);
+                    if sidebar::show(ui, &chrome, state, &mut queue).add_account {
                         self.wizard.open();
                     }
                 });
@@ -269,7 +275,7 @@ impl Shell {
             .resizable(true)
             .frame(
                 egui::Frame::new()
-                    .fill(p.canvas)
+                    .fill(t.base)
                     .inner_margin(egui::Margin::symmetric(0, 0)),
             )
             .show(ui, |ui| {
@@ -277,25 +283,25 @@ impl Shell {
                     .inner_margin(egui::Margin::symmetric(12, 0))
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        list::show(ui, &p, state, &rows, &mut self.list, now_ms, &mut queue);
+                        list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
                     });
             });
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::new()
-                    .fill(p.canvas)
+                    .fill(t.canvas)
                     .inner_margin(egui::Margin::symmetric(24, 8)),
             )
             .show(ui, |ui| {
                 if !state.approvals.is_empty() {
                     egui::Frame::new()
-                        .fill(p.subtle)
-                        .stroke(egui::Stroke::new(1.0, p.border_strong))
+                        .fill(t.selected)
+                        .stroke(egui::Stroke::new(1.0, t.border_strong))
                         .corner_radius(egui::CornerRadius::same(6))
                         .inner_margin(egui::Margin::symmetric(12, 8))
                         .show(ui, |ui| {
                             ui.set_width(ui.available_width());
-                            approvals::show(ui, &p, state, &mut queue);
+                            approvals::show(ui, &t, state, &mut queue);
                         });
                     ui.add_space(8.0);
                 }
@@ -304,11 +310,11 @@ impl Shell {
                     .composer
                     .is_some_and(|id| state.drafts.contains_key(&id))
                 {
-                    self.composer.show(ui, &p, state, now_ms, &mut queue);
+                    self.composer.show(ui, &t, state, now_ms, &mut queue);
                 } else {
                     reader::show(
                         ui,
-                        &p,
+                        &t,
                         state,
                         &self.bodies,
                         now_ms,
@@ -338,7 +344,7 @@ impl Shell {
         queue
     }
 
-    fn show_result(&mut self, ctx: &egui::Context, p: &theme::Palette) {
+    fn show_result(&mut self, ctx: &egui::Context, t: &theme::Tokens) {
         let Some((name, json)) = &self.result else {
             return;
         };
@@ -355,7 +361,7 @@ impl Shell {
         .show(ctx, |ui| {
             ui.label(
                 RichText::new("Read-only result. Email content in it is untrusted data.")
-                    .color(p.faint),
+                    .color(t.text_muted),
             );
             egui::ScrollArea::vertical()
                 .id_salt("query-result")

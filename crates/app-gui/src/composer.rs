@@ -16,8 +16,8 @@ use app_theme::Icon;
 use egui::{RichText, Ui};
 
 use crate::bridge::Request;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Seconds without typing after which the buffers are written back.
 const IDLE_SECS: f64 = 1.0;
@@ -86,7 +86,7 @@ impl ComposerState {
     pub fn show(
         &mut self,
         ui: &mut Ui,
-        p: &Palette,
+        t: &Tokens,
         state: &AppState,
         now_ms: i64,
         queue: &mut Vec<Request>,
@@ -102,7 +102,7 @@ impl ComposerState {
         let now = ui.input(|i| i.time);
         let locked = draft.is_outgoing();
         if !locked {
-            dropped_files(ui, p, draft.id, queue);
+            dropped_files(ui, t, draft.id, queue);
         }
 
         ui.add_space(10.0);
@@ -113,18 +113,18 @@ impl ComposerState {
                     .size(20.0)
                     .strong()
                     .family(crate::theme::semibold())
-                    .color(p.ink),
+                    .color(t.text_strong),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::action(ui, p, "Close", Some("Esc"), true) {
+                if ui::secondary(ui, t, "Close", Some("Esc"), true) {
                     self.flush(state, queue);
                     queue.push(Request::user(Command::CloseComposer {}));
                 }
                 let status = compose::draft_status(state, draft, now_ms);
                 ui.label(
                     RichText::new(status)
-                        .font(widgets::mono(11.0))
-                        .color(p.faint),
+                        .font(ui::mono(11.0))
+                        .color(t.text_muted),
                 );
             });
         });
@@ -132,18 +132,18 @@ impl ComposerState {
             ui.colored_label(ui.visuals().error_fg_color, format!("Not sent: {error}"));
             if let Some(hint) = app_front::status::send_hint(state, draft.account, error, self.lang)
             {
-                ui.label(RichText::new(hint).size(11.5).color(p.secondary));
+                ui.label(RichText::new(hint).size(11.5).color(t.text_secondary));
             }
         }
         if let Some(error) = &draft.save_error {
-            ui.label(RichText::new(format!("Draft save failed: {error}")).color(p.faint));
+            ui.label(RichText::new(format!("Draft save failed: {error}")).color(t.text_muted));
         }
         if state.view.focus == Pane::Composer {
             let rect = ui.min_rect();
             ui.painter().hline(
                 rect.x_range(),
                 rect.bottom() + 4.0,
-                egui::Stroke::new(1.0, p.ink),
+                egui::Stroke::new(1.0, t.text_strong),
             );
         }
         ui.add_space(10.0);
@@ -155,7 +155,7 @@ impl ComposerState {
                 |from| from.email.clone(),
             );
             ui.horizontal(|ui| {
-                let label = ui.label(RichText::new("From").color(p.faint));
+                let label = ui.label(RichText::new("From").color(t.text_muted));
                 let aliases: Vec<String> = account
                     .map(|a| {
                         std::iter::once(a.email.clone())
@@ -171,7 +171,7 @@ impl ComposerState {
                 if aliases.len() > 1 && !locked {
                     // The account sends from several addresses: choose one.
                     egui::ComboBox::from_id_salt(("from", draft.id))
-                        .selected_text(RichText::new(&from).color(p.secondary))
+                        .selected_text(RichText::new(&from).color(t.text_secondary))
                         .show_ui(ui, |ui| {
                             for email in aliases {
                                 let chosen = email.eq_ignore_ascii_case(&from);
@@ -186,7 +186,7 @@ impl ComposerState {
                         .response
                         .labelled_by(label.id);
                 } else {
-                    ui.label(RichText::new(from).color(p.secondary));
+                    ui.label(RichText::new(from).color(t.text_secondary));
                 }
             });
             ui.separator();
@@ -194,18 +194,20 @@ impl ComposerState {
                 if field != Field::To && !self.show_cc {
                     continue;
                 }
-                self.recipients(ui, p, state, draft, field, queue);
+                self.recipients(ui, t, state, draft, field, queue);
                 ui.separator();
             }
             if !self.show_cc
                 && ui
-                    .add(egui::Button::new(RichText::new("Cc/Bcc").color(p.faint)).frame(false))
+                    .add(
+                        egui::Button::new(RichText::new("Cc/Bcc").color(t.text_muted)).frame(false),
+                    )
                     .clicked()
             {
                 self.show_cc = true;
             }
             ui.horizontal(|ui| {
-                let label = ui.label(RichText::new("Subject").color(p.faint));
+                let label = ui.label(RichText::new("Subject").color(t.text_muted));
                 let edit = egui::TextEdit::singleline(&mut self.subject)
                     .frame(egui::Frame::NONE)
                     .hint_text("Subject")
@@ -223,7 +225,7 @@ impl ComposerState {
                 }
             });
             ui.separator();
-            self.attachments(ui, p, draft, queue);
+            self.attachments(ui, t, draft, queue);
             let footer = 46.0;
             let height = (ui.available_height() - footer).max(120.0);
             egui::ScrollArea::vertical()
@@ -249,11 +251,11 @@ impl ComposerState {
                     }
                     if let Some(quote) = &draft.quote {
                         ui.add_space(8.0);
-                        ui.label(RichText::new(&quote.header).color(p.faint));
+                        ui.label(RichText::new(&quote.header).color(t.text_muted));
                         ui.label(
                             RichText::new("(the original is added below when sent)")
                                 .size(11.0)
-                                .color(p.faint),
+                                .color(t.text_muted),
                         );
                     }
                 });
@@ -264,22 +266,22 @@ impl ComposerState {
             if locked {
                 if draft.send_at.is_some()
                     && !draft.sending
-                    && widgets::primary(ui, p, "Cancel send", None, true)
+                    && ui::primary(ui, t, "Cancel send", None, true)
                 {
                     queue.push(Request::user(Command::CancelSend { id: draft.id }));
                 }
                 return;
             }
             let ready = compose::sendable(draft);
-            if widgets::primary(ui, p, "Send", Some("Ctrl+Enter"), ready) {
+            if ui::primary(ui, t, "Send", Some("Ctrl+Enter"), ready) {
                 self.flush(state, queue);
                 queue.push(Request::user(Command::SendDraft { id: draft.id }));
             }
-            if widgets::action(ui, p, "Attach files…", None, self.files.is_none()) {
+            if ui::secondary(ui, t, "Attach files…", None, self.files.is_none()) {
                 self.pick_files(ui.ctx());
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::action(ui, p, "Discard", None, true) {
+                if ui::secondary(ui, t, "Discard", None, true) {
                     queue.push(Request::user(Command::DiscardDraft { id: draft.id }));
                 }
             });
@@ -325,7 +327,7 @@ impl ComposerState {
     fn recipients(
         &mut self,
         ui: &mut Ui,
-        p: &Palette,
+        t: &Tokens,
         state: &AppState,
         draft: &Draft,
         field: Field,
@@ -335,21 +337,22 @@ impl ComposerState {
         let mut next: Option<Vec<Addr>> = None;
         let mut focused = false;
         ui.horizontal_wrapped(|ui| {
-            let label = ui.label(RichText::new(field.label()).color(p.faint));
+            let label = ui.label(RichText::new(field.label()).color(t.text_muted));
             for (i, addr) in current.iter().enumerate() {
                 egui::Frame::new()
-                    .fill(p.subtle)
-                    .stroke(egui::Stroke::new(1.0, p.border))
+                    .fill(t.selected)
+                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
                     .corner_radius(4)
                     .inner_margin(egui::Margin::symmetric(6, 1))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.spacing_mut().item_spacing.x = 4.0;
-                            ui.label(RichText::new(format::full(addr)).color(p.ink))
+                            ui.label(RichText::new(format::full(addr)).color(t.text_strong))
                                 .on_hover_text(&addr.email);
-                            if widgets::icon_button(
+                            if ui::icon_button(
                                 ui,
-                                p.faint,
+                                t,
+                                t.text_muted,
                                 Icon::Close,
                                 &format!("Remove {}", addr.email),
                             )
@@ -402,7 +405,7 @@ impl ComposerState {
             if !picks.is_empty() {
                 ui.vertical(|ui| {
                     for addr in picks {
-                        let label = RichText::new(format::full(&addr)).color(p.secondary);
+                        let label = RichText::new(format::full(&addr)).color(t.text_secondary);
                         if ui
                             .add(egui::Button::new(label).frame(false))
                             .on_hover_text("Add this recipient")
@@ -424,7 +427,7 @@ impl ComposerState {
         }
     }
 
-    fn attachments(&mut self, ui: &mut Ui, p: &Palette, draft: &Draft, queue: &mut Vec<Request>) {
+    fn attachments(&mut self, ui: &mut Ui, t: &Tokens, draft: &Draft, queue: &mut Vec<Request>) {
         if draft.attachments.is_empty() {
             return;
         }
@@ -436,17 +439,18 @@ impl ComposerState {
                     AttachmentState::Failed { error } => (error.clone(), true),
                 };
                 egui::Frame::new()
-                    .fill(p.subtle)
-                    .stroke(egui::Stroke::new(1.0, p.border))
+                    .fill(t.selected)
+                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
                     .corner_radius(4)
                     .inner_margin(egui::Margin::symmetric(6, 2))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            widgets::icon_label(
+                            ui::icon_label(
                                 ui,
+                                t,
                                 Icon::AttachFile,
                                 &attachment.name,
-                                p.ink,
+                                t.text_strong,
                                 &format!("📎 {}", attachment.name),
                             )
                             .on_hover_text(&attachment.path);
@@ -454,11 +458,12 @@ impl ComposerState {
                             if failed {
                                 ui.colored_label(ui.visuals().error_fg_color, detail);
                             } else {
-                                ui.label(detail.color(p.faint));
+                                ui.label(detail.color(t.text_muted));
                             }
-                            if widgets::icon_button(
+                            if ui::icon_button(
                                 ui,
-                                p.faint,
+                                t,
+                                t.text_muted,
                                 Icon::Close,
                                 &format!("Remove {}", attachment.name),
                             )
@@ -488,7 +493,7 @@ impl ComposerState {
                     .unwrap_or_default();
                 let paths: Vec<String> = paths
                     .into_iter()
-                    .filter_map(|p| p.to_str().map(str::to_owned))
+                    .filter_map(|path| path.to_str().map(str::to_owned))
                     .collect();
                 let _ = tx.send(paths);
                 ctx.request_repaint();
@@ -522,7 +527,7 @@ impl ComposerState {
 
 /// Files dropped on the window become attachments of the open draft; while files are dragged
 /// over it, a hint says so. Only files whose path is valid UTF-8 can be attached.
-fn dropped_files(ui: &Ui, p: &Palette, draft: DraftId, queue: &mut Vec<Request>) {
+fn dropped_files(ui: &Ui, t: &Tokens, draft: DraftId, queue: &mut Vec<Request>) {
     let (hovering, dropped) = ui.input(|i| {
         let paths: Vec<String> = i
             .raw
@@ -547,14 +552,14 @@ fn dropped_files(ui: &Ui, p: &Palette, draft: DraftId, queue: &mut Vec<Request>)
             .interactable(false)
             .show(ui.ctx(), |ui| {
                 egui::Frame::new()
-                    .fill(p.canvas.gamma_multiply(0.85))
+                    .fill(t.canvas.gamma_multiply(0.85))
                     .show(ui, |ui| {
                         ui.set_min_size(rect.size());
                         ui.centered_and_justified(|ui| {
                             ui.label(
                                 RichText::new("Drop the files to attach them")
                                     .size(18.0)
-                                    .color(p.ink),
+                                    .color(t.text_strong),
                             );
                         });
                     });

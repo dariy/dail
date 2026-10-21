@@ -1,157 +1,195 @@
-//! The monochrome look (`docs/ui/monochrome_minimalist_mail/DESIGN.md`): tonal surfaces,
-//! hairline borders and a single accent, the ink colour itself (black on light, white on dark).
+//! The egui adapter of the theme library (`app-theme`, ADR 0008): a [`Theme`] becomes [`Tokens`]
+//! (roles as `Color32`, metrics, the type scale) and egui `Visuals`, once per theme change.
+//! Widgets read roles and metrics from the tokens only, through the kit in `crate::ui`.
 
 use std::sync::Arc;
 
 use app_theme::fonts::{self, WEIGHTS};
 use app_theme::icon::{ICON_FAMILY, ICON_FONT};
-use app_theme::{Face, Icon, TypeScale, TypeToken};
+use app_theme::{Face, Icon, Metrics, Rgba, Surface, Theme, TypeScale, TypeToken, builtin};
 use egui::{
     Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, FontTweak, Stroke,
-    TextStyle, Theme, ThemePreference, Visuals, epaint::text::VariationCoords,
+    TextStyle, ThemePreference, Visuals, epaint::text::VariationCoords,
 };
 
-/// The colours of one theme.
+/// `Rgba` as egui's (premultiplied) colour.
+pub fn color(c: Rgba) -> Color32 {
+    Color32::from_rgba_unmultiplied(c.r, c.g, c.b, c.a)
+}
+
+/// The colour roles of one surface group (content or chrome), as egui colours; each field is
+/// the `app_theme::Surface` role of the same name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Palette {
-    /// Reading area and inputs.
+pub struct Roles {
+    pub base: Color32,
     pub canvas: Color32,
-    /// Sidebar, list and bars.
-    pub surface: Color32,
-    /// Selected rows, active inputs.
-    pub subtle: Color32,
-    /// Hover, badges.
-    pub muted: Color32,
-    /// Hairline dividers.
+    pub raised: Color32,
+    pub hover: Color32,
+    pub selected: Color32,
+    pub emphasis: Color32,
+    pub scrim: Color32,
+    pub border_subtle: Color32,
     pub border: Color32,
-    /// Focus rings.
     pub border_strong: Color32,
-    /// Headings, unread rows. Also the accent.
-    pub ink: Color32,
-    /// Body text and read rows.
-    pub secondary: Color32,
-    /// Timestamps, hints, disabled.
-    pub faint: Color32,
-    /// Text on an ink fill.
-    pub on_ink: Color32,
+    pub focus: Color32,
+    pub text_strong: Color32,
+    pub text: Color32,
+    pub text_secondary: Color32,
+    pub text_muted: Color32,
+    pub inverse_bg: Color32,
+    pub inverse_text: Color32,
+    pub danger: Color32,
+    pub inverse_danger: Color32,
+    /// A dark group (egui's `dark_mode` for its widgets).
+    pub dark: bool,
 }
 
-/// Light palette.
-pub const LIGHT: Palette = Palette {
-    canvas: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    surface: Color32::from_rgb(0xFA, 0xFA, 0xFA),
-    subtle: Color32::from_rgb(0xF4, 0xF4, 0xF5),
-    muted: Color32::from_rgb(0xE4, 0xE4, 0xE7),
-    border: Color32::from_rgb(0xE4, 0xE4, 0xE7),
-    border_strong: Color32::from_rgb(0xA1, 0xA1, 0xAA),
-    ink: Color32::from_rgb(0x09, 0x09, 0x0B),
-    secondary: Color32::from_rgb(0x52, 0x52, 0x5B),
-    faint: Color32::from_rgb(0x8A, 0x8A, 0x93),
-    on_ink: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-};
-
-/// Dark palette.
-pub const DARK: Palette = Palette {
-    canvas: Color32::from_rgb(0x00, 0x00, 0x00),
-    surface: Color32::from_rgb(0x09, 0x09, 0x0B),
-    subtle: Color32::from_rgb(0x16, 0x16, 0x18),
-    muted: Color32::from_rgb(0x22, 0x22, 0x25),
-    border: Color32::from_rgb(0x22, 0x22, 0x22),
-    border_strong: Color32::from_rgb(0x3F, 0x3F, 0x46),
-    ink: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    secondary: Color32::from_rgb(0xA1, 0xA1, 0xAA),
-    faint: Color32::from_rgb(0x71, 0x71, 0x7A),
-    on_ink: Color32::from_rgb(0x00, 0x00, 0x00),
-};
-
-/// Account tags: hues that read on the light and the dark surfaces alike.
-const ACCOUNT_COLORS: [Color32; 6] = [
-    Color32::from_rgb(0x3B, 0x82, 0xF6),
-    Color32::from_rgb(0xE1, 0x1D, 0x48),
-    Color32::from_rgb(0x10, 0xB9, 0x81),
-    Color32::from_rgb(0xF5, 0x9E, 0x0B),
-    Color32::from_rgb(0x8B, 0x5C, 0xF6),
-    Color32::from_rgb(0x06, 0xB6, 0xD4),
-];
-
-/// The colour tag of `account`: by its position among the accounts.
-pub fn account_color(state: &app_core::AppState, account: app_core::AccountId) -> Color32 {
-    let index = state.accounts.get_index_of(&account).unwrap_or(0);
-    ACCOUNT_COLORS[index % ACCOUNT_COLORS.len()]
-}
-
-/// High-contrast dark palette (`theme` 3): white on black, borders that show.
-pub const HIGH_CONTRAST_DARK: Palette = Palette {
-    canvas: Color32::from_rgb(0x00, 0x00, 0x00),
-    surface: Color32::from_rgb(0x00, 0x00, 0x00),
-    subtle: Color32::from_rgb(0x1F, 0x1F, 0x1F),
-    muted: Color32::from_rgb(0x38, 0x38, 0x38),
-    border: Color32::from_rgb(0xB0, 0xB0, 0xB0),
-    border_strong: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    ink: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    secondary: Color32::from_rgb(0xF2, 0xF2, 0xF2),
-    faint: Color32::from_rgb(0xD4, 0xD4, 0xD4),
-    on_ink: Color32::from_rgb(0x00, 0x00, 0x00),
-};
-
-/// High-contrast light palette (`theme` 4): black on white.
-pub const HIGH_CONTRAST_LIGHT: Palette = Palette {
-    canvas: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    surface: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-    subtle: Color32::from_rgb(0xEB, 0xEB, 0xEB),
-    muted: Color32::from_rgb(0xD6, 0xD6, 0xD6),
-    border: Color32::from_rgb(0x4D, 0x4D, 0x4D),
-    border_strong: Color32::from_rgb(0x00, 0x00, 0x00),
-    ink: Color32::from_rgb(0x00, 0x00, 0x00),
-    secondary: Color32::from_rgb(0x0D, 0x0D, 0x0D),
-    faint: Color32::from_rgb(0x2E, 0x2E, 0x2E),
-    on_ink: Color32::from_rgb(0xFF, 0xFF, 0xFF),
-};
-
-/// The light and dark palettes of a `theme` setting, and the preference between them:
-/// 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark, 4 = high-contrast light.
-pub const fn palettes(setting: u64) -> (Palette, Palette, ThemePreference) {
-    match setting {
-        1 => (LIGHT, DARK, ThemePreference::Light),
-        2 => (LIGHT, DARK, ThemePreference::Dark),
-        3 => (LIGHT, HIGH_CONTRAST_DARK, ThemePreference::Dark),
-        4 => (HIGH_CONTRAST_LIGHT, DARK, ThemePreference::Light),
-        _ => (LIGHT, DARK, ThemePreference::System),
+impl Roles {
+    /// The roles of `surface`.
+    pub fn of(s: &Surface) -> Self {
+        Self {
+            base: color(s.base),
+            canvas: color(s.canvas),
+            raised: color(s.raised),
+            hover: color(s.hover),
+            selected: color(s.selected),
+            emphasis: color(s.emphasis),
+            scrim: color(s.scrim),
+            border_subtle: color(s.border_subtle),
+            border: color(s.border),
+            border_strong: color(s.border_strong),
+            focus: color(s.focus),
+            text_strong: color(s.text_strong),
+            text: color(s.text),
+            text_secondary: color(s.text_secondary),
+            text_muted: color(s.text_muted),
+            inverse_bg: color(s.inverse_bg),
+            inverse_text: color(s.inverse_text),
+            danger: color(s.danger),
+            inverse_danger: color(s.inverse_danger),
+            dark: s.canvas.luminance() < 0.5,
+        }
     }
 }
 
-/// The installed `(light, dark)` palettes, in the context's memory.
+/// What widgets draw with: the content roles (through `Deref`), the chrome roles, the account
+/// tags, the metrics and the type scale of one theme.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tokens {
+    /// The theme's ID (`dail-dark`).
+    pub id: String,
+    /// List, reader, composer, dialogs.
+    pub content: Roles,
+    /// Sidebar and top bar.
+    pub chrome_roles: Roles,
+    /// Account colours.
+    pub tags: [Color32; 6],
+    /// Spacing, radii, sizes.
+    pub m: Metrics,
+    /// The type scale.
+    pub type_scale: TypeScale,
+}
+
+impl std::ops::Deref for Tokens {
+    type Target = Roles;
+    fn deref(&self) -> &Roles {
+        &self.content
+    }
+}
+
+impl Tokens {
+    /// The tokens of `theme`.
+    pub fn of(theme: &Theme) -> Self {
+        Self {
+            id: theme.id.to_string(),
+            content: Roles::of(&theme.content),
+            chrome_roles: Roles::of(&theme.chrome),
+            tags: theme.tags.map(color),
+            m: theme.metrics,
+            type_scale: theme.type_scale,
+        }
+    }
+
+    /// The same tokens with the chrome group as the content: for the sidebar and the top bar.
+    #[must_use]
+    pub fn chrome(&self) -> Self {
+        Self {
+            content: self.chrome_roles,
+            ..self.clone()
+        }
+    }
+
+    /// The colour tag of `account`: by its position among the accounts.
+    pub fn tag(&self, state: &app_core::AppState, account: app_core::AccountId) -> Color32 {
+        let index = state.accounts.get_index_of(&account).unwrap_or(0);
+        self.tags[index % self.tags.len()]
+    }
+}
+
+/// The light and dark themes of a `theme` setting, and the preference between them:
+/// 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark, 4 = high-contrast light.
+pub fn themes(setting: u64) -> (Theme, Theme, ThemePreference) {
+    let named = |id: &str, fallback: fn() -> Theme| builtin::get(id).unwrap_or_else(fallback);
+    match setting {
+        1 => (builtin::light(), builtin::dark(), ThemePreference::Light),
+        2 => (builtin::light(), builtin::dark(), ThemePreference::Dark),
+        3 => (
+            builtin::light(),
+            named("dail-dark-hc", builtin::dark),
+            ThemePreference::Dark,
+        ),
+        4 => (
+            named("dail-light-hc", builtin::light),
+            builtin::dark(),
+            ThemePreference::Light,
+        ),
+        _ => (builtin::light(), builtin::dark(), ThemePreference::System),
+    }
+}
+
+/// The installed `(setting, light, dark)` tokens, in the context's memory.
 fn installed_id() -> egui::Id {
     egui::Id::unique("dail-theme-installed")
 }
 
-/// The palette in effect for `ctx`.
-pub fn palette(ctx: &egui::Context) -> Palette {
-    let (light, dark) = ctx
-        .data(|d| d.get_temp::<(u64, Palette, Palette)>(installed_id()))
-        .map_or((LIGHT, DARK), |(_, light, dark)| (light, dark));
-    if ctx.global_style().visuals.dark_mode {
-        dark
-    } else {
-        light
-    }
+/// The tokens in effect for `ctx`.
+pub fn tokens(ctx: &egui::Context) -> Tokens {
+    let dark = ctx.global_style().visuals.dark_mode;
+    ctx.data(|d| d.get_temp::<(u64, Tokens, Tokens)>(installed_id()))
+        .map_or_else(
+            || {
+                Tokens::of(&if dark {
+                    builtin::dark()
+                } else {
+                    builtin::light()
+                })
+            },
+            |(_, light, darkt)| if dark { darkt } else { light },
+        )
 }
 
 /// The theme preference for the `theme` setting.
-pub const fn preference(setting: u64) -> ThemePreference {
-    palettes(setting).2
+pub fn preference(setting: u64) -> ThemePreference {
+    themes(setting).2
 }
 
-/// Installs the palettes of the `theme` setting (again when it changes) and follows it. The
+/// Installs the themes of the `theme` setting (again when it changes) and follows it. The
 /// first call also installs the fonts.
 pub fn apply(ctx: &egui::Context, setting: u64) {
     install_fonts(ctx);
-    let (light, dark, wanted) = palettes(setting);
-    let current = ctx.data(|d| d.get_temp::<(u64, Palette, Palette)>(installed_id()));
+    let current = ctx.data(|d| d.get_temp::<(u64, Tokens, Tokens)>(installed_id()));
+    let (light, dark, wanted) = themes(setting);
     if current.map(|c| c.0) != Some(setting) {
-        ctx.set_visuals_of(Theme::Light, visuals(&light, false));
-        ctx.set_visuals_of(Theme::Dark, visuals(&dark, true));
-        ctx.data_mut(|d| d.insert_temp(installed_id(), (setting, light, dark)));
+        let (lt, dt) = (Tokens::of(&light), Tokens::of(&dark));
+        for (theme, t) in [(egui::Theme::Light, &lt), (egui::Theme::Dark, &dt)] {
+            let v = visuals(&t.content, &t.m, theme == egui::Theme::Dark);
+            ctx.style_mut_of(theme, |style| {
+                style.visuals = v;
+                style.animation_time = t.m.animation_ms as f32 / 1000.0;
+                style.spacing.scroll = egui::style::ScrollStyle::floating();
+            });
+        }
+        ctx.data_mut(|d| d.insert_temp(installed_id(), (setting, lt, dt)));
     }
     if ctx.options(|o| o.theme_preference) != wanted {
         ctx.set_theme(wanted);
@@ -169,47 +207,55 @@ pub fn zoom(ctx: &egui::Context, setting: u64) {
     }
 }
 
-fn visuals(p: &Palette, dark: bool) -> Visuals {
+/// The `Visuals` of the chrome group: the sidebar and the top bar set them on their `Ui`, so
+/// egui's own widgets in them (scrollbars, text edits, tooltips) match a dark chrome.
+pub fn chrome_visuals(t: &Tokens) -> Visuals {
+    visuals(&t.chrome_roles, &t.m, t.chrome_roles.dark)
+}
+
+/// egui's `Visuals` from one group of roles.
+pub fn visuals(r: &Roles, m: &Metrics, dark: bool) -> Visuals {
     let mut v = if dark {
         Visuals::dark()
     } else {
         Visuals::light()
     };
-    let radius = CornerRadius::same(4);
-    v.panel_fill = p.surface;
-    v.window_fill = p.surface;
-    v.window_stroke = Stroke::new(1.0, p.border);
-    v.window_corner_radius = CornerRadius::same(8);
+    let radius = CornerRadius::same(m.radius.md as u8);
+    let hair = m.stroke.hairline;
+    v.panel_fill = r.canvas;
+    v.window_fill = r.base;
+    v.window_stroke = Stroke::new(hair, r.border);
+    v.window_corner_radius = CornerRadius::same(m.radius.lg as u8);
+    v.menu_corner_radius = radius;
     v.window_shadow = egui::Shadow::NONE;
     v.popup_shadow = egui::Shadow::NONE;
-    v.extreme_bg_color = p.canvas;
-    v.faint_bg_color = p.subtle;
-    v.code_bg_color = p.subtle;
-    v.hyperlink_color = p.ink;
-    v.warn_fg_color = p.ink;
-    // The one exception to "no colour": failures must stand out.
-    v.error_fg_color = if dark {
-        Color32::from_rgb(0xFF, 0xB4, 0xAB)
-    } else {
-        Color32::from_rgb(0xB3, 0x26, 0x1E)
-    };
-    v.selection.bg_fill = p.muted;
-    v.selection.stroke = Stroke::new(1.0, p.ink);
-    v.widgets.noninteractive.bg_fill = p.surface;
-    v.widgets.noninteractive.weak_bg_fill = p.surface;
-    v.widgets.noninteractive.bg_stroke = Stroke::new(1.0, p.border);
-    v.widgets.noninteractive.fg_stroke = Stroke::new(1.0, p.secondary);
+    v.extreme_bg_color = r.base;
+    v.text_edit_bg_color = Some(r.raised);
+    v.faint_bg_color = r.raised;
+    v.code_bg_color = r.selected;
+    v.hyperlink_color = r.text_strong;
+    v.warn_fg_color = r.text_strong;
+    v.error_fg_color = r.danger;
+    v.weak_text_color = Some(r.text_muted);
+    v.override_text_color = None;
+    v.selection.bg_fill = r.emphasis;
+    v.selection.stroke = Stroke::new(m.stroke.focus, r.focus);
+    v.text_cursor.stroke = Stroke::new(2.0, r.focus);
+    v.widgets.noninteractive.bg_fill = r.base;
+    v.widgets.noninteractive.weak_bg_fill = r.base;
+    v.widgets.noninteractive.bg_stroke = Stroke::new(hair, r.border_subtle);
+    v.widgets.noninteractive.fg_stroke = Stroke::new(hair, r.text);
     v.widgets.noninteractive.corner_radius = radius;
-    for (w, fill, stroke) in [
-        (&mut v.widgets.inactive, p.subtle, p.border),
-        (&mut v.widgets.hovered, p.muted, p.border_strong),
-        (&mut v.widgets.active, p.muted, p.ink),
-        (&mut v.widgets.open, p.subtle, p.border_strong),
+    for (w, fill, stroke, fg) in [
+        (&mut v.widgets.inactive, r.raised, r.border_subtle, r.text),
+        (&mut v.widgets.hovered, r.hover, r.border, r.text_strong),
+        (&mut v.widgets.active, r.selected, r.focus, r.text_strong),
+        (&mut v.widgets.open, r.selected, r.border, r.text_strong),
     ] {
         w.bg_fill = fill;
         w.weak_bg_fill = fill;
-        w.bg_stroke = Stroke::new(1.0, stroke);
-        w.fg_stroke = Stroke::new(1.0, p.ink);
+        w.bg_stroke = Stroke::new(hair, stroke);
+        w.fg_stroke = Stroke::new(1.0, fg);
         w.corner_radius = radius;
         w.expansion = 0.0;
     }
@@ -358,7 +404,7 @@ pub fn text_styles(scale: &TypeScale) -> std::collections::BTreeMap<TextStyle, F
 }
 
 /// Installs the fonts and the text styles once per context.
-fn install_fonts(ctx: &egui::Context) {
+pub fn install_fonts(ctx: &egui::Context) {
     let installed = egui::Id::unique("dail-fonts-installed");
     if ctx.data(|d| d.get_temp::<bool>(installed)).is_some() {
         return;

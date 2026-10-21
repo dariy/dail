@@ -102,7 +102,7 @@ bundles the fonts (`fonts`: Geist and JetBrains Mono, variable in `wght`, with t
 each font once per weight (400, 500, 600) as the families `sans`, `sans-500`, `sans-600`, `mono`, `mono-500` and
 `mono-600`, with egui's own fonts as fallbacks, and maps egui's `TextStyle`s onto the type scale. The icons are a
 Material Symbols Outlined subset (`icon`: `Icon` names the glyphs; families `icons` and `icons-filled`). The GUI paints
-them (`widgets::icon`), so screen readers never read a private-use character; the widget around carries the name.
+them (`ui::icon`), so screen readers never read a private-use character; the widget around carries the name.
 Mailbox roles map onto icons in `theme::role_icon`, an exhaustive match. Emoji in mail still come from egui's emoji
 fonts.
 
@@ -550,7 +550,7 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    `↓N%` while a mailbox backfills.
 13. Highlighting (`app_front::highlight`): while a search is open, its positive text and `subject:` words are marked
    (case-insensitive, on character boundaries) in the list's subjects and in the reader, in plain text and in document
-   spans (`widgets::marked`, a muted background).
+   spans (`ui::marked`, on `emphasis`).
 
 ### 5.3 Provider presets
 
@@ -815,7 +815,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   run attacker files in arbitrary programs, and an HTML file opened from disk could run its scripts. Previews and
   opening are presentation, like *open original*, not commands.
 - **Several accounts:** the sidebar starts with *All inboxes* (`open_unified_inbox`, the inboxes' unread count) and
-  tags each account with a colour (`theme::account_color`, by its position); the list's rows carry their account's colour.
+  tags each account with a colour (`Tokens::tag`, by its position); the list's rows carry their account's colour.
   The TUI titles the unified list *All inboxes*.
 - **Checked threads:** Ctrl (Cmd) + click checks or unchecks a row, Shift + click checks every row from the cursor to it,
   `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show a check mark (the `check` icon in the GUI, `✓` in the TUI).
@@ -881,9 +881,17 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   projections; the queries use the same functions, so the GUI never re-derives the rules. Bodies are blobs only the
   session can read: the reader sends a background `get_thread {include_body: true, rich_body: true}` whenever the open
   thread or one of its body states changes. A user `create_draft`/`reply`/`reply_all`/`forward` is followed by `open_composer` for the
-  new draft. Look (`docs/ui/monochrome_minimalist_mail/DESIGN.md`): tonal surfaces, hairline borders, the ink colour
-  as the one accent; light and dark palettes, chosen by the `theme` setting (0 follows the system; 3 and 4 are
-  high-contrast dark and light palettes: white or black text and borders that show). The `text_scale` setting (percent)
+  new draft. Look (`docs/ui/monochrome_minimalist_mail/DESIGN.md`, ADR 0008): tonal surfaces, hairline borders,
+  inversion for emphasis. `app_gui::theme` is the egui adapter of `app-theme`: a `Theme` becomes `Tokens` (the content
+  roles as `Color32` through `Deref`, `chrome()` for the sidebar's group, the account `tags`, the metrics `m`, the
+  `type_scale`) and egui `Visuals` once per change; the sidebar sets the chrome group's `Visuals` on its `Ui`. The kit
+  `app_gui::ui` (buttons, key caps, badges, pips, status dots, avatars, nav rows, row frames, cards, fields, the search
+  pill, segmented controls, switches, tabs, toolbars, overlays, toasts, footer hints, empty states) is what widgets
+  draw with; `cargo run -p app-gui --example gallery [-- --theme <id>]` shows all of it per theme, content and chrome
+  side by side. The style check (`tests/it/style.rs`) fails on raw colours, fonts, sizes, radii, margins, spaces or
+  strokes outside `ui/` and `theme.rs`, except in the modules its allowlist names until Wave 3 part B restyles them.
+  The `theme` setting picks the built-ins: 0 follows the system (`dail-light`/`dail-dark`), 1 light, 2 dark, 3
+  `dail-dark-hc`, 4 `dail-light-hc`. The `text_scale` setting (percent)
   sets egui's zoom factor; egui's own Ctrl + plus/minus/0 zoom lasts until the window closes (written back, every step
   would become an undo step). Screen readers (AccessKit): thread rows and mailbox rows are buttons named by what their
   marks show (`unread, starred, with attachments, Carol, Lunch?, 2 messages, Nov 14`; `Inbox, 3 unread`), the open

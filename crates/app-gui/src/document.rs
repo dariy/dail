@@ -13,8 +13,8 @@ use egui::{RichText, Stroke, Ui};
 use crate::images::{ImageKey, Images, Slot};
 use crate::reader::{Folds, fold_toggle};
 use crate::shell::External;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Body text size.
 const TEXT: f32 = 14.0;
@@ -35,13 +35,13 @@ pub struct DocIo<'a> {
 }
 
 /// Draws `document`.
-pub fn show(ui: &mut Ui, p: &Palette, document: &Document, io: DocIo<'_>) {
-    let mut out = Out { p, io, tables: 0 };
+pub fn show(ui: &mut Ui, t: &Tokens, document: &Document, io: DocIo<'_>) {
+    let mut out = Out { t, io, tables: 0 };
     ui.vertical(|ui| out.blocks(ui, &document.blocks));
 }
 
 struct Out<'a> {
-    p: &'a Palette,
+    t: &'a Tokens,
     io: DocIo<'a>,
     /// Tables drawn so far: each grid needs its own ID.
     tables: usize,
@@ -98,7 +98,7 @@ impl Out<'_> {
                             egui::Align2::RIGHT_TOP,
                             marker,
                             egui::FontId::proportional(TEXT),
-                            self.p.secondary,
+                            self.t.text_secondary,
                         );
                         ui.vertical(|ui| self.blocks(ui, item));
                     });
@@ -115,20 +115,20 @@ impl Out<'_> {
                 ui.painter().vline(
                     rect.left() + 3.0,
                     rect.y_range(),
-                    Stroke::new(2.0, self.p.border_strong),
+                    Stroke::new(2.0, self.t.border_strong),
                 );
             }
             Block::Preformatted { text } => {
                 egui::Frame::new()
-                    .fill(self.p.subtle)
+                    .fill(self.t.selected)
                     .corner_radius(3)
                     .inner_margin(egui::Margin::same(8))
                     .show(ui, |ui| {
                         ui.add(
                             egui::Label::new(
                                 RichText::new(text)
-                                    .font(widgets::mono(12.5))
-                                    .color(self.p.ink),
+                                    .font(ui::mono(12.5))
+                                    .color(self.t.text_strong),
                             )
                             .wrap(),
                         );
@@ -141,7 +141,7 @@ impl Out<'_> {
             Block::Fold { kind, blocks } => {
                 let message = self.io.message;
                 let open = self.io.folds.is_open(message, *kind);
-                if fold_toggle(ui, self.p, *kind, open) {
+                if fold_toggle(ui, self.t, *kind, open) {
                     self.io.folds.toggle(message, *kind);
                 }
                 if open {
@@ -236,7 +236,7 @@ impl Out<'_> {
             self.link(response, span);
             return;
         }
-        let mut rich = RichText::new(text).size(size).color(self.p.ink);
+        let mut rich = RichText::new(text).size(size).color(self.t.text_strong);
         if span.bold {
             rich = rich.strong().family(crate::theme::semibold());
         }
@@ -245,14 +245,14 @@ impl Out<'_> {
         }
         if span.code {
             rich = rich
-                .font(widgets::mono(size - 1.5))
-                .background_color(self.p.subtle);
+                .font(ui::mono(size - 1.5))
+                .background_color(self.t.selected);
         }
         if span.strike {
             rich = rich.strikethrough();
         }
         if marked {
-            rich = rich.background_color(self.p.muted);
+            rich = rich.background_color(self.t.hover);
         }
         if span.link.is_none() {
             ui.label(rich);

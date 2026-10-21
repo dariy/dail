@@ -132,9 +132,9 @@ fn theme(
 /// Every built-in theme: dark, light, then the high-contrast pair.
 pub fn all() -> Vec<Theme> {
     vec![
-        theme("dail-dark", "Dail Dark", Appearance::Dark, DARK, DARK),
+        dark(),
         // Dark sidebar and top bar, as in the light mockup (UI plan, D2).
-        theme("dail-light", "Dail Light", Appearance::Light, LIGHT, DARK),
+        light(),
         theme(
             "dail-dark-hc",
             "Dail Dark (high contrast)",
@@ -150,6 +150,16 @@ pub fn all() -> Vec<Theme> {
             LIGHT_HC,
         ),
     ]
+}
+
+/// The default dark theme, `dail-dark`.
+pub fn dark() -> Theme {
+    theme("dail-dark", "Dail Dark", Appearance::Dark, DARK, DARK)
+}
+
+/// The default light theme, `dail-light`.
+pub fn light() -> Theme {
+    theme("dail-light", "Dail Light", Appearance::Light, LIGHT, DARK)
 }
 
 /// The built-in theme `id`.

@@ -1,6 +1,7 @@
 //! The bundled fonts (UI-2): six families, egui's fonts as fallbacks, weights by token.
 
-use crate::support::{gui, synced_state};
+use crate::support::{apply, gui, synced_state};
+use app_core::{Command, SettingKey};
 use app_gui::theme;
 use app_theme::TypeScale;
 use egui::{FontFamily, FontId, TextStyle};
@@ -111,5 +112,45 @@ fn every_mailbox_role_has_its_icon() {
     ];
     for (role, icon) in roles {
         assert_eq!(theme::role_icon(role), icon, "{role:?}");
+    }
+}
+
+#[test]
+fn apply_installs_the_fills_of_the_chosen_theme() {
+    let mut h = gui(synced_state());
+    h.run();
+    for (setting, id, dark) in [
+        (1_u64, "dail-light", false),
+        (2, "dail-dark", true),
+        (3, "dail-dark-hc", true),
+        (4, "dail-light-hc", false),
+    ] {
+        apply(
+            &mut h,
+            Command::SetSetting {
+                key: SettingKey::Theme,
+                value: setting.into(),
+            },
+        );
+        h.run();
+        let surface = app_theme::builtin::get(id).unwrap().content;
+        let v = h.ctx.global_style().visuals.clone();
+        assert_eq!(v.dark_mode, dark, "{id}");
+        assert_eq!(v.panel_fill, theme::color(surface.canvas), "{id}");
+        assert_eq!(v.window_fill, theme::color(surface.base), "{id}");
+        assert_eq!(v.error_fg_color, theme::color(surface.danger), "{id}");
+        assert_eq!(theme::tokens(&h.ctx).id, id);
+    }
+}
+
+#[test]
+fn the_gallery_draws_every_theme() {
+    for theme in app_theme::builtin::all() {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx);
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            app_gui::ui::gallery::show(ui, &theme);
+        });
+        out.textures_delta.clear();
     }
 }

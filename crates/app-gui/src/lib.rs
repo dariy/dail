@@ -21,7 +21,7 @@ pub mod sidebar;
 pub mod statusbar;
 pub mod theme;
 pub mod toasts;
-pub mod widgets;
+pub mod ui;
 pub mod wizard;
 
 use std::time::Duration;

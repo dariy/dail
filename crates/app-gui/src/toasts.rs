@@ -7,8 +7,8 @@ use app_front::notice::{self, LastAction};
 use egui::{Align2, RichText, Vec2};
 
 use crate::bridge::Request;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Seconds a toast stays.
 const TOAST_SECS: f64 = 6.0;
@@ -83,7 +83,7 @@ impl Toasts {
     pub fn show(
         &mut self,
         ctx: &egui::Context,
-        p: &Palette,
+        t: &Tokens,
         state: &AppState,
         now_ms: i64,
         queue: &mut Vec<Request>,
@@ -101,12 +101,16 @@ impl Toasts {
         ctx.request_repaint_after(std::time::Duration::from_millis(500));
         let mut dismiss = None;
         egui::Area::new(egui::Id::unique("toasts"))
-            .anchor(Align2::CENTER_BOTTOM, Vec2::new(0.0, -40.0))
+            // Clear of the pane footers and the composer's *Send* row: a toast never covers them.
+            .anchor(
+                Align2::CENTER_BOTTOM,
+                Vec2::new(0.0, -2.0 * t.m.frame.pane_footer),
+            )
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {
                 for (i, toast) in self.items.iter().enumerate() {
                     egui::Frame::new()
-                        .fill(p.ink)
+                        .fill(t.inverse_bg)
                         .corner_radius(6)
                         .inner_margin(egui::Margin::symmetric(14, 8))
                         .show(ui, |ui| {
@@ -120,23 +124,24 @@ impl Toasts {
                                 let color = if toast.kind == ToastKind::Error {
                                     ui.visuals().error_fg_color
                                 } else {
-                                    p.on_ink
+                                    t.inverse_text
                                 };
                                 ui.label(RichText::new(text).color(color));
                                 if let ToastKind::Sending(id) = toast.kind {
                                     let button = egui::Button::new(
-                                        RichText::new("Cancel send").color(p.on_ink),
+                                        RichText::new("Cancel send").color(t.inverse_text),
                                     )
                                     .fill(egui::Color32::TRANSPARENT)
-                                    .stroke(egui::Stroke::new(1.0, p.faint));
+                                    .stroke(egui::Stroke::new(1.0, t.text_muted));
                                     if ui.add(button).clicked() {
                                         queue.push(Request::user(Command::CancelSend { id }));
                                         dismiss = Some(i);
                                     }
                                 }
-                                if widgets::icon_button(
+                                if ui::icon_button(
                                     ui,
-                                    p.on_ink,
+                                    t,
+                                    t.inverse_text,
                                     app_theme::Icon::Close,
                                     "Dismiss",
                                 )

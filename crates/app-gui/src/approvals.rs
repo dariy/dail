@@ -7,15 +7,15 @@ use app_front::approvals::{Card, cards};
 use egui::{RichText, Ui};
 
 use crate::bridge::Request;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Renders the tray (the caller shows it only when there are requests).
-pub fn show(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>) {
+pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
     let cards = cards(state);
-    widgets::caption(
+    ui::caption(
         ui,
-        p,
+        t,
         &format!(
             "An agent wants to send {} — check it before approving",
             match cards.len() {
@@ -30,15 +30,15 @@ pub fn show(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>
         .auto_shrink([false, true])
         .show(ui, |ui| {
             for card in &cards {
-                card_ui(ui, p, card, queue);
+                card_ui(ui, t, card, queue);
             }
         });
 }
 
-fn card_ui(ui: &mut Ui, p: &Palette, card: &Card, queue: &mut Vec<Request>) {
+fn card_ui(ui: &mut Ui, t: &Tokens, card: &Card, queue: &mut Vec<Request>) {
     egui::Frame::new()
-        .fill(p.canvas)
-        .stroke(egui::Stroke::new(1.0, p.border_strong))
+        .fill(t.canvas)
+        .stroke(egui::Stroke::new(1.0, t.border_strong))
         .corner_radius(egui::CornerRadius::same(6))
         .inner_margin(egui::Margin::symmetric(12, 8))
         .show(ui, |ui| {
@@ -48,25 +48,25 @@ fn card_ui(ui: &mut Ui, p: &Palette, card: &Card, queue: &mut Vec<Request>) {
                     RichText::new(&card.subject)
                         .strong()
                         .family(crate::theme::semibold())
-                        .color(p.ink),
+                        .color(t.text_strong),
                 );
                 if !card.from.is_empty() {
-                    ui.label(RichText::new(format!("from {}", card.from)).color(p.faint));
+                    ui.label(RichText::new(format!("from {}", card.from)).color(t.text_muted));
                 }
             });
             for line in &card.recipients {
-                ui.label(RichText::new(line).color(p.secondary));
+                ui.label(RichText::new(line).color(t.text_secondary));
             }
             if !card.excerpt.is_empty() {
-                ui.label(RichText::new(&card.excerpt).color(p.secondary));
+                ui.label(RichText::new(&card.excerpt).color(t.text_secondary));
             }
             for line in &card.attachments {
                 // The full path stays readable: no truncation, plain text.
-                let job = widgets::icon_text(
+                let job = ui::icon_text(
                     app_theme::Icon::AttachFile,
                     line,
-                    widgets::mono(11.5),
-                    p.ink,
+                    ui::mono(11.5),
+                    t.text_strong,
                 );
                 let name = format!("📎 {line}");
                 ui.label(job)
@@ -74,17 +74,19 @@ fn card_ui(ui: &mut Ui, p: &Palette, card: &Card, queue: &mut Vec<Request>) {
             }
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                if widgets::primary(ui, p, "Approve send", None, card.ready) {
+                if ui::primary(ui, t, "Approve send", None, card.ready) {
                     queue.push(Request::user(Command::ApproveRequest { id: card.id }));
                 }
-                if widgets::action(ui, p, "Edit", None, true) {
+                if ui::secondary(ui, t, "Edit", None, true) {
                     queue.push(Request::user(Command::OpenComposer { id: card.draft }));
                 }
-                if widgets::action(ui, p, "Reject", None, true) {
+                if ui::secondary(ui, t, "Reject", None, true) {
                     queue.push(Request::user(Command::RejectRequest { id: card.id }));
                 }
                 if !card.ready {
-                    ui.label(RichText::new("attachments are still being checked").color(p.faint));
+                    ui.label(
+                        RichText::new("attachments are still being checked").color(t.text_muted),
+                    );
                 }
             });
         });

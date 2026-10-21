@@ -7,7 +7,7 @@ use egui::{Key, Modifiers, RichText, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
 use crate::theme;
-use crate::widgets;
+use crate::ui;
 
 /// UI-local palette state.
 #[derive(Debug, Default)]
@@ -50,7 +50,7 @@ impl PaletteState {
     pub fn show(
         &mut self,
         ctx: &egui::Context,
-        p: &theme::Palette,
+        t: &theme::Tokens,
         state: &AppState,
         queue: &mut Vec<Request>,
     ) -> PaletteActions {
@@ -96,8 +96,8 @@ impl PaletteState {
             )
             .frame(
                 egui::Frame::new()
-                    .fill(p.surface)
-                    .stroke(egui::Stroke::new(1.0, p.border_strong))
+                    .fill(t.base)
+                    .stroke(egui::Stroke::new(1.0, t.border_strong))
                     .corner_radius(8)
                     .inner_margin(egui::Margin::same(0)),
             )
@@ -108,7 +108,7 @@ impl PaletteState {
                     .inner_margin(egui::Margin::symmetric(16, 12))
                     .show(ui, |ui| {
                         if let Some(step) = self.inner.step() {
-                            widgets::caption(ui, p, &step.prompt);
+                            ui::caption(ui, t, &step.prompt);
                             ui.add_space(4.0);
                         }
                         let hint = self.inner.hint();
@@ -133,11 +133,11 @@ impl PaletteState {
                     .show(ui, |ui| {
                         if rows.is_empty() {
                             ui.add_space(8.0);
-                            ui.label(RichText::new("    Nothing matches.").color(p.faint));
+                            ui.label(RichText::new("    Nothing matches.").color(t.text_muted));
                             ui.add_space(8.0);
                         }
                         for (i, row) in rows.iter().enumerate() {
-                            if row_ui(ui, p, row, i == selected, down || up).clicked() {
+                            if row_ui(ui, t, row, i == selected, down || up).clicked() {
                                 chosen = Some(row.target.clone());
                             }
                         }
@@ -147,15 +147,15 @@ impl PaletteState {
                     // The highlighted command's doc comment, as agents read it too.
                     ui.horizontal_wrapped(|ui| {
                         ui.add_space(12.0);
-                        ui.label(RichText::new(help).size(12.0).color(p.secondary));
+                        ui.label(RichText::new(help).size(12.0).color(t.text_secondary));
                     });
                 }
                 ui.horizontal(|ui| {
                     ui.add_space(12.0);
                     ui.label(
                         RichText::new("↑↓ to move · Enter to choose · Esc to go back")
-                            .font(widgets::mono(10.5))
-                            .color(p.faint),
+                            .font(ui::mono(10.5))
+                            .color(t.text_muted),
                     );
                 });
                 ui.add_space(4.0);
@@ -172,7 +172,7 @@ impl PaletteState {
 
 fn row_ui(
     ui: &mut Ui,
-    p: &theme::Palette,
+    t: &theme::Tokens,
     row: &Row,
     selected: bool,
     scroll: bool,
@@ -181,18 +181,18 @@ fn row_ui(
         ui.allocate_exact_size(Vec2::new(ui.available_width(), 34.0), Sense::click());
     if selected {
         ui.painter()
-            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, p.ink);
+            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, t.inverse_bg);
         if scroll {
             response.scroll_to_me(None);
         }
     } else if response.hovered() {
         ui.painter()
-            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, p.muted);
+            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, t.hover);
     }
     let (fg, faint) = if selected {
-        (p.on_ink, p.on_ink)
+        (t.inverse_text, t.inverse_text)
     } else {
-        (p.ink, p.faint)
+        (t.text_strong, t.text_muted)
     };
     let mut child = ui.new_child(
         egui::UiBuilder::new()
@@ -201,7 +201,7 @@ fn row_ui(
     );
     child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         if let Some(keys) = &row.keys {
-            ui.label(RichText::new(keys).font(widgets::mono(10.5)).color(faint));
+            ui.label(RichText::new(keys).font(ui::mono(10.5)).color(faint));
         }
         if !row.detail.is_empty() {
             ui.label(RichText::new(&row.detail).size(11.5).color(faint));

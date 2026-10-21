@@ -18,8 +18,8 @@ use crate::bridge::Request;
 use crate::document::DocIo;
 use crate::images::Images;
 use crate::shell::External;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// The folds (quoted text, signatures) the user opened, per message. Presentation only, like
 /// scrolling: not part of `AppState`.
@@ -41,7 +41,7 @@ impl Folds {
 }
 
 /// The button that opens or closes a fold; whether it was clicked.
-pub fn fold_toggle(ui: &mut Ui, p: &Palette, kind: FoldKind, open: bool) -> bool {
+pub fn fold_toggle(ui: &mut Ui, t: &Tokens, kind: FoldKind, open: bool) -> bool {
     let what = match kind {
         FoldKind::Quote => "quoted text",
         FoldKind::Signature => "signature",
@@ -51,7 +51,7 @@ pub fn fold_toggle(ui: &mut Ui, p: &Palette, kind: FoldKind, open: bool) -> bool
     } else {
         format!("··· Show {what}")
     };
-    ui.add(egui::Button::new(RichText::new(label).size(12.0).color(p.secondary)).frame(false))
+    ui.add(egui::Button::new(RichText::new(label).size(12.0).color(t.text_secondary)).frame(false))
         .clicked()
 }
 
@@ -74,7 +74,7 @@ pub struct ReaderIo<'a> {
 /// Renders the open thread (or an empty-state hint).
 pub fn show(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     state: &AppState,
     bodies: &Bodies,
     now_ms: i64,
@@ -94,12 +94,12 @@ pub fn show(
             ui.label(
                 RichText::new("No conversation open")
                     .size(16.0)
-                    .color(p.secondary),
+                    .color(t.text_secondary),
             );
             ui.add_space(6.0);
             ui.label(
                 RichText::new("j / k to move · Enter to open · Ctrl+K for everything")
-                    .color(p.faint),
+                    .color(t.text_muted),
             );
         });
         return;
@@ -115,19 +115,19 @@ pub fn show(
     ui.horizontal_wrapped(|ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));
         if let Some(message) = last {
-            if widgets::action_icon(ui, p, Icon::Reply, "Reply", Some("R"), true) {
+            if ui::secondary_icon(ui, t, Icon::Reply, "Reply", Some("R"), true) {
                 push(Command::Reply {
                     message,
                     body: None,
                 });
             }
-            if widgets::action(ui, p, "Reply all", Some("A"), true) {
+            if ui::secondary(ui, t, "Reply all", Some("A"), true) {
                 push(Command::ReplyAll {
                     message,
                     body: None,
                 });
             }
-            if widgets::action(ui, p, "Forward", Some("F"), true) {
+            if ui::secondary(ui, t, "Forward", Some("F"), true) {
                 push(Command::Forward {
                     message,
                     body: None,
@@ -135,22 +135,22 @@ pub fn show(
             }
         }
         ui.add_space(8.0);
-        if widgets::action(ui, p, "Archive", Some("E"), true) {
+        if ui::secondary(ui, t, "Archive", Some("E"), true) {
             push(Command::ArchiveThreads {
                 ids: ids.clone(),
                 messages: Vec::new(),
             });
         }
-        if widgets::action(ui, p, "Trash", Some("#"), true) {
+        if ui::secondary(ui, t, "Trash", Some("#"), true) {
             push(Command::TrashThreads {
                 ids: ids.clone(),
                 messages: Vec::new(),
             });
         }
         let starred = messages.iter().any(|m| m.flags.flagged);
-        if widgets::action_icon(
+        if ui::secondary_icon(
             ui,
-            p,
+            t,
             Icon::Star,
             if starred { "Unstar" } else { "Star" },
             Some("S"),
@@ -169,9 +169,9 @@ pub fn show(
             });
         }
         let unread = messages.iter().any(|m| !m.flags.seen);
-        if widgets::action(
+        if ui::secondary(
             ui,
-            p,
+            t,
             if unread { "Mark read" } else { "Mark unread" },
             Some("U"),
             true,
@@ -188,7 +188,7 @@ pub fn show(
                 }
             });
         }
-        if widgets::action(ui, p, "Close", Some("Esc"), true) {
+        if ui::secondary(ui, t, "Close", Some("Esc"), true) {
             push(Command::CloseThread {});
         }
     });
@@ -203,14 +203,14 @@ pub fn show(
             .size(22.0)
             .strong()
             .family(crate::theme::semibold())
-            .color(p.ink),
+            .color(t.text_strong),
     );
     if state.view.focus == Pane::Reader {
         let rect = ui.min_rect();
         ui.painter().hline(
             rect.x_range(),
             rect.bottom() + 4.0,
-            egui::Stroke::new(1.0, p.ink),
+            egui::Stroke::new(1.0, t.text_strong),
         );
     }
     ui.add_space(12.0);
@@ -237,10 +237,10 @@ pub fn show(
                         body,
                         now_ms,
                     };
-                    message_card(ui, p, &card, io);
+                    message_card(ui, t, &card, io);
                     ui.add_space(12.0);
                 } else {
-                    collapsed_row(ui, p, message, body, now_ms, queue);
+                    collapsed_row(ui, t, message, body, now_ms, queue);
                     ui.add_space(6.0);
                 }
             }
@@ -258,7 +258,7 @@ fn sender(message: &Envelope) -> String {
 /// expands it.
 fn collapsed_row(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     message: &Envelope,
     body: Option<&Body>,
     now_ms: i64,
@@ -272,7 +272,7 @@ fn collapsed_row(
         .trim()
         .to_owned();
     let frame = egui::Frame::new()
-        .stroke(egui::Stroke::new(1.0, p.border))
+        .stroke(egui::Stroke::new(1.0, t.border_subtle))
         .corner_radius(4)
         .inner_margin(egui::Margin::symmetric(12, 6))
         .show(ui, |ui| {
@@ -281,18 +281,18 @@ fn collapsed_row(
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
                         RichText::new(format::age(message.date_ms, now_ms))
-                            .font(widgets::mono(11.0))
-                            .color(p.faint),
+                            .font(ui::mono(11.0))
+                            .color(t.text_muted),
                     );
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         let mut job = egui::text::LayoutJob::default();
                         let style = |color, strong| egui::TextFormat {
                             font_id: egui::FontId::proportional(13.0),
-                            color: if strong { p.ink } else { color },
+                            color: if strong { t.text_strong } else { color },
                             ..Default::default()
                         };
-                        job.append(&from, 0.0, style(p.ink, !message.flags.seen));
-                        job.append(&format!("   {snippet}"), 0.0, style(p.faint, false));
+                        job.append(&from, 0.0, style(t.text_strong, !message.flags.seen));
+                        job.append(&format!("   {snippet}"), 0.0, style(t.text_muted, false));
                         ui.add(egui::Label::new(job).truncate().selectable(false));
                     });
                 });
@@ -323,7 +323,7 @@ struct Card<'a> {
     now_ms: i64,
 }
 
-fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
+fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
     let Card {
         state,
         thread,
@@ -340,7 +340,7 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
         externals,
     } = io;
     egui::Frame::new()
-        .fill(p.subtle)
+        .fill(t.selected)
         .corner_radius(4)
         .inner_margin(egui::Margin::same(12))
         .show(ui, |ui| {
@@ -355,8 +355,8 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                             format::long_date(message.date_ms),
                             format::age(message.date_ms, now_ms)
                         ))
-                        .font(widgets::mono(11.0))
-                        .color(p.faint),
+                        .font(ui::mono(11.0))
+                        .color(t.text_muted),
                     );
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.add(
@@ -364,7 +364,7 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                                 RichText::new(from)
                                     .strong()
                                     .family(crate::theme::semibold())
-                                    .color(p.ink),
+                                    .color(t.text_strong),
                             )
                             .truncate()
                             .selectable(false),
@@ -395,23 +395,23 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                 .map(format::full)
                 .collect();
             if !to.is_empty() {
-                ui.label(RichText::new(format!("to {}", to.join(", "))).color(p.secondary));
+                ui.label(RichText::new(format!("to {}", to.join(", "))).color(t.text_secondary));
             }
             if let Some(mailbox) = state.mailboxes.get(&message.location())
                 && mailbox.role != Some(app_core::MailboxRole::Inbox)
             {
                 ui.label(
                     RichText::new(app_front::mailbox::mailbox_name(mailbox))
-                        .font(widgets::mono(10.5))
-                        .color(p.faint),
+                        .font(ui::mono(10.5))
+                        .color(t.text_muted),
                 );
             }
             if let BodyState::Fetched { blob } = &message.body {
-                let job = widgets::icon_text(
+                let job = ui::icon_text(
                     Icon::OpenInNew,
                     "Open original",
                     egui::FontId::proportional(11.5),
-                    p.secondary,
+                    t.text_secondary,
                 );
                 let response = ui.add(egui::Button::new(job).frame(false));
                 response.widget_info(|| {
@@ -439,7 +439,7 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
             if let (Some(document), Some(sender)) = (&body.document, sender)
                 && !document.images().is_empty()
             {
-                images_bar(ui, p, sender, shown, queue);
+                images_bar(ui, t, sender, shown, queue);
             }
             let marks = state
                 .view
@@ -454,13 +454,13 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                 externals: &mut *externals,
                 marks: &marks,
             };
-            body_text(ui, p, body, io);
+            body_text(ui, t, body, io);
             let io = AttachIo {
                 saver,
                 previews,
                 externals,
             };
-            attachments::show(ui, p, state, (message.id, blob), body, io);
+            attachments::show(ui, t, state, (message.id, blob), body, io);
         }
         (BodyState::Failed { error }, None) => {
             ui.colored_label(
@@ -469,24 +469,24 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
             );
         }
         _ => {
-            ui.label(RichText::new("Loading…").color(p.faint));
+            ui.label(RichText::new("Loading…").color(t.text_muted));
         }
     }
 }
 
 /// Says that the message has inline images, and whether its sender's are shown.
-fn images_bar(ui: &mut Ui, p: &Palette, sender: &str, shown: bool, queue: &mut Vec<Request>) {
+fn images_bar(ui: &mut Ui, t: &Tokens, sender: &str, shown: bool, queue: &mut Vec<Request>) {
     ui.horizontal_wrapped(|ui| {
         let (note, action) = if shown {
             ("Showing the pictures in this message.", "Hide images")
         } else {
             ("Pictures in this message are hidden.", "Show images")
         };
-        ui.label(RichText::new(note).size(12.0).color(p.faint));
+        ui.label(RichText::new(note).size(12.0).color(t.text_muted));
         let button = egui::Button::new(
             RichText::new(format!("{action} from {sender}"))
                 .size(12.0)
-                .color(p.secondary),
+                .color(t.text_secondary),
         )
         .frame(false);
         if ui
@@ -505,7 +505,7 @@ fn images_bar(ui: &mut Ui, p: &Palette, sender: &str, shown: bool, queue: &mut V
     ui.add_space(4.0);
 }
 
-fn body_text(ui: &mut Ui, p: &Palette, body: &Body, io: DocIo<'_>) {
+fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
     let DocIo {
         message,
         folds,
@@ -521,17 +521,17 @@ fn body_text(ui: &mut Ui, p: &Palette, body: &Body, io: DocIo<'_>) {
             externals: &mut *externals,
             marks,
         };
-        crate::document::show(ui, p, document, io);
+        crate::document::show(ui, t, document, io);
     } else if body.text.trim().is_empty() {
-        ui.label(RichText::new("(no text)").color(p.faint));
+        ui.label(RichText::new("(no text)").color(t.text_muted));
     } else {
         let folded = fold::split(&body.text);
-        let job = widgets::marked(
-            p,
+        let job = ui::marked(
+            t,
             folded.main,
             marks,
             egui::FontId::proportional(14.0),
-            p.ink,
+            t.text_strong,
         );
         ui.add(egui::Label::new(job).wrap());
         for (kind, text) in [
@@ -543,28 +543,30 @@ fn body_text(ui: &mut Ui, p: &Palette, body: &Body, io: DocIo<'_>) {
             };
             ui.add_space(4.0);
             let open = folds.is_open(message, kind);
-            if fold_toggle(ui, p, kind, open) {
+            if fold_toggle(ui, t, kind, open) {
                 folds.toggle(message, kind);
             }
             if open {
-                ui.add(egui::Label::new(RichText::new(text).size(13.5).color(p.secondary)).wrap());
+                ui.add(
+                    egui::Label::new(RichText::new(text).size(13.5).color(t.text_secondary)).wrap(),
+                );
             }
         }
     }
     let links = links(&body.text);
     if !links.is_empty() {
         ui.add_space(8.0);
-        widgets::caption(ui, p, &format!("Links ({})", links.len()));
+        ui::caption(ui, t, &format!("Links ({})", links.len()));
         for url in links {
             // The full target is the label: what you see is where it goes. Opens only on click.
-            let mut job = widgets::icon_text(
+            let mut job = ui::icon_text(
                 Icon::Link,
                 &url,
                 egui::FontId::proportional(13.0),
-                p.secondary,
+                t.text_secondary,
             );
             if let Some(section) = job.sections.last_mut() {
-                section.format.underline = egui::Stroke::new(1.0, p.secondary);
+                section.format.underline = egui::Stroke::new(1.0, t.text_secondary);
             }
             let name = format!("↗ {url}");
             let response = ui

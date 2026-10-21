@@ -50,20 +50,11 @@ fn rows_have_names_that_say_what_the_marks_show() {
 fn high_contrast_themes_and_text_scale() {
     let mut h = gui(synced_state());
     h.run();
-    for (value, dark, ink, border) in [
-        (
-            3_u64,
-            true,
-            theme::HIGH_CONTRAST_DARK.ink,
-            theme::HIGH_CONTRAST_DARK.border,
-        ),
-        (
-            4,
-            false,
-            theme::HIGH_CONTRAST_LIGHT.ink,
-            theme::HIGH_CONTRAST_LIGHT.border,
-        ),
-        (2, true, theme::DARK.ink, theme::DARK.border),
+    let theme_id = |id: &str| app_theme::builtin::get(id).unwrap().content;
+    for (value, dark, surface) in [
+        (3_u64, true, theme_id("dail-dark-hc")),
+        (4, false, theme_id("dail-light-hc")),
+        (2, true, theme_id("dail-dark")),
     ] {
         apply(
             &mut h,
@@ -78,8 +69,15 @@ fn high_contrast_themes_and_text_scale() {
             dark,
             "theme {value}"
         );
-        let p = theme::palette(&h.ctx);
-        assert_eq!((p.ink, p.border), (ink, border), "theme {value}");
+        let t = theme::tokens(&h.ctx);
+        assert_eq!(
+            (t.text_strong, t.border),
+            (
+                theme::color(surface.text_strong),
+                theme::color(surface.border)
+            ),
+            "theme {value}"
+        );
     }
     apply(
         &mut h,

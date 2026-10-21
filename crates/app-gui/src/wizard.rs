@@ -15,8 +15,8 @@ use app_core::{AccountId, AccountStatus, AppState, Command, Endpoint, ProviderPr
 use egui::{RichText, Ui};
 
 use crate::bridge::{Background, Purpose, Reply, Request};
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Where the wizard is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,7 +183,7 @@ impl Wizard {
     pub fn show(
         &mut self,
         ctx: &egui::Context,
-        p: &Palette,
+        t: &Tokens,
         state: &AppState,
         queue: &mut Vec<Request>,
     ) {
@@ -208,8 +208,8 @@ impl Wizard {
         let modal = egui::Modal::new(egui::Id::unique("account-wizard"))
             .frame(
                 egui::Frame::new()
-                    .fill(p.surface)
-                    .stroke(egui::Stroke::new(1.0, p.border_strong))
+                    .fill(t.base)
+                    .stroke(egui::Stroke::new(1.0, t.border_strong))
                     .corner_radius(8)
                     .inner_margin(egui::Margin::same(20)),
             )
@@ -226,7 +226,7 @@ impl Wizard {
                         .size(20.0)
                         .strong()
                         .family(crate::theme::semibold())
-                        .color(p.ink),
+                        .color(t.text_strong),
                 );
                 let step = match (self.existing, self.step) {
                     (true, Step::Test) => format!("{}  Connection", self.email),
@@ -236,13 +236,13 @@ impl Wizard {
                     (false, Step::Password) => "3 / 4  Password".to_owned(),
                     (false, Step::Test) => "4 / 4  Connection".to_owned(),
                 };
-                widgets::caption(ui, p, &step);
+                ui::caption(ui, t, &step);
                 ui.add_space(12.0);
                 match self.step {
-                    Step::Preset => self.preset_step(ui, p),
-                    Step::Address => self.address_step(ui, p, state, queue),
-                    Step::Password => self.password_step(ui, p, queue),
-                    Step::Test => self.test_step(ui, p, state, queue),
+                    Step::Preset => self.preset_step(ui, t),
+                    Step::Address => self.address_step(ui, t, state, queue),
+                    Step::Password => self.password_step(ui, t, queue),
+                    Step::Test => self.test_step(ui, t, state, queue),
                 }
             });
         if modal.should_close() && self.step != Step::Test {
@@ -251,7 +251,7 @@ impl Wizard {
         }
     }
 
-    fn preset_step(&mut self, ui: &mut Ui, p: &Palette) {
+    fn preset_step(&mut self, ui: &mut Ui, t: &Tokens) {
         for (preset, title, hint) in PRESETS {
             let chosen = self.preset == *preset;
             let response = ui.add(
@@ -259,28 +259,32 @@ impl Wizard {
                     RichText::new(*title)
                         .strong()
                         .family(crate::theme::semibold())
-                        .color(p.ink),
+                        .color(t.text_strong),
                 )
                 .selected(chosen)
                 .stroke(egui::Stroke::new(
                     1.0,
-                    if chosen { p.ink } else { p.border },
+                    if chosen {
+                        t.text_strong
+                    } else {
+                        t.border_subtle
+                    },
                 ))
                 .min_size(egui::vec2(ui.available_width(), 30.0)),
             );
             if response.clicked() {
                 self.preset = *preset;
             }
-            ui.label(RichText::new(*hint).size(11.5).color(p.faint));
+            ui.label(RichText::new(*hint).size(11.5).color(t.text_muted));
             ui.add_space(6.0);
         }
         ui.add_space(8.0);
         ui.horizontal(|ui| {
-            if widgets::action(ui, p, "Cancel", Some("Esc"), true) {
+            if ui::secondary(ui, t, "Cancel", Some("Esc"), true) {
                 self.open = false;
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::primary(ui, p, "Next", None, true) {
+                if ui::primary(ui, t, "Next", None, true) {
                     self.step = Step::Address;
                 }
             });
@@ -289,12 +293,12 @@ impl Wizard {
 
     fn field(
         ui: &mut Ui,
-        p: &Palette,
+        t: &Tokens,
         label: &str,
         value: &mut String,
         hint: &str,
     ) -> egui::Response {
-        let label = ui.label(RichText::new(label).color(p.secondary));
+        let label = ui.label(RichText::new(label).color(t.text_secondary));
         ui.add(
             egui::TextEdit::singleline(value)
                 .hint_text(hint)
@@ -336,35 +340,35 @@ impl Wizard {
     fn address_step(
         &mut self,
         ui: &mut Ui,
-        p: &Palette,
+        t: &Tokens,
         state: &AppState,
         queue: &mut Vec<Request>,
     ) {
-        Self::field(ui, p, "Email address", &mut self.email, "you@example.com");
+        Self::field(ui, t, "Email address", &mut self.email, "you@example.com");
         ui.add_space(6.0);
         Self::field(
             ui,
-            p,
+            t,
             "Name (optional)",
             &mut self.display_name,
             "shown in the sidebar",
         );
         if self.preset == ProviderPreset::Custom {
             ui.add_space(6.0);
-            Self::field(ui, p, "IMAP server", &mut self.imap, "imap.example.com:993");
+            Self::field(ui, t, "IMAP server", &mut self.imap, "imap.example.com:993");
             ui.add_space(6.0);
-            Self::field(ui, p, "SMTP server", &mut self.smtp, "smtp.example.com:465");
+            Self::field(ui, t, "SMTP server", &mut self.smtp, "smtp.example.com:465");
             ui.label(
                 RichText::new("host:port, optionally :tls or :starttls (143 and 587 use STARTTLS)")
                     .size(11.0)
-                    .color(p.faint),
+                    .color(t.text_muted),
             );
             ui.add_space(6.0);
             self.take_discovery(state);
             let email = self.email.trim().to_owned();
             let valid = app_front::compose::parse_addr(&email).is_some_and(|a| a.name.is_none());
             ui.horizontal(|ui| {
-                if widgets::action(ui, p, "Find servers", None, valid && self.looking.is_none()) {
+                if ui::secondary(ui, t, "Find servers", None, valid && self.looking.is_none()) {
                     queue.push(Request {
                         purpose: Purpose::Background(Background::WizardLookup),
                         cmd: Command::DiscoverServers {
@@ -385,35 +389,35 @@ impl Wizard {
                         "Asks the provider's web server, then Mozilla's list.".to_owned()
                     }
                 };
-                ui.label(RichText::new(note).size(11.0).color(p.faint));
+                ui.label(RichText::new(note).size(11.0).color(t.text_muted));
             });
         }
         let problem = self.address_problem();
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if widgets::action(ui, p, "Back", None, true) {
+            if ui::secondary(ui, t, "Back", None, true) {
                 self.step = Step::Preset;
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::primary(ui, p, "Next", None, problem.is_none()) {
+                if ui::primary(ui, t, "Next", None, problem.is_none()) {
                     self.step = Step::Password;
                 }
                 if let Some(problem) = &problem
                     && !self.email.is_empty()
                 {
-                    ui.label(RichText::new(problem).size(11.0).color(p.faint));
+                    ui.label(RichText::new(problem).size(11.0).color(t.text_muted));
                 }
             });
         });
     }
 
-    fn password_step(&mut self, ui: &mut Ui, p: &Palette, queue: &mut Vec<Request>) {
+    fn password_step(&mut self, ui: &mut Ui, t: &Tokens, queue: &mut Vec<Request>) {
         let label = if self.preset == ProviderPreset::Gmail {
             "App Password"
         } else {
             "Password"
         };
-        let label = ui.label(RichText::new(label).color(p.secondary));
+        let label = ui.label(RichText::new(label).color(t.text_secondary));
         let response = ui
             .add(
                 egui::TextEdit::singleline(&mut self.password)
@@ -424,7 +428,7 @@ impl Wizard {
         ui.label(
             RichText::new("Stored in the system keyring only; dail never writes it anywhere else.")
                 .size(11.0)
-                .color(p.faint),
+                .color(t.text_muted),
         );
         if let Some(error) = &self.error {
             ui.add_space(6.0);
@@ -434,7 +438,7 @@ impl Wizard {
         let submit = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         ui.horizontal(|ui| {
             let back = if self.existing { "Cancel" } else { "Back" };
-            if widgets::action(ui, p, back, None, true) {
+            if ui::secondary(ui, t, back, None, true) {
                 if self.existing {
                     self.open = false;
                     self.password.clear();
@@ -449,7 +453,7 @@ impl Wizard {
                 } else {
                     "Add and test"
                 };
-                if (widgets::primary(ui, p, label, None, ready) || (submit && ready))
+                if (ui::primary(ui, t, label, None, ready) || (submit && ready))
                     && let Some(request) = self.submit_password()
                 {
                     queue.push(request);
@@ -500,28 +504,30 @@ impl Wizard {
         })
     }
 
-    fn test_step(&mut self, ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>) {
+    fn test_step(&mut self, ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
         let account = self.account.and_then(|id| state.accounts.get(&id));
         match account.map(|a| &a.status) {
             None | Some(AccountStatus::Unverified) => {
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new(format!("Signing in to {}…", self.email.trim())).color(p.ink),
+                        RichText::new(format!("Signing in to {}…", self.email.trim()))
+                            .color(t.text_strong),
                     );
                 });
             }
             Some(AccountStatus::Verified { .. }) => {
-                widgets::icon_label(
+                ui::icon_label(
                     ui,
+                    t,
                     app_theme::Icon::Check,
                     "Connected. IMAP and SMTP both accepted the login.",
-                    p.ink,
+                    t.text_strong,
                     "Connected. IMAP and SMTP both accepted the login.",
                 );
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if widgets::primary(ui, p, "Sync now", None, true)
+                        if ui::primary(ui, t, "Sync now", None, true)
                             && let Some(id) = self.account
                         {
                             queue.push(Request::user(Command::SyncNow { account: Some(id) }));
@@ -542,11 +548,11 @@ impl Wizard {
                     } else {
                         "Keep it anyway"
                     };
-                    if widgets::action(ui, p, keep, None, true) {
+                    if ui::secondary(ui, t, keep, None, true) {
                         self.open = false;
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if widgets::primary(ui, p, "Try another password", None, true) {
+                        if ui::primary(ui, t, "Try another password", None, true) {
                             if self.existing {
                                 self.step = Step::Password;
                             } else if let Some(id) = self.account.take() {

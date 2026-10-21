@@ -6,8 +6,8 @@ use app_theme::Icon;
 use egui::{Align, Layout, RichText, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 use app_front::format;
 use app_front::mailbox::mailbox_name;
 
@@ -26,14 +26,14 @@ pub struct ListState {
 /// Renders the list pane.
 pub fn show(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     state: &AppState,
     rows: &Rows,
     local: &mut ListState,
     now_ms: i64,
     queue: &mut Vec<Request>,
 ) {
-    header(ui, p, state, rows.unread, local, queue);
+    header(ui, t, state, rows.unread, local, queue);
     let rows = rows.ids.as_slice();
     ui.add_space(4.0);
     ui.separator();
@@ -47,7 +47,7 @@ pub fn show(
             } else {
                 "Pick a mailbox."
             };
-            ui.label(RichText::new(text).color(p.faint));
+            ui.label(RichText::new(text).color(t.text_muted));
         });
         return;
     }
@@ -89,12 +89,11 @@ pub fn show(
                     open,
                     checked,
                     // With several accounts, rows say whose they are.
-                    tag: (state.accounts.len() > 1)
-                        .then(|| crate::theme::account_color(state, thread.account)),
+                    tag: (state.accounts.len() > 1).then(|| t.tag(state, thread.account)),
                     cursor: focused && cursor == Some(*id),
                     marks: &marks,
                 };
-                match row(ui, p, &summary, &look, now_ms) {
+                match row(ui, t, &summary, &look, now_ms) {
                     Some(Click::Open) => {
                         queue.push(Request::user(Command::OpenThread { id: *id }));
                     }
@@ -119,7 +118,7 @@ pub fn show(
 
 fn header(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     state: &AppState,
     unread: usize,
     local: &mut ListState,
@@ -157,27 +156,27 @@ fn header(
                     .size(18.0)
                     .strong()
                     .family(crate::theme::semibold())
-                    .color(p.ink),
+                    .color(t.text_strong),
             )
             .truncate(),
         );
         if unread > 0 {
-            widgets::count(ui, p, format!("{unread} unread"), true);
+            ui::count(ui, t, format!("{unread} unread"), true);
         }
         if state.view.search.is_some() {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if widgets::action(ui, p, "Clear", None, true) {
+                if ui::secondary(ui, t, "Clear", None, true) {
                     local.search.clear();
                     queue.push(Request::user(Command::ClearSearch {}));
                 }
             });
         }
     });
-    bulk_bar(ui, p, state, queue);
+    bulk_bar(ui, t, state, queue);
 }
 
 /// While threads are checked: how many, and the actions that apply to all of them.
-fn bulk_bar(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>) {
+fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
     let checked = &state.view.checked;
     if checked.is_empty() {
         return;
@@ -188,7 +187,7 @@ fn bulk_bar(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>
             RichText::new(format!("{} checked", checked.len()))
                 .strong()
                 .family(crate::theme::semibold())
-                .color(p.ink),
+                .color(t.text_strong),
         );
         let ids = || checked.clone();
         let actions: [(&str, Command); 5] = [
@@ -229,11 +228,11 @@ fn bulk_bar(ui: &mut Ui, p: &Palette, state: &AppState, queue: &mut Vec<Request>
             ),
         ];
         for (label, cmd) in actions {
-            if widgets::action(ui, p, label, None, true) {
+            if ui::secondary(ui, t, label, None, true) {
                 queue.push(Request::user(cmd));
             }
         }
-        if widgets::action(ui, p, "Uncheck all", None, true) {
+        if ui::secondary(ui, t, "Uncheck all", None, true) {
             queue.push(Request::user(Command::UncheckThreads { ids: Vec::new() }));
         }
     });
@@ -303,7 +302,7 @@ fn row_name(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> String {
 
 fn row(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     summary: &ThreadSummary<'_>,
     look: &RowLook<'_>,
     now_ms: i64,
@@ -317,21 +316,21 @@ fn row(
     });
     let painter = ui.painter();
     if open || selected || look.checked {
-        painter.rect_filled(rect, 0.0, p.subtle);
+        painter.rect_filled(rect, 0.0, t.selected);
     } else if response.hovered() {
-        painter.rect_filled(rect, 0.0, p.muted);
+        painter.rect_filled(rect, 0.0, t.hover);
     }
     if cursor {
         painter.rect_filled(
             egui::Rect::from_min_size(rect.min, Vec2::new(2.0, rect.height())),
             0.0,
-            p.ink,
+            t.focus,
         );
     }
     painter.hline(
         rect.x_range(),
         rect.bottom(),
-        egui::Stroke::new(1.0, p.border),
+        egui::Stroke::new(1.0, t.border_subtle),
     );
     let unread = summary.unread > 0;
     let mut child = ui.new_child(
@@ -344,28 +343,28 @@ fn row(
     child.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         if look.checked {
-            widgets::icon(ui, Icon::Check, 16.0, p.ink, false);
+            ui::icon(ui, Icon::Check, 16.0, t.text_strong, false);
         }
         if let Some(tag) = look.tag {
             let (rect, _) = ui.allocate_exact_size(Vec2::new(4.0, 12.0), Sense::hover());
             ui.painter().rect_filled(rect, 1.0, tag);
         }
-        widgets::dot(ui, p.ink, unread);
+        ui::pip(ui, t, t.text_strong, unread);
         let date = format::short_date(summary.thread.last_date_ms, now_ms);
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            ui.label(RichText::new(date).font(widgets::mono(11.0)).color(p.faint));
+            ui.label(RichText::new(date).font(ui::mono(11.0)).color(t.text_muted));
             if summary.messages.len() > 1 {
                 ui.label(
                     RichText::new(summary.messages.len().to_string())
-                        .font(widgets::mono(10.5))
-                        .color(p.faint),
+                        .font(ui::mono(10.5))
+                        .color(t.text_muted),
                 );
             }
             if summary.has_attachments {
-                widgets::icon(ui, Icon::AttachFile, 14.0, p.faint, false);
+                ui::icon(ui, Icon::AttachFile, 14.0, t.text_muted, false);
             }
             if summary.flagged {
-                widgets::icon(ui, Icon::Star, 14.0, p.ink, true);
+                ui::icon(ui, Icon::Star, 14.0, t.text_strong, true);
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 let senders = format::names(&summary.senders);
@@ -375,9 +374,11 @@ fn row(
                     senders
                 });
                 let text = if unread {
-                    text.strong().family(crate::theme::semibold()).color(p.ink)
+                    text.strong()
+                        .family(crate::theme::semibold())
+                        .color(t.text_strong)
                 } else {
-                    text.color(p.secondary)
+                    text.color(t.text_secondary)
                 };
                 ui.add(egui::Label::new(text).truncate().selectable(false));
             });
@@ -390,13 +391,17 @@ fn row(
         } else {
             summary.thread.subject.as_str()
         };
-        let color = if unread { p.ink } else { p.secondary };
+        let color = if unread {
+            t.text_strong
+        } else {
+            t.text_secondary
+        };
         if look.marks.is_empty() {
             let text = RichText::new(subject).color(color);
             ui.add(egui::Label::new(text).truncate().selectable(false));
         } else {
-            let job = widgets::marked(
-                p,
+            let job = ui::marked(
+                t,
                 subject,
                 look.marks,
                 egui::FontId::proportional(13.0),

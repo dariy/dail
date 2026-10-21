@@ -17,8 +17,8 @@ use egui::{RichText, Ui};
 
 use crate::bridge::Request;
 use crate::shell::External;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// Asks the user for a folder (blocking; runs on a helper thread).
 pub type FolderPicker = fn() -> Option<String>;
@@ -208,7 +208,7 @@ pub struct AttachIo<'a> {
 /// previews and the last save's outcome.
 pub fn show(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     state: &AppState,
     (message, blob): (MessageId, Option<&str>),
     body: &Body,
@@ -224,8 +224,8 @@ pub fn show(
     }
     ui.add_space(8.0);
     ui.horizontal(|ui| {
-        widgets::caption(ui, p, &format!("Attachments ({})", body.attachments.len()));
-        if body.attachments.len() > 1 && save_button(ui, p, "Save all…") {
+        ui::caption(ui, t, &format!("Attachments ({})", body.attachments.len()));
+        if body.attachments.len() > 1 && save_button(ui, t, "Save all…") {
             let parts = body.attachments.iter().map(|a| a.part).collect();
             saver.ask(ui.ctx(), message, parts);
         }
@@ -245,8 +245,8 @@ pub fn show(
             } else {
                 Icon::Description
             };
-            widgets::icon_label(ui, icon, &text, p.secondary, &format!("📎 {text}"));
-            if save_button(ui, p, "Save…") {
+            ui::icon_label(ui, t, icon, &text, t.text_secondary, &format!("📎 {text}"));
+            if save_button(ui, t, "Save…") {
                 saver.ask(ui.ctx(), message, vec![attachment.part]);
             }
             let Some(blob) = blob else {
@@ -254,12 +254,12 @@ pub fn show(
             };
             if previewable(&attachment.content_type) {
                 let open = previews.open.contains(&(message, attachment.part));
-                if save_button(ui, p, if open { "Hide preview" } else { "Preview" }) {
+                if save_button(ui, t, if open { "Hide preview" } else { "Preview" }) {
                     previews.toggle(message, attachment.part);
                 }
             }
             if attachment.content_type == "application/pdf"
-                && icon_save_button(ui, p, Icon::OpenInNew, "Open", "Open ↗")
+                && icon_save_button(ui, t, Icon::OpenInNew, "Open", "Open ↗")
             {
                 externals.push(External::OpenAttachment(PartKey {
                     blob: blob.to_owned(),
@@ -274,7 +274,7 @@ pub fn show(
                 blob: blob.to_owned(),
                 part: attachment.part,
             };
-            preview(ui, p, &previews.get(&key), &key);
+            preview(ui, t, &previews.get(&key), &key);
         }
     }
     let Some(save) = state.status.saves.iter().find(|s| s.message == message) else {
@@ -282,10 +282,10 @@ pub fn show(
     };
     match &save.state {
         SaveState::Saving => {
-            ui.label(RichText::new(format!("Saving into {}…", save.dir)).color(p.faint));
+            ui.label(RichText::new(format!("Saving into {}…", save.dir)).color(t.text_muted));
         }
         SaveState::Saved { files } => {
-            ui.label(RichText::new(saved_text(files)).color(p.faint));
+            ui.label(RichText::new(saved_text(files)).color(t.text_muted));
         }
         SaveState::Failed { files, error } => {
             ui.colored_label(
@@ -293,20 +293,20 @@ pub fn show(
                 format!("Could not save the attachments: {error}"),
             );
             if !files.is_empty() {
-                ui.label(RichText::new(saved_text(files)).color(p.faint));
+                ui.label(RichText::new(saved_text(files)).color(t.text_muted));
             }
         }
     }
 }
 
-fn preview(ui: &mut Ui, p: &Palette, preview: &Preview, key: &PartKey) {
+fn preview(ui: &mut Ui, t: &Tokens, preview: &Preview, key: &PartKey) {
     egui::Frame::new()
-        .stroke(egui::Stroke::new(1.0, p.border))
+        .stroke(egui::Stroke::new(1.0, t.border_subtle))
         .corner_radius(3)
         .inner_margin(egui::Margin::same(8))
         .show(ui, |ui| match preview {
             Preview::Loading => {
-                ui.label(RichText::new("Loading the preview…").color(p.faint));
+                ui.label(RichText::new("Loading the preview…").color(t.text_muted));
             }
             Preview::Image(texture) => {
                 let width = texture.size_vec2().x.min(ui.available_width());
@@ -323,14 +323,16 @@ fn preview(ui: &mut Ui, p: &Palette, preview: &Preview, key: &PartKey) {
                     .show(ui, |ui| {
                         ui.add(
                             egui::Label::new(
-                                RichText::new(text).font(widgets::mono(12.0)).color(p.ink),
+                                RichText::new(text)
+                                    .font(ui::mono(12.0))
+                                    .color(t.text_strong),
                             )
                             .wrap(),
                         );
                     });
             }
             Preview::Failed(error) => {
-                ui.label(RichText::new(format!("No preview: {error}")).color(p.faint));
+                ui.label(RichText::new(format!("No preview: {error}")).color(t.text_muted));
             }
         });
 }
@@ -343,15 +345,20 @@ fn saved_text(files: &[String]) -> String {
 }
 
 /// [`save_button`] with an icon; `name` is its accessible name.
-fn icon_save_button(ui: &mut Ui, p: &Palette, icon: Icon, label: &str, name: &str) -> bool {
-    let job = widgets::icon_text(icon, label, egui::FontId::proportional(12.0), p.secondary);
+fn icon_save_button(ui: &mut Ui, t: &Tokens, icon: Icon, label: &str, name: &str) -> bool {
+    let job = ui::icon_text(
+        icon,
+        label,
+        egui::FontId::proportional(12.0),
+        t.text_secondary,
+    );
     let response = ui.add(egui::Button::new(job).frame(false));
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
     response.clicked()
 }
 
-fn save_button(ui: &mut Ui, p: &Palette, label: &str) -> bool {
-    ui.add(egui::Button::new(RichText::new(label).size(12.0).color(p.secondary)).frame(false))
+fn save_button(ui: &mut Ui, t: &Tokens, label: &str) -> bool {
+    ui.add(egui::Button::new(RichText::new(label).size(12.0).color(t.text_secondary)).frame(false))
         .clicked()
 }
 

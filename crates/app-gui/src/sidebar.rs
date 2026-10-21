@@ -6,8 +6,8 @@ use app_theme::Icon;
 use egui::{RichText, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
-use crate::theme::Palette;
-use crate::widgets;
+use crate::theme::Tokens;
+use crate::ui;
 
 /// What the sidebar asked for that is not a command.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -17,27 +17,23 @@ pub struct SidebarActions {
 }
 
 /// Renders the expanded sidebar.
-pub fn show(
-    ui: &mut Ui,
-    p: &Palette,
-    state: &AppState,
-    queue: &mut Vec<Request>,
-) -> SidebarActions {
+pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) -> SidebarActions {
     let mut actions = SidebarActions::default();
     ui.add_space(10.0);
     ui.horizontal(|ui| {
-        widgets::icon(ui, Icon::Mail, 20.0, p.ink, false);
+        ui::icon(ui, Icon::Mail, 20.0, t.text_strong, false);
         ui.label(
             RichText::new("dail")
                 .size(17.0)
                 .strong()
                 .family(crate::theme::semibold())
-                .color(p.ink),
+                .color(t.text_strong),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if widgets::icon_button(
+            if ui::icon_button(
                 ui,
-                p.secondary,
+                t,
+                t.text_secondary,
                 Icon::DockToLeft,
                 "Collapse sidebar (Ctrl+B)",
             )
@@ -51,7 +47,7 @@ pub fn show(
     let first_account = state.accounts.keys().next().copied();
     ui.add_enabled_ui(first_account.is_some(), |ui| {
         ui.horizontal(|ui| {
-            if widgets::primary(ui, p, "Compose", Some("C"), true)
+            if ui::primary(ui, t, "Compose", Some("C"), true)
                 && let Some(account) = first_account
             {
                 queue.push(Request::user(Command::CreateDraft {
@@ -89,7 +85,7 @@ pub fn show(
                     unread,
                     open,
                 };
-                if nav_row(ui, p, &row, focused).clicked() {
+                if nav_row(ui, t, &row, focused).clicked() {
                     queue.push(Request::user(Command::OpenUnifiedInbox {}));
                 }
                 ui.add_space(12.0);
@@ -97,28 +93,28 @@ pub fn show(
             for account in state.accounts.values() {
                 ui.horizontal(|ui| {
                     if state.accounts.len() > 1 {
-                        let tag = crate::theme::account_color(state, account.id);
+                        let tag = t.tag(state, account.id);
                         let (rect, _) =
                             ui.allocate_exact_size(Vec2::new(4.0, 10.0), Sense::hover());
                         ui.painter().rect_filled(rect, 1.0, tag);
                     }
-                    widgets::caption(ui, p, &account.display_name);
+                    ui::caption(ui, t, &account.display_name);
                 });
                 ui.add_space(2.0);
                 for mailbox in listing::mailboxes(state, Some(account.id)) {
-                    if mailbox_row(ui, p, state, mailbox, focused) {
+                    if mailbox_row(ui, t, state, mailbox, focused) {
                         queue.push(Request::user(Command::OpenMailbox { id: mailbox.id }));
                     }
                 }
                 ui.add_space(12.0);
             }
             if state.accounts.is_empty() {
-                ui.label(RichText::new("No accounts yet.").color(p.secondary));
+                ui.label(RichText::new("No accounts yet.").color(t.text_secondary));
             }
             ui.add_space(4.0);
             if ui
                 .add(
-                    egui::Button::new(RichText::new("+ Add account").color(p.secondary))
+                    egui::Button::new(RichText::new("+ Add account").color(t.text_secondary))
                         .frame(false),
                 )
                 .clicked()
@@ -139,7 +135,7 @@ struct NavRow {
 
 fn mailbox_row(
     ui: &mut Ui,
-    p: &Palette,
+    t: &Tokens,
     state: &AppState,
     mailbox: &Mailbox,
     focused: bool,
@@ -152,7 +148,7 @@ fn mailbox_row(
             && state.view.search.is_none()
             && !state.view.unified,
     };
-    let response = nav_row(ui, p, &row, focused);
+    let response = nav_row(ui, t, &row, focused);
     let backfilling = state.status.backfilling.contains(&mailbox.id);
     if backfilling && let Some(history) = listing::history(state, mailbox.id) {
         // Older mail is being fetched in the background: how far it got.
@@ -168,8 +164,8 @@ fn mailbox_row(
         child
             .label(
                 RichText::new(format!("↓{percent}%"))
-                    .font(widgets::mono(10.0))
-                    .color(p.faint),
+                    .font(ui::mono(10.0))
+                    .color(t.text_muted),
             )
             .on_hover_text(format!(
                 "Fetching older mail: {} of {} cached",
@@ -179,7 +175,7 @@ fn mailbox_row(
     response.clicked()
 }
 
-fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Response {
+fn nav_row(ui: &mut Ui, t: &Tokens, row: &NavRow, focused: bool) -> egui::Response {
     let open = row.open;
     let (rect, response) =
         ui.allocate_exact_size(Vec2::new(ui.available_width(), 30.0), Sense::click());
@@ -191,16 +187,16 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
     };
     response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, true, open, &name));
     if open {
-        ui.painter().rect_filled(rect, 4.0, p.subtle);
+        ui.painter().rect_filled(rect, 4.0, t.selected);
         if focused {
             ui.painter().rect_filled(
                 egui::Rect::from_min_size(rect.min, Vec2::new(2.0, rect.height())),
                 0.0,
-                p.ink,
+                t.focus,
             );
         }
     } else if response.hovered() {
-        ui.painter().rect_filled(rect, 4.0, p.muted);
+        ui.painter().rect_filled(rect, 4.0, t.hover);
     }
     let mut child = ui.new_child(
         egui::UiBuilder::new()
@@ -208,14 +204,22 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
             .layout(egui::Layout::left_to_right(egui::Align::Center))
             .accessibility_parent(response.id),
     );
-    widgets::icon(
+    ui::icon(
         &mut child,
         row.icon,
         16.0,
-        if open { p.ink } else { p.secondary },
+        if open {
+            t.text_strong
+        } else {
+            t.text_secondary
+        },
         open,
     );
-    let name = RichText::new(&row.name).color(if open { p.ink } else { p.secondary });
+    let name = RichText::new(&row.name).color(if open {
+        t.text_strong
+    } else {
+        t.text_secondary
+    });
     child.add(
         egui::Label::new(if open {
             name.strong().family(crate::theme::semibold())
@@ -227,18 +231,24 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
     );
     if row.unread > 0 {
         child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            widgets::count(ui, p, row.unread, open);
+            ui::count(ui, t, row.unread, open);
         });
     }
     response
 }
 
 /// Renders the collapsed rail.
-pub fn rail(ui: &mut Ui, p: &Palette, queue: &mut Vec<Request>) {
+pub fn rail(ui: &mut Ui, t: &Tokens, queue: &mut Vec<Request>) {
     ui.add_space(10.0);
     ui.vertical_centered(|ui| {
-        if widgets::icon_button(ui, p.secondary, Icon::DockToLeft, "Expand sidebar (Ctrl+B)")
-            .clicked()
+        if ui::icon_button(
+            ui,
+            t,
+            t.text_secondary,
+            Icon::DockToLeft,
+            "Expand sidebar (Ctrl+B)",
+        )
+        .clicked()
         {
             queue.push(Request::user(Command::ToggleSidebar {}));
         }

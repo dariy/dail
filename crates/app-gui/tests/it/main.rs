@@ -15,4 +15,5 @@ mod reader;
 mod scale;
 mod shell;
 mod statusbar;
+mod style;
 mod wizard;
