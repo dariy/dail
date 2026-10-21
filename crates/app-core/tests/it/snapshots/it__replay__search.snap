@@ -948,6 +948,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Plans"
                   }
                 },
@@ -969,6 +970,7 @@ expression: first
                         "name": "Alice"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Invoice"
                   }
                 }
@@ -1063,6 +1065,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Plans"
                   }
                 }
@@ -1354,6 +1357,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Lunch"
                   }
                 },
@@ -1378,6 +1382,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Plans"
                   }
                 }
@@ -1532,6 +1537,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Plans"
                   }
                 }
@@ -1825,6 +1831,7 @@ expression: first
                         "email": "bob@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Numbers"
                   }
                 }

@@ -489,7 +489,7 @@ expression: command_schema()
         },
         {
           "const": "list_density",
-          "description": "Thread list rows: 0 = cozy (two lines), 1 = compact (one line).",
+          "description": "Thread list rows: 0 = cozy (two lines), 1 = compact (one line), 2 = preview (three lines\nwith the snippet).",
           "type": "string"
         }
       ]

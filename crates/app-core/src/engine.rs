@@ -246,10 +246,11 @@ impl Engine {
                 message,
                 blob,
                 has_attachments,
+                snippet,
             } => Ok(self.ingest_body(
                 message,
                 BodyState::Fetched { blob },
-                Some(has_attachments),
+                Some((has_attachments, snippet)),
                 receipt,
             )),
             Event::BodyFetchFailed { message, error } => {

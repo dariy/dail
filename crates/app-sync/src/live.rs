@@ -197,7 +197,7 @@ impl LiveBackend {
     }
 
     /// Stores a raw message as a blob; returns its ID and whether it has attachments.
-    async fn store_blob(&self, message: MessageId, raw: Vec<u8>) -> Result<(String, bool), String> {
+    async fn store_blob(&self, message: MessageId, raw: Vec<u8>) -> Result<Stored, String> {
         let store = Arc::clone(&self.store);
         let fulltext = self.fulltext.clone();
         tokio::task::spawn_blocking(move || {
@@ -207,7 +207,11 @@ impl LiveBackend {
             {
                 tracing::warn!(error = %err, "could not index a body");
             }
-            Ok((blob, app_io::mime::has_attachments(&raw)))
+            Ok(Stored {
+                has_attachments: app_io::mime::has_attachments(&raw),
+                snippet: app_io::mime::snippet(&raw),
+                blob,
+            })
         })
         .await
         .map_err(|err| format!("blob store task failed: {err}"))?
@@ -520,10 +524,15 @@ impl LiveBackend {
                     Err(error) => Err(error),
                 };
                 Ok(vec![match stored {
-                    Ok((blob, has_attachments)) => Event::BodyFetched {
+                    Ok(Stored {
+                        blob,
+                        has_attachments,
+                        snippet,
+                    }) => Event::BodyFetched {
                         message,
                         blob,
                         has_attachments,
+                        snippet,
                     },
                     Err(error) => Event::BodyFetchFailed { message, error },
                 }])
@@ -791,4 +800,11 @@ impl Backend for LiveBackend {
                 .map_err(SyncError::from)
         })
     }
+}
+
+/// A body put in the blob store, with what the engine learns from parsing it.
+struct Stored {
+    blob: String,
+    has_attachments: bool,
+    snippet: Option<String>,
 }

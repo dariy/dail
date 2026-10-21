@@ -308,6 +308,7 @@ impl MemoryBackend {
                         message,
                         blob,
                         has_attachments: app_io::mime::has_attachments(&raw),
+                        snippet: app_io::mime::snippet(&raw),
                     }
                 }
                 Err(error) => Event::BodyFetchFailed { message, error },

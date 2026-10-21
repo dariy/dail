@@ -113,13 +113,23 @@ fn list_density_is_a_setting() {
         )
         .unwrap();
     assert_eq!(engine.state().settings.list_density, 1);
-    let err = engine
+    engine
         .dispatch(
             Command::SetSetting {
                 key: SettingKey::ListDensity,
                 value: 2.into(),
             },
             &ctx(2),
+        )
+        .unwrap();
+    assert_eq!(engine.state().settings.list_density, 2, "preview (UI-14)");
+    let err = engine
+        .dispatch(
+            Command::SetSetting {
+                key: SettingKey::ListDensity,
+                value: 3.into(),
+            },
+            &ctx(3),
         )
         .unwrap_err();
     assert!(matches!(err, CoreError::InvalidArgument { .. }));

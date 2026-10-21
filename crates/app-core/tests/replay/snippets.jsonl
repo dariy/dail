@@ -1,0 +1,9 @@
+# Snippets (UI-14): a fetched body brings the start of its text; the engine drops the quoted line, the bidi override
+# and the control characters, collapses whitespace and cuts it; list_threads and get_message carry it inside
+# untrusted_content. Account: line 4. Mailbox INBOX: line 5. Message UID 1: ..0006-..0001.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.org", "imap": {"host": "mail.example.org", "port": 993, "security": "tls"}, "smtp": {"host": "mail.example.org", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 2, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "One", "date_ms": 1699000000000}, {"uid": 2, "message_id_hdr": "two@x", "subject": "Two", "date_ms": 1699000001000}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "body_fetched", "args": {"message": "00000000-0000-0006-0000-000000000001", "blob": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "has_attachments": false, "snippet": "Hi Bob,\n\n  the \u202enumbers\u0007 are in.\n> quoted old text\nSee you"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "list_threads", "args": {"mailbox": "00000000-0000-0005-0000-000000000000"}}}}
+{"t": 1700000005000, "origin": "mcp", "input": {"command": {"cmd": "get_message", "args": {"id": "00000000-0000-0006-0000-000000000001"}}}}

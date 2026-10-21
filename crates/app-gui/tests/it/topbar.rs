@@ -192,3 +192,33 @@ fn compact_rows_are_40_high() {
     let rect = row.accesskit_node().bounding_box().unwrap();
     assert!((rect.height() - 40.0).abs() < 0.5, "{rect:?}");
 }
+
+#[test]
+fn preview_rows_are_72_high_and_show_the_snippet() {
+    use egui_kittest::kittest::NodeT;
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let newest = *state.threads[&threads[0]].messages.last().unwrap();
+    state.messages.get_mut(&newest).unwrap().snippet = Some("Noon at the usual place?".into());
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    h.run();
+    // Cozy rows put the snippet after the subject.
+    h.get_by_label_contains("Noon at the usual place?");
+    apply(
+        &mut h,
+        Command::SetSetting {
+            key: app_core::SettingKey::ListDensity,
+            value: 2.into(),
+        },
+    );
+    h.run();
+    let row = h.get(
+        By::new()
+            .role(Role::Button)
+            .predicate(|n| n.label().is_some_and(|l| l.contains("Lunch?"))),
+    );
+    let rect = row.accesskit_node().bounding_box().unwrap();
+    assert!((rect.height() - 72.0).abs() < 0.5, "{rect:?}");
+    h.get_by_label("Noon at the usual place?");
+}

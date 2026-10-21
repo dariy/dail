@@ -43,7 +43,9 @@ pub use history::{History, HistoryEntry};
 pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
 pub use listing::ThreadSummary;
 pub use mailbox::{Mailbox, MailboxRole, RemoteMailbox};
-pub use message::{Addr, BodyState, Envelope, Flags, RemoteEnvelope, Thread, UidFlags};
+pub use message::{
+    Addr, BodyState, Envelope, Flags, RemoteEnvelope, SNIPPET_CHARS, Thread, UidFlags, snippet,
+};
 pub use ops::{CopyRef, FlagKind, OpState, PendingOp, RemoteOp, RemoteStep};
 pub use receipt::{CommandReceipt, EntityRef, Outcome};
 pub use registry::{AgentAccess, Category, CommandName, CommandSpec};

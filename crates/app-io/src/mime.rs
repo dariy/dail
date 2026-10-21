@@ -133,6 +133,11 @@ pub struct AttachmentInfo {
     pub content_id: Option<String>,
 }
 
+/// The list-row preview of a raw message ([`app_core::snippet`] of its readable text).
+pub fn snippet(raw: &[u8]) -> Option<String> {
+    app_core::snippet(&parse_message(raw).text)
+}
+
 /// Parses a whole raw message into headers, readable text and attachments. Never fails: an
 /// unparsable message yields empty fields.
 pub fn parse_message(raw: &[u8]) -> ParsedMessage {

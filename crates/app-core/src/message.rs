@@ -95,6 +95,10 @@ pub struct Envelope {
     pub has_attachments: bool,
     /// Whether the body is cached.
     pub body: BodyState,
+    /// The start of the plain text (at most [`SNIPPET_CHARS`] characters, whitespace collapsed,
+    /// quoted lines and control characters removed), filled when the body is fetched. Untrusted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snippet: Option<String>,
     /// Where the message is shown while a move has not reached the server yet. `mailbox` and
     /// `uid` always describe the message's server location (`uid` 0: a placeholder whose new
     /// UID a fetch of `mailbox` has not found yet).
@@ -112,6 +116,53 @@ impl Envelope {
     pub const fn is_placeholder(&self) -> bool {
         self.uid == 0
     }
+}
+
+/// The longest [`Envelope::snippet`], in characters.
+pub const SNIPPET_CHARS: usize = 140;
+
+/// A list-row preview of a message's text: quoted (`>`) lines dropped, control characters
+/// and bidirectional formatting characters removed, whitespace collapsed, cut to [`SNIPPET_CHARS`] characters (`…` when cut). `None`
+/// when nothing is left.
+pub fn snippet(text: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut chars = 0;
+    for word in text
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('>'))
+        .flat_map(str::split_whitespace)
+    {
+        let word: String = word.chars().filter(|c| !hidden(*c)).collect();
+        if word.is_empty() {
+            continue;
+        }
+        let len = word.chars().count();
+        let space = usize::from(!out.is_empty());
+        if chars + space + len > SNIPPET_CHARS {
+            let room = SNIPPET_CHARS.saturating_sub(chars + space + 1);
+            if room > 0 {
+                if space == 1 {
+                    out.push(' ');
+                }
+                out.extend(word.chars().take(room));
+            }
+            out.push('…');
+            return Some(out);
+        }
+        if space == 1 {
+            out.push(' ');
+        }
+        out.push_str(&word);
+        chars += space + len;
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// Characters a preview drops: controls and the bidirectional overrides, isolates and marks
+/// that could reorder the text around them.
+fn hidden(c: char) -> bool {
+    c.is_control()
+        || matches!(c, '\u{200E}' | '\u{200F}' | '\u{061C}' | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
 }
 
 /// A conversation: messages of one account linked by `Message-ID` / `References`, or by
@@ -197,7 +248,31 @@ impl RemoteEnvelope {
             size: self.size,
             has_attachments: self.has_attachments,
             body: BodyState::NotFetched,
+            snippet: None,
             moved_to: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn snippets_are_cleaned_and_cut() {
+        assert_eq!(snippet(""), None);
+        assert_eq!(snippet("> only a quote\n\n\t"), None);
+        assert_eq!(
+            snippet("Hi,\n\n  see\u{202e} the\u{7} plan.\n> old\nBye").as_deref(),
+            Some("Hi, see the plan. Bye")
+        );
+        let long = "word ".repeat(100);
+        let cut = snippet(&long).unwrap();
+        assert_eq!(cut.chars().count(), SNIPPET_CHARS);
+        assert!(cut.ends_with('…'));
+        let one = "x".repeat(500);
+        assert_eq!(snippet(&one).unwrap().chars().count(), SNIPPET_CHARS);
+        // Idempotent: the engine cleans what the runtime already cleaned.
+        assert_eq!(snippet(&cut).as_deref(), Some(cut.as_str()));
     }
 }

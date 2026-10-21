@@ -212,6 +212,7 @@ fn include_body_references_cached_blobs_and_downloads_missing_ones() {
         message: reply,
         blob: "ab".repeat(32),
         has_attachments: false,
+        snippet: None,
     });
     let thread = m.thread_of(first);
     let before = m.engine.state().clone();

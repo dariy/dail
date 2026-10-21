@@ -30,6 +30,7 @@ fn msg(id: Option<&str>, parents: &[&str], subject: &str, date_ms: i64) -> Envel
         flags: Flags::default(),
         size: 0,
         has_attachments: false,
+        snippet: None,
         body: BodyState::NotFetched,
         moved_to: None,
     }

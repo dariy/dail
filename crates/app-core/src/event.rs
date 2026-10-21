@@ -116,6 +116,10 @@ pub enum Event {
         blob: String,
         /// Whether the parsed message has attachments.
         has_attachments: bool,
+        /// The start of the parsed text ([`crate::message::snippet`]). Untrusted; the engine
+        /// cleans and cuts it again.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        snippet: Option<String>,
     },
     /// An [`Effect::FetchBody`] failed.
     BodyFetchFailed {

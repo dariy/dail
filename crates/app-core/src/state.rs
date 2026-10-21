@@ -264,7 +264,8 @@ pub struct Settings {
     pub theme_light: String,
     /// The GUI theme for the dark mode, by name (`dail-dark`; `set_theme`).
     pub theme_dark: String,
-    /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px).
+    /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px), 2 = preview
+    /// (three lines with the snippet, 72 px).
     pub list_density: u64,
     /// GUI text and widget size in percent.
     pub text_scale: u64,

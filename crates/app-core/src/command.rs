@@ -683,7 +683,8 @@ pub enum SettingKey {
     /// Desktop notifications while the GUI is in the background (new mail, failed sends,
     /// approvals): 0 = off, 1 = on.
     Notifications,
-    /// Thread list rows: 0 = cozy (two lines), 1 = compact (one line).
+    /// Thread list rows: 0 = cozy (two lines), 1 = compact (one line), 2 = preview (three lines
+    /// with the snippet).
     ListDensity,
 }
 
@@ -724,7 +725,7 @@ impl SettingKey {
             Self::Theme => (0, 4),
             Self::TextScale => (50, 300),
             Self::Notifications => (0, 1),
-            Self::ListDensity => (0, 1),
+            Self::ListDensity => (0, 2),
         }
     }
 

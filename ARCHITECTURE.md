@@ -187,6 +187,7 @@ pub struct RemoteEnvelope { uid, message_id_hdr, in_reply_to, references, from, 
 pub struct Envelope { id, account, mailbox, uid: u32, message_id_hdr: Option<String>, in_reply_to, references,
                       thread, from: Vec<Addr>, to, cc, subject: String, date_ms: i64, flags: Flags,
                       size: u32, has_attachments: bool, body: BodyState /* NotFetched|Fetched{blob}|Failed */,
+                      snippet: Option<String>,      // ≤ 140 chars of the text, set from BodyFetched (UI-14)
                       moved_to: Option<MailboxId> }  // mailbox/uid = server location (uid 0: placeholder); shown in
                                                      // location() = moved_to.unwrap_or(mailbox)
 pub struct Thread   { id, account, messages: Vec<MessageId> /* oldest first */, last_date_ms: i64, subject: String }
@@ -253,7 +254,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
 - **`Event`** — a world fact, produced only by the runtime: `AccountVerified`, `AccountVerifyFailed`,
   `SecretStored`, `SecretDeleted`, `SecretFailed`, `MailboxesListed{account, mailboxes}`,
   `EnvelopesFetched{account, mailbox, uid_validity, uid_next?, total, unread, envelopes: Vec<RemoteEnvelope>}`,
-  `BodyFetched{message, blob, has_attachments}`, `BodyFetchFailed{message, error}`,
+  `BodyFetched{message, blob, has_attachments, snippet?}`, `BodyFetchFailed{message, error}`,
   `FlagsChanged{account, mailbox, uid_validity, from_uid, to_uid, flags: Vec<UidFlags>, existing?, highest_modseq?}`, `RemoteOpSucceeded{op}`, `RemoteOpFailed{op, error, permanent}`,
   `AttachmentInspected{draft, path, size, content_type}`, `AttachmentFailed{draft, path, error}`,
   `AttachmentsSaved{message, files}`, `AttachmentsSaveFailed{message, files, error}`,
@@ -448,7 +449,8 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    without a body after each INBOX `EnvelopesFetched`. `status.bodies_in_flight` prevents duplicate requests. The runtime
    fetches `BODY.PEEK[]` (stays unread), checks UIDVALIDITY, stores the raw RFC 822 with `Store::put_blob` and reports
    `BodyFetched` (the envelope's `body` becomes `fetched{blob}` and `has_attachments` is corrected from the full parse,
-   `app_io::mime::has_attachments`) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending.
+   `app_io::mime::has_attachments`, and `snippet` set from `app_io::mime::snippet`; the engine cleans it again with
+   `app_core::snippet`: quoted lines, controls and bidi formatting dropped, whitespace collapsed, at most 140 chars) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending.
 5. Remote ops: triage commands change the cache first and queue one `PendingOp` per account in `state.outbox` (persisted with
    the cache, in the same `MailDelta`). Each account runs one op at a time, oldest first: when an op starts the engine resolves
    its messages' *current* server locations into `RemoteStep`s (`Store` per mailbox, UIDs ascending) and emits
@@ -912,10 +914,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar) and the footer; its rows come in two densities
+  unread badge, *Clear* during a search, the checked-threads bar) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
-  clip, message count and the date in mono; then the subject), and compact, 40 px on one line (the sender in a fixed
-  column). Hover and selection fills, the keyboard cursor's 2 px bar and the hairline come from `ui::row_frame`. The
+  clip, message count and the date in mono; then the subject), compact, 40 px on one line (the sender in a fixed
+  column), and preview, 72 px on three lines (the snippet on the third). Cozy and compact rows put the newest message's
+  snippet, muted, after the subject (UI-14). Hover and selection fills, the keyboard cursor's 2 px bar and the hairline come from `ui::row_frame`. The
   list's rows and its unread count are computed once per `AppState.revision` (`list::RowCache`), so a frame with 100k
   threads costs ~0.7 ms. `app_core::listing` holds these read-only
   projections; the queries use the same functions, so the GUI never re-derives the rules. Bodies are blobs only the
@@ -937,7 +940,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   `theme_light` / `theme_dark` (defaults `dail-light`, `dail-dark`) name the theme of each mode; an unknown name falls
   back to the mode's default with a notice. The legacy values 3 and 4 are mapped when `config.toml` is read and when
   `set_setting theme` runs: 3 is dark mode with `dail-dark-hc`, 4 light mode with `dail-light-hc`. `list_density` picks
-  cozy (0) or compact (1) list rows. The `text_scale` setting (percent)
+  cozy (0), compact (1) or preview (2) list rows. The `text_scale` setting (percent)
   sets egui's zoom factor; egui's own Ctrl + plus/minus/0 zoom lasts until the window closes (written back, every step
   would become an undo step). Screen readers (AccessKit): thread rows and mailbox rows are buttons named by what their
   marks show (`unread, starred, with attachments, Carol, Lunch?, 2 messages, Nov 14`; `Inbox, 3 unread`), the open
@@ -1166,7 +1169,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |
@@ -1178,8 +1181,8 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
 | `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
-| `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from}}]}`, newest first | M2 |
-| `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
+| `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
+| `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
 | `save_attachments` | Mutation (no history; user only, §9) | `message, parts? (MIME part numbers; none: all), dir` (absolute; the body must be downloaded) → emits `SaveAttachments`; progress in `status.saves` (one per message, at most 16) | Wave 2 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |

@@ -168,6 +168,7 @@ fn bodies_land_in_state_and_failures_are_recorded() {
                 message: *m2,
                 blob: "ab".repeat(32),
                 has_attachments: true,
+                snippet: None,
             },
             &ctx(4),
         )
@@ -211,6 +212,7 @@ fn bodies_land_in_state_and_failures_are_recorded() {
                 message: ghost,
                 blob: "cd".repeat(32),
                 has_attachments: false,
+                snippet: None,
             },
             &ctx(6),
         )

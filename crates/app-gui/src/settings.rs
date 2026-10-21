@@ -294,7 +294,7 @@ fn appearance(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request
                 t,
                 state,
                 SettingKey::ListDensity,
-                &[(0, "Cozy 48"), (1, "Compact 40")],
+                &[(0, "Cozy 48"), (1, "Compact 40"), (2, "Preview 72")],
                 queue,
             );
         },

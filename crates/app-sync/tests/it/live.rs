@@ -868,6 +868,7 @@ async fn resync_flags_and_fetch_body_into_the_blob_store() {
         Event::BodyFetched {
             blob,
             has_attachments,
+            snippet,
             ..
         },
     ] = &events[..]
@@ -875,6 +876,12 @@ async fn resync_flags_and_fetch_body_into_the_blob_store() {
         panic!("unexpected events {events:?}");
     };
     assert!(!has_attachments);
+    assert!(
+        snippet
+            .as_deref()
+            .is_some_and(|s| s.contains("Body of b@x")),
+        "the snippet comes with the body: {snippet:?}"
+    );
     let raw = store.get_blob(blob).unwrap().unwrap();
     assert!(String::from_utf8(raw).unwrap().contains("Body of b@x"));
     assert!(

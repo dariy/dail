@@ -663,6 +663,7 @@ expression: first
                     "cc": [],
                     "from": [],
                     "message_id": "one@x",
+                    "snippet": null,
                     "subject": "Plans",
                     "to": []
                   }
@@ -690,6 +691,7 @@ expression: first
                     "cc": [],
                     "from": [],
                     "message_id": "two@x",
+                    "snippet": null,
                     "subject": "Re: Plans",
                     "to": []
                   }
@@ -747,6 +749,7 @@ expression: first
                     "cc": [],
                     "from": [],
                     "message_id": "one@x",
+                    "snippet": null,
                     "subject": "Plans",
                     "to": []
                   }
@@ -774,6 +777,7 @@ expression: first
                     "cc": [],
                     "from": [],
                     "message_id": "two@x",
+                    "snippet": null,
                     "subject": "Re: Plans",
                     "to": []
                   }
@@ -950,6 +954,7 @@ expression: first
                   "cc": [],
                   "from": [],
                   "message_id": "two@x",
+                  "snippet": null,
                   "subject": "Re: Plans",
                   "to": []
                 }

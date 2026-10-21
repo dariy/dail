@@ -83,6 +83,7 @@ fn cache(account: u128, n: u128) -> MailDelta {
             flags: Flags::default(),
             size: 10,
             has_attachments: false,
+            snippet: None,
             body: BodyState::NotFetched,
             moved_to: None,
         }],

@@ -719,7 +719,7 @@ impl Engine {
         &mut self,
         message: MessageId,
         body: BodyState,
-        has_attachments: Option<bool>,
+        parsed: Option<(bool, Option<String>)>,
         receipt: CommandReceipt,
     ) -> Outcome {
         self.state.status.bodies_in_flight.remove(&message);
@@ -727,8 +727,9 @@ impl Engine {
             return Outcome::new(receipt.affecting(EntityRef::Status));
         };
         envelope.body = body;
-        if let Some(has_attachments) = has_attachments {
+        if let Some((has_attachments, snippet)) = parsed {
             envelope.has_attachments = has_attachments;
+            envelope.snippet = snippet.as_deref().and_then(crate::message::snippet);
         }
         let thread = envelope.thread;
         let mut changes = CacheChanges::default();

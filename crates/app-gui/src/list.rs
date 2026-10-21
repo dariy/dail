@@ -11,7 +11,8 @@ use crate::ui;
 use app_front::format;
 use app_front::mailbox::mailbox_name;
 
-/// How the rows are laid out: two lines (48) or one (40). The `list_density` setting picks it.
+/// How the rows are laid out: two lines (48), one (40) or three with the snippet (72). The
+/// `list_density` setting picks it.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Density {
     /// Two lines: the sender and the marks, then the subject.
@@ -19,15 +20,17 @@ pub enum Density {
     Cozy,
     /// One line: sender, subject, date.
     Compact,
+    /// Three lines: the sender and the marks, the subject, the snippet (UI-14).
+    Preview,
 }
 
 impl Density {
     /// The density of `state`'s settings (`list_density`).
     pub fn of(state: &AppState) -> Self {
-        if state.settings.list_density == 1 {
-            Self::Compact
-        } else {
-            Self::Cozy
+        match state.settings.list_density {
+            1 => Self::Compact,
+            2 => Self::Preview,
+            _ => Self::Cozy,
         }
     }
 
@@ -36,6 +39,7 @@ impl Density {
         match self {
             Self::Cozy => t.m.rows.cozy,
             Self::Compact => t.m.rows.compact,
+            Self::Preview => t.m.rows.preview,
         }
     }
 }
@@ -114,6 +118,12 @@ pub fn show(
                     tag: (state.accounts.len() > 1).then(|| t.tag(state, thread.account)),
                     cursor: focused && cursor == Some(*id),
                     marks: &marks,
+                    snippet: thread
+                        .messages
+                        .iter()
+                        .rev()
+                        .filter_map(|m| state.messages.get(m))
+                        .find_map(|m| m.snippet.as_deref()),
                 };
                 match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
@@ -303,6 +313,8 @@ struct RowLook<'a> {
     open: bool,
     cursor: bool,
     marks: &'a [String],
+    /// The newest message's snippet. Untrusted.
+    snippet: Option<&'a str>,
 }
 
 /// What a screen reader says for a row: what the dot, the star, the clip and the tick show,
@@ -389,6 +401,24 @@ fn row(
     };
     let subject_color = if unread { t.text } else { t.text_secondary };
     let subject_job = ui::marked(t, subject, look.marks, ui::font(body), subject_color);
+    let snippet_job = look.snippet.map(|s| {
+        ui::marked(
+            t,
+            s,
+            look.marks,
+            ui::font(&t.type_scale.body_sm),
+            t.text_muted,
+        )
+    });
+    // Cozy and compact rows: the snippet after the subject, muted, as far as there is room.
+    let subject_line = |ui: &mut Ui, subject: egui::text::LayoutJob| {
+        ui.add(egui::Label::new(subject).truncate().selectable(false));
+        if density != Density::Preview
+            && let Some(snippet) = snippet_job.clone()
+        {
+            ui.add(egui::Label::new(snippet).truncate().selectable(false));
+        }
+    };
     let date = format::short_date(summary.thread.last_date_ms, now_ms);
     let date_color = if unread { t.text } else { t.text_muted };
     let mut child = ui.new_child(
@@ -442,8 +472,13 @@ fn row(
     };
     let line = child.available_width();
     match density {
-        Density::Cozy => {
-            let half = child.available_height() / 2.0;
+        Density::Cozy | Density::Preview => {
+            let lines = if density == Density::Preview {
+                3.0
+            } else {
+                2.0
+            };
+            let half = child.available_height() / lines;
             child.allocate_ui_with_layout(
                 Vec2::new(line, half),
                 Layout::left_to_right(Align::Center),
@@ -463,9 +498,19 @@ fn row(
                 |ui| {
                     // Under the sender, past the pip.
                     ui.add_space(t.m.controls.unread_pip + t.m.space.sm);
-                    ui.add(egui::Label::new(subject_job).truncate().selectable(false));
+                    subject_line(ui, subject_job.clone());
                 },
             );
+            if let Some(snippet) = snippet_job.clone().filter(|_| density == Density::Preview) {
+                child.allocate_ui_with_layout(
+                    Vec2::new(line, half),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        ui.add_space(t.m.controls.unread_pip + t.m.space.sm);
+                        ui.add(egui::Label::new(snippet).truncate().selectable(false));
+                    },
+                );
+            }
         }
         Density::Compact => {
             child.allocate_ui_with_layout(
@@ -485,7 +530,7 @@ fn row(
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         trail(ui);
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                            ui.add(egui::Label::new(subject_job).truncate().selectable(false));
+                            subject_line(ui, subject_job.clone());
                         });
                     });
                 },

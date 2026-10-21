@@ -22,6 +22,7 @@ fn downloaded() -> (Mail, MessageId, MessageId) {
         message: report,
         blob: "ab".repeat(32),
         has_attachments: true,
+        snippet: None,
     });
     (m, report, lunch)
 }

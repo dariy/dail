@@ -717,6 +717,7 @@ expression: first
                         "email": "carol@example.org"
                       }
                     ],
+                    "snippet": null,
                     "subject": "Invoice"
                   }
                 }

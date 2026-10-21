@@ -138,6 +138,12 @@ impl Engine {
             "untrusted_content": {
                 "subject": thread.subject,
                 "from": summary.senders,
+                "snippet": thread
+                    .messages
+                    .iter()
+                    .rev()
+                    .filter_map(|m| self.state.messages.get(m))
+                    .find_map(|m| m.snippet.as_deref()),
             },
         });
         if let (Some(mailbox), Some(object)) = (mailbox, json.as_object_mut()) {
@@ -248,6 +254,7 @@ impl Engine {
                 "to": envelope.to,
                 "cc": envelope.cc,
                 "message_id": envelope.message_id_hdr,
+                "snippet": envelope.snippet,
             },
         })
     }

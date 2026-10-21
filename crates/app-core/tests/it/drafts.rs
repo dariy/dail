@@ -287,6 +287,7 @@ fn a_cached_body_is_not_downloaded_again() {
         message: original,
         blob: "ab".repeat(32),
         has_attachments: false,
+        snippet: None,
     });
     let outcome = m
         .run(Command::Reply {
