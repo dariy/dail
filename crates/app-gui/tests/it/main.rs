@@ -14,6 +14,6 @@ mod palette;
 mod reader;
 mod scale;
 mod shell;
-mod statusbar;
 mod style;
+mod topbar;
 mod wizard;

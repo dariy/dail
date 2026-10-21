@@ -17,8 +17,6 @@ pub const ROW_HEIGHT: f32 = 52.0;
 /// UI-local state of the list.
 #[derive(Debug, Default)]
 pub struct ListState {
-    /// The search box text.
-    pub search: String,
     /// The thread the list last scrolled to, so it scrolls only when the selection moves.
     scrolled_to: Option<ThreadId>,
 }
@@ -33,7 +31,7 @@ pub fn show(
     now_ms: i64,
     queue: &mut Vec<Request>,
 ) {
-    header(ui, t, state, rows.unread, local, queue);
+    header(ui, t, state, rows.unread, queue);
     let rows = rows.ids.as_slice();
     ui.add_space(4.0);
     ui.separator();
@@ -116,30 +114,9 @@ pub fn show(
         .data_mut(|d| d.insert_temp(ui.scope_id().with("list-offset"), offset));
 }
 
-fn header(
-    ui: &mut Ui,
-    t: &Tokens,
-    state: &AppState,
-    unread: usize,
-    local: &mut ListState,
-    queue: &mut Vec<Request>,
-) {
-    ui.add_space(10.0);
-    let search = egui::TextEdit::singleline(&mut local.search)
-        .hint_text("Search   ( / )")
-        .desired_width(f32::INFINITY);
-    let response = ui.add(search);
-    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-        let query = local.search.trim().to_owned();
-        if query.is_empty() {
-            if state.view.search.is_some() {
-                queue.push(Request::user(Command::ClearSearch {}));
-            }
-        } else {
-            queue.push(Request::user(Command::SetSearch { query }));
-        }
-    }
-    ui.add_space(8.0);
+fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut Vec<Request>) {
+    // The search lives in the top bar's pill (the palette, UI-5).
+    ui.add_space(t.m.space.md);
     ui.horizontal(|ui| {
         let title = match (&state.view.search, state.view.mailbox) {
             (Some(query), _) => format!("Search: {query}"),
@@ -166,7 +143,6 @@ fn header(
         if state.view.search.is_some() {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui::secondary(ui, t, "Clear", None, true) {
-                    local.search.clear();
                     queue.push(Request::user(Command::ClearSearch {}));
                 }
             });
@@ -235,6 +211,43 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         if ui::secondary(ui, t, "Uncheck all", None, true) {
             queue.push(Request::user(Command::UncheckThreads { ids: Vec::new() }));
         }
+    });
+}
+
+/// The list footer (UI-5, UI-6): the undo offer while there is one, else the key hints; the
+/// number of conversations on the right.
+pub fn footer(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    rows: &Rows,
+    undo: Option<&str>,
+    queue: &mut Vec<Request>,
+) {
+    ui.horizontal_centered(|ui| {
+        ui.spacing_mut().item_spacing.x = t.m.space.sm;
+        if let Some(label) = undo {
+            let keys =
+                app_front::keymap::KeyState::hint(&state.settings, app_core::CommandName::Undo);
+            if crate::topbar::undo_offer(ui, t, label, keys.as_deref()) {
+                queue.push(Request::user(Command::Undo {}));
+            }
+        } else {
+            ui::footer_hint(ui, t, &[("j", "next"), ("k", "previous"), ("x", "select")]);
+        }
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let n = rows.ids.len();
+            let text = format!(
+                "{} conversation{}",
+                format::thousands(n),
+                if n == 1 { "" } else { "s" }
+            );
+            ui.label(ui::text(
+                &t.type_scale.label_sm,
+                text.to_uppercase(),
+                t.text_muted,
+            ));
+        });
     });
 }
 

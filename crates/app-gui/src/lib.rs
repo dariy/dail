@@ -18,9 +18,9 @@ pub mod palette;
 pub mod reader;
 pub mod shell;
 pub mod sidebar;
-pub mod statusbar;
 pub mod theme;
 pub mod toasts;
+pub mod topbar;
 pub mod ui;
 pub mod wizard;
 

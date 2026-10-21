@@ -76,6 +76,19 @@ pub fn names(addrs: &[&Addr]) -> String {
     addrs.iter().map(|a| name(a)).collect::<Vec<_>>().join(", ")
 }
 
+/// `1,842`: thousands separated by commas.
+pub fn thousands(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// `1.2 MB`, `340 KB`, `12 B`.
 pub fn size(bytes: u64) -> String {
     let b = bytes as f64;
@@ -91,6 +104,15 @@ pub fn size(bytes: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thousands_are_separated() {
+        assert_eq!(thousands(0), "0");
+        assert_eq!(thousands(999), "999");
+        assert_eq!(thousands(1_842), "1,842");
+        assert_eq!(thousands(100_000), "100,000");
+        assert_eq!(thousands(1_234_567), "1,234,567");
+    }
 
     #[test]
     fn dates() {

@@ -20,9 +20,9 @@ use crate::list::{self, ListState};
 use crate::palette::PaletteState;
 use crate::reader;
 use crate::sidebar;
-use crate::statusbar;
 use crate::theme;
 use crate::toasts::{ToastKind, Toasts};
+use crate::topbar;
 use crate::wizard::Wizard;
 
 /// Something the user asked for that happens outside the engine: the app performs it after
@@ -220,67 +220,78 @@ impl Shell {
         self.show_result(&ctx, &t);
         self.toasts.show(&ctx, &t, state, now_ms, &mut queue);
 
-        let status_bar = Panel::bottom("status-bar")
-            .exact_size(28.0)
-            .frame(
-                egui::Frame::new()
-                    .fill(t.base)
-                    .stroke(egui::Stroke::new(1.0, t.border_subtle))
-                    .inner_margin(egui::Margin::symmetric(12, 0)),
-            )
-            .show(ui, |ui| {
-                statusbar::show(
-                    ui,
-                    &t,
-                    state,
-                    self.toasts.undo_label(),
-                    now_ms,
-                    self.lang,
-                    &mut queue,
-                )
-            });
-        if let Some(account) = status_bar.inner {
-            self.wizard.reenter(state, account);
-        }
-        // The sidebar draws with the chrome group (dark in `dail-light`), egui's widgets too.
+        // The frame (UI-5): the sidebar at full height, the top bar over the rest, then the panes.
+        // The sidebar and the top bar draw with the chrome group (dark in `dail-light`).
         let chrome = t.chrome();
         let bar = egui::Frame::new()
             .fill(chrome.base)
-            .inner_margin(egui::Margin::symmetric(12, 0));
-        if state.view.sidebar_collapsed {
+            .inner_margin(egui::Margin::symmetric(t.m.space.md as i8, 0));
+        let sidebar = if state.view.sidebar_collapsed {
             Panel::left("sidebar-rail")
-                .exact_size(44.0)
+                .exact_size(t.m.frame.rail)
                 .resizable(false)
-                .frame(bar)
+                .frame(egui::Frame::new().fill(chrome.base))
                 .show(ui, |ui| {
                     ui.style_mut().visuals = theme::chrome_visuals(&t);
-                    sidebar::rail(ui, &chrome, &mut queue);
-                });
+                    sidebar::rail(ui, &chrome, state, &mut queue)
+                })
+                .inner
         } else {
             Panel::left("sidebar")
-                .default_size(220.0)
-                .size_range(160.0..=360.0)
+                .default_size(t.m.frame.sidebar)
+                .size_range(t.m.frame.sidebar_min..=t.m.frame.sidebar_max)
                 .resizable(true)
                 .frame(bar)
                 .show(ui, |ui| {
                     ui.style_mut().visuals = theme::chrome_visuals(&t);
-                    if sidebar::show(ui, &chrome, state, &mut queue).add_account {
-                        self.wizard.open();
-                    }
-                });
+                    sidebar::show(ui, &chrome, state, &mut queue)
+                })
+                .inner
+        };
+        if sidebar.add_account {
+            self.wizard.open();
+        }
+        if sidebar.settings
+            && let app_front::palette::Flow::Ask(step) =
+                app_front::palette::flow(app_core::CommandName::SetSetting, state)
+        {
+            self.palette.open_at(step);
+            queue.push(Request::user(Command::OpenPalette {}));
+        }
+        let top = Panel::top("top-bar")
+            .exact_size(t.m.frame.top_bar)
+            .frame(bar.stroke(egui::Stroke::new(t.m.stroke.hairline, chrome.border_subtle)))
+            .show(ui, |ui| {
+                ui.style_mut().visuals = theme::chrome_visuals(&t);
+                topbar::show(ui, &chrome, state, now_ms, self.lang, &mut queue)
+            });
+        if let Some(account) = top.inner {
+            self.wizard.reenter(state, account);
         }
         Panel::left("thread-list")
-            .default_size(420.0)
-            .size_range(300.0..=640.0)
+            .default_size(t.m.frame.list)
+            .size_range(t.m.frame.list_min..=t.m.frame.list_max)
             .resizable(true)
             .frame(
                 egui::Frame::new()
                     .fill(t.base)
-                    .inner_margin(egui::Margin::symmetric(0, 0)),
+                    .inner_margin(egui::Margin::ZERO),
             )
             .show(ui, |ui| {
+                let undo = self.toasts.undo_label().map(str::to_owned);
+                Panel::bottom("list-footer")
+                    .exact_size(t.m.frame.pane_footer)
+                    .frame(
+                        egui::Frame::new()
+                            .inner_margin(egui::Margin::symmetric(t.m.space.md as i8, 0))
+                            .stroke(egui::Stroke::new(t.m.stroke.hairline, t.border_subtle)),
+                    )
+                    .show_separator_line(false)
+                    .show(ui, |ui| {
+                        list::footer(ui, &t, state, &rows, undo.as_deref(), &mut queue);
+                    });
                 egui::Frame::new()
-                    .inner_margin(egui::Margin::symmetric(12, 0))
+                    .inner_margin(egui::Margin::symmetric(t.m.space.md as i8, 0))
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
@@ -290,7 +301,10 @@ impl Shell {
             .frame(
                 egui::Frame::new()
                     .fill(t.canvas)
-                    .inner_margin(egui::Margin::symmetric(24, 8)),
+                    .inner_margin(egui::Margin::symmetric(
+                        t.m.frame.reader_padding as i8,
+                        t.m.space.sm as i8,
+                    )),
             )
             .show(ui, |ui| {
                 if !state.approvals.is_empty() {

@@ -1,4 +1,5 @@
-//! The status bar: sync state, pending changes, errors and the latest undoable action.
+//! The top bar (sync state, the status chip, the search pill), the sidebar's frame rows and the
+//! list footer's undo offer: what the status bar showed before UI-5.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
@@ -16,9 +17,9 @@ fn sync_state_and_the_poll_hint_are_shown() {
     state.status.sync.get_mut(&account).unwrap().last_sync_ms = Some(fixed_now() - 120_000);
     let mut h = gui(state);
     h.run();
-    h.get_by_label("synced 2m ago");
     h.get_by_label("Ctrl+K");
-    h.get(By::new().role(Role::Button).label("sync")).click();
+    h.get(By::new().role(Role::Button).label("synced 2m ago"))
+        .click();
     h.run();
     assert_eq!(h.state_mut().pump(), [Command::SyncNow { account: None }]);
 }
@@ -54,6 +55,14 @@ fn failures_are_listed_and_failed_changes_can_be_retried() {
     };
     let mut h = gui(state);
     h.run();
+    // The chip sums it up; its popover lists everything with the fixes.
+    h.get(
+        By::new()
+            .role(Role::Button)
+            .label_contains("1 pending · 1 failed"),
+    )
+    .click();
+    h.run();
     h.get_by_label("1 pending · 1 failed");
     h.get_by_label("keyring failed");
     h.get_by_label("alice@example.com: login failed");
@@ -87,4 +96,56 @@ fn the_latest_undoable_action_is_offered_until_undone() {
         h.query_by_label_contains("“").is_none(),
         "nothing left to offer"
     );
+}
+
+#[test]
+fn the_search_pill_opens_the_palette() {
+    let mut h = gui(synced_state());
+    h.run();
+    h.get(
+        By::new()
+            .role(Role::Button)
+            .label("Search or run a command"),
+    )
+    .click();
+    h.run();
+    assert_eq!(h.state_mut().pump(), [Command::OpenPalette {}]);
+}
+
+#[test]
+fn the_settings_row_opens_the_palette_at_its_step() {
+    let mut h = gui(synced_state());
+    h.run();
+    h.get(By::new().role(Role::Button).label("Settings"))
+        .click();
+    h.run();
+    assert_eq!(h.state_mut().pump(), [Command::OpenPalette {}]);
+    h.run();
+    h.get_by_label_contains("WHICH SETTING");
+}
+
+#[test]
+fn the_rail_names_its_icons() {
+    let mut h = gui(synced_state());
+    apply(&mut h, Command::ToggleSidebar {});
+    h.run();
+    for name in [
+        "Expand sidebar (Ctrl+B)",
+        "Compose (C)",
+        "Inbox",
+        "Sent",
+        "Settings",
+    ] {
+        h.get(By::new().role(Role::Button).label(name));
+    }
+}
+
+#[test]
+fn the_list_footer_counts_the_conversations() {
+    let state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    h.run();
+    h.get_by_label("2 CONVERSATIONS");
 }

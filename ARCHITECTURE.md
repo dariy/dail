@@ -720,16 +720,16 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
 
 ### 7.1 GUI (`app-gui`)
 ```text
-┌────────────┬──────────────────────────┬──────────────────────────────────┐
-│ ▸ Inbox 12 │ ● Alice   Q3 numbers  9:41│ Q3 numbers                        │
-│   Starred  │   Bob     Lunch?      9:02│ Alice <alice@…> → me   Today 9:41 │
-│   Sent     │   GitHub  [dail] PR … Tue │                                   │
-│   Archive  │                          │ Hi, attached are…                 │
-│   Trash    │                          │                                   │
-│ ─ work@…   │                          │ [r] reply [a] all [f] fwd [e] arch│
-├────────────┴──────────────────────────┴──────────────────────────────────┤
-│ ⟳ synced 1m ago · 2 pending · "Archived 3 threads — Undo (z)"   Ctrl+K   │
-└──────────────────────────────────────────────────────────────────────────┘
+┌──────────────┬────────────────────────────────────────────────────────────────────┐
+│ ▣ dail     ◧ │ ⌕ Search or run a command  Ctrl K    ● synced 1m ago [2 pending] j/k │
+│ [Compose   C]├───────────────────────────┬────────────────────────────────────────┤
+│ ALICE@…      │ Inbox [12 unread]         │ Q3 numbers                             │
+│ ▸ Inbox   12 │ ● Alice   Q3 numbers 9:41 │ Alice <alice@…> → me        Today 9:41 │
+│   Sent   g s │   Bob     Lunch?     9:02 │                                        │
+│   Archive g a│                           │ Hi, attached are…                      │
+│ + Add account│ “Archived 3” Undo z  2 CONV│ [Reply R] [Reply all A] [Forward F] …  │
+│ ⚙ Settings   │                           │                                        │
+└──────────────┴───────────────────────────┴────────────────────────────────────────┘
 ```
 - **Palette (Ctrl+K / Ctrl+Shift+P):** fuzzy match (`nucleo-matcher` over title and detail; rows whose title matches
   come first, equal scores prefer the shorter title) over the
@@ -779,17 +779,27 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   and editable (`egui` `dropped_files` with a path; *Drop the files to attach them* shows while files hover); attachment chips show `checking…`, the size or the error.
   Send is enabled once there is a recipient and every attachment is checked. A scheduled or running send makes the
   draft read-only with *Cancel send*.
-- **Status bar** (`app_gui::statusbar` over `app_front::status`, a projection of `status`, the accounts and the outbox): `syncing…` or
-  `synced 2m ago` (the oldest `last_sync_ms` of all accounts) with *sync*; `N pending · M failed` with the ops' errors
-  on hover and *retry* (`retry_pending_ops`); `searching the server…`; store, keyring, login and sync failures in the
+- **Frame** (UI-5): the sidebar at full height (brand row, *Compose* with its key, an *All inboxes* row with several
+  accounts, per account a caption with its tag and the mailboxes with their role icons and the unread count or else
+  the `g` key of the current account's role mailboxes, *+ Add account*, and *Settings* pinned at the bottom, which
+  opens the palette at *Change setting* until the settings page; collapsed, a 56 px rail of named icon buttons:
+  expand, compose, the current account's role mailboxes, settings), then the top bar (the search pill, which runs
+  `open_palette`; `/` still opens the palette at its search step), then the list and the reader. The sidebar and the
+  top bar draw with the theme's chrome group. There is no status bar.
+- **Status** (`app_gui::topbar` over `app_front::status`, a projection of `status`, the accounts and the outbox), in the
+  top bar: a status dot (filled when synced, a ring while syncing, a crossed ring when a login failed: shape, not
+  colour) and `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs
+  `sync_now`; a status chip (`2 pending`, `1 pending · 1 failed`, the first problem and `+N`, `searching the
+  server…`) whose popover lists `N pending · M failed` with the ops' errors on hover and *retry*
+  (`retry_pending_ops`); `searching the server…`; store, keyring, login and sync failures in the
   error colour with a hint and their diagnostic on hover, and the fix `app_front::status` picks from the diagnostic
   (`Cause`: password, quota, TLS ciphers, certificate, network): *re-enter password* opens the wizard at its password
   step for that account (`Wizard::reenter` → `set_password`; another try keeps the account), *retry* runs `sync_now`
   for the account, *test again* `test_account`. The texts are a best guess from the servers' words; the hints say
   e.g. that Gmail needs an App Password, or that a TLS failure is dail's missing ciphers. A failed send shows its hint
   in the composer. The TUI shows the same hint in `?` and names the palette command in the status line; its setup
-  re-enters a password the same way. The latest undoable action's `undo_label` with *Undo (z)* until an
-  `undo`/`redo` goes through; the Ctrl+K hint.
+  re-enters a password the same way. The list footer shows the latest undoable action's `undo_label` with *Undo z*
+  until an `undo`/`redo` goes through, else the key hints, and the number of conversations on the right.
 - **Toasts:** `send_draft` shows *Sending in N s* with *Cancel send* until the window closes; rejections and runtime
   failures show the command's title and the error.
 - **Desktop notifications** (`app_front::alerts`, delivered by `app_gui::desktop`): while the window is not focused,
@@ -1195,7 +1205,7 @@ canonical form, which parses back to the same `Query`.
   `{"error":"already_exists","entity":"account","key":"…"}`, `{"error":"confirmation_required","command":"…"}`,
   `{"error":"origin_not_allowed","command":"approve_request","origin":"mcp"}` or `{"error":"not_sendable","draft":"…","reason":"…"}`.
 - Remote failures are state (`PendingOp.last_error`/`attempts`/`state`, `Account.status`, `SyncStatus.last_error`), not just logs.
-  The GUI status bar and `dail exec list_pending_ops` show them; `retry_pending_ops` and `discard_pending_op` act on them.
+  The GUI's status chip and `dail exec list_pending_ops` show them; `retry_pending_ops` and `discard_pending_op` act on them.
 
 ## 11. Testing strategy
 

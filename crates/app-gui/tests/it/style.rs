@@ -18,7 +18,6 @@ const ALLOWLIST: &[&str] = &[
     "palette.rs",
     "reader.rs",
     "shell.rs",
-    "sidebar.rs",
     "toasts.rs",
     "wizard.rs",
 ];

@@ -8,10 +8,9 @@ use std::collections::BTreeMap;
 use crate::support::{Gui, apply, gui, inbox_of, synced_state};
 use app_core::{AppState, Command, CommandName, MailboxRole, Pane};
 use app_gui::keymap;
-use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
-use egui_kittest::kittest::{By, Queryable};
+use egui_kittest::kittest::Queryable;
 
 #[test]
 fn every_default_key_parses() {
@@ -279,21 +278,45 @@ fn keys_that_need_an_argument_open_the_palette_at_that_step() {
 
 #[test]
 fn typing_in_a_text_field_does_not_trigger_single_keys() {
-    let (mut h, _, _) = inbox_gui();
-    h.get(By::new().role(Role::TextInput)).click();
+    let (mut h, _, state) = inbox_gui();
+    // A text field: the composer's subject.
+    let account = *state.accounts.keys().next().unwrap();
+    apply(
+        &mut h,
+        Command::CreateDraft {
+            account,
+            to: Vec::new(),
+            cc: Vec::new(),
+            bcc: Vec::new(),
+            subject: String::new(),
+            body: String::new(),
+        },
+    );
+    let draft = *h.state().engine.state().drafts.keys().next().unwrap();
+    apply(&mut h, Command::OpenComposer { id: draft });
+    h.state_mut().out.clear();
+    h.get_by_label("Subject").click();
     h.run();
     h.key_press(Key::E);
     h.event(egui::Event::Text("e".into()));
     h.run();
-    assert!(
-        h.state_mut().pump().is_empty(),
-        "e typed into the search box"
-    );
+    assert!(h.state_mut().pump().is_empty(), "e typed into the subject");
     h.key_press_modifiers(Modifiers::COMMAND, Key::K);
     h.run();
+    // The typed text is written back first (the composer flushes before a key command).
     assert_eq!(
         h.state_mut().pump(),
-        [Command::OpenPalette {}],
+        [
+            Command::UpdateDraft {
+                id: draft,
+                to: None,
+                cc: None,
+                bcc: None,
+                subject: Some("e".into()),
+                body: None
+            },
+            Command::OpenPalette {}
+        ],
         "Ctrl chords still work"
     );
 }

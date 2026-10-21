@@ -190,7 +190,10 @@ fn the_sidebar_collapses_and_the_theme_follows_the_setting() {
     h.run();
     assert_eq!(h.state_mut().pump(), [Command::ToggleSidebar {}]);
     h.run();
-    assert!(h.query_by_label("Inbox").is_none(), "collapsed to the rail");
+    assert!(
+        h.query_by_label("+ Add account").is_none(),
+        "collapsed to the rail"
+    );
     h.get_by_label("Expand sidebar (Ctrl+B)").click();
     h.run();
     assert_eq!(h.state_mut().pump(), [Command::ToggleSidebar {}]);

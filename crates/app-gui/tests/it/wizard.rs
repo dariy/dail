@@ -202,6 +202,10 @@ fn a_failed_login_offers_to_re_enter_the_password() {
     };
     let mut h = gui(state);
     h.run();
+    // The top bar's status chip opens the list of problems with their fixes.
+    h.get(By::new().role(Role::Button).label_contains("login failed"))
+        .click();
+    h.run();
     button(&h, "re-enter password");
     h.run();
     h.run();
