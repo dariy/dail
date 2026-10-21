@@ -61,6 +61,7 @@ pub struct Shell {
     composer: ComposerState,
     toasts: Toasts,
     wizard: Wizard,
+    settings: crate::settings::SettingsState,
     /// The last query result the user asked for (command name, pretty JSON).
     result: Option<(CommandName, String)>,
     clock: fn() -> i64,
@@ -85,6 +86,7 @@ impl Default for Shell {
             composer: ComposerState::default(),
             toasts: Toasts::default(),
             wizard: Wizard::default(),
+            settings: crate::settings::SettingsState::default(),
             result: None,
             clock: system_now_ms,
             lang: app_front::i18n::Lang::default(),
@@ -254,12 +256,8 @@ impl Shell {
         if sidebar.add_account {
             self.wizard.open();
         }
-        if sidebar.settings
-            && let app_front::palette::Flow::Ask(step) =
-                app_front::palette::flow(app_core::CommandName::SetSetting, state)
-        {
-            self.palette.open_at(step);
-            queue.push(Request::user(Command::OpenPalette {}));
+        if sidebar.settings {
+            queue.push(Request::user(Command::OpenSettings { section: None }));
         }
         let top = Panel::top("top-bar")
             .exact_size(t.m.frame.top_bar)
@@ -270,6 +268,30 @@ impl Shell {
             });
         if let Some(account) = top.inner {
             self.wizard.reenter(state, account);
+        }
+        if let Some(section) = state.view.settings {
+            // The settings page takes the place of the list and the reader (UI-12).
+            let page = egui::CentralPanel::default()
+                .frame(
+                    egui::Frame::new()
+                        .fill(t.canvas)
+                        .inner_margin(egui::Margin::same(t.m.frame.reader_padding as i8)),
+                )
+                .show(ui, |ui| {
+                    self.settings.show(ui, &t, state, section, &mut queue)
+                })
+                .inner;
+            if page.wizard {
+                self.wizard.open();
+            }
+            if let Some(account) = page.password {
+                self.wizard.reenter(state, account);
+            }
+            if let Some(step) = page.ask {
+                self.palette.open_at(step);
+                queue.push(Request::user(Command::OpenPalette {}));
+            }
+            return queue;
         }
         Panel::left("thread-list")
             .default_size(t.m.frame.list)

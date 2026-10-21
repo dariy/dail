@@ -494,6 +494,31 @@ expression: command_schema()
         }
       ]
     },
+    "SettingsSection": {
+      "description": "A section of the settings page.",
+      "oneOf": [
+        {
+          "const": "appearance",
+          "description": "Theme, density, text size.",
+          "type": "string"
+        },
+        {
+          "const": "keys",
+          "description": "The key preset and the bindings.",
+          "type": "string"
+        },
+        {
+          "const": "general",
+          "description": "Undo-send window, polling, notifications, history.",
+          "type": "string"
+        },
+        {
+          "const": "accounts",
+          "description": "The accounts.",
+          "type": "string"
+        }
+      ]
+    },
     "ThemeMode": {
       "description": "The GUI's theme mode (`set_theme`).",
       "oneOf": [
@@ -2526,6 +2551,53 @@ expression: command_schema()
         },
         "cmd": {
           "const": "close_composer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Show the settings page (in place of the list and the reader), at a section: `appearance`\n(default), `keys`, `general` or `accounts`. Settings change through `set_setting`,\n`set_theme` and the other commands; the page only shows them.",
+      "properties": {
+        "args": {
+          "properties": {
+            "section": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SettingsSection"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The section; the open one, else `appearance`."
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "open_settings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Close the settings page.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "close_settings",
           "type": "string"
         }
       },

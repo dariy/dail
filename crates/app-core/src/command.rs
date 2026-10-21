@@ -609,6 +609,16 @@ pub enum Command {
     },
     /// Close the GUI composer. The draft is kept (and saved to the server's Drafts mailbox).
     CloseComposer {},
+    /// Show the settings page (in place of the list and the reader), at a section: `appearance`
+    /// (default), `keys`, `general` or `accounts`. Settings change through `set_setting`,
+    /// `set_theme` and the other commands; the page only shows them.
+    OpenSettings {
+        /// The section; the open one, else `appearance`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        section: Option<crate::state::SettingsSection>,
+    },
+    /// Close the settings page.
+    CloseSettings {},
     /// Move the GUI keyboard focus to a pane: `sidebar`, `list`, `reader` (needs an open thread)
     /// or `composer` (needs an open draft). Focusing the sidebar expands it.
     FocusPane {
@@ -878,6 +888,8 @@ impl Command {
             | Self::SetSearch { .. }
             | Self::ClearSearch {}
             | Self::CloseComposer {}
+            | Self::OpenSettings { .. }
+            | Self::CloseSettings {}
             | Self::FocusPane { .. }
             | Self::ToggleSidebar {}
             | Self::GetView {}
@@ -955,6 +967,8 @@ impl Command {
             Self::ClearSearch {} => CommandName::ClearSearch,
             Self::OpenComposer { .. } => CommandName::OpenComposer,
             Self::CloseComposer {} => CommandName::CloseComposer,
+            Self::OpenSettings { .. } => CommandName::OpenSettings,
+            Self::CloseSettings {} => CommandName::CloseSettings,
             Self::FocusPane { .. } => CommandName::FocusPane,
             Self::ToggleSidebar {} => CommandName::ToggleSidebar,
             Self::GetView {} => CommandName::GetView,

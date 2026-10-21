@@ -51,6 +51,6 @@ pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
 pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, IndexSearch, KeyPreset,
-    Pane, Revision, SaveState, ServerSearch, Settings, StatusState, SyncIssue, SyncStatus,
-    ViewState, WatchState,
+    Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection, StatusState, SyncIssue,
+    SyncStatus, ViewState, WatchState,
 };

@@ -106,6 +106,8 @@ pub struct Tui {
     result: Option<ResultView>,
     /// The agents' send requests, while the user looks at them.
     approvals: Option<ApprovalsView>,
+    /// The settings view's cursor (shown while `view.settings`).
+    settings: crate::settings::SettingsView,
     composer: ComposerView,
     /// The account setup, while it is open.
     setup: Option<Setup>,
@@ -140,6 +142,7 @@ impl Default for Tui {
             palette: PaletteView::default(),
             result: None,
             approvals: None,
+            settings: crate::settings::SettingsView::default(),
             composer: ComposerView::default(),
             setup: None,
             external: None,
@@ -271,6 +274,10 @@ impl Tui {
         let borders = arrangement.borders;
         if let Some(view) = &mut self.approvals {
             view.draw(frame, overlay_area(body, borders, 90), state, borders);
+        }
+        if state.view.settings.is_some() {
+            self.settings
+                .draw(frame, overlay_area(body, borders, 90), state, borders);
         }
         if let Some(setup) = &self.setup {
             setup.draw(frame, overlay_area(body, borders, 72), state, borders);
@@ -587,6 +594,19 @@ impl Tui {
                 self.notify(text);
             }
             return outcome.requests;
+        }
+        if state.view.settings.is_some() && self.result.is_none() {
+            let outcome = self.settings.key(key, state);
+            if outcome.wizard {
+                self.setup = Some(Setup::default());
+            }
+            if let Some(step) = outcome.ask {
+                self.palette.open_at(step);
+                return vec![Request::user(Command::OpenPalette {})];
+            }
+            if !outcome.unhandled {
+                return outcome.requests;
+            }
         }
         if self.typing(state) {
             return self.compose_key(key, state);

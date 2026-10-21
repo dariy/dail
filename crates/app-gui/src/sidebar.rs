@@ -15,7 +15,7 @@ use crate::ui;
 pub struct SidebarActions {
     /// Open the account wizard.
     pub add_account: bool,
-    /// Open the settings (until the settings page: the palette at *Change setting*).
+    /// Open the settings page.
     pub settings: bool,
 }
 
@@ -121,12 +121,13 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         .show(ui, |ui| {
             ui::divider(ui, t);
             ui.add_space(t.m.space.xs);
-            let keys = app_front::keymap::KeyState::hint(&state.settings, CommandName::SetSetting);
+            let keys =
+                app_front::keymap::KeyState::hint(&state.settings, CommandName::OpenSettings);
             let nav = ui::Nav {
                 icon: Icon::Settings,
                 label: "Settings",
                 trailing: keys.map_or(ui::Trailing::None, ui::Trailing::Keys),
-                open: false,
+                open: state.view.settings.is_some(),
                 focused: false,
                 name: "Settings",
             };

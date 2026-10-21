@@ -13,6 +13,7 @@ mod layout;
 mod palette;
 mod reader;
 mod scale;
+mod settings;
 mod shell;
 mod style;
 mod topbar;

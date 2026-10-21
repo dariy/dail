@@ -87,6 +87,9 @@ pub enum Key {
     End,
     /// A function key, `F1`–`F24`.
     F(u8),
+    /// A symbol key pressed with Ctrl or Alt (`Ctrl+,`). Without them a symbol is
+    /// [`Chord::Text`], as typed.
+    Symbol(char),
 }
 
 impl Key {
@@ -186,6 +189,9 @@ pub fn parse_chord(text: &str) -> Option<Chord> {
     }
     let mut chars = last.chars();
     match (chars.next(), chars.next()) {
+        (Some(c), None) if (mods.ctrl || mods.alt) && c.is_ascii_punctuation() => {
+            Some(Chord::Key(mods, Key::Symbol(c)))
+        }
         (Some(c), None) if mods.is_none() && !c.is_whitespace() && !c.is_control() => {
             Some(Chord::Text(c))
         }
@@ -597,7 +603,18 @@ mod tests {
         assert_eq!(parse_chord("#"), Some(Chord::Text('#')));
         assert_eq!(parse_chord("/"), Some(Chord::Text('/')));
         assert_eq!(parse_chord("Hyper+K"), None);
-        assert_eq!(parse_chord("Ctrl+#"), None);
+        // With Ctrl or Alt a symbol is a key (`Ctrl+,` opens the settings); Shift alone is not.
+        assert_eq!(
+            parse_chord("Ctrl+,"),
+            Some(Chord::Key(
+                Mods {
+                    ctrl: true,
+                    ..Mods::NONE
+                },
+                Key::Symbol(',')
+            ))
+        );
+        assert_eq!(parse_chord("Shift+#"), None);
         assert_eq!(
             parse_sequence("g i"),
             Some(vec![

@@ -1,9 +1,10 @@
 //! View commands (`open_mailbox`, `select_threads`, `open_thread`, `close_thread`) and the
 //! `get_thread` / `get_message` queries.
 
-use crate::support::{Mail, mail, names};
+use crate::support::{Mail, ctx, mail, names};
 use app_core::{
-    BodyState, Command, CommandKind, CoreError, EntityRef, Event, MailboxId, MessageId, ThreadId,
+    BodyState, Command, CommandKind, CoreError, Engine, EntityRef, Event, MailboxId, MessageId,
+    ThreadId,
 };
 use serde_json::json;
 
@@ -323,4 +324,37 @@ fn visible_threads_follow_the_open_mailbox_and_the_search() {
         app_core::listing::visible_threads(m.engine.state()).len(),
         2
     );
+}
+
+#[test]
+fn the_settings_page_opens_at_a_section_and_closes() {
+    use app_core::SettingsSection;
+    let mut engine = Engine::default();
+    engine
+        .dispatch(Command::OpenSettings { section: None }, &ctx(1))
+        .unwrap();
+    assert_eq!(
+        engine.state().view.settings,
+        Some(SettingsSection::Appearance)
+    );
+    engine
+        .dispatch(
+            Command::OpenSettings {
+                section: Some(SettingsSection::Keys),
+            },
+            &ctx(2),
+        )
+        .unwrap();
+    // Without a section the open one stays.
+    engine
+        .dispatch(Command::OpenSettings { section: None }, &ctx(3))
+        .unwrap();
+    assert_eq!(engine.state().view.settings, Some(SettingsSection::Keys));
+    let view = engine.dispatch(Command::GetView {}, &ctx(4)).unwrap();
+    assert_eq!(view.receipt.data["settings"], "keys");
+    let outcome = engine.dispatch(Command::CloseSettings {}, &ctx(5)).unwrap();
+    assert!(outcome.effects.is_empty(), "view only");
+    assert_eq!(engine.state().view.settings, None);
+    // View commands are not undo steps.
+    assert!(engine.dispatch(Command::Undo {}, &ctx(6)).is_err());
 }

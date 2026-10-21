@@ -90,6 +90,10 @@ pub enum CommandName {
     SetKeyPreset,
     /// See [`Command::SetTheme`].
     SetTheme,
+    /// See [`Command::OpenSettings`].
+    OpenSettings,
+    /// See [`Command::CloseSettings`].
+    CloseSettings,
     /// See [`Command::Undo`].
     Undo,
     /// See [`Command::Redo`].
@@ -302,6 +306,9 @@ impl CommandName {
         Self::SetKeybinding,
         Self::SetKeyPreset,
         Self::SetTheme,
+        // Before the other `Escape` commands: an open settings page closes first.
+        Self::OpenSettings,
+        Self::CloseSettings,
         Self::Undo,
         Self::Redo,
         Self::OpenPalette,
@@ -378,6 +385,8 @@ impl CommandName {
             Self::SetKeybinding => "set_keybinding",
             Self::SetKeyPreset => "set_key_preset",
             Self::SetTheme => "set_theme",
+            Self::OpenSettings => "open_settings",
+            Self::CloseSettings => "close_settings",
             Self::Undo => "undo",
             Self::Redo => "redo",
             Self::OpenPalette => "open_palette",
@@ -512,6 +521,8 @@ impl CommandName {
             Self::SendDraft => CommandKind::Outbound,
             Self::OpenPalette
             | Self::ClosePalette
+            | Self::OpenSettings
+            | Self::CloseSettings
             | Self::OpenMailbox
             | Self::OpenUnifiedInbox
             | Self::SelectThreads
@@ -603,6 +614,8 @@ impl CommandName {
             | Self::SetSearch
             | Self::ClearSearch
             | Self::OpenComposer
+            | Self::OpenSettings
+            | Self::CloseSettings
             | Self::CloseComposer
             | Self::FocusPane
             | Self::ToggleSidebar
@@ -629,6 +642,11 @@ impl CommandName {
             Self::SetKeybinding => base("Change a command's keys", Category::App, &[]),
             Self::SetKeyPreset => base("Choose the key bindings (Gmail, Vim)", Category::App, &[]),
             Self::SetTheme => base("Choose the theme", Category::App, &[]),
+            Self::OpenSettings => base("Settings", Category::App, &["Ctrl+,", "g ,"]),
+            Self::CloseSettings => CommandSpec {
+                available: |state| state.view.settings.is_some(),
+                ..base("Close settings", Category::App, &["Escape"])
+            },
             Self::Undo => base("Undo", Category::App, &["z", "Ctrl+Z"]),
             Self::Redo => base("Redo", Category::App, &["Ctrl+Shift+Z", "Shift+Z"]),
             Self::OpenPalette => CommandSpec {
@@ -1113,6 +1131,10 @@ impl CommandName {
             Self::ClearSearch => Command::ClearSearch {},
             Self::OpenComposer => Command::OpenComposer { id: EXAMPLE_DRAFT },
             Self::CloseComposer => Command::CloseComposer {},
+            Self::OpenSettings => Command::OpenSettings {
+                section: Some(crate::state::SettingsSection::Keys),
+            },
+            Self::CloseSettings => Command::CloseSettings {},
             Self::FocusPane => Command::FocusPane { pane: Pane::Reader },
             Self::ToggleSidebar => Command::ToggleSidebar {},
             Self::GetView => Command::GetView {},

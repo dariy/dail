@@ -785,10 +785,19 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   and editable (`egui` `dropped_files` with a path; *Drop the files to attach them* shows while files hover); attachment chips show `checking…`, the size or the error.
   Send is enabled once there is a recipient and every attachment is checked. A scheduled or running send makes the
   draft read-only with *Cancel send*.
+- **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
+  the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts; a click
+  runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the
+  light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
+  Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
+  and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
+  (a switch), undo history (`set_setting`). Accounts: a card per account with *Test*, *Re-enter password* and
+  *Remove…* (asks once more, then `remove_account {confirm: true}`), and *Add account*. Every control sends a
+  command; the page holds only a filter and the pending removal.
 - **Frame** (UI-5): the sidebar at full height (brand row, *Compose* with its key, an *All inboxes* row with several
   accounts, per account a caption with its tag and the mailboxes with their role icons and the unread count or else
   the `g` key of the current account's role mailboxes, *+ Add account*, and *Settings* pinned at the bottom, which
-  opens the palette at *Change setting* until the settings page; collapsed, a 56 px rail of named icon buttons:
+  runs `open_settings`; collapsed, a 56 px rail of named icon buttons:
   expand, compose, the current account's role mailboxes, settings), then the top bar (the search pill, which runs
   `open_palette`; `/` still opens the palette at its search step), then the list and the reader. The sidebar and the
   top bar draw with the theme's chrome group. There is no status bar.
@@ -1051,6 +1060,10 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   quits), show help (`?`) or quit (Ctrl+C); besides those, `m` turns mouse capture off and on, Ctrl+O in the
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
   field is dropped, never run as keys.
+- **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys and Accounts
+  as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
+  General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
+  that changes the row (or tests the account), Esc runs `close_settings`.
 - **Palette** (`app_tui::palette`, Ctrl+K or `:`): the shared `app_front::palette::Palette` drawn over the panes — the
   whole body below 80 columns, a bordered box from 80 — with the prompt of a second step, the query and the rows
   (title, detail from 60 columns, and the command's key that a plain terminal delivers, `keys::hint`). ↑/↓ (Ctrl+P/N,
@@ -1194,6 +1207,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 | `cancel_send` | Mutation | `id` (only while scheduled; undo schedules the send again) | M4 |
 | `search` | Query | `query: String, account?, offset = 0, limit = 50 (1–500), server = true` → `{query (canonical), total, threads: [list_threads entry without in_mailbox + matches: [MessageId]], server: [{account, state: started\|searching\|done, hits, error}]}`, newest first; matches the cached envelopes (subject and addresses for text; `in:` uses `location()`) plus the server's hits for the query (§5.2 step 10); errors `invalid_argument` on `query` (with column) or empty query | M5 |
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
+| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
 | `focus_pane` / `toggle_sidebar` | View | `pane: sidebar\|list\|reader\|composer` / — (`reader` needs an open thread, `composer` an open draft, else `invalid_argument`; focusing the sidebar expands it. After every command and event the engine moves the focus off a pane that is no longer shown: to the composer, the reader or the list) | M6 |
 | `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed`); also the MCP resource `dail://state/view` | M7 |

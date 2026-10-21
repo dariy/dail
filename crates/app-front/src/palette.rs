@@ -800,6 +800,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::ClearSearch => Flow::Run(Command::ClearSearch {}),
         CommandName::OpenComposer => on_draft(state, false, |id| Command::OpenComposer { id }),
         CommandName::CloseComposer => Flow::Run(Command::CloseComposer {}),
+        CommandName::OpenSettings => Flow::Run(Command::OpenSettings { section: None }),
+        CommandName::CloseSettings => Flow::Run(Command::CloseSettings {}),
         CommandName::FocusPane => ask(
             "Focus which pane?",
             AskKind::Panes,

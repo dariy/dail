@@ -114,15 +114,16 @@ fn the_search_pill_opens_the_palette() {
 }
 
 #[test]
-fn the_settings_row_opens_the_palette_at_its_step() {
+fn the_settings_row_opens_the_settings_page() {
     let mut h = gui(synced_state());
     h.run();
     h.get(By::new().role(Role::Button).label("Settings"))
         .click();
     h.run();
-    assert_eq!(h.state_mut().pump(), [Command::OpenPalette {}]);
-    h.run();
-    h.get_by_label_contains("WHICH SETTING");
+    assert_eq!(
+        h.state_mut().pump(),
+        [Command::OpenSettings { section: None }]
+    );
 }
 
 #[test]

@@ -48,6 +48,7 @@ fn keys_are_shared_only_where_the_view_decides() {
         (
             "Escape",
             vec![
+                CommandName::CloseSettings,
                 CommandName::ClosePalette,
                 CommandName::CloseThread,
                 CommandName::ClearSearch,

@@ -776,6 +776,24 @@ impl Engine {
             Command::ClearSearch {} => Ok(Applied::plain(self.clear_search(receipt))),
             Command::OpenComposer { id } => self.open_composer(id, receipt).map(Applied::plain),
             Command::CloseComposer {} => Ok(Applied::plain(self.close_composer(receipt))),
+            Command::OpenSettings { section } => {
+                let view = &mut self.state.view;
+                let section = section.or(view.settings).unwrap_or_default();
+                view.settings = Some(section);
+                Ok(Applied::plain(Outcome::new(
+                    receipt
+                        .affecting(EntityRef::View)
+                        .with_data(serde_json::json!({ "settings": section })),
+                )))
+            }
+            Command::CloseSettings {} => {
+                let closed = self.state.view.settings.take();
+                Ok(Applied::plain(Outcome::new(
+                    receipt
+                        .affecting(EntityRef::View)
+                        .with_data(serde_json::json!({ "closed": closed })),
+                )))
+            }
             Command::FocusPane { pane } => self.focus_pane(pane, receipt).map(Applied::plain),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),

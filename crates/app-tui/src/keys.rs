@@ -73,6 +73,8 @@ pub const fn delivers(chord: Chord) -> bool {
             // and Backspace; Ctrl+Shift+letter arrives as Ctrl+letter.
             Key::Letter(c) => !(m.ctrl && (m.shift || matches!(c, 'a' | 'b' | 'h' | 'i' | 'm'))),
             Key::Digit(_) | Key::Space => !m.ctrl,
+            // Ctrl+, and the like have no code in a plain terminal; Alt+symbol arrives as ESC + it.
+            Key::Symbol(_) => !m.ctrl,
             // Ctrl+Enter arrives as Enter, Ctrl+Tab as Tab.
             Key::Enter | Key::Tab | Key::Backspace | Key::Escape => !m.ctrl && !m.alt,
             Key::Delete

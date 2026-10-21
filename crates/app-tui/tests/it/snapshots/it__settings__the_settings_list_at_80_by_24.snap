@@ -1,0 +1,28 @@
+---
+source: crates/app-tui/tests/it/settings.rs
+expression: t.screen()
+---
+dail · Conversations
+┌ Conversations ─────────────────┐┌ Message ───────────────────────────────────┐
+┌ Settings ────────────────────────────────────────────────────────────────────┐
+│ General   Keys   Accounts                                                    │
+│                                                                              │
+│undo_send_ms    10000                                                         │
+│poll_secs       120                                                           │
+│initial_window  500                                                           │
+│history_cap     200                                                           │
+│theme           0                                                             │
+│text_scale      100                                                           │
+│notifications   1                                                             │
+│list_density    0                                                             │
+│theme_light     dail-light                                                    │
+│theme_dark      dail-dark                                                     │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│Tab section · j/k move · Enter change · Esc close                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+└────────────────────────────────┘└────────────────────────────────────────────┘
+synced 9h ago                                                             ? help

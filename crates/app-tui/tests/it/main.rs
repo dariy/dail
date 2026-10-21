@@ -13,6 +13,7 @@ mod palette;
 mod reader;
 mod run;
 mod send;
+mod settings;
 mod setup;
 mod shell;
 mod status;

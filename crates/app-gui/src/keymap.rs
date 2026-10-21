@@ -81,6 +81,10 @@ fn chords(events: &[Event]) -> Vec<(Vec<usize>, Chord)> {
                 Some(Mapped::Symbol(c)) if !modifiers.command && !modifiers.alt => {
                     out.push((vec![n], Chord::Text(c), true));
                 }
+                // With Ctrl or Alt a symbol is a key (`Ctrl+,`); no text arrives for it.
+                Some(Mapped::Symbol(c)) => {
+                    out.push((vec![n], Chord::Key(mods(*modifiers), Key::Symbol(c)), true));
+                }
                 _ => {}
             },
             // Letters and digits arrive as key events too; only symbols are matched as text.

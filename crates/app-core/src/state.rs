@@ -111,6 +111,30 @@ pub struct ViewState {
     pub focus: Pane,
     /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
     pub sidebar_collapsed: bool,
+    /// The settings page and its open section (`open_settings`), shown in place of the list
+    /// and the reader.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings: Option<SettingsSection>,
+}
+
+/// A section of the settings page.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SettingsSection {
+    /// Theme, density, text size.
+    #[default]
+    Appearance,
+    /// The key preset and the bindings.
+    Keys,
+    /// Undo-send window, polling, notifications, history.
+    General,
+    /// The accounts.
+    Accounts,
+}
+
+impl SettingsSection {
+    /// Every section, in tab order.
+    pub const ALL: [Self; 4] = [Self::Appearance, Self::Keys, Self::General, Self::Accounts];
 }
 
 /// A pane of the main window.

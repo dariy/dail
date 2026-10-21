@@ -14,6 +14,7 @@ pub mod palette;
 pub mod reader;
 pub mod request;
 pub mod run;
+pub mod settings;
 pub mod setup;
 pub mod text;
 pub mod tui;
