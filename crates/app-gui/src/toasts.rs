@@ -4,7 +4,7 @@
 
 use app_core::{AppState, Command, CommandReceipt, CoreError, DraftId};
 use app_front::notice::{self, LastAction};
-use egui::{Align2, RichText, Vec2};
+use egui::{Align2, Vec2};
 
 use crate::bridge::Request;
 use crate::theme::Tokens;
@@ -109,49 +109,58 @@ impl Toasts {
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {
                 for (i, toast) in self.items.iter().enumerate() {
-                    egui::Frame::new()
-                        .fill(t.inverse_bg)
-                        .corner_radius(6)
-                        .inner_margin(egui::Margin::symmetric(14, 8))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                let text = match toast.kind {
-                                    ToastKind::Sending(id) => {
-                                        notice::sending_text(state, id, now_ms)
-                                    }
-                                    _ => toast.text.clone(),
-                                };
-                                let color = if toast.kind == ToastKind::Error {
-                                    ui.visuals().error_fg_color
-                                } else {
-                                    t.inverse_text
-                                };
-                                ui.label(RichText::new(text).color(color));
-                                if let ToastKind::Sending(id) = toast.kind {
-                                    let button = egui::Button::new(
-                                        RichText::new("Cancel send").color(t.inverse_text),
-                                    )
-                                    .fill(egui::Color32::TRANSPARENT)
-                                    .stroke(egui::Stroke::new(1.0, t.text_muted));
-                                    if ui.add(button).clicked() {
-                                        queue.push(Request::user(Command::CancelSend { id }));
-                                        dismiss = Some(i);
-                                    }
-                                }
-                                if ui::icon_button(
+                    ui::toast(t).show(ui, |ui| {
+                        ui.set_max_width(t.m.overlays.toast_width_max);
+                        ui.horizontal(|ui| {
+                            let text = match toast.kind {
+                                ToastKind::Sending(id) => notice::sending_text(state, id, now_ms),
+                                _ => toast.text.clone(),
+                            };
+                            // Errors: `inverse_danger` on the inverse fill, and an icon, so
+                            // colour is not the only signal.
+                            let color = if toast.kind == ToastKind::Error {
+                                let icon = ui::icon(
                                     ui,
-                                    t,
+                                    app_theme::Icon::Error,
+                                    t.m.controls.icon_sm,
+                                    t.inverse_danger,
+                                    false,
+                                );
+                                icon.widget_info(|| {
+                                    egui::WidgetInfo::labeled(egui::Role::Image, true, "Error")
+                                });
+                                t.inverse_danger
+                            } else {
+                                t.inverse_text
+                            };
+                            ui.label(ui::text(&t.type_scale.body_md, text, color));
+                            if let ToastKind::Sending(id) = toast.kind {
+                                let button = egui::Button::new(ui::text(
+                                    &t.type_scale.body_md,
+                                    "Cancel send",
                                     t.inverse_text,
-                                    app_theme::Icon::Close,
-                                    "Dismiss",
-                                )
-                                .clicked()
-                                {
+                                ))
+                                .fill(egui::Color32::TRANSPARENT)
+                                .stroke(egui::Stroke::new(t.m.stroke.hairline, t.inverse_text));
+                                if ui.add(button).clicked() {
+                                    queue.push(Request::user(Command::CancelSend { id }));
                                     dismiss = Some(i);
                                 }
-                            });
+                            }
+                            if ui::icon_button(
+                                ui,
+                                t,
+                                t.inverse_text,
+                                app_theme::Icon::Close,
+                                "Dismiss",
+                            )
+                            .clicked()
+                            {
+                                dismiss = Some(i);
+                            }
                         });
-                    ui.add_space(6.0);
+                    });
+                    ui.add_space(t.m.space.xs + 2.0);
                 }
             });
         if let Some(i) = dismiss {

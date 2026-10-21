@@ -110,3 +110,18 @@ fn tab_walks_the_wizard_fields_in_reading_order() {
         "Tab in a form is not focus_pane"
     );
 }
+
+#[test]
+fn an_error_toast_carries_the_error_icon() {
+    let mut h = gui(synced_state());
+    h.run();
+    // A rejected command: a thread that does not exist.
+    let id: app_core::ThreadId =
+        serde_json::from_value("00000000-0000-0000-0000-00000000beef".into()).unwrap();
+    h.state_mut()
+        .out
+        .push(app_gui::Request::user(Command::OpenThread { id }));
+    h.state_mut().pump();
+    h.run();
+    h.get(By::new().role(Role::Image).label("Error"));
+}

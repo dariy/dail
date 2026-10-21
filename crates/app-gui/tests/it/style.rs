@@ -9,7 +9,7 @@
 use std::path::Path;
 
 /// Modules that still hold literal sizes, radii, margins and spaces.
-const ALLOWLIST: &[&str] = &["approvals.rs", "shell.rs", "toasts.rs", "wizard.rs"];
+const ALLOWLIST: &[&str] = &[];
 
 /// A raw style value on `line`, if any: a constructor of colours or fonts, or a literal number
 /// passed to a size, a radius, a margin, a space or a stroke.

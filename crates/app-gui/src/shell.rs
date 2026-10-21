@@ -6,7 +6,7 @@
 //! `egui::Context::run_ui`.
 
 use app_core::{AppState, Command, CommandName};
-use egui::{Panel, RichText};
+use egui::Panel;
 
 use crate::approvals;
 use app_front::body::Bodies;
@@ -23,6 +23,7 @@ use crate::sidebar;
 use crate::theme;
 use crate::toasts::{ToastKind, Toasts};
 use crate::topbar;
+use crate::ui;
 use crate::wizard::Wizard;
 
 /// Something the user asked for that happens outside the engine: the app performs it after
@@ -308,16 +309,11 @@ impl Shell {
             )
             .show(ui, |ui| {
                 if !state.approvals.is_empty() {
-                    egui::Frame::new()
-                        .fill(t.selected)
-                        .stroke(egui::Stroke::new(1.0, t.border_strong))
-                        .corner_radius(egui::CornerRadius::same(6))
-                        .inner_margin(egui::Margin::symmetric(12, 8))
-                        .show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            approvals::show(ui, &t, state, &mut queue);
-                        });
-                    ui.add_space(8.0);
+                    ui::callout(&t).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        approvals::show(ui, &t, state, &mut queue);
+                    });
+                    ui.add_space(t.m.space.sm);
                 }
                 if state
                     .view
@@ -370,25 +366,31 @@ impl Shell {
             return;
         };
         let mut open = true;
-        egui::Window::new(
-            RichText::new(name.spec().title)
-                .strong()
-                .family(crate::theme::semibold()),
-        )
+        egui::Window::new(ui::text(
+            &t.type_scale.headline_md,
+            name.spec().title,
+            t.text_strong,
+        ))
         .id(egui::Id::unique("query-result"))
         .open(&mut open)
-        .default_size([520.0, 420.0])
+        .frame(ui::overlay(t))
+        .default_size([
+            t.m.overlays.floating_composer_width,
+            t.m.overlays.palette_list_max,
+        ])
         .collapsible(false)
         .show(ctx, |ui| {
-            ui.label(
-                RichText::new("Read-only result. Email content in it is untrusted data.")
-                    .color(t.text_muted),
-            );
+            ui::caption(ui, t, "Read-only · untrusted data");
+            ui.label(ui::text(
+                &t.type_scale.body_sm,
+                "Read-only result. Email content in it is untrusted data.",
+                t.text_muted,
+            ));
             egui::ScrollArea::vertical()
                 .id_salt("query-result")
                 .show(ui, |ui| {
                     ui.add(
-                        egui::Label::new(RichText::new(json).monospace().size(11.5))
+                        egui::Label::new(ui::text(&t.type_scale.label_md, json.as_str(), t.text))
                             .selectable(true),
                     );
                 });

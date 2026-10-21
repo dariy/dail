@@ -918,7 +918,10 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   pill, segmented controls, switches, tabs, toolbars, overlays, toasts, footer hints, empty states) is what widgets
   draw with; `cargo run -p app-gui --example gallery [-- --theme <id>]` shows all of it per theme, content and chrome
   side by side. The style check (`tests/it/style.rs`) fails on raw colours, fonts, sizes, radii, margins, spaces or
-  strokes outside `ui/` and `theme.rs`, except in the modules its allowlist names until Wave 3 part B restyles them.
+  strokes outside `ui/` and `theme.rs`; its allowlist is empty since UI-10. Overlays use the kit too: toasts on
+  `inverse_bg` (errors in `inverse_danger` with an *Error* icon, so colour is not the only signal), the approvals tray
+  as a `border_strong` callout, the account wizard and the query window ("READ-ONLY · UNTRUSTED DATA") as `overlay`
+  frames over the scrim; menus and tooltips get their look from the adapter's `Visuals`.
   The `theme` setting picks the built-ins: 0 follows the system (`dail-light`/`dail-dark`), 1 light, 2 dark, 3
   `dail-dark-hc`, 4 `dail-light-hc`. The `text_scale` setting (percent)
   sets egui's zoom factor; egui's own Ctrl + plus/minus/0 zoom lasts until the window closes (written back, every step
