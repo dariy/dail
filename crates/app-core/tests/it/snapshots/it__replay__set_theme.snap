@@ -1,0 +1,362 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "history_cap": 200,
+      "initial_window": 500,
+      "list_density": 1,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 1,
+      "theme_dark": "dail-dark-hc",
+      "theme_light": "dail-light-hc",
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 2,
+                    "theme_dark": "dail-dark-hc",
+                    "theme_light": "dail-light",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "dark": "dail-dark-hc",
+              "light": "dail-light",
+              "mode": "dark"
+            },
+            "kind": "mutation",
+            "name": "set_theme",
+            "ok": true,
+            "undo_label": "Theme"
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "undone": "Theme"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 2,
+                    "theme_dark": "dail-dark-hc",
+                    "theme_light": "dail-light",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "redone": "Theme"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Theme"
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 2,
+                    "theme_dark": "dail-dark-hc",
+                    "theme_light": "dail-light-hc",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "dark": "dail-dark-hc",
+              "light": "dail-light-hc",
+              "mode": "dark"
+            },
+            "kind": "mutation",
+            "name": "set_theme",
+            "ok": true,
+            "undo_label": "Theme"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 1,
+                    "theme_dark": "dail-dark-hc",
+                    "theme_light": "dail-light-hc",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "dark": "dail-dark-hc",
+              "light": "dail-light-hc",
+              "mode": "light"
+            },
+            "kind": "mutation",
+            "name": "set_setting",
+            "ok": true,
+            "undo_label": "Theme"
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 1,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 1,
+                    "theme_dark": "dail-dark-hc",
+                    "theme_light": "dail-light-hc",
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "key": "list_density",
+              "previous": 0,
+              "value": 1
+            },
+            "kind": "mutation",
+            "name": "set_setting",
+            "ok": true,
+            "undo_label": "Set list_density"
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "mode",
+          "reason": "give a mode, a light theme or a dark theme"
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "dark",
+          "reason": "a theme name is a slug: a-z, 0-9 and -, at most 64"
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "history_cap": 200,
+              "initial_window": 500,
+              "list_density": 1,
+              "notifications": 1,
+              "poll_secs": 120,
+              "text_scale": 100,
+              "theme": 1,
+              "theme_dark": "dail-dark-hc",
+              "theme_light": "dail-light-hc",
+              "undo_send_ms": 10000
+            },
+            "kind": "query",
+            "name": "get_settings",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

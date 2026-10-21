@@ -32,8 +32,11 @@ widgets. A future web front-end and the TUI (UI-16) may read the same tokens.
 - **Fonts and icons** (UI-2, UI-3) are bundled in the crate: Geist and JetBrains Mono (OFL-1.1), a Material Symbols
   Outlined subset (Apache-2.0), each with its licence text. The crate's `license` then becomes
   `(MIT OR Apache-2.0) AND OFL-1.1 AND Apache-2.0`; `deny.toml` already allows OFL-1.1.
-- **Settings by name** (UI-11): the `theme` setting names a theme ID. The legacy numbers keep their meaning:
-  0 system, 1 light, 2 dark, 3 `dail-dark-hc`, 4 `dail-light-hc`.
+- **Settings by name** (UI-11): `theme` becomes the mode (0 system, 1 light, 2 dark) and two string settings,
+  `theme_light` and `theme_dark`, name the theme of each mode (`set_theme`). This changes the meaning of `theme` 3
+  and 4 (AGENTS.md §5, serialization stability): they are mapped when `config.toml` is read and when
+  `set_setting theme` runs, 3 to dark mode with `dail-dark-hc` and 4 to light mode with `dail-light-hc`, so old
+  configs, scripts and agents keep working. The stored value is never 3 or 4 afterwards.
 
 ## Consequences
 

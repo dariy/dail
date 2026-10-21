@@ -193,6 +193,33 @@ impl ViewState {
     }
 }
 
+/// The light theme a fresh profile uses.
+pub const DEFAULT_LIGHT_THEME: &str = "dail-light";
+/// The dark theme a fresh profile uses.
+pub const DEFAULT_DARK_THEME: &str = "dail-dark";
+/// The high-contrast themes the legacy `theme` values 3 and 4 name.
+pub const HIGH_CONTRAST_DARK_THEME: &str = "dail-dark-hc";
+/// See [`HIGH_CONTRAST_DARK_THEME`].
+pub const HIGH_CONTRAST_LIGHT_THEME: &str = "dail-light-hc";
+
+impl Settings {
+    /// Maps the legacy `theme` values onto a mode and a theme name: 3 becomes dark mode with
+    /// `dail-dark-hc`, 4 light mode with `dail-light-hc` (ADR 0008). Other values stay.
+    pub fn migrate_legacy_theme(&mut self) {
+        match self.theme {
+            3 => {
+                self.theme = 2;
+                HIGH_CONTRAST_DARK_THEME.clone_into(&mut self.theme_dark);
+            }
+            4 => {
+                self.theme = 1;
+                HIGH_CONTRAST_LIGHT_THEME.clone_into(&mut self.theme_light);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// User preferences. Missing fields take their defaults (e.g. in a hand-edited `config.toml`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
@@ -205,9 +232,16 @@ pub struct Settings {
     pub initial_window: u64,
     /// Maximum number of entries in the undo history.
     pub history_cap: u64,
-    /// GUI colour theme: 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark,
-    /// 4 = high-contrast light.
+    /// GUI theme mode: 0 = follow the system, 1 = light, 2 = dark. The legacy values 3
+    /// (high-contrast dark) and 4 (high-contrast light) are mapped onto a mode and a theme name
+    /// when read and when set (ADR 0008).
     pub theme: u64,
+    /// The GUI theme for the light mode, by name (`dail-light`; `set_theme`).
+    pub theme_light: String,
+    /// The GUI theme for the dark mode, by name (`dail-dark`; `set_theme`).
+    pub theme_dark: String,
+    /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px).
+    pub list_density: u64,
     /// GUI text and widget size in percent.
     pub text_scale: u64,
     /// Desktop notifications while the GUI is in the background: 0 = off, 1 = on.
@@ -259,6 +293,9 @@ impl Default for Settings {
             initial_window: 500,
             history_cap: 200,
             theme: 0,
+            theme_light: DEFAULT_LIGHT_THEME.to_owned(),
+            theme_dark: DEFAULT_DARK_THEME.to_owned(),
+            list_density: 0,
             text_scale: 100,
             notifications: 1,
             images_from: BTreeSet::new(),

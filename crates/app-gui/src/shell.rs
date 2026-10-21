@@ -178,7 +178,9 @@ impl Shell {
         for notice in self.notices.drain(..) {
             self.toasts.push(notice, ToastKind::Error, now);
         }
-        theme::apply(ui.ctx(), state.settings.theme);
+        if let Some(notice) = theme::apply(ui.ctx(), &state.settings) {
+            self.toasts.push(notice, ToastKind::Error, now);
+        }
         theme::zoom(ui.ctx(), state.settings.text_scale);
         let t = theme::tokens(ui.ctx());
         let now_ms = (self.clock)();

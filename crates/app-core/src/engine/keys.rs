@@ -1,8 +1,8 @@
 //! `set_keybinding` / `set_key_preset`: the key bindings in `Settings`, saved with the other
-//! settings. The front-ends build their keymaps from them (`app_front::keymap`); the engine only
+//! settings; `set_theme`, the look, saved the same way. The front-ends build their keymaps from them (`app_front::keymap`); the engine only
 //! checks that a command exists and that keys look like keys.
 
-use crate::command::Command;
+use crate::command::{Command, ThemeMode};
 use crate::error::CoreError;
 use crate::event::{Effect, PersistDelta};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
@@ -74,6 +74,55 @@ impl Engine {
         )
     }
 
+    /// `set_theme`: the mode and the theme names. The core does not know the themes (it cannot
+    /// depend on `app-theme`): it checks that a name is a slug, and the GUI falls back for an
+    /// unknown one.
+    pub(super) fn set_theme(
+        &mut self,
+        mode: Option<ThemeMode>,
+        light: Option<String>,
+        dark: Option<String>,
+        receipt: CommandReceipt,
+    ) -> Result<Applied, CoreError> {
+        if mode.is_none() && light.is_none() && dark.is_none() {
+            return Err(invalid(
+                "mode",
+                "give a mode, a light theme or a dark theme",
+            ));
+        }
+        for (field, name) in [("light", &light), ("dark", &dark)] {
+            if let Some(name) = name
+                && !is_slug(name)
+            {
+                return Err(invalid(
+                    field,
+                    "a theme name is a slug: a-z, 0-9 and -, at most 64",
+                ));
+            }
+        }
+        let settings = &mut self.state.settings;
+        let previous = Command::SetTheme {
+            mode: Some(ThemeMode::of(settings.theme)),
+            light: Some(settings.theme_light.clone()),
+            dark: Some(settings.theme_dark.clone()),
+        };
+        if let Some(mode) = mode {
+            settings.theme = mode.value();
+        }
+        if let Some(light) = light {
+            settings.theme_light = light;
+        }
+        if let Some(dark) = dark {
+            settings.theme_dark = dark;
+        }
+        let data = serde_json::json!({
+            "mode": ThemeMode::of(settings.theme),
+            "light": settings.theme_light,
+            "dark": settings.theme_dark,
+        });
+        Ok(self.settings_changed(receipt, data, "Theme".to_owned(), previous))
+    }
+
     fn settings_changed(
         &self,
         receipt: CommandReceipt,
@@ -90,4 +139,12 @@ impl Engine {
             undo: Some((label, vec![inverse])),
         }
     }
+}
+
+/// A theme name: 1 to 64 of `a-z`, `0-9` and `-`.
+fn is_slug(name: &str) -> bool {
+    (1..=64).contains(&name.len())
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }

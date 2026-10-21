@@ -19,10 +19,13 @@ expression: first
           "y"
         ]
       },
+      "list_density": 0,
       "notifications": 1,
       "poll_secs": 300,
       "text_scale": 100,
       "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
       "undo_send_ms": 10000
     },
     "status": {
@@ -58,10 +61,13 @@ expression: first
             "data": {
               "history_cap": 200,
               "initial_window": 500,
+              "list_density": 0,
               "notifications": 1,
               "poll_secs": 120,
               "text_scale": 100,
               "theme": 0,
+              "theme_dark": "dail-dark",
+              "theme_light": "dail-light",
               "undo_send_ms": 10000
             },
             "kind": "query",
@@ -84,10 +90,13 @@ expression: first
                   "value": {
                     "history_cap": 200,
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 300,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -156,10 +165,13 @@ expression: first
                   "value": {
                     "history_cap": 200,
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -216,10 +228,13 @@ expression: first
                   "value": {
                     "history_cap": 200,
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 300,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -305,10 +320,13 @@ expression: first
                         "y"
                       ]
                     },
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 300,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -354,10 +372,13 @@ expression: first
                         "y"
                       ]
                     },
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 300,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }

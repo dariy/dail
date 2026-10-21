@@ -126,28 +126,33 @@ impl Tokens {
     }
 }
 
-/// The light and dark themes of a `theme` setting, and the preference between them:
-/// 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark, 4 = high-contrast light.
-pub fn themes(setting: u64) -> (Theme, Theme, ThemePreference) {
-    let named = |id: &str, fallback: fn() -> Theme| builtin::get(id).unwrap_or_else(fallback);
-    match setting {
-        1 => (builtin::light(), builtin::dark(), ThemePreference::Light),
-        2 => (builtin::light(), builtin::dark(), ThemePreference::Dark),
-        3 => (
-            builtin::light(),
-            named("dail-dark-hc", builtin::dark),
-            ThemePreference::Dark,
-        ),
-        4 => (
-            named("dail-light-hc", builtin::light),
-            builtin::dark(),
-            ThemePreference::Light,
-        ),
-        _ => (builtin::light(), builtin::dark(), ThemePreference::System),
-    }
+/// The light and dark themes of the settings, the preference between them, and the names
+/// that are not built-in themes (each falls back to its mode's default). `theme`: 0 follows the
+/// system, 1 is light, 2 dark; the legacy 3 and 4 still mean the high-contrast themes.
+pub fn themes(settings: &app_core::Settings) -> (Theme, Theme, ThemePreference, Vec<String>) {
+    let mut settings = settings.clone();
+    settings.migrate_legacy_theme();
+    let mut unknown = Vec::new();
+    let mut named = |id: &str, fallback: fn() -> Theme| {
+        builtin::get(id).unwrap_or_else(|| {
+            unknown.push(id.to_owned());
+            fallback()
+        })
+    };
+    let light = named(&settings.theme_light, builtin::light);
+    let dark = named(&settings.theme_dark, builtin::dark);
+    let preference = match settings.theme {
+        1 => ThemePreference::Light,
+        2 => ThemePreference::Dark,
+        _ => ThemePreference::System,
+    };
+    (light, dark, preference, unknown)
 }
 
-/// The installed `(setting, light, dark)` tokens, in the context's memory.
+/// What the installed tokens were made from.
+type Installed = ((u64, String, String), Tokens, Tokens);
+
+/// The installed tokens, in the context's memory.
 fn installed_id() -> egui::Id {
     egui::Id::unique("dail-theme-installed")
 }
@@ -155,7 +160,7 @@ fn installed_id() -> egui::Id {
 /// The tokens in effect for `ctx`.
 pub fn tokens(ctx: &egui::Context) -> Tokens {
     let dark = ctx.global_style().visuals.dark_mode;
-    ctx.data(|d| d.get_temp::<(u64, Tokens, Tokens)>(installed_id()))
+    ctx.data(|d| d.get_temp::<Installed>(installed_id()))
         .map_or_else(
             || {
                 Tokens::of(&if dark {
@@ -168,18 +173,24 @@ pub fn tokens(ctx: &egui::Context) -> Tokens {
         )
 }
 
-/// The theme preference for the `theme` setting.
-pub fn preference(setting: u64) -> ThemePreference {
-    themes(setting).2
+/// The theme preference of the settings.
+pub fn preference(settings: &app_core::Settings) -> ThemePreference {
+    themes(settings).2
 }
 
-/// Installs the themes of the `theme` setting (again when it changes) and follows it. The
-/// first call also installs the fonts.
-pub fn apply(ctx: &egui::Context, setting: u64) {
+/// Installs the themes of the settings (again when they change) and follows the mode. The
+/// first call also installs the fonts. Returns a notice when a theme name is unknown.
+pub fn apply(ctx: &egui::Context, settings: &app_core::Settings) -> Option<String> {
     install_fonts(ctx);
-    let current = ctx.data(|d| d.get_temp::<(u64, Tokens, Tokens)>(installed_id()));
-    let (light, dark, wanted) = themes(setting);
-    if current.map(|c| c.0) != Some(setting) {
+    let key = (
+        settings.theme,
+        settings.theme_light.clone(),
+        settings.theme_dark.clone(),
+    );
+    let current = ctx.data(|d| d.get_temp::<Installed>(installed_id()));
+    let (light, dark, wanted, unknown) = themes(settings);
+    let mut notice = None;
+    if current.as_ref().map(|c| &c.0) != Some(&key) {
         let (lt, dt) = (Tokens::of(&light), Tokens::of(&dark));
         for (theme, t) in [(egui::Theme::Light, &lt), (egui::Theme::Dark, &dt)] {
             let v = visuals(&t.content, &t.m, theme == egui::Theme::Dark);
@@ -189,11 +200,18 @@ pub fn apply(ctx: &egui::Context, setting: u64) {
                 style.spacing.scroll = egui::style::ScrollStyle::floating();
             });
         }
-        ctx.data_mut(|d| d.insert_temp(installed_id(), (setting, lt, dt)));
+        ctx.data_mut(|d| d.insert_temp(installed_id(), (key, lt, dt)));
+        if !unknown.is_empty() {
+            notice = Some(format!(
+                "Unknown theme {}: using the default instead",
+                unknown.join(", ")
+            ));
+        }
     }
     if ctx.options(|o| o.theme_preference) != wanted {
         ctx.set_theme(wanted);
     }
+    notice
 }
 
 /// Applies the `text_scale` setting (percent) as egui's zoom factor whenever it changes.

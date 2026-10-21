@@ -230,3 +230,27 @@ fn ensure_creates_a_private_directory() {
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn legacy_high_contrast_themes_map_onto_names() {
+    let config = Config::parse("[settings]\ntheme = 3\n", "c.toml".as_ref()).unwrap();
+    assert_eq!(config.settings.theme, 2);
+    assert_eq!(config.settings.theme_dark, "dail-dark-hc");
+    assert_eq!(config.settings.theme_light, "dail-light");
+    let config = Config::parse("[settings]\ntheme = 4\n", "c.toml".as_ref()).unwrap();
+    assert_eq!(config.settings.theme, 1);
+    assert_eq!(config.settings.theme_light, "dail-light-hc");
+    let config = Config::parse(
+        "[settings]\ntheme = 0\ntheme_dark = \"midnight\"\nlist_density = 1\n",
+        "c.toml".as_ref(),
+    )
+    .unwrap();
+    assert_eq!(
+        (
+            config.settings.theme,
+            config.settings.theme_dark.as_str(),
+            config.settings.list_density
+        ),
+        (0, "midnight", 1)
+    );
+}

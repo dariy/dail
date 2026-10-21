@@ -36,6 +36,7 @@ mod search;
 mod searching;
 mod sends;
 mod sync;
+mod theme;
 mod threading;
 mod undo;
 mod unified;

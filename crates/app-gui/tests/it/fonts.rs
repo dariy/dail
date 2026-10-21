@@ -5,6 +5,7 @@ use app_core::{Command, SettingKey};
 use app_gui::theme;
 use app_theme::TypeScale;
 use egui::{FontFamily, FontId, TextStyle};
+use egui_kittest::kittest::Queryable;
 
 #[test]
 fn fonts_are_installed_with_fallbacks() {
@@ -153,4 +154,35 @@ fn the_gallery_draws_every_theme() {
         });
         out.textures_delta.clear();
     }
+}
+
+#[test]
+fn an_unknown_theme_falls_back_with_a_notice() {
+    let mut h = gui(synced_state());
+    h.run();
+    apply(
+        &mut h,
+        Command::SetTheme {
+            mode: Some(app_core::ThemeMode::Dark),
+            light: None,
+            dark: Some("midnight".into()),
+        },
+    );
+    h.run();
+    assert_eq!(theme::tokens(&h.ctx).id, "dail-dark");
+    h.get_by_label_contains("Unknown theme midnight");
+}
+
+#[test]
+fn set_theme_lists_the_built_in_themes() {
+    let doc = app_core::CommandName::SetTheme.spec().description();
+    let ids: Vec<String> = app_theme::builtin::all()
+        .into_iter()
+        .map(|t| t.id.to_string())
+        .collect();
+    for id in &ids {
+        assert!(doc.contains(&format!("`{id}`")), "{id} in the doc comment");
+    }
+    let named = doc.matches("`dail-").count();
+    assert_eq!(named, ids.len(), "no other names: {doc}");
 }

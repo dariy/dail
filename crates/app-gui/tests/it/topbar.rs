@@ -167,3 +167,27 @@ fn cozy_rows_are_48_high() {
     let rect = row.accesskit_node().bounding_box().unwrap();
     assert!((rect.height() - 48.0).abs() < 0.5, "{rect:?}");
 }
+
+#[test]
+fn compact_rows_are_40_high() {
+    use egui_kittest::kittest::NodeT;
+    let state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::SetSetting {
+            key: app_core::SettingKey::ListDensity,
+            value: 1.into(),
+        },
+    );
+    h.run();
+    let row = h.get(
+        By::new()
+            .role(Role::Button)
+            .predicate(|n| n.label().is_some_and(|l| l.contains("Lunch?"))),
+    );
+    let rect = row.accesskit_node().bounding_box().unwrap();
+    assert!((rect.height() - 40.0).abs() < 0.5, "{rect:?}");
+}

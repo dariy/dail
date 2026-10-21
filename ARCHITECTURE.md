@@ -922,8 +922,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   `inverse_bg` (errors in `inverse_danger` with an *Error* icon, so colour is not the only signal), the approvals tray
   as a `border_strong` callout, the account wizard and the query window ("READ-ONLY · UNTRUSTED DATA") as `overlay`
   frames over the scrim; menus and tooltips get their look from the adapter's `Visuals`.
-  The `theme` setting picks the built-ins: 0 follows the system (`dail-light`/`dail-dark`), 1 light, 2 dark, 3
-  `dail-dark-hc`, 4 `dail-light-hc`. The `text_scale` setting (percent)
+  Themes are chosen by name (`set_theme`): `theme` is the mode (0 follows the system, 1 light, 2 dark) and
+  `theme_light` / `theme_dark` (defaults `dail-light`, `dail-dark`) name the theme of each mode; an unknown name falls
+  back to the mode's default with a notice. The legacy values 3 and 4 are mapped when `config.toml` is read and when
+  `set_setting theme` runs: 3 is dark mode with `dail-dark-hc`, 4 light mode with `dail-light-hc`. `list_density` picks
+  cozy (0) or compact (1) list rows. The `text_scale` setting (percent)
   sets egui's zoom factor; egui's own Ctrl + plus/minus/0 zoom lasts until the window closes (written back, every step
   would become an undo step). Screen readers (AccessKit): thread rows and mailbox rows are buttons named by what their
   marks show (`unread, starred, with attachments, Carol, Lunch?, 2 messages, Nov 14`; `Inbox, 3 unread`), the open
@@ -1148,7 +1151,8 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark / 3 high-contrast dark / 4 high-contrast light, `text_scale`: 50–300 %, `notifications`: 0 off / 1 on) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact) | M0 |
+| `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |
 | `add_account` | Mutation | `preset, email, display_name?, password?, imap?, smtp?` (password → keyring via `StoreSecret`; user only, §9) | M1 |

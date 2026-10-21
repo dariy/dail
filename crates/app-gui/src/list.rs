@@ -22,9 +22,13 @@ pub enum Density {
 }
 
 impl Density {
-    /// The density of `state`'s settings (cozy until the setting exists).
-    pub fn of(_state: &AppState) -> Self {
-        Self::Cozy
+    /// The density of `state`'s settings (`list_density`).
+    pub fn of(state: &AppState) -> Self {
+        if state.settings.list_density == 1 {
+            Self::Compact
+        } else {
+            Self::Cozy
+        }
     }
 
     /// The height of a row.

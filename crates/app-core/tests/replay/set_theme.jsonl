@@ -1,0 +1,10 @@
+# set_theme (UI-11): mode and theme names, undo/redo as one step, the legacy theme values 3 and 4, an agent's change and rejected inputs.
+{"t": 1700000000000, "origin": "gui", "input": {"command": {"cmd": "set_theme", "args": {"mode": "dark", "dark": "dail-dark-hc"}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000002000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "set_theme", "args": {"light": "dail-light-hc"}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "set_setting", "args": {"key": "theme", "value": 4}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "set_setting", "args": {"key": "list_density", "value": 1}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "set_theme", "args": {}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "set_theme", "args": {"dark": "Not A Slug!"}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "get_settings", "args": {}}}}

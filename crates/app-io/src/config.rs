@@ -119,7 +119,9 @@ impl Config {
 
     /// Parses and validates a config. `path` is only used in error messages.
     pub fn parse(text: &str, path: &Path) -> Result<Self, IoError> {
-        let config: Self = toml::from_str(text).map_err(|err| config_error(path, err))?;
+        let mut config: Self = toml::from_str(text).map_err(|err| config_error(path, err))?;
+        // `theme = 3` / `4` name the high-contrast themes now (ADR 0008).
+        config.settings.migrate_legacy_theme();
         config.validate().map_err(|reason| IoError::Config {
             path: path.display().to_string(),
             reason,

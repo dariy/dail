@@ -255,6 +255,47 @@ fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + 'static) -> Flow {
     )
 }
 
+/// The `set_theme` that typed text asks for: a mode (`system`, `light`, `dark`), then optionally
+/// a theme name for that mode (`dark dail-dark-hc`); a name alone sets the mode its name says
+/// (`…-light…` light, else dark). Anything else gives a `set_theme` the engine rejects.
+pub fn theme_command(text: &str) -> Command {
+    let mut words = text.split_whitespace();
+    let first = words.next().unwrap_or_default().to_lowercase();
+    let mode = match first.as_str() {
+        "system" => Some(app_core::ThemeMode::System),
+        "light" => Some(app_core::ThemeMode::Light),
+        "dark" => Some(app_core::ThemeMode::Dark),
+        _ => None,
+    };
+    let name = if mode.is_some() {
+        words.next().map(str::to_lowercase)
+    } else {
+        (!first.is_empty()).then_some(first)
+    };
+    let light_name = match (mode, &name) {
+        (Some(app_core::ThemeMode::Light), _) => true,
+        (None, Some(name)) => name.contains("light"),
+        _ => false,
+    };
+    match name {
+        Some(name) if light_name => Command::SetTheme {
+            mode,
+            light: Some(name),
+            dark: None,
+        },
+        Some(name) if mode != Some(app_core::ThemeMode::System) => Command::SetTheme {
+            mode,
+            light: None,
+            dark: Some(name),
+        },
+        _ => Command::SetTheme {
+            mode,
+            light: None,
+            dark: None,
+        },
+    }
+}
+
 fn text(prompt: &str, hint: impl Into<String>, make: impl Fn(String) -> Command + 'static) -> Flow {
     ask(
         prompt,
@@ -286,6 +327,11 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 },
             }
         }),
+        CommandName::SetTheme => text(
+            "Which theme?",
+            "system, light or dark, then a theme for that mode: dark dail-dark-hc",
+            |text| theme_command(&text),
+        ),
         CommandName::SetKeybinding => ask(
             "Which command?",
             AskKind::Text("its name, e.g. archive_threads".into()),

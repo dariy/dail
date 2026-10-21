@@ -54,7 +54,8 @@ fn high_contrast_themes_and_text_scale() {
     for (value, dark, surface) in [
         (3_u64, true, theme_id("dail-dark-hc")),
         (4, false, theme_id("dail-light-hc")),
-        (2, true, theme_id("dail-dark")),
+        // 3 and 4 named the high-contrast themes (UI-11): dark mode keeps `dail-dark-hc`.
+        (2, true, theme_id("dail-dark-hc")),
     ] {
         apply(
             &mut h,

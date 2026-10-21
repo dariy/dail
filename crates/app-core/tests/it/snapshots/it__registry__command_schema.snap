@@ -474,7 +474,7 @@ expression: command_schema()
         },
         {
           "const": "theme",
-          "description": "GUI colour theme: 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark,\n4 = high-contrast light.",
+          "description": "GUI theme mode: 0 = follow the system, 1 = light, 2 = dark; 3 and 4 still mean\nhigh-contrast dark and light (they set `theme_dark` or `theme_light`; see `set_theme`).",
           "type": "string"
         },
         {
@@ -485,6 +485,31 @@ expression: command_schema()
         {
           "const": "notifications",
           "description": "Desktop notifications while the GUI is in the background (new mail, failed sends,\napprovals): 0 = off, 1 = on.",
+          "type": "string"
+        },
+        {
+          "const": "list_density",
+          "description": "Thread list rows: 0 = cozy (two lines), 1 = compact (one line).",
+          "type": "string"
+        }
+      ]
+    },
+    "ThemeMode": {
+      "description": "The GUI's theme mode (`set_theme`).",
+      "oneOf": [
+        {
+          "const": "system",
+          "description": "Follow the desktop's light or dark preference.",
+          "type": "string"
+        },
+        {
+          "const": "light",
+          "description": "Always light.",
+          "type": "string"
+        },
+        {
+          "const": "dark",
+          "description": "Always dark.",
           "type": "string"
         }
       ]
@@ -568,6 +593,50 @@ expression: command_schema()
         },
         "cmd": {
           "const": "set_key_preset",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Choose the GUI's look: the mode (`system` follows the desktop, `light`, `dark`) and the\ntheme for each mode, by name. Built-in themes: `dail-light`, `dail-dark`,\n`dail-light-hc`, `dail-dark-hc`. Give at least one field; a name is a slug (`a-z`, `0-9`,\n`-`, at most 64). An unknown name falls back to the mode's default theme in the GUI.\nOnly the look changes. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "dark": {
+              "description": "The theme of the dark mode, e.g. `dail-dark-hc`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "light": {
+              "description": "The theme of the light mode, e.g. `dail-light-hc`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "mode": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/ThemeMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The mode."
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "set_theme",
           "type": "string"
         }
       },

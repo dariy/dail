@@ -41,6 +41,22 @@ pub enum Command {
         /// The preset.
         preset: crate::state::KeyPreset,
     },
+    /// Choose the GUI's look: the mode (`system` follows the desktop, `light`, `dark`) and the
+    /// theme for each mode, by name. Built-in themes: `dail-light`, `dail-dark`,
+    /// `dail-light-hc`, `dail-dark-hc`. Give at least one field; a name is a slug (`a-z`, `0-9`,
+    /// `-`, at most 64). An unknown name falls back to the mode's default theme in the GUI.
+    /// Only the look changes. Undoable.
+    SetTheme {
+        /// The mode.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mode: Option<ThemeMode>,
+        /// The theme of the light mode, e.g. `dail-light-hc`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        light: Option<String>,
+        /// The theme of the dark mode, e.g. `dail-dark-hc`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        dark: Option<String>,
+    },
     /// Change one user setting. Undoable.
     SetSetting {
         /// The setting to change.
@@ -649,14 +665,16 @@ pub enum SettingKey {
     InitialWindow,
     /// Maximum undo history entries (1–10000).
     HistoryCap,
-    /// GUI colour theme: 0 = follow the system, 1 = light, 2 = dark, 3 = high-contrast dark,
-    /// 4 = high-contrast light.
+    /// GUI theme mode: 0 = follow the system, 1 = light, 2 = dark; 3 and 4 still mean
+    /// high-contrast dark and light (they set `theme_dark` or `theme_light`; see `set_theme`).
     Theme,
     /// GUI text and widget size in percent (50–300; Ctrl + plus/minus/0 change it too).
     TextScale,
     /// Desktop notifications while the GUI is in the background (new mail, failed sends,
     /// approvals): 0 = off, 1 = on.
     Notifications,
+    /// Thread list rows: 0 = cozy (two lines), 1 = compact (one line).
+    ListDensity,
 }
 
 impl SettingKey {
@@ -669,6 +687,7 @@ impl SettingKey {
         Self::Theme,
         Self::TextScale,
         Self::Notifications,
+        Self::ListDensity,
     ];
 
     /// The key's `snake_case` name.
@@ -681,6 +700,7 @@ impl SettingKey {
             Self::Theme => "theme",
             Self::TextScale => "text_scale",
             Self::Notifications => "notifications",
+            Self::ListDensity => "list_density",
         }
     }
 
@@ -694,6 +714,7 @@ impl SettingKey {
             Self::Theme => (0, 4),
             Self::TextScale => (50, 300),
             Self::Notifications => (0, 1),
+            Self::ListDensity => (0, 1),
         }
     }
 
@@ -707,6 +728,7 @@ impl SettingKey {
             Self::Theme => settings.theme,
             Self::TextScale => settings.text_scale,
             Self::Notifications => settings.notifications,
+            Self::ListDensity => settings.list_density,
         }
     }
 
@@ -720,6 +742,39 @@ impl SettingKey {
             Self::Theme => settings.theme = value,
             Self::TextScale => settings.text_scale = value,
             Self::Notifications => settings.notifications = value,
+            Self::ListDensity => settings.list_density = value,
+        }
+    }
+}
+
+/// The GUI's theme mode (`set_theme`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    /// Follow the desktop's light or dark preference.
+    System,
+    /// Always light.
+    Light,
+    /// Always dark.
+    Dark,
+}
+
+impl ThemeMode {
+    /// The `theme` setting's value.
+    pub const fn value(self) -> u64 {
+        match self {
+            Self::System => 0,
+            Self::Light => 1,
+            Self::Dark => 2,
+        }
+    }
+
+    /// The mode of a `theme` setting value (legacy values already mapped).
+    pub const fn of(value: u64) -> Self {
+        match value {
+            1 => Self::Light,
+            2 => Self::Dark,
+            _ => Self::System,
         }
     }
 }
@@ -772,6 +827,7 @@ impl Command {
             | Self::SetSetting { .. }
             | Self::SetKeybinding { .. }
             | Self::SetKeyPreset { .. }
+            | Self::SetTheme { .. }
             | Self::Undo {}
             | Self::Redo {}
             | Self::OpenPalette {}
@@ -839,6 +895,7 @@ impl Command {
             Self::SetSetting { .. } => CommandName::SetSetting,
             Self::SetKeybinding { .. } => CommandName::SetKeybinding,
             Self::SetKeyPreset { .. } => CommandName::SetKeyPreset,
+            Self::SetTheme { .. } => CommandName::SetTheme,
             Self::Undo {} => CommandName::Undo,
             Self::Redo {} => CommandName::Redo,
             Self::OpenPalette {} => CommandName::OpenPalette,

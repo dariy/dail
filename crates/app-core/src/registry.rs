@@ -88,6 +88,8 @@ pub enum CommandName {
     SetKeybinding,
     /// See [`Command::SetKeyPreset`].
     SetKeyPreset,
+    /// See [`Command::SetTheme`].
+    SetTheme,
     /// See [`Command::Undo`].
     Undo,
     /// See [`Command::Redo`].
@@ -299,6 +301,7 @@ impl CommandName {
         Self::SetSetting,
         Self::SetKeybinding,
         Self::SetKeyPreset,
+        Self::SetTheme,
         Self::Undo,
         Self::Redo,
         Self::OpenPalette,
@@ -374,6 +377,7 @@ impl CommandName {
             Self::SetSetting => "set_setting",
             Self::SetKeybinding => "set_keybinding",
             Self::SetKeyPreset => "set_key_preset",
+            Self::SetTheme => "set_theme",
             Self::Undo => "undo",
             Self::Redo => "redo",
             Self::OpenPalette => "open_palette",
@@ -468,6 +472,7 @@ impl CommandName {
             Self::SetSetting
             | Self::SetKeybinding
             | Self::SetKeyPreset
+            | Self::SetTheme
             | Self::Undo
             | Self::Redo
             | Self::AddAccount
@@ -547,6 +552,7 @@ impl CommandName {
             | Self::SetSetting
             | Self::SetKeybinding
             | Self::SetKeyPreset
+            | Self::SetTheme
             | Self::Undo
             | Self::Redo
             | Self::OpenPalette
@@ -622,6 +628,7 @@ impl CommandName {
             Self::SetSetting => base("Change setting", Category::App, &[]),
             Self::SetKeybinding => base("Change a command's keys", Category::App, &[]),
             Self::SetKeyPreset => base("Choose the key bindings (Gmail, Vim)", Category::App, &[]),
+            Self::SetTheme => base("Choose the theme", Category::App, &[]),
             Self::Undo => base("Undo", Category::App, &["z", "Ctrl+Z"]),
             Self::Redo => base("Redo", Category::App, &["Ctrl+Shift+Z", "Shift+Z"]),
             Self::OpenPalette => CommandSpec {
@@ -909,6 +916,11 @@ impl CommandName {
             },
             Self::SetKeyPreset => Command::SetKeyPreset {
                 preset: crate::state::KeyPreset::Vim,
+            },
+            Self::SetTheme => Command::SetTheme {
+                mode: Some(crate::command::ThemeMode::Dark),
+                light: None,
+                dark: Some("dail-dark-hc".to_owned()),
             },
             Self::SetSetting => Command::SetSetting {
                 key: SettingKey::PollSecs,

@@ -16,10 +16,13 @@ expression: first
         "shop@example.net"
       ],
       "initial_window": 500,
+      "list_density": 0,
       "notifications": 1,
       "poll_secs": 120,
       "text_scale": 100,
       "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
       "undo_send_ms": 10000
     },
     "status": {
@@ -56,10 +59,13 @@ expression: first
                       "news@example.org"
                     ],
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -126,10 +132,13 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -171,10 +180,13 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -217,10 +229,13 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -260,10 +275,13 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "list_density": 0,
                     "notifications": 1,
                     "poll_secs": 120,
                     "text_scale": 100,
                     "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
                     "undo_send_ms": 10000
                   }
                 }
@@ -315,10 +333,13 @@ expression: first
                 "shop@example.net"
               ],
               "initial_window": 500,
+              "list_density": 0,
               "notifications": 1,
               "poll_secs": 120,
               "text_scale": 100,
               "theme": 0,
+              "theme_dark": "dail-dark",
+              "theme_light": "dail-light",
               "undo_send_ms": 10000
             },
             "kind": "query",

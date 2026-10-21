@@ -310,7 +310,7 @@ independent.
   menus and tooltips; the style check's allowlist is empty
 
 ### C — Settings
-- [ ] UI-11 [core] [io] [front] [gui]: `set_theme { mode?, light?, dark? }` (Mutation, agents allowed); settings
+- [x] UI-11 [core] [io] [front] [gui]: `set_theme { mode?, light?, dark? }` (Mutation, agents allowed); settings
   `theme_light`, `theme_dark`, `list_density`; legacy `theme` 3/4 mapped in config and engine; replay fixture
   `set_theme.jsonl`; ARCHITECTURE §7.1, §8
 - [ ] UI-12 [core] [front] [gui] [tui]: Settings page: `open_settings { section? }` (`Ctrl+,`, `g ,`) and

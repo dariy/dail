@@ -26,7 +26,7 @@ pub use watch::WATCH_RETRY_MS;
 
 use std::collections::BTreeMap;
 
-use crate::command::{Command, SettingKey};
+use crate::command::{Command, SettingKey, ThemeMode};
 use crate::ctx::Ctx;
 use crate::error::CoreError;
 use crate::event::{Effect, Event, PersistDelta};
@@ -36,7 +36,7 @@ use crate::message::BodyState;
 use crate::ops::{FlagKind, OpState};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::registry::AgentAccess;
-use crate::state::AppState;
+use crate::state::{AppState, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME};
 use crate::threading::Threader;
 
 /// The deterministic state machine. State changes enter only through [`Engine::dispatch`] and
@@ -472,8 +472,26 @@ impl Engine {
                 self.set_keybinding(&command, keys, receipt)
             }
             Command::SetKeyPreset { preset } => Ok(self.set_key_preset(preset, receipt)),
+            Command::SetTheme { mode, light, dark } => self.set_theme(mode, light, dark, receipt),
             Command::SetSetting { key, value } => {
                 let new = validate_setting(key, &value)?;
+                // The legacy high-contrast values name a theme now (ADR 0008).
+                if key == SettingKey::Theme && new >= 3 {
+                    let (mode, light, dark) = if new == 3 {
+                        (
+                            ThemeMode::Dark,
+                            None,
+                            Some(HIGH_CONTRAST_DARK_THEME.to_owned()),
+                        )
+                    } else {
+                        (
+                            ThemeMode::Light,
+                            Some(HIGH_CONTRAST_LIGHT_THEME.to_owned()),
+                            None,
+                        )
+                    };
+                    return self.set_theme(Some(mode), light, dark, receipt);
+                }
                 let previous = key.get(&self.state.settings);
                 key.set(&mut self.state.settings, new);
                 let outcome = Outcome::new(receipt.affecting(EntityRef::Settings).with_data(

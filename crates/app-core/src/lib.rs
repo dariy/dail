@@ -31,7 +31,7 @@ pub use account::{
     SecretRef, Security, ServerDefault, SmtpLogin,
 };
 pub use approval::ApprovalRequest;
-pub use command::{Command, CommandKind, SettingKey};
+pub use command::{Command, CommandKind, SettingKey, ThemeMode};
 pub use ctx::{Ctx, Origin};
 pub use draft::{
     AttachmentRef, AttachmentState, Draft, OutgoingMessage, Quote, QuoteSource, QuoteStyle,

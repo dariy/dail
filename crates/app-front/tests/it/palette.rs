@@ -311,3 +311,33 @@ fn an_empty_query_groups_the_rows_under_captions() {
     let rows = palette.rows(&state);
     assert!(palette.sections(&rows).is_empty());
 }
+
+#[test]
+fn typed_themes_become_set_theme() {
+    use app_core::ThemeMode;
+    let theme = |mode, light: Option<&str>, dark: Option<&str>| Command::SetTheme {
+        mode,
+        light: light.map(str::to_owned),
+        dark: dark.map(str::to_owned),
+    };
+    assert_eq!(
+        palette::theme_command("dark"),
+        theme(Some(ThemeMode::Dark), None, None)
+    );
+    assert_eq!(
+        palette::theme_command("dark dail-dark-hc"),
+        theme(Some(ThemeMode::Dark), None, Some("dail-dark-hc"))
+    );
+    assert_eq!(
+        palette::theme_command("Light dail-light-hc"),
+        theme(Some(ThemeMode::Light), Some("dail-light-hc"), None)
+    );
+    assert_eq!(
+        palette::theme_command("dail-light-hc"),
+        theme(None, Some("dail-light-hc"), None)
+    );
+    assert_eq!(
+        palette::theme_command("system"),
+        theme(Some(ThemeMode::System), None, None)
+    );
+}
