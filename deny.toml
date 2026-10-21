@@ -50,9 +50,10 @@ deny = [
     { name = "ring" },
     { name = "cmake" },
     { name = "bindgen" },
-    # pkg-config finds system C libraries to link against. Its two users only load them at run time: wayland-sys is
-    # built with `dlopen`, and x11-dl only looks up the library directory.
-    { name = "pkg-config", wrappers = ["wayland-sys", "x11-dl"] },
+    # pkg-config finds system C libraries to link against. Its users only load them at run time: wayland-sys and
+    # yeslogic-fontconfig-sys (system fonts, UI-15; fontique turns on `dlopen`, so its build script skips pkg-config)
+    # are built with `dlopen`, and x11-dl only looks up the library directory.
+    { name = "pkg-config", wrappers = ["wayland-sys", "x11-dl", "yeslogic-fontconfig-sys"] },
     # C/C++ TLS & database bindings break the pure-Rust rule.
     { name = "openssl" },
     { name = "openssl-sys" },

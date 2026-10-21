@@ -104,7 +104,9 @@ each font once per weight (400, 500, 600) as the families `sans`, `sans-500`, `s
 Material Symbols Outlined subset (`icon`: `Icon` names the glyphs; families `icons` and `icons-filled`). The GUI paints
 them (`ui::icon`), so screen readers never read a private-use character; the widget around carries the name.
 Mailbox roles map onto icons in `theme::role_icon`, an exhaustive match. Emoji in mail still come from egui's emoji
-fonts.
+fonts. Scripts that none of these fonts cover (CJK, Arabic, Devanagari, …) load from the OS fonts on demand (eframe's
+`system_fonts`: `egui_system_font_provider` over `fontique`, which opens fontconfig at run time on Linux and uses
+DirectWrite on Windows; UI-15).
 
 ## 4. Core model (`app-core`)
 

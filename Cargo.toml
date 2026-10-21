@@ -118,7 +118,7 @@ clap = { version = "4.6", features = ["derive"] }
 rpassword = "7.5" # no-echo password prompt for `dail account add` (app-cli only)
 
 # --- GUI (desktop-native; wasm deferred) ---
-eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11"] }
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11", "system_fonts"] }
 egui = { version = "0.37", features = ["monochrome_emoji_fonts"] } # the symbols the UI draws (✉, ⚠, …): default_fonts left them out in 0.37
 nucleo-matcher = "0.3"
 rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
