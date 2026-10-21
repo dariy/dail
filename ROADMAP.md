@@ -186,9 +186,6 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] [tui] Mouse and touch: the wheel (a swipe) scrolls, a tap selects or opens; a key turns mouse capture off, so that the terminal's own selection can copy a link
 - [x] [tui] Account setup: preset → address (servers for custom) → masked password (straight into `add_account` as a `Secret`, the buffer cleared) → `test_account` → `sync_now`. Until then `dail account add` in a shell does it
 
-### UI — Visual refresh and the theme library (`docs/requests/2026-10-21-ui.md`)
-- [x] UI-1: ADR 0008 and the `app-theme` crate: colour roles, type scale, metrics, built-in themes, contrast audit
-
 ---
 
 ## Wave 2 — Polish: "pleasant, fast, robust"
@@ -271,6 +268,61 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   and every data-changing MCP tool
 - [ ] Diffs in the receipts of real (not dry-run) commands too — split from the dry runs: needs the affected entities'
   JSON before each dispatch, a cost every command would pay; to be measured at 100k first
+
+## Wave 3 — Visual refresh: "the mockups, built from a theme library"
+
+The GUI restyled after the Stitch mockups in `docs/ui/`, on top of a toolkit-free library of design tokens. The plan,
+the review of the mockups and the recorded choices (D1–D10) are in
+[`docs/requests/2026-10-21-ui.md`](docs/requests/2026-10-21-ui.md); each item below names its section there. The IDs
+are the build order: part A before part B (B uses the kit), UI-5 first in part B, UI-11 before UI-12. Part D items are
+independent.
+
+**Exit criteria**
+- Widgets read colour roles and metrics only: the style check's allowlist is empty (UI-10).
+- `dail-dark`, `dail-light`, `dail-dark-hc` and `dail-light-hc` pass the contrast audit, and the user picks them by
+  name (`set_theme`, the settings page). Old `theme` 3 and 4 values keep working.
+- Geist, JetBrains Mono and the Material Symbols subset are bundled with their licences; no emoji glyph is left in the
+  GUI's own chrome.
+- The AccessKit names do not change; every GUI test stays green or moves with its widget. Each part B item reports
+  before and after screenshots against `docs/ui/*/screen.png` (plan §5).
+
+### A — The library
+- [x] UI-1: ADR 0008 and the `app-theme` crate: colour roles, type scale, metrics, built-in themes, contrast audit
+- [ ] UI-2 [gui]: Fonts: Geist and JetBrains Mono (variable) in `app-theme/assets/fonts/`, three weights through
+  `FontTweak::coords`, egui's fonts as fallbacks, `TextStyle` mapped onto the type scale; licence texts in the `.deb`;
+  binary size measured before and after
+- [ ] UI-3 [gui]: Icons: a Material Symbols Outlined subset and `app_theme::Icon` replace every emoji glyph; role icons
+  total over `MailboxRole`; ARCHITECTURE §7.1 (the missing `✓`)
+- [ ] UI-4 [gui]: egui adapter (`app_gui::theme` → `Tokens`, `Visuals` per theme, chrome visuals), component kit
+  `app_gui::ui` replacing `widgets.rs`, `gallery` example, style check (`tests/it/style.rs`) with an allowlist
+
+### B — The surfaces
+- [ ] UI-5 [gui]: Frame: sidebar (brand, *Compose*, nav rows, *Settings*), 56 px rail, top bar (search pill → palette,
+  sync state, status chip); the status bar goes away and its parts move (D7, D8); ARCHITECTURE §7.1
+- [ ] UI-6 [gui] [front]: Thread list: 48 px header with unread badge, cozy (48) and compact (40) rows, footer with key
+  hints, undo label and count; `scale` tests before and after
+- [ ] UI-7 [gui]: Reader: 48 px toolbar, `headline_xl` subject, sender card, collapsed messages, body, attachment
+  cards, links, empty state
+- [ ] UI-8 [gui]: Composer: header with save state, labelled hairline fields, chips, `body_lg` body, footer, drop zone
+- [ ] UI-9 [gui] [front]: Palette: `overlay` frame, sections for an empty query (grouping helper in
+  `app_front::palette`), icons, key caps, footer
+- [ ] UI-10 [gui]: Overlays: toasts (fixes the 1.70:1 error toast), approvals tray, account wizard, query window,
+  menus and tooltips; the style check's allowlist is empty
+
+### C — Settings
+- [ ] UI-11 [core] [io] [front] [gui]: `set_theme { mode?, light?, dark? }` (Mutation, agents allowed); settings
+  `theme_light`, `theme_dark`, `list_density`; legacy `theme` 3/4 mapped in config and engine; replay fixture
+  `set_theme.jsonl`; ARCHITECTURE §7.1, §8
+- [ ] UI-12 [core] [front] [gui] [tui]: Settings page: `open_settings { section? }` (`Ctrl+,`, `g ,`) and
+  `close_settings` (View); tabs Appearance, Keyboard, General, Accounts; the TUI's key/value lists; ARCHITECTURE §7.1,
+  §7.4, §8
+
+### D — Optional
+- [ ] UI-13 [gui]: Reply composer docked under the conversation (a presentation of `view.composer`, no new command)
+- [ ] UI-14 [core] [io] [sync] [tk] [gui]: Snippets in the list rows: `Envelope.snippet` from fetched bodies, untrusted
+  in MCP/CLI output, a "preview" density (72 px)
+- [ ] UI-15: System fonts for scripts the bundled fonts lack (eframe `system_fonts`; deny and no-C gates, Windows too)
+- [ ] UI-16 [tui]: Opt-in TUI colours from `app-theme` (`tui_colors`); amends ADR 0004
 
 ---
 
