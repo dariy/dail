@@ -280,3 +280,34 @@ fn commands_used_lately_come_first_and_show_their_help() {
     assert!(help.starts_with("Archive"), "{help}");
     assert!(!help.contains(". "), "one sentence: {help}");
 }
+
+#[test]
+fn an_empty_query_groups_the_rows_under_captions() {
+    let state = rich_state();
+    let mut palette = palette::Palette::default();
+    let rows = palette.rows(&state);
+    let sections = palette.sections(&rows);
+    let titles: Vec<&str> = sections.iter().map(|s| s.title).collect();
+    assert_eq!(titles.first(), Some(&"Mail"));
+    assert!(
+        titles.contains(&"Mailboxes") && titles.contains(&"Threads"),
+        "{titles:?}"
+    );
+    // The sections cover every row once, in order.
+    assert_eq!(sections.first().map(|s| s.start), Some(0));
+    assert_eq!(sections.last().map(|s| s.end), Some(rows.len()));
+    for pair in sections.windows(2) {
+        assert_eq!(pair[0].end, pair[1].start);
+        assert_ne!(pair[0].title, pair[1].title);
+    }
+    // A command used before heads a *Recent* section.
+    palette.choose(&state, Target::Command(CommandName::GetSettings));
+    let rows = palette.rows(&state);
+    let sections = palette.sections(&rows);
+    assert_eq!(sections[0].title, "Recent");
+    assert_eq!((sections[0].start, sections[0].end), (0, 1));
+    // With a query the rows are one ranked list.
+    palette.set_query("arch");
+    let rows = palette.rows(&state);
+    assert!(palette.sections(&rows).is_empty());
+}

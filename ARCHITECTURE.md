@@ -731,7 +731,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
 │ ⚙ Settings   │                           │                                        │
 └──────────────┴───────────────────────────┴────────────────────────────────────────┘
 ```
-- **Palette (Ctrl+K / Ctrl+Shift+P):** fuzzy match (`nucleo-matcher` over title and detail; rows whose title matches
+- **Palette (Ctrl+K / Ctrl+Shift+P):** (UI-9: an overlay 560 wide under the top bar over the scrim; the input row with a
+  search icon, the query in `headline_md` and an `Esc` cap; 36 px rows with an icon by category, mailbox role or
+  thread, the title, the detail and key caps, the cursor row inverse; with an empty query the rows sit under captions
+  — *Recent*, the command categories, *Mailboxes*, *Threads* — from `app_front::palette::Palette::sections`, while a
+  query gives one ranked list; a footer with the keys and the version) fuzzy match (`nucleo-matcher` over title and detail; rows whose title matches
   come first, equal scores prefer the shorter title) over the
   available `CommandSpec`s (Mail, Compose, Navigation, Account, App), mailboxes ("Go to …") and the 20 newest threads,
   plus "Search mail for …" for the typed text. `app_front::palette::flow(name, state)` (shared with the TUI) is an

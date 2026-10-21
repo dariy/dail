@@ -803,6 +803,17 @@ pub struct Row {
     pub keys: Option<String>,
 }
 
+/// A run of rows under one caption ([`Palette::sections`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Section {
+    /// The caption: `Recent`, a command category, `Mailboxes` or `Threads`.
+    pub title: &'static str,
+    /// The first row.
+    pub start: usize,
+    /// One past the last row.
+    pub end: usize,
+}
+
 /// What a row stands for.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Target {
@@ -1324,6 +1335,60 @@ impl Palette {
             }
         }
         rows.into_iter().map(|(_, row)| row).collect()
+    }
+
+    /// The sections of `rows` (from [`Self::rows`]) under captions, for an empty query on the
+    /// first step: *Recent* (the commands used before, as frecency put them first), then one
+    /// section per command category, *Mailboxes* and *Threads*. With a query or in a second
+    /// step the rows are one ranked list, and this is empty. The rows keep their order, so the
+    /// cursor still walks every row.
+    pub fn sections(&self, rows: &[Row]) -> Vec<Section> {
+        if self.step.is_some() || !self.query.trim().is_empty() {
+            return Vec::new();
+        }
+        let key = |i: usize, row: &Row| -> &'static str {
+            match &row.target {
+                Target::Command(name) => {
+                    if i < self.recent_head(rows) {
+                        "Recent"
+                    } else {
+                        match name.spec().category {
+                            Category::Mail => "Mail",
+                            Category::Compose => "Compose",
+                            Category::Navigation => "Navigation",
+                            Category::Account => "Account",
+                            Category::App => "App",
+                        }
+                    }
+                }
+                Target::Mailbox(_) => "Mailboxes",
+                Target::Thread(_) => "Threads",
+                Target::Search(_) | Target::Choice(_) => "",
+            }
+        };
+        let mut out: Vec<Section> = Vec::new();
+        for (i, row) in rows.iter().enumerate() {
+            let title = key(i, row);
+            match out.last_mut() {
+                Some(last) if last.title == title => last.end = i + 1,
+                _ => out.push(Section {
+                    title,
+                    start: i,
+                    end: i + 1,
+                }),
+            }
+        }
+        out
+    }
+
+    /// How many leading rows frecency put first (commands used before).
+    fn recent_head(&self, rows: &[Row]) -> usize {
+        rows.iter()
+            .take_while(|row| match row.target {
+                Target::Command(name) => self.frecency(name) > 0,
+                _ => false,
+            })
+            .count()
     }
 
     /// The highlighted row's help: the first sentence of its command's doc comment.

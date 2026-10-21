@@ -792,7 +792,31 @@ pub fn empty_state(ui: &mut Ui, t: &Tokens, title: &str, hints: &[(&str, &str)])
         ui.label(text(&t.type_scale.headline_md, title, t.text_secondary));
         if !hints.is_empty() {
             ui.add_space(t.m.space.sm);
-            footer_hint(ui, t, hints);
+            // A row cannot centre itself: measure it in an invisible pass, then indent it.
+            let row = |ui: &mut Ui| {
+                ui.spacing_mut().item_spacing.x = t.m.space.sm;
+                for (i, (keys, label)) in hints.iter().enumerate() {
+                    if i > 0 {
+                        ui.label(text(&t.type_scale.label_sm, "·", t.text_muted));
+                    }
+                    kbd(ui, t, keys);
+                    ui.label(text(
+                        &t.type_scale.label_sm,
+                        label.to_uppercase(),
+                        t.text_muted,
+                    ));
+                }
+            };
+            let width = ui
+                .new_child(egui::UiBuilder::new().sizing_pass().invisible())
+                .horizontal(row)
+                .response
+                .rect
+                .width();
+            ui.horizontal(|ui| {
+                ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
+                row(ui);
+            });
         }
     });
 }

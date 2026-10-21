@@ -123,3 +123,31 @@ fn query_results_open_in_a_window() {
     h.get_by_label("Show settings");
     h.get_by_label_contains("\"undo_send_ms\": 10000");
 }
+
+#[test]
+fn an_empty_query_shows_section_captions_and_down_reaches_every_row() {
+    let mut h = gui(synced_state());
+    apply(&mut h, Command::OpenPalette {});
+    h.run();
+    h.get_by_label("MAIL");
+    h.get_by_label("MAILBOXES");
+    // ↓ walks past every caption to the last row and stops there.
+    for _ in 0..200 {
+        h.key_press(egui::Key::ArrowDown);
+    }
+    h.run();
+    h.key_press(egui::Key::Enter);
+    h.run();
+    assert!(!h.state_mut().take().is_empty(), "the last row is chosen");
+}
+
+#[test]
+fn a_palette_open_at_start_stays_open() {
+    let mut state = synced_state();
+    state.view.palette_open = true;
+    let mut h = gui(state);
+    h.run();
+    h.run();
+    assert_eq!(h.state_mut().take(), [], "nothing closes it");
+    h.get_by_label("MAIL");
+}

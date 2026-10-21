@@ -1,9 +1,11 @@
 //! The command palette window (Ctrl+K). The rows, flows and ranking are shared with the TUI
 //! (`app_front::palette`); this module draws them and reads the keys.
 
+use app_core::Category;
 use app_core::{AppState, Command};
 use app_front::palette::{Ask, Palette, Row, Target};
-use egui::{Key, Modifiers, RichText, Sense, Ui, Vec2};
+use app_theme::Icon;
+use egui::{Key, Modifiers, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
 use crate::theme;
@@ -89,76 +91,126 @@ impl PaletteState {
         }
         let id = egui::Id::unique("palette");
         let selected = self.inner.selected();
+        let sections = self.inner.sections(&rows);
+        let o = &t.m.overlays;
         let modal = egui::Modal::new(id)
-            .area(
-                egui::Modal::default_area(id)
-                    .anchor(egui::Align2::CENTER_TOP, Vec2::new(0.0, 90.0)),
-            )
-            .frame(
-                egui::Frame::new()
-                    .fill(t.base)
-                    .stroke(egui::Stroke::new(1.0, t.border_strong))
-                    .corner_radius(8)
-                    .inner_margin(egui::Margin::same(0)),
-            )
-            .backdrop_color(egui::Color32::from_black_alpha(90))
+            .area(egui::Modal::default_area(id).anchor(
+                egui::Align2::CENTER_TOP,
+                Vec2::new(0.0, t.m.frame.top_bar + o.palette_offset),
+            ))
+            .frame(ui::overlay(t).inner_margin(egui::Margin::ZERO))
+            .backdrop_color(t.scrim)
             .show(ctx, |ui| {
-                ui.set_width(560.0);
+                ui.set_width(o.palette_width);
+                ui.spacing_mut().item_spacing.y = 0.0;
+                // The input row: a search icon, the query in `headline_md`, an `Esc` cap.
                 egui::Frame::new()
-                    .inner_margin(egui::Margin::symmetric(16, 12))
+                    .inner_margin(egui::Margin::symmetric(
+                        t.m.space.lg as i8,
+                        t.m.space.md as i8,
+                    ))
                     .show(ui, |ui| {
                         if let Some(step) = self.inner.step() {
                             ui::caption(ui, t, &step.prompt);
-                            ui.add_space(4.0);
+                            ui.add_space(t.m.space.xs);
                         }
-                        let hint = self.inner.hint();
-                        let edit = egui::TextEdit::singleline(self.inner.query_mut())
-                            .hint_text(hint)
-                            .frame(egui::Frame::NONE)
-                            .font(egui::FontId::proportional(17.0))
-                            .desired_width(f32::INFINITY);
-                        let response = ui.add(edit);
-                        if opening || !response.has_focus() {
-                            response.request_focus();
-                        }
-                        if response.changed() {
-                            self.inner.reset_cursor();
-                        }
+                        ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = t.m.space.md;
+                            ui::icon(ui, Icon::Search, t.m.controls.icon_lg, t.text_muted, false);
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui::kbd(ui, t, "Esc");
+                                    let hint = self.inner.hint();
+                                    let edit = egui::TextEdit::singleline(self.inner.query_mut())
+                                        .hint_text(hint)
+                                        .frame(egui::Frame::NONE)
+                                        .font(ui::font(&t.type_scale.headline_md))
+                                        .desired_width(ui.available_width());
+                                    let response = ui.add(edit);
+                                    if opening || !response.has_focus() {
+                                        response.request_focus();
+                                    }
+                                    if response.changed() {
+                                        self.inner.reset_cursor();
+                                    }
+                                },
+                            );
+                        });
                     });
-                ui.separator();
+                ui::divider(ui, t);
                 egui::ScrollArea::vertical()
                     .id_salt("palette")
-                    .max_height(380.0)
+                    .max_height(o.palette_list_max)
                     .auto_shrink([false, true])
                     .show(ui, |ui| {
+                        ui.add_space(t.m.space.xs);
                         if rows.is_empty() {
-                            ui.add_space(8.0);
-                            ui.label(RichText::new("    Nothing matches.").color(t.text_muted));
-                            ui.add_space(8.0);
+                            ui::empty_state(ui, t, "Nothing matches.", &[]);
+                            ui.add_space(t.m.space.md);
                         }
                         for (i, row) in rows.iter().enumerate() {
-                            if row_ui(ui, t, row, i == selected, down || up).clicked() {
+                            if let Some(section) = sections.iter().find(|s| s.start == i)
+                                && !section.title.is_empty()
+                            {
+                                ui.add_space(if i == 0 { 0.0 } else { t.m.space.sm });
+                                egui::Frame::new()
+                                    .inner_margin(egui::Margin::symmetric(
+                                        t.m.space.lg as i8,
+                                        t.m.space.xs as i8,
+                                    ))
+                                    .show(ui, |ui| ui::caption(ui, t, section.title));
+                            }
+                            if row_ui(ui, t, state, row, i == selected, down || up).clicked() {
                                 chosen = Some(row.target.clone());
                             }
                         }
+                        ui.add_space(t.m.space.xs);
                     });
-                ui.separator();
-                if let Some(help) = app_front::palette::Palette::help(&rows, selected) {
-                    // The highlighted command's doc comment, as agents read it too.
-                    ui.horizontal_wrapped(|ui| {
-                        ui.add_space(12.0);
-                        ui.label(RichText::new(help).size(12.0).color(t.text_secondary));
+                ui::divider(ui, t);
+                egui::Frame::new()
+                    .inner_margin(egui::Margin::symmetric(
+                        t.m.space.lg as i8,
+                        t.m.space.sm as i8,
+                    ))
+                    .show(ui, |ui| {
+                        if let Some(help) = app_front::palette::Palette::help(&rows, selected) {
+                            // The highlighted command's doc comment, as agents read it too.
+                            ui.add(
+                                egui::Label::new(ui::text(
+                                    &t.type_scale.body_sm,
+                                    help,
+                                    t.text_secondary,
+                                ))
+                                .wrap(),
+                            );
+                            ui.add_space(t.m.space.xs);
+                        }
+                        // Footer: the keys, and the version on the right.
+                        ui.horizontal(|ui| {
+                            ui.set_min_height(t.m.rows.palette - 2.0 * t.m.space.sm);
+                            ui::footer_hint(
+                                ui,
+                                t,
+                                &[
+                                    ("↑", "up"),
+                                    ("↓", "down"),
+                                    ("Enter", "choose"),
+                                    ("Esc", "back"),
+                                ],
+                            );
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui.label(ui::text(
+                                        &t.type_scale.label_sm,
+                                        concat!("dail ", env!("CARGO_PKG_VERSION")),
+                                        t.text_muted,
+                                    ));
+                                },
+                            );
+                        });
                     });
-                }
-                ui.horizontal(|ui| {
-                    ui.add_space(12.0);
-                    ui.label(
-                        RichText::new("↑↓ to move · Enter to choose · Esc to go back")
-                            .font(ui::mono(10.5))
-                            .color(t.text_muted),
-                    );
-                });
-                ui.add_space(4.0);
             });
         if modal.backdrop_response.clicked() {
             queue.push(Request::user(Command::ClosePalette {}));
@@ -170,24 +222,49 @@ impl PaletteState {
     }
 }
 
+/// The icon of a row: its command's category, a mailbox's role, `Mail` for a thread.
+fn row_icon(state: &AppState, row: &Row) -> Icon {
+    match &row.target {
+        Target::Command(name) => match name.spec().category {
+            Category::Mail => Icon::Mail,
+            Category::Compose => Icon::Edit,
+            Category::Navigation => Icon::ChevronRight,
+            Category::Account => Icon::Person,
+            Category::App => Icon::Settings,
+        },
+        Target::Mailbox(id) => {
+            crate::theme::role_icon(state.mailboxes.get(id).and_then(|m| m.role))
+        }
+        Target::Thread(_) => Icon::Mail,
+        Target::Search(_) => Icon::Search,
+        Target::Choice(_) => Icon::ChevronRight,
+    }
+}
+
+/// A row (36): icon, title, detail, key caps; the cursor row is an inverse fill with inverse
+/// caps.
 fn row_ui(
     ui: &mut Ui,
     t: &theme::Tokens,
+    state: &AppState,
     row: &Row,
     selected: bool,
     scroll: bool,
 ) -> egui::Response {
-    let (rect, response) =
-        ui.allocate_exact_size(Vec2::new(ui.available_width(), 34.0), Sense::click());
+    let (rect, response) = ui.allocate_exact_size(
+        Vec2::new(ui.available_width(), t.m.rows.palette),
+        Sense::click(),
+    );
+    let inset = rect.shrink2(Vec2::new(t.m.space.sm, 1.0));
     if selected {
         ui.painter()
-            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, t.inverse_bg);
+            .rect_filled(inset, ui::radius(t.m.radius.md), t.inverse_bg);
         if scroll {
             response.scroll_to_me(None);
         }
     } else if response.hovered() {
         ui.painter()
-            .rect_filled(rect.shrink2(Vec2::new(6.0, 1.0)), 4.0, t.hover);
+            .rect_filled(inset, ui::radius(t.m.radius.md), t.hover);
     }
     let (fg, faint) = if selected {
         (t.inverse_text, t.inverse_text)
@@ -196,19 +273,31 @@ fn row_ui(
     };
     let mut child = ui.new_child(
         egui::UiBuilder::new()
-            .max_rect(rect.shrink2(Vec2::new(18.0, 0.0)))
+            .max_rect(rect.shrink2(Vec2::new(t.m.space.lg, 0.0)))
             .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    child.spacing_mut().item_spacing.x = t.m.space.md;
+    ui::icon(
+        &mut child,
+        row_icon(state, row),
+        t.m.controls.icon_sm,
+        faint,
+        false,
     );
     child.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
         if let Some(keys) = &row.keys {
-            ui.label(RichText::new(keys).font(ui::mono(10.5)).color(faint));
+            if selected {
+                ui::kbd_inverse(ui, t, keys);
+            } else {
+                ui::kbd(ui, t, keys);
+            }
         }
         if !row.detail.is_empty() {
-            ui.label(RichText::new(&row.detail).size(11.5).color(faint));
+            ui.label(ui::text(&t.type_scale.body_sm, row.detail.as_str(), faint));
         }
         ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
             ui.add(
-                egui::Label::new(RichText::new(&row.title).color(fg))
+                egui::Label::new(ui::text(&t.type_scale.body_md, row.title.as_str(), fg))
                     .truncate()
                     .selectable(false),
             );

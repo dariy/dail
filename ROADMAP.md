@@ -304,7 +304,7 @@ independent.
 - [x] UI-7 [gui]: Reader: 48 px toolbar, `headline_xl` subject, sender card, collapsed messages, body, attachment
   cards, links, empty state
 - [x] UI-8 [gui]: Composer: header with save state, labelled hairline fields, chips, `body_lg` body, footer, drop zone
-- [ ] UI-9 [gui] [front]: Palette: `overlay` frame, sections for an empty query (grouping helper in
+- [x] UI-9 [gui] [front]: Palette: `overlay` frame, sections for an empty query (grouping helper in
   `app_front::palette`), icons, key caps, footer
 - [ ] UI-10 [gui]: Overlays: toasts (fixes the 1.70:1 error toast), approvals tray, account wizard, query window,
   menus and tooltips; the style check's allowlist is empty
