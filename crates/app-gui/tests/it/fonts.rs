@@ -78,3 +78,38 @@ fn unread_rows_are_semibold() {
         FontFamily::Name("mono-500".into())
     );
 }
+
+#[test]
+fn every_icon_has_a_glyph_in_both_fills() {
+    let mut h = gui(synced_state());
+    h.run();
+    for filled in [false, true] {
+        let font = theme::icon_font(18.0, filled);
+        for icon in app_theme::Icon::ALL {
+            assert!(
+                h.ctx.fonts_mut(|f| f.has_glyph(&font, icon.char())),
+                "{icon:?} (filled: {filled})"
+            );
+        }
+    }
+}
+
+#[test]
+fn every_mailbox_role_has_its_icon() {
+    use app_core::MailboxRole;
+    use app_theme::Icon;
+    let roles = [
+        (Some(MailboxRole::Inbox), Icon::Inbox),
+        (Some(MailboxRole::Sent), Icon::Send),
+        (Some(MailboxRole::Drafts), Icon::Draft),
+        (Some(MailboxRole::Trash), Icon::Delete),
+        (Some(MailboxRole::Archive), Icon::Archive),
+        (Some(MailboxRole::Junk), Icon::Report),
+        (Some(MailboxRole::All), Icon::AllInbox),
+        (Some(MailboxRole::Flagged), Icon::Star),
+        (None, Icon::Folder),
+    ];
+    for (role, icon) in roles {
+        assert_eq!(theme::role_icon(role), icon, "{role:?}");
+    }
+}

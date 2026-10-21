@@ -4,7 +4,8 @@
 use std::sync::Arc;
 
 use app_theme::fonts::{self, WEIGHTS};
-use app_theme::{Face, TypeScale, TypeToken};
+use app_theme::icon::{ICON_FAMILY, ICON_FONT};
+use app_theme::{Face, Icon, TypeScale, TypeToken};
 use egui::{
     Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, FontTweak, Stroke,
     TextStyle, Theme, ThemePreference, Visuals, epaint::text::VariationCoords,
@@ -265,7 +266,52 @@ pub fn font_definitions() -> FontDefinitions {
             );
         }
     }
+    // The icons, outlined and filled (`FILL` 0 and 1), in families of their own: text never
+    // falls back to them, and they never fall back to text.
+    for (name, fill) in [(ICON_FAMILY, 0.0), (ICON_FAMILY_FILLED, 1.0)] {
+        let data = FontData::from_static(ICON_FONT).tweak(FontTweak {
+            coords: VariationCoords::new([(b"FILL", fill), (b"wght", 400.0)]),
+            ..Default::default()
+        });
+        defs.font_data.insert(name.to_owned(), Arc::new(data));
+        defs.families
+            .insert(FontFamily::Name(name.into()), vec![name.to_owned()]);
+    }
     defs
+}
+
+/// The family of the filled icons (a starred star, the active nav icon).
+pub const ICON_FAMILY_FILLED: &str = "icons-filled";
+
+/// The font of an icon at `size`, outlined or `filled`.
+pub fn icon_font(size: f32, filled: bool) -> FontId {
+    FontId::new(
+        size,
+        FontFamily::Name(
+            if filled {
+                ICON_FAMILY_FILLED
+            } else {
+                ICON_FAMILY
+            }
+            .into(),
+        ),
+    )
+}
+
+/// The icon of a mailbox role: total over [`app_core::MailboxRole`], a folder for the rest.
+pub const fn role_icon(role: Option<app_core::MailboxRole>) -> Icon {
+    use app_core::MailboxRole;
+    match role {
+        Some(MailboxRole::Inbox) => Icon::Inbox,
+        Some(MailboxRole::Sent) => Icon::Send,
+        Some(MailboxRole::Drafts) => Icon::Draft,
+        Some(MailboxRole::Trash) => Icon::Delete,
+        Some(MailboxRole::Archive) => Icon::Archive,
+        Some(MailboxRole::Junk) => Icon::Report,
+        Some(MailboxRole::All) => Icon::AllInbox,
+        Some(MailboxRole::Flagged) => Icon::Star,
+        None => Icon::Folder,
+    }
 }
 
 /// The font of `token` at its own weight.

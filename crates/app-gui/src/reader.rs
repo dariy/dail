@@ -10,6 +10,7 @@ use app_core::document::FoldKind;
 use app_core::{AppState, BodyState, Command, Envelope, MessageId, Pane, Thread, listing};
 use app_front::body::{Bodies, Body, links};
 use app_front::{fold, format};
+use app_theme::Icon;
 use egui::{RichText, Ui};
 
 use crate::attachments::{self, AttachIo, Previews, Saver};
@@ -114,7 +115,7 @@ pub fn show(
     ui.horizontal_wrapped(|ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));
         if let Some(message) = last {
-            if widgets::action(ui, p, "↩ Reply", Some("R"), true) {
+            if widgets::action_icon(ui, p, Icon::Reply, "Reply", Some("R"), true) {
                 push(Command::Reply {
                     message,
                     body: None,
@@ -147,10 +148,11 @@ pub fn show(
             });
         }
         let starred = messages.iter().any(|m| m.flags.flagged);
-        if widgets::action(
+        if widgets::action_icon(
             ui,
             p,
-            if starred { "★ Unstar" } else { "☆ Star" },
+            Icon::Star,
+            if starred { "Unstar" } else { "Star" },
             Some("S"),
             true,
         ) {
@@ -405,14 +407,17 @@ fn message_card(ui: &mut Ui, p: &Palette, card: &Card<'_>, io: ReaderIo<'_>) {
                 );
             }
             if let BodyState::Fetched { blob } = &message.body {
-                let button = egui::Button::new(
-                    RichText::new("Open original ↗")
-                        .size(11.5)
-                        .color(p.secondary),
-                )
-                .frame(false);
-                if ui
-                    .add(button)
+                let job = widgets::icon_text(
+                    Icon::OpenInNew,
+                    "Open original",
+                    egui::FontId::proportional(11.5),
+                    p.secondary,
+                );
+                let response = ui.add(egui::Button::new(job).frame(false));
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::Role::Button, true, "Open original ↗")
+                });
+                if response
                     .on_hover_text(
                         "A sanitized copy (no scripts, no images, nothing remote) in your browser",
                     )
@@ -552,17 +557,20 @@ fn body_text(ui: &mut Ui, p: &Palette, body: &Body, io: DocIo<'_>) {
         widgets::caption(ui, p, &format!("Links ({})", links.len()));
         for url in links {
             // The full target is the label: what you see is where it goes. Opens only on click.
+            let mut job = widgets::icon_text(
+                Icon::Link,
+                &url,
+                egui::FontId::proportional(13.0),
+                p.secondary,
+            );
+            if let Some(section) = job.sections.last_mut() {
+                section.format.underline = egui::Stroke::new(1.0, p.secondary);
+            }
+            let name = format!("↗ {url}");
             let response = ui
-                .add(
-                    egui::Label::new(
-                        RichText::new(format!("↗ {url}"))
-                            .color(p.secondary)
-                            .underline(),
-                    )
-                    .sense(egui::Sense::click())
-                    .truncate(),
-                )
+                .add(egui::Label::new(job).sense(egui::Sense::click()).truncate())
                 .on_hover_text(format!("Open in your browser:\n{url}"));
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &name));
             if response.clicked() {
                 externals.push(External::OpenUrl(url));
             }

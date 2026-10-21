@@ -2,6 +2,8 @@
 
 use egui::{Color32, CornerRadius, FontId, RichText, Sense, Stroke, Ui, Vec2};
 
+use app_theme::Icon;
+
 use crate::theme::Palette;
 
 /// JetBrains Mono at 500 for counts, dates and key hints.
@@ -81,6 +83,43 @@ pub fn action(ui: &mut Ui, p: &Palette, label: &str, keys: Option<&str>, enabled
     ui.add_enabled(enabled, button).clicked()
 }
 
+/// [`action`] with a leading icon; the accessible name is `label` (and the keys, as in [`action`]).
+pub fn action_icon(
+    ui: &mut Ui,
+    p: &Palette,
+    icon: Icon,
+    label: &str,
+    keys: Option<&str>,
+    enabled: bool,
+) -> bool {
+    let mut job = icon_text(icon, label, FontId::proportional(13.0), p.ink);
+    if let Some(keys) = keys {
+        job.append(
+            keys,
+            7.0,
+            egui::TextFormat {
+                font_id: mono(10.5),
+                color: p.faint,
+                valign: egui::Align::Center,
+                ..Default::default()
+            },
+        );
+    }
+    let name = match keys {
+        // The same name as [`action`]'s: the label and the keys, as the galley reads.
+        Some(keys) => format!("{label}{keys}"),
+        None => label.to_owned(),
+    };
+    let button = egui::Button::new(job)
+        .fill(Color32::TRANSPARENT)
+        .stroke(Stroke::new(1.0, p.border))
+        .corner_radius(CornerRadius::same(4))
+        .min_size(Vec2::new(0.0, 26.0));
+    let response = ui.add_enabled(enabled, button);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, &name));
+    response.clicked()
+}
+
 /// A solid primary button (ink fill). Returns whether it was clicked.
 pub fn primary(ui: &mut Ui, p: &Palette, label: &str, keys: Option<&str>, enabled: bool) -> bool {
     let text = match keys {
@@ -117,10 +156,64 @@ pub fn dot(ui: &mut Ui, color: Color32, visible: bool) {
     }
 }
 
-/// A frameless glyph button (`×`, `«`) whose accessible name is `label`, also shown on hover.
-pub fn icon_button(ui: &mut Ui, color: Color32, glyph: &str, label: &str) -> egui::Response {
+/// An icon, painted (not a label: screen readers never read the private-use character).
+pub fn icon(ui: &mut Ui, icon: Icon, size: f32, color: Color32, filled: bool) -> egui::Response {
+    let (rect, response) = ui.allocate_exact_size(Vec2::splat(size), Sense::hover());
+    ui.painter().text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        icon.char(),
+        crate::theme::icon_font(size, filled),
+        color,
+    );
+    response
+}
+
+/// An icon then `text`, for buttons and labels; give the widget its name with `widget_info`.
+pub fn icon_text(icon: Icon, text: &str, font: FontId, color: Color32) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    job.append(
+        &icon.char().to_string(),
+        0.0,
+        egui::TextFormat {
+            font_id: crate::theme::icon_font(font.size + 3.0, false),
+            color,
+            valign: egui::Align::Center,
+            ..Default::default()
+        },
+    );
+    job.append(
+        text,
+        6.0,
+        egui::TextFormat {
+            font_id: font,
+            color,
+            valign: egui::Align::Center,
+            ..Default::default()
+        },
+    );
+    job
+}
+
+/// A label with a leading icon whose accessible name is `name`.
+pub fn icon_label(
+    ui: &mut Ui,
+    icon: Icon,
+    text: &str,
+    color: Color32,
+    name: &str,
+) -> egui::Response {
+    let job = icon_text(icon, text, FontId::proportional(13.0), color);
+    let response = ui.add(egui::Label::new(job).truncate());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, name));
+    response
+}
+
+/// A frameless icon button whose accessible name is `label`, also shown on hover.
+pub fn icon_button(ui: &mut Ui, color: Color32, icon: Icon, label: &str) -> egui::Response {
+    let glyph = RichText::new(icon.char().to_string()).font(crate::theme::icon_font(18.0, false));
     let response = ui
-        .add(egui::Button::new(RichText::new(glyph).color(color)).frame(false))
+        .add(egui::Button::new(glyph.color(color)).frame(false))
         .on_hover_text(label);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     response

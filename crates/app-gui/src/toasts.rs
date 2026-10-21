@@ -134,7 +134,14 @@ impl Toasts {
                                         dismiss = Some(i);
                                     }
                                 }
-                                if widgets::icon_button(ui, p.on_ink, "×", "Dismiss").clicked() {
+                                if widgets::icon_button(
+                                    ui,
+                                    p.on_ink,
+                                    app_theme::Icon::Close,
+                                    "Dismiss",
+                                )
+                                .clicked()
+                                {
                                     dismiss = Some(i);
                                 }
                             });

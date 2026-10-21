@@ -52,4 +52,5 @@ assets = [
     # The bundled fonts' licences (OFL-1.1 asks for the text next to the font; ADR 0008).
     ["../app-theme/assets/fonts/OFL-Geist.txt", "usr/share/doc/dail/", "644"],
     ["../app-theme/assets/fonts/OFL-JetBrainsMono.txt", "usr/share/doc/dail/", "644"],
+    ["../app-theme/assets/fonts/LICENSE-MaterialSymbols.txt", "usr/share/doc/dail/", "644"],
 ]

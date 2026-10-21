@@ -61,11 +61,16 @@ fn card_ui(ui: &mut Ui, p: &Palette, card: &Card, queue: &mut Vec<Request>) {
                 ui.label(RichText::new(&card.excerpt).color(p.secondary));
             }
             for line in &card.attachments {
-                ui.label(
-                    RichText::new(format!("📎 {line}"))
-                        .font(widgets::mono(11.5))
-                        .color(p.ink),
+                // The full path stays readable: no truncation, plain text.
+                let job = widgets::icon_text(
+                    app_theme::Icon::AttachFile,
+                    line,
+                    widgets::mono(11.5),
+                    p.ink,
                 );
+                let name = format!("📎 {line}");
+                ui.label(job)
+                    .widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &name));
             }
             ui.add_space(4.0);
             ui.horizontal(|ui| {

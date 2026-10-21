@@ -1,7 +1,8 @@
 //! The sidebar: accounts and their mailboxes, compose and account buttons.
 
-use app_core::{AppState, Command, Mailbox, MailboxRole, Pane, listing};
+use app_core::{AppState, Command, Mailbox, Pane, listing};
 use app_front::mailbox::mailbox_name;
+use app_theme::Icon;
 use egui::{RichText, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
@@ -15,20 +16,6 @@ pub struct SidebarActions {
     pub add_account: bool,
 }
 
-const fn role_icon(role: Option<MailboxRole>) -> &'static str {
-    match role {
-        Some(MailboxRole::Inbox) => "📥",
-        Some(MailboxRole::Sent) => "📤",
-        Some(MailboxRole::Drafts) => "📝",
-        Some(MailboxRole::Trash) => "🗑",
-        Some(MailboxRole::Archive) => "🗄",
-        Some(MailboxRole::Junk) => "⚠",
-        Some(MailboxRole::All) => "📬",
-        Some(MailboxRole::Flagged) => "⭐",
-        None => "📁",
-    }
-}
-
 /// Renders the expanded sidebar.
 pub fn show(
     ui: &mut Ui,
@@ -39,15 +26,23 @@ pub fn show(
     let mut actions = SidebarActions::default();
     ui.add_space(10.0);
     ui.horizontal(|ui| {
+        widgets::icon(ui, Icon::Mail, 20.0, p.ink, false);
         ui.label(
-            RichText::new("✉ dail")
+            RichText::new("dail")
                 .size(17.0)
                 .strong()
                 .family(crate::theme::semibold())
                 .color(p.ink),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if widgets::icon_button(ui, p.secondary, "«", "Collapse sidebar (Ctrl+B)").clicked() {
+            if widgets::icon_button(
+                ui,
+                p.secondary,
+                Icon::DockToLeft,
+                "Collapse sidebar (Ctrl+B)",
+            )
+            .clicked()
+            {
                 queue.push(Request::user(Command::ToggleSidebar {}));
             }
         });
@@ -89,7 +84,7 @@ pub fn show(
                     .sum();
                 let open = state.view.unified && state.view.search.is_none();
                 let row = NavRow {
-                    icon: "▣",
+                    icon: Icon::AllInbox,
                     name: "All inboxes".to_owned(),
                     unread,
                     open,
@@ -136,7 +131,7 @@ pub fn show(
 
 /// One row of the sidebar.
 struct NavRow {
-    icon: &'static str,
+    icon: Icon,
     name: String,
     unread: u32,
     open: bool,
@@ -150,7 +145,7 @@ fn mailbox_row(
     focused: bool,
 ) -> bool {
     let row = NavRow {
-        icon: role_icon(mailbox.role),
+        icon: crate::theme::role_icon(mailbox.role),
         name: mailbox_name(mailbox),
         unread: mailbox.unread,
         open: state.view.mailbox == Some(mailbox.id)
@@ -213,7 +208,13 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
             .layout(egui::Layout::left_to_right(egui::Align::Center))
             .accessibility_parent(response.id),
     );
-    child.label(RichText::new(row.icon).color(p.secondary));
+    widgets::icon(
+        &mut child,
+        row.icon,
+        16.0,
+        if open { p.ink } else { p.secondary },
+        open,
+    );
     let name = RichText::new(&row.name).color(if open { p.ink } else { p.secondary });
     child.add(
         egui::Label::new(if open {
@@ -236,7 +237,9 @@ fn nav_row(ui: &mut Ui, p: &Palette, row: &NavRow, focused: bool) -> egui::Respo
 pub fn rail(ui: &mut Ui, p: &Palette, queue: &mut Vec<Request>) {
     ui.add_space(10.0);
     ui.vertical_centered(|ui| {
-        if widgets::icon_button(ui, p.secondary, "»", "Expand sidebar (Ctrl+B)").clicked() {
+        if widgets::icon_button(ui, p.secondary, Icon::DockToLeft, "Expand sidebar (Ctrl+B)")
+            .clicked()
+        {
             queue.push(Request::user(Command::ToggleSidebar {}));
         }
     });

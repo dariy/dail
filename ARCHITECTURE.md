@@ -100,7 +100,11 @@ chrome), the type scale, the metrics, the built-in themes (`dail-dark`, `dail-li
 `dail-light-hc`) and the WCAG contrast `audit`, a unit test over every built-in. It depends on `serde` only. It also
 bundles the fonts (`fonts`: Geist and JetBrains Mono, variable in `wght`, with their OFL texts). `app-gui` registers
 each font once per weight (400, 500, 600) as the families `sans`, `sans-500`, `sans-600`, `mono`, `mono-500` and
-`mono-600`, with egui's own fonts as fallbacks, and maps egui's `TextStyle`s onto the type scale.
+`mono-600`, with egui's own fonts as fallbacks, and maps egui's `TextStyle`s onto the type scale. The icons are a
+Material Symbols Outlined subset (`icon`: `Icon` names the glyphs; families `icons` and `icons-filled`). The GUI paints
+them (`widgets::icon`), so screen readers never read a private-use character; the widget around carries the name.
+Mailbox roles map onto icons in `theme::role_icon`, an exhaustive match. Emoji in mail still come from egui's emoji
+fonts.
 
 ## 4. Core model (`app-core`)
 
@@ -814,7 +818,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   tags each account with a colour (`theme::account_color`, by its position); the list's rows carry their account's colour.
   The TUI titles the unified list *All inboxes*.
 - **Checked threads:** Ctrl (Cmd) + click checks or unchecks a row, Shift + click checks every row from the cursor to it,
-  `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show `✔` (`✓` in the TUI; the GUI fonts have no `✓`).
+  `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show a check mark (the `check` icon in the GUI, `✓` in the TUI).
   While threads are checked the list header shows *N checked* with *Archive*, *Trash*, *Mark read*, *Mark unread*,
   *Star* and *Uncheck all*, and every triage key or palette command acts on the checked threads (`palette::targets`).
 - **Conversation:** messages oldest first. By default the unread ones and the newest are expanded and the others are

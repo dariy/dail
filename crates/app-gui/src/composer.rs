@@ -12,6 +12,7 @@ use std::sync::mpsc;
 use app_core::{Addr, AppState, AttachmentState, Command, Draft, DraftId, Pane, listing};
 use app_front::compose::{self, Field};
 use app_front::format;
+use app_theme::Icon;
 use egui::{RichText, Ui};
 
 use crate::bridge::Request;
@@ -349,7 +350,7 @@ impl ComposerState {
                             if widgets::icon_button(
                                 ui,
                                 p.faint,
-                                "×",
+                                Icon::Close,
                                 &format!("Remove {}", addr.email),
                             )
                             .clicked()
@@ -441,8 +442,14 @@ impl ComposerState {
                     .inner_margin(egui::Margin::symmetric(6, 2))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label(RichText::new(format!("📎 {}", attachment.name)).color(p.ink))
-                                .on_hover_text(&attachment.path);
+                            widgets::icon_label(
+                                ui,
+                                Icon::AttachFile,
+                                &attachment.name,
+                                p.ink,
+                                &format!("📎 {}", attachment.name),
+                            )
+                            .on_hover_text(&attachment.path);
                             let detail = RichText::new(detail).size(11.0);
                             if failed {
                                 ui.colored_label(ui.visuals().error_fg_color, detail);
@@ -452,7 +459,7 @@ impl ComposerState {
                             if widgets::icon_button(
                                 ui,
                                 p.faint,
-                                "×",
+                                Icon::Close,
                                 &format!("Remove {}", attachment.name),
                             )
                             .clicked()

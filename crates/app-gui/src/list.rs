@@ -2,6 +2,7 @@
 //! laid out).
 
 use app_core::{AppState, Command, Pane, ThreadId, ThreadSummary, listing};
+use app_theme::Icon;
 use egui::{Align, Layout, RichText, Sense, Ui, Vec2};
 
 use crate::bridge::Request;
@@ -343,7 +344,7 @@ fn row(
     child.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
         if look.checked {
-            ui.label(RichText::new("✔").color(p.ink));
+            widgets::icon(ui, Icon::Check, 16.0, p.ink, false);
         }
         if let Some(tag) = look.tag {
             let (rect, _) = ui.allocate_exact_size(Vec2::new(4.0, 12.0), Sense::hover());
@@ -361,10 +362,10 @@ fn row(
                 );
             }
             if summary.has_attachments {
-                ui.label(RichText::new("📎").color(p.faint));
+                widgets::icon(ui, Icon::AttachFile, 14.0, p.faint, false);
             }
             if summary.flagged {
-                ui.label(RichText::new("★").color(p.ink));
+                widgets::icon(ui, Icon::Star, 14.0, p.ink, true);
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 let senders = format::names(&summary.senders);

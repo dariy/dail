@@ -511,9 +511,12 @@ impl Wizard {
                 });
             }
             Some(AccountStatus::Verified { .. }) => {
-                ui.label(
-                    RichText::new("✔ Connected. IMAP and SMTP both accepted the login.")
-                        .color(p.ink),
+                widgets::icon_label(
+                    ui,
+                    app_theme::Icon::Check,
+                    "Connected. IMAP and SMTP both accepted the login.",
+                    p.ink,
+                    "Connected. IMAP and SMTP both accepted the login.",
                 );
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {

@@ -291,8 +291,8 @@ independent.
 - [x] UI-2 [gui]: Fonts: Geist and JetBrains Mono (variable) in `app-theme/assets/fonts/`, three weights through
   `FontTweak::coords`, egui's fonts as fallbacks, `TextStyle` mapped onto the type scale; licence texts in the `.deb`;
   binary size measured before and after (release `dail`: 37 583 824 → 38 000 464 bytes, +407 KB)
-- [ ] UI-3 [gui]: Icons: a Material Symbols Outlined subset and `app_theme::Icon` replace every emoji glyph; role icons
-  total over `MailboxRole`; ARCHITECTURE §7.1 (the missing `✓`)
+- [x] UI-3 [gui]: Icons: a Material Symbols Outlined subset and `app_theme::Icon` replace every emoji glyph; role icons
+  total over `MailboxRole`; ARCHITECTURE §7.1 (the missing `✓`) (release `dail` +37 KB, 38 038 224 bytes)
 - [ ] UI-4 [gui]: egui adapter (`app_gui::theme` → `Tokens`, `Visuals` per theme, chrome visuals), component kit
   `app_gui::ui` replacing `widgets.rs`, `gallery` example, style check (`tests/it/style.rs`) with an allowlist
 

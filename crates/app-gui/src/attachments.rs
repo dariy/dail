@@ -11,6 +11,7 @@ use std::sync::mpsc;
 use app_core::{AppState, Command, MessageId, SaveState};
 use app_front::body::Body;
 use app_front::format;
+use app_theme::Icon;
 use egui::TextureHandle;
 use egui::{RichText, Ui};
 
@@ -231,15 +232,20 @@ pub fn show(
     });
     for attachment in &body.attachments {
         ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(format!(
-                    "📎 {}  ·  {}  ·  {}",
-                    attachment.name,
-                    format::size(attachment.size),
-                    attachment.content_type
-                ))
-                .color(p.secondary),
+            let text = format!(
+                "{}  ·  {}  ·  {}",
+                attachment.name,
+                format::size(attachment.size),
+                attachment.content_type
             );
+            let icon = if attachment.content_type == "application/pdf" {
+                Icon::PictureAsPdf
+            } else if attachment.content_type.starts_with("image/") {
+                Icon::Image
+            } else {
+                Icon::Description
+            };
+            widgets::icon_label(ui, icon, &text, p.secondary, &format!("📎 {text}"));
             if save_button(ui, p, "Save…") {
                 saver.ask(ui.ctx(), message, vec![attachment.part]);
             }
@@ -252,7 +258,9 @@ pub fn show(
                     previews.toggle(message, attachment.part);
                 }
             }
-            if attachment.content_type == "application/pdf" && save_button(ui, p, "Open ↗") {
+            if attachment.content_type == "application/pdf"
+                && icon_save_button(ui, p, Icon::OpenInNew, "Open", "Open ↗")
+            {
                 externals.push(External::OpenAttachment(PartKey {
                     blob: blob.to_owned(),
                     part: attachment.part,
@@ -332,6 +340,14 @@ fn saved_text(files: &[String]) -> String {
         [one] => format!("Saved as {one}"),
         _ => format!("Saved {} files: {}", files.len(), files.join(", ")),
     }
+}
+
+/// [`save_button`] with an icon; `name` is its accessible name.
+fn icon_save_button(ui: &mut Ui, p: &Palette, icon: Icon, label: &str, name: &str) -> bool {
+    let job = widgets::icon_text(icon, label, egui::FontId::proportional(12.0), p.secondary);
+    let response = ui.add(egui::Button::new(job).frame(false));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
+    response.clicked()
 }
 
 fn save_button(ui: &mut Ui, p: &Palette, label: &str) -> bool {

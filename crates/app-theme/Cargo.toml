@@ -4,8 +4,8 @@ description = "Toolkit-free design tokens and built-in themes for the dail front
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-# The code's licence, and OFL-1.1 for the bundled fonts (`assets/fonts/`, ADR 0008).
-license = "(MIT OR Apache-2.0) AND OFL-1.1"
+# The code's licence, OFL-1.1 for the text fonts and Apache-2.0 for the icon font (`assets/fonts/`, ADR 0008).
+license = "(MIT OR Apache-2.0) AND OFL-1.1 AND Apache-2.0"
 repository.workspace = true
 publish = false
 
