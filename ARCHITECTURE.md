@@ -773,7 +773,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   `Escape` and Ctrl chords other than the editing keys (A, C, V, X, Y, Z) act. The palette shows each command's first
   key, and `g <letter>` on the mailboxes of the current account.
 - **Composer:** plain text in the MVP, with To/Cc/Bcc chips and attachments by path / file dialog (`rfd`, XDG portal on Linux, kept in app-gui).
-  It shows `view.composer` in place of the reader (UI-8: a header with the title, the save state and *Close*; labelled
+  It shows `view.composer` in place of the reader, or, for a reply to a message of the open conversation, docked under
+  it in a resizable bottom panel; the reader then scrolls to its end once (UI-13). New drafts and forwards keep the
+  whole pane (UI-8: a header with the title, the save state and *Close*; labelled
   hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; a footer with *Attach files…*, the attachment
   chips, *Discard* and *Send*). Subject and body are typed into local buffers and written back with
   one `update_draft` when typing pauses for a second, the field loses the focus, or before a key command (Ctrl+Enter

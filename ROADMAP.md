@@ -318,7 +318,7 @@ independent.
   §7.4, §8
 
 ### D — Optional
-- [ ] UI-13 [gui]: Reply composer docked under the conversation (a presentation of `view.composer`, no new command)
+- [x] UI-13 [gui]: Reply composer docked under the conversation (a presentation of `view.composer`, no new command)
 - [ ] UI-14 [core] [io] [sync] [tk] [gui]: Snippets in the list rows: `Envelope.snippet` from fetched bodies, untrusted
   in MCP/CLI output, a "preview" density (72 px)
 - [ ] UI-15: System fonts for scripts the bundled fonts lack (eframe `system_fonts`; deny and no-C gates, Windows too)

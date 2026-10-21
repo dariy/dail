@@ -59,6 +59,8 @@ pub struct Shell {
     palette: PaletteState,
     keys: KeyState,
     composer: ComposerState,
+    /// The reply docked under the conversation, to scroll the reader once when it opens.
+    docked: Option<app_core::DraftId>,
     toasts: Toasts,
     wizard: Wizard,
     settings: crate::settings::SettingsState,
@@ -84,6 +86,7 @@ impl Default for Shell {
             palette: PaletteState::default(),
             keys: KeyState::default(),
             composer: ComposerState::default(),
+            docked: None,
             toasts: Toasts::default(),
             wizard: Wizard::default(),
             settings: crate::settings::SettingsState::default(),
@@ -339,50 +342,80 @@ impl Shell {
                     });
                     ui.add_space(t.m.space.sm);
                 }
-                if state
-                    .view
-                    .composer
-                    .is_some_and(|id| state.drafts.contains_key(&id))
-                {
-                    self.composer.show(ui, &t, state, now_ms, &mut queue);
-                } else {
-                    let mut ask = None;
-                    reader::show(
-                        ui,
-                        &t,
-                        state,
-                        &self.bodies,
-                        now_ms,
-                        reader::ReaderIo {
-                            images: &mut self.images,
-                            folds: &mut self.folds,
-                            saver: &mut self.saver,
-                            previews: &mut self.previews,
-                            queue: &mut queue,
-                            externals: &mut self.externals,
-                            rows: &rows.ids,
-                            ask: &mut ask,
-                        },
-                    );
-                    if let Some(step) = ask.take() {
-                        self.palette.open_at(step);
-                        queue.push(Request::user(Command::OpenPalette {}));
+                match placement(state) {
+                    Placement::Pane => self.composer.show(ui, &t, state, now_ms, &mut queue),
+                    Placement::None => {
+                        self.docked = None;
+                        self.show_reader(ui, &t, state, now_ms, &rows.ids, false, &mut queue);
                     }
-                    self.externals.extend(
-                        self.images
-                            .take_wanted()
-                            .into_iter()
-                            .map(External::LoadImage),
-                    );
-                    self.externals.extend(
-                        self.previews
-                            .take_wanted()
-                            .into_iter()
-                            .map(External::LoadPreview),
-                    );
+                    Placement::Docked(draft) => {
+                        // A reply to the open conversation shows under it (UI-13). The reader
+                        // scrolls to its end once, when the composer opens.
+                        let opened = self.docked != Some(draft);
+                        self.docked = Some(draft);
+                        Panel::bottom("reply-composer")
+                            .resizable(true)
+                            .default_size(ui.available_height() * 0.55)
+                            .min_size(t.m.overlays.palette_list_max / 2.0)
+                            .frame(egui::Frame::new().fill(t.canvas))
+                            .show(ui, |ui| {
+                                self.composer.show(ui, &t, state, now_ms, &mut queue);
+                            });
+                        self.show_reader(ui, &t, state, now_ms, &rows.ids, opened, &mut queue);
+                    }
                 }
             });
         queue
+    }
+
+    /// The reader and the requests its widgets make (palette steps, images, previews).
+    // reason: the frame's pieces, borrowed separately from `self`.
+    #[allow(clippy::too_many_arguments)]
+    fn show_reader(
+        &mut self,
+        ui: &mut egui::Ui,
+        t: &theme::Tokens,
+        state: &AppState,
+        now_ms: i64,
+        rows: &[app_core::ThreadId],
+        scroll_to_end: bool,
+        queue: &mut Vec<Request>,
+    ) {
+        let mut ask = None;
+        reader::show(
+            ui,
+            t,
+            state,
+            &self.bodies,
+            now_ms,
+            reader::ReaderIo {
+                images: &mut self.images,
+                folds: &mut self.folds,
+                saver: &mut self.saver,
+                previews: &mut self.previews,
+                queue: &mut *queue,
+                externals: &mut self.externals,
+                rows,
+                ask: &mut ask,
+                scroll_to_end,
+            },
+        );
+        if let Some(step) = ask.take() {
+            self.palette.open_at(step);
+            queue.push(Request::user(Command::OpenPalette {}));
+        }
+        self.externals.extend(
+            self.images
+                .take_wanted()
+                .into_iter()
+                .map(External::LoadImage),
+        );
+        self.externals.extend(
+            self.previews
+                .take_wanted()
+                .into_iter()
+                .map(External::LoadPreview),
+        );
     }
 
     fn show_result(&mut self, ctx: &egui::Context, t: &theme::Tokens) {
@@ -459,5 +492,38 @@ impl Shell {
                 }
             },
         }
+    }
+}
+
+/// Where the composer shows (UI-13).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Placement {
+    /// No draft is open: the reader.
+    None,
+    /// New drafts and forwards take the whole pane.
+    Pane,
+    /// A reply to a message of the open conversation shows under it.
+    Docked(app_core::DraftId),
+}
+
+fn placement(state: &AppState) -> Placement {
+    let Some(draft) = state.view.composer.and_then(|id| state.drafts.get(&id)) else {
+        return Placement::None;
+    };
+    let reply = draft
+        .quote
+        .as_ref()
+        .is_some_and(|q| q.style == app_core::QuoteStyle::Reply);
+    let in_thread = draft.reply_to.is_some_and(|message| {
+        state
+            .view
+            .thread
+            .and_then(|id| state.threads.get(&id))
+            .is_some_and(|thread| thread.messages.contains(&message))
+    });
+    if reply && in_thread {
+        Placement::Docked(draft.id)
+    } else {
+        Placement::Pane
     }
 }

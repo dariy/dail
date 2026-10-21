@@ -331,3 +331,68 @@ fn the_sender_is_chosen_among_the_accounts_addresses() {
         }]
     );
 }
+
+/// A harness with the "Q3 numbers" conversation open and the message to answer.
+fn reading() -> (Harness<'static, Gui>, app_core::MessageId) {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let message = *state.threads[&threads[1]].messages.last().unwrap();
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(&mut h, Command::OpenThread { id: threads[1] });
+    h.state_mut().out.clear();
+    (h, message)
+}
+
+#[test]
+fn a_reply_docks_under_the_conversation() {
+    let (mut h, message) = reading();
+    let receipt = apply(
+        &mut h,
+        Command::Reply {
+            message,
+            body: None,
+        },
+    );
+    let id: DraftId = serde_json::from_value(receipt.data["id"].clone()).unwrap();
+    apply(&mut h, Command::OpenComposer { id });
+    // The reader stays: its toolbar is above the composer.
+    let forward = h
+        .get(By::new().role(Role::Button).label_contains("Forward"))
+        .rect();
+    let send = h
+        .get(By::new().role(Role::Button).label_contains("Send"))
+        .rect();
+    assert!(
+        forward.max.y < send.min.y,
+        "the composer is under the reader"
+    );
+    h.state_mut().out.clear();
+    type_into(&mut h, By::new().label("Subject"), " now");
+    h.get(By::new().role(Role::Button).label("Discard")).click();
+    h.run();
+    let sent = h.state_mut().pump();
+    assert!(
+        matches!(&sent[..], [Command::UpdateDraft { subject: Some(s), .. }, Command::DiscardDraft { id: d }] if s.ends_with(" now") && *d == id),
+        "{sent:?}"
+    );
+}
+
+#[test]
+fn a_forward_takes_the_whole_pane() {
+    let (mut h, message) = reading();
+    let receipt = apply(
+        &mut h,
+        Command::Forward {
+            message,
+            body: None,
+        },
+    );
+    let id: DraftId = serde_json::from_value(receipt.data["id"].clone()).unwrap();
+    apply(&mut h, Command::OpenComposer { id });
+    h.get(By::new().role(Role::Button).label_contains("Send"));
+    assert!(
+        h.query_by_label_contains("Reply all").is_none(),
+        "the reader is replaced"
+    );
+}

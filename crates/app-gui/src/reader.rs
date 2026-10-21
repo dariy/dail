@@ -86,6 +86,8 @@ pub struct ReaderIo<'a> {
     pub rows: &'a [app_core::ThreadId],
     /// A palette step the toolbar asks for (*Move…*).
     pub ask: &'a mut Option<app_front::palette::Ask>,
+    /// Scroll the conversation to its end this frame (a reply composer opened under it).
+    pub scroll_to_end: bool,
 }
 
 /// Renders the open thread (or an empty-state hint).
@@ -106,6 +108,7 @@ pub fn show(
         externals,
         rows,
         ask,
+        scroll_to_end,
     } = io;
     let Some(thread) = state.view.thread.and_then(|id| state.threads.get(&id)) else {
         ui.add_space(t.m.frame.top_bar + t.m.space.xl);
@@ -171,6 +174,7 @@ pub fn show(
                         externals: &mut *externals,
                         rows,
                         ask: &mut *ask,
+                        scroll_to_end: false,
                     };
                     let card = Card {
                         state,
@@ -185,6 +189,9 @@ pub fn show(
                     collapsed_row(ui, t, message, body, now_ms, queue);
                     ui.add_space(t.m.space.xs + 2.0);
                 }
+            }
+            if scroll_to_end {
+                ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
             }
         });
 }
