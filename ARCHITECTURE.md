@@ -810,8 +810,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   freedesktop notification service over D-Bus (zbus; the body escaped, since servers may read markup; each kind
   replaces its last notification) or to a WinRT toast on Windows (borrowing PowerShell's AppUserModelID until the
   installer registers one; XML-escaped). Clicking one does nothing yet; the TUI has none (it may run over SSH).
-- **Attachments** (`app_gui::attachments`): below each body, name, size and type of each attachment with *Save…*, and
-  *Save all…* (the shown, non-inline ones). The folder comes from `rfd`'s folder dialog on its own thread; the choice
+- **Attachments** (`app_gui::attachments`): below each body, a caption with the count and total size, then one card per
+  attachment (an icon tile by type, the name, size and type) with the icon buttons *Save…*, *Preview* and, for PDFs,
+  *Open ↗*, and *Save all…* by the caption (the shown, non-inline ones). The folder comes from `rfd`'s folder dialog on its own thread; the choice
   becomes `save_attachments {message, parts, dir}`. The runtime (`app_sync::saves`; `app-testkit` writes into its fake
   file system) writes each part under `app_io::mime::safe_file_name` (last path component, no control or
   Windows-forbidden characters, no leading dots, no reserved device names, ≤ 200 bytes) with `create_new`, so an
@@ -837,8 +838,15 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   one). The palette's *Expand/Collapse all messages* send them with no `ids`. Quoted text and signatures are folded
   behind *··· Show quoted text* / *··· Show signature* (`fold` blocks of documents, `app_front::fold::split` of plain
   text); opening a fold is presentation, like scrolling (`reader::Folds`, per message and kind), not a command.
-- **Reader:** an HTML body is drawn from its `document` (`app_core::document`, built by `app_io::document`, §6;
-  drawn by `app_gui::document`): paragraphs, headings, lists, block quotes, preformatted text, rules and data tables,
+- **Reader** (UI-7): a 48 px toolbar outside the scroll area (*Reply* primary, *Reply all*, *Forward*; icon buttons
+  named with their keys for star, read, archive, trash and *Move…*, which opens the palette at its step; on the right
+  "n of N" with the previous and next conversation, as `k` and `j`, and close), the subject in `headline_xl`, a meta line
+  of chips (the mailbox when it is not the inbox, the message count, the account with several), then the messages:
+  an expanded one is a card with an initials avatar, the sender in `headline_md`, "to …" and the date in mono; a
+  collapsed one is a line with a small avatar, the sender (600 when unread), the first line of its text and its age.
+  Plain text bodies are `body_lg` (15/24), at most 720 wide. An HTML body is drawn from its `document` (`app_core::document`, built by `app_io::document`, §6;
+  drawn by `app_gui::document`; h1 `headline_lg`, h2 `headline_md`, lower headings `body_md` at 600, quotes with a 2 px
+  `border_strong` bar, preformatted text in a card): paragraphs, headings, lists, block quotes, preformatted text, rules and data tables,
   with bold, italic, code, strike-through and links. Each span is a label, so a link's text is clicked to open its
   target, whose full URL shows on hover. Images appear as their alt text; remote images are never loaded. A message's
   own inline images (`cid:` spans) are drawn once its sender is in `settings.images_from`: a bar above such a body says

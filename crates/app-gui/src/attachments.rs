@@ -222,51 +222,117 @@ pub fn show(
     if body.attachments.is_empty() {
         return;
     }
-    ui.add_space(8.0);
+    ui.add_space(t.m.space.md);
     ui.horizontal(|ui| {
-        ui::caption(ui, t, &format!("Attachments ({})", body.attachments.len()));
-        if body.attachments.len() > 1 && save_button(ui, t, "Save all…") {
-            let parts = body.attachments.iter().map(|a| a.part).collect();
-            saver.ask(ui.ctx(), message, parts);
+        let total: u64 = body.attachments.iter().map(|a| a.size).sum();
+        let n = body.attachments.len();
+        let files = if n == 1 {
+            "1 file".to_owned()
+        } else {
+            format!("{n} files")
+        };
+        ui::caption(
+            ui,
+            t,
+            &format!("Attachments ({files} · {})", format::size(total)),
+        );
+        if n > 1 {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if icon_save_button(ui, t, Icon::Download, "Save all", "Save all…") {
+                    let parts = body.attachments.iter().map(|a| a.part).collect();
+                    saver.ask(ui.ctx(), message, parts);
+                }
+            });
         }
     });
+    ui.add_space(t.m.space.xs);
     for attachment in &body.attachments {
-        ui.horizontal(|ui| {
-            let text = format!(
-                "{}  ·  {}  ·  {}",
-                attachment.name,
-                format::size(attachment.size),
-                attachment.content_type
-            );
-            let icon = if attachment.content_type == "application/pdf" {
-                Icon::PictureAsPdf
-            } else if attachment.content_type.starts_with("image/") {
-                Icon::Image
-            } else {
-                Icon::Description
-            };
-            ui::icon_label(ui, t, icon, &text, t.text_secondary, &format!("📎 {text}"));
-            if save_button(ui, t, "Save…") {
-                saver.ask(ui.ctx(), message, vec![attachment.part]);
-            }
-            let Some(blob) = blob else {
-                return;
-            };
-            if previewable(&attachment.content_type) {
-                let open = previews.open.contains(&(message, attachment.part));
-                if save_button(ui, t, if open { "Hide preview" } else { "Preview" }) {
-                    previews.toggle(message, attachment.part);
-                }
-            }
-            if attachment.content_type == "application/pdf"
-                && icon_save_button(ui, t, Icon::OpenInNew, "Open", "Open ↗")
-            {
-                externals.push(External::OpenAttachment(PartKey {
-                    blob: blob.to_owned(),
-                    part: attachment.part,
-                }));
-            }
+        ui::card(t).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = t.m.space.md;
+                let icon = if attachment.content_type == "application/pdf" {
+                    Icon::PictureAsPdf
+                } else if attachment.content_type.starts_with("image/") {
+                    Icon::Image
+                } else {
+                    Icon::Description
+                };
+                let tile = t.m.controls.avatar_lg;
+                let (rect, _) =
+                    ui.allocate_exact_size(egui::Vec2::splat(tile), egui::Sense::hover());
+                ui.painter()
+                    .rect_filled(rect, ui::radius(t.m.radius.md), t.emphasis);
+                ui::paint_icon(
+                    ui,
+                    rect.center(),
+                    icon,
+                    t.m.controls.icon_lg,
+                    t.text_strong,
+                    false,
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if attachment.content_type == "application/pdf"
+                        && let Some(blob) = blob
+                        && ui::icon_button(ui, t, t.text_secondary, Icon::OpenInNew, "Open ↗")
+                            .clicked()
+                    {
+                        externals.push(External::OpenAttachment(PartKey {
+                            blob: blob.to_owned(),
+                            part: attachment.part,
+                        }));
+                    }
+                    if blob.is_some() && previewable(&attachment.content_type) {
+                        let open = previews.open.contains(&(message, attachment.part));
+                        let (icon, name) = if open {
+                            (Icon::VisibilityOff, "Hide preview")
+                        } else {
+                            (Icon::Visibility, "Preview")
+                        };
+                        if ui::icon_button(ui, t, t.text_secondary, icon, name).clicked() {
+                            previews.toggle(message, attachment.part);
+                        }
+                    }
+                    if ui::icon_button(ui, t, t.text_secondary, Icon::Download, "Save…").clicked()
+                    {
+                        saver.ask(ui.ctx(), message, vec![attachment.part]);
+                    }
+                    ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+                        ui.spacing_mut().item_spacing.y = t.m.space.xs / 2.0;
+                        let name = ui.add(
+                            egui::Label::new(ui::text_at(
+                                &t.type_scale.body_md,
+                                600,
+                                attachment.name.clone(),
+                                t.text_strong,
+                            ))
+                            .truncate(),
+                        );
+                        let detail = format!(
+                            "{} · {}",
+                            format::size(attachment.size),
+                            attachment.content_type
+                        );
+                        ui.label(ui::text(
+                            &t.type_scale.label_sm,
+                            detail.clone(),
+                            t.text_muted,
+                        ));
+                        // Screen readers hear the whole line, as before.
+                        let spoken = format!(
+                            "📎 {}  ·  {}  ·  {}",
+                            attachment.name,
+                            format::size(attachment.size),
+                            attachment.content_type
+                        );
+                        name.widget_info(|| {
+                            egui::WidgetInfo::labeled(egui::Role::Label, true, &spoken)
+                        });
+                    });
+                });
+            });
         });
+        ui.add_space(t.m.space.xs + 2.0);
         if let Some(blob) = blob
             && previews.open.contains(&(message, attachment.part))
         {
@@ -282,10 +348,18 @@ pub fn show(
     };
     match &save.state {
         SaveState::Saving => {
-            ui.label(RichText::new(format!("Saving into {}…", save.dir)).color(t.text_muted));
+            ui.label(ui::text(
+                &t.type_scale.body_sm,
+                format!("Saving into {}…", save.dir),
+                t.text_muted,
+            ));
         }
         SaveState::Saved { files } => {
-            ui.label(RichText::new(saved_text(files)).color(t.text_muted));
+            ui.label(ui::text(
+                &t.type_scale.body_sm,
+                saved_text(files),
+                t.text_muted,
+            ));
         }
         SaveState::Failed { files, error } => {
             ui.colored_label(
@@ -300,41 +374,30 @@ pub fn show(
 }
 
 fn preview(ui: &mut Ui, t: &Tokens, preview: &Preview, key: &PartKey) {
-    egui::Frame::new()
-        .stroke(egui::Stroke::new(1.0, t.border_subtle))
-        .corner_radius(3)
-        .inner_margin(egui::Margin::same(8))
-        .show(ui, |ui| match preview {
-            Preview::Loading => {
-                ui.label(RichText::new("Loading the preview…").color(t.text_muted));
-            }
-            Preview::Image(texture) => {
-                let width = texture.size_vec2().x.min(ui.available_width());
-                ui.add(
-                    egui::Image::new(texture)
-                        .max_width(width)
-                        .alt_text("Preview"),
-                );
-            }
-            Preview::Text(text) => {
-                egui::ScrollArea::vertical()
-                    .id_salt(("preview", &key.blob, key.part))
-                    .max_height(320.0)
-                    .show(ui, |ui| {
-                        ui.add(
-                            egui::Label::new(
-                                RichText::new(text)
-                                    .font(ui::mono(12.0))
-                                    .color(t.text_strong),
-                            )
-                            .wrap(),
-                        );
-                    });
-            }
-            Preview::Failed(error) => {
-                ui.label(RichText::new(format!("No preview: {error}")).color(t.text_muted));
-            }
-        });
+    ui::card_base(t).show(ui, |ui| match preview {
+        Preview::Loading => {
+            ui.label(RichText::new("Loading the preview…").color(t.text_muted));
+        }
+        Preview::Image(texture) => {
+            let width = texture.size_vec2().x.min(ui.available_width());
+            ui.add(
+                egui::Image::new(texture)
+                    .max_width(width)
+                    .alt_text("Preview"),
+            );
+        }
+        Preview::Text(text) => {
+            egui::ScrollArea::vertical()
+                .id_salt(("preview", &key.blob, key.part))
+                .max_height(t.m.overlays.palette_list_max)
+                .show(ui, |ui| {
+                    ui.add(egui::Label::new(ui::text(&t.type_scale.label_md, text, t.text)).wrap());
+                });
+        }
+        Preview::Failed(error) => {
+            ui.label(RichText::new(format!("No preview: {error}")).color(t.text_muted));
+        }
+    });
 }
 
 fn saved_text(files: &[String]) -> String {
@@ -349,17 +412,12 @@ fn icon_save_button(ui: &mut Ui, t: &Tokens, icon: Icon, label: &str, name: &str
     let job = ui::icon_text(
         icon,
         label,
-        egui::FontId::proportional(12.0),
+        ui::font(&t.type_scale.body_sm),
         t.text_secondary,
     );
-    let response = ui.add(egui::Button::new(job).frame(false));
+    let response = ui::ghost(ui, t, job);
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, name));
     response.clicked()
-}
-
-fn save_button(ui: &mut Ui, t: &Tokens, label: &str) -> bool {
-    ui.add(egui::Button::new(RichText::new(label).size(12.0).color(t.text_secondary)).frame(false))
-        .clicked()
 }
 
 #[cfg(test)]

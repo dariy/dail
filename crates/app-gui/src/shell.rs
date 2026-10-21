@@ -326,6 +326,7 @@ impl Shell {
                 {
                     self.composer.show(ui, &t, state, now_ms, &mut queue);
                 } else {
+                    let mut ask = None;
                     reader::show(
                         ui,
                         &t,
@@ -339,8 +340,14 @@ impl Shell {
                             previews: &mut self.previews,
                             queue: &mut queue,
                             externals: &mut self.externals,
+                            rows: &rows.ids,
+                            ask: &mut ask,
                         },
                     );
+                    if let Some(step) = ask.take() {
+                        self.palette.open_at(step);
+                        queue.push(Request::user(Command::OpenPalette {}));
+                    }
                     self.externals.extend(
                         self.images
                             .take_wanted()

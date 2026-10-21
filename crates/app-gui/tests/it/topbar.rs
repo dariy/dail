@@ -17,7 +17,8 @@ fn sync_state_and_the_poll_hint_are_shown() {
     state.status.sync.get_mut(&account).unwrap().last_sync_ms = Some(fixed_now() - 120_000);
     let mut h = gui(state);
     h.run();
-    h.get_by_label("Ctrl+K");
+    // In the search pill (and in the reader's empty state).
+    assert!(h.get_all_by_label("Ctrl+K").next().is_some());
     h.get(By::new().role(Role::Button).label("synced 2m ago"))
         .click();
     h.run();
