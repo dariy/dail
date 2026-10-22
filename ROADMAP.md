@@ -426,8 +426,8 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [android] Scaffold `app-android` (cdylib + rlib, `libdail.so`): `Host` opens a profile directory
   (`ProfileDirs::at`) with `LiveBackend`, or the memory backend behind the `demo` feature, and runs `Bridge::own` with
   `Origin::Gui`, the presenter and `event`/`frame`/`blob`/`background`; tests on the desktop, without JNI
-- [ ] [android] JNI: `JNI_OnLoad` and the six calls (`jni` 0.22), handles that are small integers, the wake-up and
-  alert callbacks through attached threads, panics caught at the boundary, errors as JSON; `tracing` to logcat (`warn`
+- [x] [android] JNI: `JNI_OnLoad` and the six calls (`jni` 0.22), handles that are small integers, the wake-up
+  callback through attached threads (`Listener.alert` comes with the notifications, A5), panics caught at the boundary, errors as JSON; `tracing` to logcat (`warn`
   in release) and to `<profile>/logs/android.log`; the lint exception confined to `src/jni.rs` (a test pins the
   crate's `[lints]` to the workspace's but for `unsafe_code`)
 - [ ] [android] Secrets: keyring 4's `android-native-keyring-store` as the default store (ndk-context set up in
@@ -496,7 +496,7 @@ encryption (SEC-1), 32-bit ARM.
   3 min); a periodic job (network required, kept across reboots) runs `sync_now` as `runtime` and waits for the
   accounts; a network change while the app is visible syncs
 - [ ] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or
-  draft): channels *New mail*, *Not sent* and *Background*; `POST_NOTIFICATIONS` asked when first needed; lock-screen
+  draft), through the host's alert watcher and `Listener.alert` (called from an attached runtime thread): channels *New mail*, *Not sent* and *Background*; `POST_NOTIFICATIONS` asked when first needed; lock-screen
   versions without sender or subject; *Archive* and *Mark read* actions; a tap opens the thread
 - [ ] [kt] [android] Push: a `specialUse` foreground service (`dataSync` before Android 14) while `background_sync` is
   2, around the engine's IMAP IDLE watches, with a silent notification (*Watching N inboxes*, *Stop*); started from

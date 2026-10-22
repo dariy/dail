@@ -24,6 +24,9 @@ pub enum HostError {
     /// The demo fixture did not load.
     #[error("demo: {0}")]
     Demo(String),
+    /// No open host has this handle.
+    #[error("no host with handle {0}")]
+    NoHost(i32),
     /// The session is closed.
     #[error("the session is closed")]
     Closed,

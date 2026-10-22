@@ -145,6 +145,9 @@ unicode-width = "0.2" # column widths for wrapping (already in the tree via rata
 # --- Diagnostics ---
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+# Android host (ADR 0009): the JNI calls, and tracing to logcat (logd's socket, no liblog).
+jni = "0.22"
+tracing-logcat = "0.1"
 anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 
 # --- Testing ---

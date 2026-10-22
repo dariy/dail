@@ -116,6 +116,7 @@ fn a_live_profile_opens_empty_and_is_locked_while_open() {
             .unwrap()
     );
     host.close();
+    drop(host);
     let host = Host::open(&live(&dir), wake).unwrap();
     host.close();
     let _ = std::fs::remove_dir_all(&dir);

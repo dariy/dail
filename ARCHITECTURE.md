@@ -1245,9 +1245,20 @@ map onto; it builds and is tested on the desktop.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
   work. `close()` shuts the session down after the queued requests.
-- **Tests** (`app-android/tests/it`): a live profile with no accounts (the lock, the background tasks), and a synced
+- **JNI.** `dail::calls` holds Kotlin's six calls in safe Rust, JSON in and out: `open(config, wake) -> {handle}`,
+  `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
+  table, never a pointer (arm64 tags heap pointers). Every call answers `{"error": "…"}` on failure, and a panic is
+  caught there and becomes such an error. `src/jni.rs` only converts arguments: `JNI_OnLoad` keeps the `JavaVM`, the
+  exports are `Java_net_darii_dail_Native_*` (Kotlin's `object Native` with `@JvmStatic external fun`), and
+  `Listener.wake()` is called from runtime threads, each attached once (`jni` 0.22's `attach_current_thread`).
+  `Listener.alert(json)` joins with the notifications (A5).
+- **Logs.** `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
+  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds.
+- **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
+  allows unsafe code. `tests/it/lints.rs` pins both.
+- **Tests** (`app-android/tests/it`): a live profile with no accounts (the lock, the background tasks), a synced
   memory session driven by events (a tap opens a thread and wakes the app, a swipe archives with `haptic`, bad JSON is
-  an error).
+  an error), and the calls over JSON (handles, errors, the log file).
 
 ## 8. Initial Command catalogue (MVP)
 

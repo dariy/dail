@@ -5,9 +5,12 @@
 //! the presenter (`app_mobile::Mobile`). Kotlin's calls (`open`, `event`, `frame`, `blob`,
 //! `background`, `close`) map onto its methods and carry JSON. Tests drive it on the desktop.
 
+pub mod calls;
 pub mod config;
 pub mod error;
 pub mod host;
+mod jni;
+pub mod logging;
 
 pub use config::{BackendChoice, BlobRequest, Config, Task};
 pub use error::HostError;

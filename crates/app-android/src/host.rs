@@ -36,7 +36,7 @@ pub struct Host {
     bridge: Mutex<Bridge<Purpose>>,
     client: SessionClient,
     mobile: Mutex<Mobile>,
-    task: Option<JoinHandle<()>>,
+    task: Mutex<Option<JoinHandle<()>>>,
     _lock: Option<ProfileLock>,
 }
 
@@ -91,7 +91,7 @@ impl Host {
             bridge: Mutex::new(bridge),
             client,
             mobile: Mutex::new(Mobile::default()),
-            task: Some(task),
+            task: Mutex::new(Some(task)),
             _lock: lock,
         }
     }
@@ -182,9 +182,11 @@ impl Host {
     }
 
     /// Shuts the session down after the queued requests (saving unsaved drafts) and waits.
-    pub fn close(mut self) {
+    /// Later calls do nothing.
+    pub fn close(&self) {
         lock(&self.bridge).close();
-        if let Some(task) = self.task.take()
+        let task = lock(&self.task).take();
+        if let Some(task) = task
             && let Err(err) = self.runtime.block_on(task)
         {
             tracing::warn!(error = %err, "session task failed");
