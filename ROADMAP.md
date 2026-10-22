@@ -442,7 +442,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [kt] The Gradle side of `cargo deny`: dependency verification (checksums), a licence allowlist, a formatter and
   Android Lint with warnings as errors; `cargo xtask android apk-check`: nothing but `libdail.so` (or an allowlisted
   prebuilt) under `lib/`, 16 KB alignment, the permissions pinned; all of it in `cargo xtask verify android`
-- [ ] [kt] Debug adb bridge (debug builds only): a content provider that answers only the shell UID — `exec` (origin
+- [x] [kt] Debug adb bridge (debug builds only): a content provider that answers only the shell UID — `exec` (origin
   `cli`), `exec_agent` (origin `mcp`), `state`, `frame`; the instrumented tests use it, and so do agents, with
   `uiautomator dump`, `screencap` and `input` (plan Appendix D)
 - [ ] [mobile] [kt] Theme: `app-theme`'s tokens in the frame (roles, type scale, metrics; only when they change) mapped

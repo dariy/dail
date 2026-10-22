@@ -10,7 +10,9 @@ use std::sync::{Arc, Mutex, PoisonError};
 use app_sync::Wake;
 use serde_json::{Value, json};
 
-use crate::config::{BlobRequest, Config, Task};
+use serde::Deserialize;
+
+use crate::config::{BlobRequest, Config, DebugTask, Task};
 use crate::error::HostError;
 use crate::host::{BACKGROUND_LIMIT, Host};
 use crate::logging;
@@ -100,12 +102,23 @@ pub fn blob(handle: i32, request: &str) -> Option<Vec<u8>> {
     .flatten()
 }
 
-/// `background(handle, task)`: `{"done": true}`, or `{"done": false}` after 3 minutes.
+/// What `background` takes: a job's task, or one of the debug bridge's.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Background {
+    Task(Task),
+    Debug(DebugTask),
+}
+
+/// `background(handle, task)`: `{"done": true}`, or `{"done": false}` after 3 minutes; for a
+/// debug task (`{"exec": {"origin", "command"}}`, `"state"`), what [`Host::debug`] answers.
 pub fn background(handle: i32, task: &str) -> String {
-    answer(|| {
-        let task: Task = serde_json::from_str(task)?;
-        let done = host(handle)?.background(task, BACKGROUND_LIMIT)?;
-        Ok(json!({ "done": done }))
+    answer(|| match serde_json::from_str(task)? {
+        Background::Task(task) => {
+            let done = host(handle)?.background(task, BACKGROUND_LIMIT)?;
+            Ok(json!({ "done": done }))
+        }
+        Background::Debug(task) => host(handle)?.debug(task),
     })
 }
 

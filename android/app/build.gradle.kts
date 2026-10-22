@@ -29,6 +29,7 @@ android {
         applicationId = "net.darii.dail"
         minSdk = 29
         targetSdk = 36
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionName = workspaceVersion
         versionCode = workspaceVersion.split('.').fold(0) { code, part -> code * 100 + part.toInt() }
     }
@@ -175,4 +176,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
 }

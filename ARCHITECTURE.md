@@ -1242,6 +1242,10 @@ map onto; it builds and is tested on the desktop.
 - **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, or `{image: {blob, part}}` /
   `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
   if it cannot be read or decoded.
+- **`debug(DebugTask)`** (the debug adb bridge; a release build of the library refuses it): `{"exec": {origin,
+  command}}` submits a registry command (`args` may be left out) as `cli` or `mcp` only, never as `gui` or `runtime`,
+  and answers `{"receipt": …}` or `{"rejected": …}`; `"state"` answers the `AppState`. `calls::background` takes a
+  `Task` or a `DebugTask`.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
   work. `close()` shuts the session down after the queued requests.
@@ -1285,6 +1289,13 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   a plain drawing of every pane until the screens of A3–A6.
 - **Tests** (`app/src/test`, JVM): `ContractTest` decodes every contract frame and external strictly and checks that
   Kotlin's events encode exactly as the event fixtures.
+- **The debug adb bridge** (`app/src/debug`: `DebugBridge`, a content provider at `<applicationId>.debug`, exported in
+  debug builds only). It answers only the shell UID (2000), and throws `SecurityException` to anyone else. Methods
+  (`adb shell content call --uri content://net.darii.dail.demo.debug --method <m> [--arg '<json>']`, the answer in the
+  bundle's `result`): `exec` (the command as `cli`), `exec_agent` (as `mcp`, under the agent policy), `state`, and
+  `frame` (the frame last drawn, kept by `Host`, so the bridge never takes the UI's replies or action IDs). It opens the
+  session if no activity has. With `uiautomator dump`, `screencap` and `input` an agent drives and reads the app.
+  `app/src/androidTest` (`connectedDemoDebugAndroidTest`) calls it through the shell (`UiAutomation`), as adb does.
 - **The Gradle side of `cargo deny`.** `gradle/verification-metadata.xml` holds a SHA-256 per artifact (regenerate
   with `./gradlew --write-verification-metadata sha256 <tasks>` after a version change); Licensee allows only
   Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
@@ -1292,7 +1303,7 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
 - **The APK check** (`cargo xtask android apk-check`, over every APK under `app/build/outputs/apk`): `lib/` holds
   only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
   with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
-  release APK is not debuggable and carries no debug bridge.
+  release APK is not debuggable and carries no debug bridge. Instrumented-test APKs are skipped.
 
 ## 8. Initial Command catalogue (MVP)
 

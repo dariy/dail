@@ -232,3 +232,32 @@ fn the_demo_opens_the_fixture_synced() {
     assert!(out.frame.list.unwrap().total > 0);
     host.close();
 }
+
+/// The debug bridge's tasks (tests build with debug assertions): `cli` acts as the user, `mcp`
+/// meets the agent policy, and no other origin is taken.
+#[test]
+fn the_debug_bridge_submits_as_cli_or_mcp_only() {
+    let (host, _) = synced_host();
+    let exec = |origin: &str, command: serde_json::Value| {
+        let task = serde_json::json!({ "exec": { "origin": origin, "command": command } });
+        host.debug(serde_json::from_value(task).unwrap())
+    };
+    let listed = exec("cli", serde_json::json!({ "cmd": "list_mailboxes" })).unwrap();
+    assert_eq!(listed["receipt"]["ok"], true, "{listed}");
+    assert_eq!(listed["receipt"]["name"], "list_mailboxes");
+
+    let remove = serde_json::json!({ "cmd": "add_account", "args": { "preset": "hostinger", "email": "eve@example.com" } });
+    let refused = exec("mcp", remove).unwrap();
+    assert_eq!(
+        refused["rejected"]["error"], "origin_not_allowed",
+        "{refused}"
+    );
+
+    for origin in ["gui", "runtime"] {
+        let err = exec(origin, serde_json::json!({ "cmd": "list_mailboxes" })).unwrap_err();
+        assert!(matches!(err, HostError::Debug(_)), "{origin}: {err}");
+    }
+    let state = host.debug(dail::DebugTask::State).unwrap();
+    assert!(state["mailboxes"].is_object(), "{state}");
+    host.close();
+}

@@ -14,7 +14,7 @@ use serde::Serialize;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
-use crate::config::{BackendChoice, BlobRequest, Config, Task};
+use crate::config::{BackendChoice, BlobRequest, Config, DebugTask, Task};
 use crate::error::HostError;
 
 /// The most a `background` task waits (a short service's 3 minutes).
@@ -179,6 +179,35 @@ impl Host {
                 Err(_) => Ok(false),
             }
         })
+    }
+
+    /// A task of the debug adb bridge: `{"receipt": …}` or `{"rejected": …}` for `exec`, the
+    /// state for `state`. Release builds refuse it, and `exec` takes only `cli` and `mcp`, so the
+    /// bridge can never speak as the app (`gui`) or the runtime. Blocks.
+    pub fn debug(&self, task: DebugTask) -> Result<serde_json::Value, HostError> {
+        if !cfg!(debug_assertions) {
+            return Err(HostError::Debug("not in release builds"));
+        }
+        match task {
+            DebugTask::State => Ok(serde_json::to_value(&*self.state())?),
+            DebugTask::Exec { origin, command } => {
+                if !matches!(origin, Origin::Cli | Origin::Mcp) {
+                    return Err(HostError::Debug("the origin must be cli or mcp"));
+                }
+                let command = match Command::from_value(command) {
+                    Ok(command) => command,
+                    Err(invalid) => return Ok(serde_json::json!({ "rejected": invalid })),
+                };
+                let client = self.client.clone();
+                let result = self
+                    .runtime
+                    .block_on(async move { client.submit(command, origin).await })?;
+                Ok(match result {
+                    Ok(receipt) => serde_json::json!({ "receipt": receipt }),
+                    Err(rejected) => serde_json::json!({ "rejected": rejected }),
+                })
+            }
+        }
     }
 
     /// Shuts the session down after the queued requests (saving unsaved drafts) and waits.

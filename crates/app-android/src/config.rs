@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use app_core::Origin;
 use serde::{Deserialize, Serialize};
 
 /// `open`'s argument.
@@ -70,4 +71,21 @@ pub enum Task {
     Check,
     /// Wait until the queued work (remote ops, draft saves, attachment saves) is done.
     Flush,
+}
+
+/// `background`'s argument from the debug adb bridge (debug builds only; a release build refuses
+/// it): what an agent or an instrumented test asks of the session.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DebugTask {
+    /// Submit `command` as `origin`: `cli` (as the user at a terminal) or `mcp` (as an agent,
+    /// under the agent policy). Any other origin is refused.
+    Exec {
+        /// Who submits it.
+        origin: Origin,
+        /// The registry command, `{"cmd": …, "args": {…}}` (`args` may be left out when empty).
+        command: serde_json::Value,
+    },
+    /// The whole `AppState`.
+    State,
 }

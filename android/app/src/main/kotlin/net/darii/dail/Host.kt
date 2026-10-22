@@ -28,6 +28,8 @@ class Host(
     private val state = MutableStateFlow<Screen>(Screen.Opening)
     private var handle = 0
 
+    @Volatile private var lastFrame: String? = null
+
     /** What to draw. */
     val frame: StateFlow<Screen> = state.asStateFlow()
 
@@ -68,6 +70,20 @@ class Host(
             }
         }
 
+    /**
+     * Runs a `background` task on the calling thread (an IO thread: it blocks), opening the
+     * session first if no activity has.
+     */
+    fun background(task: String): String {
+        open()
+        val opened = ui.submit<Int> { handle }.get()
+        if (opened == 0) return """{"error": "the session did not open"}"""
+        return Native.background(opened, task)
+    }
+
+    /** The JSON of the frame last drawn, for the debug bridge. */
+    fun frameJson(): String? = lastFrame
+
     /** Sends one event on dail-ui. */
     fun send(event: UiEvent) = ui.execute { if (handle > 0) take(Native.event(handle, event.json().toString())) }
 
@@ -78,6 +94,7 @@ class Host(
             return
         }
         val decoded = contract.decodeFromJsonElement(Answer.serializer(), answer)
+        lastFrame = answer["frame"].toString()
         state.value = Screen.Ready(decoded.frame)
         decoded.externals.forEach { onExternal(it) }
     }

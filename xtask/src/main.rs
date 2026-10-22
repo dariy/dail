@@ -407,7 +407,10 @@ fn find_apks(dir: &Path) -> Result<Vec<PathBuf>> {
         let path = entry?.path();
         if path.is_dir() {
             apks.extend(find_apks(&path)?);
-        } else if path.extension().is_some_and(|ext| ext == "apk") {
+        } else if path.extension().is_some_and(|ext| ext == "apk")
+            // Instrumented-test APKs carry no app and never ship.
+            && !path.to_string_lossy().contains("androidTest")
+        {
             apks.push(path);
         }
     }

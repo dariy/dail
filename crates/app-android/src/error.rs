@@ -30,6 +30,9 @@ pub enum HostError {
     /// No open host has this handle.
     #[error("no host with handle {0}")]
     NoHost(i32),
+    /// A debug task in a release build, or from an origin the bridge does not speak for.
+    #[error("debug bridge: {0}")]
+    Debug(&'static str),
     /// The session is closed.
     #[error("the session is closed")]
     Closed,

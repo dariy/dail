@@ -13,6 +13,6 @@ mod jni;
 pub mod logging;
 pub mod secrets;
 
-pub use config::{BackendChoice, BlobRequest, Config, Task};
+pub use config::{BackendChoice, BlobRequest, Config, DebugTask, Task};
 pub use error::HostError;
 pub use host::{Host, Output};
