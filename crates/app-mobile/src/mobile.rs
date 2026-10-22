@@ -445,7 +445,9 @@ impl Mobile {
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         let drawer = (modal || kinds.contains(&PaneKind::Drawer))
             .then(|| self.drawer(state, modal, rail, chosen.tags.len()));
-        let list = kinds.contains(&PaneKind::List).then(|| self.list(state));
+        let list = kinds
+            .contains(&PaneKind::List)
+            .then(|| self.list(state, chosen.tags.len()));
         let reader = if kinds.contains(&PaneKind::Reader) {
             self.reader(state)
         } else {
@@ -625,7 +627,7 @@ impl Mobile {
         }
     }
 
-    fn list(&mut self, state: &AppState) -> List {
+    fn list(&mut self, state: &AppState, tags: usize) -> List {
         let title = list_title(state);
         let density = match state.settings.list_density {
             1 => Density::Compact,
@@ -639,6 +641,7 @@ impl Mobile {
                 offset: 0,
                 density,
                 checked: 0,
+                refreshing: false,
                 rows: Vec::new(),
                 empty: Some(
                     "No accounts yet. Account setup arrives in a later version.".to_owned(),
@@ -716,6 +719,10 @@ impl Mobile {
                 starred: summary.flagged,
                 attachments: summary.has_attachments,
                 messages: summary.messages.len(),
+                tag: (state.accounts.len() > 1 && tags > 0)
+                    .then(|| state.accounts.get_index_of(&thread.account))
+                    .flatten()
+                    .map(|i| i % tags),
                 selected: Some(thread.id) == cursor,
                 checked,
                 a11y: clean(&a11y::thread_row(&summary, checked, now)),
@@ -737,6 +744,7 @@ impl Mobile {
             offset,
             density,
             checked: state.view.checked.len(),
+            refreshing: !status::can_sync(state),
             rows,
             empty,
         }

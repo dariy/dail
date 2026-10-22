@@ -25,6 +25,7 @@ expression: phone.frame()
     "offset": 0,
     "density": "cozy",
     "checked": 0,
+    "refreshing": false,
     "rows": [],
     "empty": "No accounts yet. Account setup arrives in a later version."
   },

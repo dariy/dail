@@ -19,6 +19,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -96,10 +98,10 @@ private fun FrameScaffold(
         },
         bottomBar = {
             frame.snackbar?.let { snackbar ->
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(snackbar.text, Modifier.weight(1f))
-                    snackbar.action?.let { ActionButton(it, send) }
-                }
+                Snackbar(
+                    Modifier.padding(12.dp),
+                    action = { snackbar.action?.let { ActionButton(it, send) } },
+                ) { Text(snackbar.text) }
             }
         },
     ) { padding ->
@@ -108,13 +110,7 @@ private fun FrameScaffold(
             return@Scaffold
         }
         Column(Modifier.padding(padding).fillMaxSize()) {
-            frame.banner?.let { banner ->
-                Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Text(banner.text, fontWeight = FontWeight.Bold)
-                    banner.hint?.let { Text(it) }
-                    banner.action?.let { ActionButton(it, send) }
-                }
-            }
+            frame.banner?.let { BannerCard(it, send) }
             Row(Modifier.fillMaxSize()) {
                 frame.layout.panes.forEach { pane ->
                     if (pane == PaneKind.Drawer) {
@@ -132,6 +128,31 @@ private fun FrameScaffold(
                     }
                 }
             }
+        }
+    }
+}
+
+/** The first problem and its fix (`app_front::status`). */
+@Composable
+private fun BannerCard(
+    banner: Banner,
+    send: (UiEvent) -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Surface(Modifier.fillMaxWidth().padding(8.dp), color = colors.errorContainer, shape = MaterialTheme.shapes.medium) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Glyph("warning")
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(banner.text, fontWeight = FontWeight.SemiBold, color = colors.onErrorContainer)
+                banner.hint?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onErrorContainer,
+                    )
+                }
+            }
+            banner.action?.let { ActionButton(it, send) }
         }
     }
 }
@@ -184,50 +205,6 @@ private fun AboutScreen(
             Column(Modifier.padding(vertical = 8.dp)) {
                 Text(licence.name, style = MaterialTheme.typography.titleMedium)
                 Text(licence.text, style = MaterialTheme.typography.labelSmall)
-            }
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-private fun ListPane(
-    list: ThreadList,
-    send: (UiEvent) -> Unit,
-) {
-    if (list.rows.isEmpty()) {
-        list.empty?.let { Text(it, Modifier.padding(24.dp)) }
-        return
-    }
-    LazyColumn {
-        items(list.rows, key = { it.thread }) { row ->
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { send(UiEvent.Tap(row.action)) }
-                    .semantics { contentDescription = row.a11y }
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                val weight = if (row.unread) FontWeight.Bold else null
-                Row {
-                    Text(
-                        row.sender,
-                        Modifier.weight(1f),
-                        fontWeight = weight,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(row.date, style = MaterialTheme.typography.labelSmall)
-                }
-                Text(row.subject, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (row.snippet.isNotEmpty()) {
-                    Text(
-                        row.snippet,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
             }
             HorizontalDivider()
         }

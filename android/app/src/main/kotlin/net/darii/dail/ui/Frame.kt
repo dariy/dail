@@ -135,6 +135,7 @@ data class ThreadList(
     val offset: Int,
     val density: Density,
     val checked: Int,
+    val refreshing: Boolean,
     val rows: List<Row>,
     val empty: String? = null,
 )
@@ -154,6 +155,7 @@ data class Row(
     val starred: Boolean,
     val attachments: Boolean,
     val messages: Int,
+    val tag: Int? = null,
     val selected: Boolean,
     val checked: Boolean,
     val a11y: String,

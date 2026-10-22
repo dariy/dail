@@ -453,7 +453,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [mobile] [kt] Drawer (modal on phones, permanent on wide screens, a rail after `toggle_sidebar`): accounts with
   their colour tags, mailboxes with role icons and unread counts, *All inboxes*, *Settings*, *Add account*; opening it
   is `focus_pane sidebar`, as in the TUI
-- [ ] [mobile] [kt] Thread list: rows in the three densities (sender, subject, snippet, date, unread, star, attachment,
+- [x] [mobile] [kt] Thread list: rows in the three densities (sender, subject, snippet, date, unread, star, attachment,
   account tag), a window of rows around what is visible (a `scale` test: a frame over 100k threads within budget), pull
   to refresh (`sync_now`), empty states; the top bar's sync text and a banner with the first problem and its fix
   (`app_front::status`); the undo snackbar (`LastAction`, `undo`)

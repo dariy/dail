@@ -99,6 +99,7 @@ expression: phone.frame()
     "offset": 0,
     "density": "cozy",
     "checked": 0,
+    "refreshing": false,
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",

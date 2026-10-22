@@ -11,6 +11,7 @@
     "density": "cozy",
     "empty": "No accounts yet. Account setup arrives in a later version.",
     "offset": 0,
+    "refreshing": false,
     "rows": [],
     "title": "Conversations",
     "total": 0

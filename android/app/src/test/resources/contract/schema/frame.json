@@ -451,6 +451,10 @@
           "minimum": 0,
           "type": "integer"
         },
+        "refreshing": {
+          "description": "A sync is running (pull to refresh shows its spinner).",
+          "type": "boolean"
+        },
         "rows": {
           "description": "The rows of the window.",
           "items": {
@@ -475,6 +479,7 @@
         "offset",
         "density",
         "checked",
+        "refreshing",
         "rows"
       ],
       "type": "object"
@@ -694,6 +699,15 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "tag": {
+          "description": "Its account's colour (an index into the theme's `tags`), with two accounts or more.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "thread": {
           "$ref": "#/$defs/ThreadId",

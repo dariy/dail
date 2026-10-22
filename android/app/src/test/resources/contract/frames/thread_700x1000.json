@@ -16,6 +16,7 @@
     "checked": 0,
     "density": "cozy",
     "offset": 0,
+    "refreshing": false,
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",

@@ -208,6 +208,8 @@ pub struct List {
     pub density: Density,
     /// Checked threads (a bulk bar shows while any are).
     pub checked: usize,
+    /// A sync is running (pull to refresh shows its spinner).
+    pub refreshing: bool,
     /// The rows of the window.
     pub rows: Vec<Row>,
     /// What to say when the list is empty.
@@ -244,6 +246,9 @@ pub struct Row {
     pub attachments: bool,
     /// Messages in the thread.
     pub messages: usize,
+    /// Its account's colour (an index into the theme's `tags`), with two accounts or more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<usize>,
     /// Whether it is the open or selected thread.
     pub selected: bool,
     /// Whether it is checked.

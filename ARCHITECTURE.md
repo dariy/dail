@@ -1232,7 +1232,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Key{chord}` (hardware keyboards) goes through `KeyState`; `Refresh` (pull to refresh) is `sync_now`.
 - **The list** is a window of rows around what Kotlin reports visible (`Scrolled{first, count}`, ±20 rows), with
-  `total` for `LazyColumn`; the thread IDs are cached per `AppState.revision`.
+  `total` for `LazyColumn`; the thread IDs are cached per `AppState.revision`. Rows come in the `list_density`
+  (cozy, compact, preview) and carry the account's tag with two accounts or more; `refreshing` is true while a sync
+  runs (`!status::can_sync`), and the list has an empty text per case. `tests/it/list.rs` has an ignored measurement,
+  `scale_a_frame_over_100k_threads` (`--release --ignored`): with the listing cached a frame takes well under 8 ms.
 - **Tests.** `app-mobile/tests/it` run `Mobile` over a real `Engine` with the `basic` fixture (requests dispatched with
   `Origin::Gui`, replies fed back) and snapshot frames as `insta` JSON at 360×800, 700×1000 and 1280×800 dp.
   `cargo run -p app-mobile --example frames [width height]` prints the demo's frames.
@@ -1299,8 +1302,10 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
   manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DrawerScreen.kt`
   the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
-  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/DailScreen.kt` a plain drawing of the other
-  panes until the screens of A3–A6.
+  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
+  `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
+  `ui/DailScreen.kt` the banner card, the snackbar and a plain drawing of the other panes until the screens of
+  A3–A6.
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
   surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the

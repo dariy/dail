@@ -6,4 +6,5 @@ mod contract;
 mod drawer;
 mod events;
 mod frames;
+mod list;
 mod theme;
