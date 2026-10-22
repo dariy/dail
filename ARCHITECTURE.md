@@ -22,7 +22,7 @@ built-in MCP server are four equal front-ends to one deterministic engine.
 
 | | Now | Later |
 |---|---|---|
-| Platforms | Ubuntu (X11/Wayland), Windows | macOS, Web/PWA (Android/iOS) |
+| Platforms | Ubuntu (X11/Wayland), Windows; Android 10+ in progress (Wave 4, ADR 0009) | macOS, iOS, Web/PWA |
 | Protocols | IMAP4rev1 (+UIDPLUS, MOVE, SPECIAL-USE if offered), SMTP submission | IDLE/CONDSTORE/QRESYNC, JMAP, Gmail API |
 | Auth | Password / App Password (keyring-stored) | OAuth2 XOAUTH2 (Gmail, M365) |
 | Providers | Hostinger Mail, Gmail, generic custom with HTTPS autoconfig (ADR 0006) | DNS SRV discovery |
@@ -42,6 +42,8 @@ graph LR
   tk[app-testkit<br/>fake transport]
   tls[app-tls<br/>TLS crypto provider]
   theme[app-theme<br/>design tokens]
+  mobile[app-mobile<br/>touch presenter]
+  android[app-android<br/>Android host · JNI]
 
   io --> core
   sync --> core
@@ -65,6 +67,14 @@ graph LR
   cli --> io
   cli -.ADR 0001.-> tk
   tk -.dev.-> sync
+  mobile --> core
+  mobile --> front
+  mobile --> theme
+  android --> mobile
+  android --> sync
+  android --> io
+  android --> core
+  android -.demo, ADR 0001.-> tk
 ```
 
 There is a single binary, `dail` (`app-cli`). It hosts every mode:
@@ -95,6 +105,12 @@ status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signat
 `keymap` (chords, bindings, `resolve`, the sequence state) and `palette` (the flows, rows, `nucleo-matcher` ranking
 and `Palette`, the state of an open palette without drawing: query, cursor, second step; `choose` returns the
 commands to submit or keeps the next step).
+
+`app-mobile` and `app-android` (ADR 0009, Wave 4) are the Android front-end. `app-mobile` (← app-core, app-front,
+app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen models ("frames") and touch events into
+commands, as `app-tui` turns it into a terminal buffer. `app-android` (← app-core, app-io, app-sync, app-mobile;
+cdylib `libdail.so`) hosts the session and exposes six JNI calls to the Kotlin/Compose app in `android/`, which draws
+the frames and holds no rules. Neither crate is a dependency of app-gui, app-tui or app-cli.
 
 `app-theme` (ADR 0008) holds the design tokens without a toolkit: colour roles in two surface groups (content and
 chrome), the type scale, the metrics, the built-in themes (`dail-dark`, `dail-light`, `dail-dark-hc`,

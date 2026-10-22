@@ -400,7 +400,7 @@ encryption (SEC-1), 32-bit ARM.
 - No in-app updates: Obtainium can follow the GitHub releases.
 
 ### A0 — Groundwork (no Android app yet; the desktop works as before)
-- [ ] ADR 0009 (the decisions above, from plan §1–§4); `app-mobile` and `app-android` in ARCHITECTURE §3 and in the
+- [x] ADR 0009 (the decisions above, from plan §1–§4); `app-mobile` and `app-android` in ARCHITECTURE §3 and in the
   dependency rules of AGENTS.md §2; AGENTS.md §0 (targets), §1 (channel parity on Android), §5 (Kotlin, the lint
   exception) and §6 (the `android` gate)
 - [ ] [front] [io] Move what the new crates share, behaviour unchanged: the sanitizer `app_tui::text::{is_unsafe,
