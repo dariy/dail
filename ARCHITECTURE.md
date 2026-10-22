@@ -1191,6 +1191,40 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example demo [open]
   [compose] [agent] [palette]` opens it on the memory backend.
 
+### 7.5 Android (`app-mobile`, ADR 0009)
+
+The touch presenter. `Mobile` is UI-local state like `Tui`: it reads `&AppState`, never changes it, and holds no
+toolkit, tokio or JNI. The Android host (`app-android`, Wave 4 A1) submits its requests through an `app_sync::Bridge`
+with `Origin::Gui` and hands its frames to Compose as JSON.
+
+- **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
+  `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
+  Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
+  does: `haptic` so far). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  app-sync. The clock is injected (`Mobile::with_clock`).
+- **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
+  `top_bar` (title, sync state, the drawer or back button, search), `drawer` (accounts and mailboxes; a rail on wide
+  windows after `toggle_sidebar`), `list`, `reader`, `composer` (read-only until A4), `fab` (compose), `banner` (the
+  first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
+  rejection, or the latest undoable action with Undo for 6 s), `back` and `wants_tick`. Later items add the palette,
+  settings, setup and theme. Every string from mail goes through `app_front::text::clean`.
+- **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
+  `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
+  and detail. The class never dispatches a command.
+- **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
+  grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
+  Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
+  press checks it, a swipe to the start archives and to the end trashes (with `haptic`).
+- **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`; Back is the first `Escape` binding that
+  resolves (`app_front::keymap`: close the composer, the thread, the search), else uncheck the checked threads, else from the drawer of a
+  compact or medium window `focus_pane list`. `frame.back` says whether Back is taken; otherwise Android handles it.
+  `Key{chord}` (hardware keyboards) goes through `KeyState`; `Refresh` (pull to refresh) is `sync_now`.
+- **The list** is a window of rows around what Kotlin reports visible (`Scrolled{first, count}`, ±20 rows), with
+  `total` for `LazyColumn`; the thread IDs are cached per `AppState.revision`.
+- **Tests.** `app-mobile/tests/it` run `Mobile` over a real `Engine` with the `basic` fixture (requests dispatched with
+  `Origin::Gui`, replies fed back) and snapshot frames as `insta` JSON at 360×800, 700×1000 and 1280×800 dp.
+  `cargo run -p app-mobile --example frames [width height]` prints the demo's frames.
+
 ## 8. Initial Command catalogue (MVP)
 
 | name | kind | args (sketch) | milestone |

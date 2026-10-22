@@ -79,7 +79,7 @@ const GATES: &[Gate] = &[
 /// The Android ABIs' Rust targets (arm64-v8a, x86_64).
 const ANDROID_TARGETS: &[&str] = &["aarch64-linux-android", "x86_64-linux-android"];
 
-/// The crates the Android app links (ADR 0009). `app-mobile` and `app-android` join them in A1.
+/// The crates the Android app links (ADR 0009). `app-android` joins them in A1.
 const ANDROID_CRATES: &[&str] = &[
     "app-core",
     "app-io",
@@ -87,6 +87,7 @@ const ANDROID_CRATES: &[&str] = &[
     "app-tls",
     "app-front",
     "app-theme",
+    "app-mobile",
 ];
 
 /// The crates whose tests `cargo xtask android test` runs on the device: the ones that meet bionic

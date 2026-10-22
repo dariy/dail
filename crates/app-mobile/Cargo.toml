@@ -1,0 +1,23 @@
+[package]
+name = "app-mobile"
+description = "dail touch presenter: AppState to JSON frames, UI events to commands. No toolkit, tokio or JNI (ADR 0009)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+app-core.workspace = true
+app-front.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true
+insta.workspace = true

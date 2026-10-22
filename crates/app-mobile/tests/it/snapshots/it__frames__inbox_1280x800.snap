@@ -1,0 +1,121 @@
+---
+source: crates/app-mobile/tests/it/frames.rs
+expression: phone.frame()
+---
+{
+  "revision": 1,
+  "layout": {
+    "class": "expanded",
+    "panes": [
+      "drawer",
+      "list",
+      "reader"
+    ]
+  },
+  "top_bar": {
+    "title": "Inbox",
+    "subtitle": "synced 9h ago",
+    "actions": [
+      {
+        "icon": "search",
+        "label": "Search or run a command",
+        "action": 1
+      }
+    ]
+  },
+  "drawer": {
+    "rail": false,
+    "accounts": [
+      {
+        "name": "alice@example.com",
+        "email": "alice@example.com",
+        "mailboxes": [
+          {
+            "label": "Inbox",
+            "icon": "inbox",
+            "unread": 1,
+            "selected": true,
+            "action": 2,
+            "a11y": "Inbox, 1 unread"
+          },
+          {
+            "label": "Sent",
+            "icon": "send",
+            "unread": 0,
+            "selected": false,
+            "action": 3,
+            "a11y": "Sent"
+          },
+          {
+            "label": "Drafts",
+            "icon": "draft",
+            "unread": 0,
+            "selected": false,
+            "action": 4,
+            "a11y": "Drafts"
+          },
+          {
+            "label": "Archive",
+            "icon": "archive",
+            "unread": 0,
+            "selected": false,
+            "action": 5,
+            "a11y": "Archive"
+          }
+        ]
+      }
+    ]
+  },
+  "list": {
+    "title": "Inbox",
+    "total": 2,
+    "offset": 0,
+    "density": "cozy",
+    "checked": 0,
+    "rows": [
+      {
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "action": 6,
+        "long_press": 7,
+        "swipe_start": 8,
+        "swipe_end": 9,
+        "sender": "Carol",
+        "subject": "Lunch?",
+        "snippet": "Lunch at noon?",
+        "date": "Nov 14",
+        "unread": true,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "unread, Carol, Lunch?, Nov 14"
+      },
+      {
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "action": 10,
+        "long_press": 11,
+        "swipe_start": 12,
+        "swipe_end": 13,
+        "sender": "Bob",
+        "subject": "Q3 numbers",
+        "snippet": "",
+        "date": "Nov 14",
+        "unread": false,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "Bob, Q3 numbers, Nov 14"
+      }
+    ]
+  },
+  "fab": {
+    "icon": "edit",
+    "label": "Compose",
+    "action": 14
+  },
+  "back": false,
+  "wants_tick": true
+}

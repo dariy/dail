@@ -416,7 +416,7 @@ encryption (SEC-1), 32-bit ARM.
   bionic); a CI emulator job
 
 ### A1 — The Rust side (no UI yet)
-- [ ] [mobile] Scaffold `app-mobile`: `Mobile`, `Frame`, `UiEvent`, `External`, `Request`/`Purpose`; window classes
+- [x] [mobile] Scaffold `app-mobile`: `Mobile`, `Frame`, `UiEvent`, `External`, `Request`/`Purpose`; window classes
   (compact < 600 dp: one pane, as the TUI below 80 columns; medium: list and detail; expanded: drawer, list and
   detail); the action table; the clock injected; tests over a real `Engine` with `insta` JSON snapshots at 360×800,
   700×1000 and 1280×800 dp; `examples/frames.rs` prints the demo's frames

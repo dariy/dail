@@ -1,0 +1,17 @@
+//! dail's touch presenter (ADR 0009, `ARCHITECTURE.md §7.5`): a projection of `AppState` into
+//! JSON screen models ("frames") and of touch events into `Command`s, like the TUI with frames
+//! instead of a terminal buffer.
+//!
+//! [`Mobile`] reads `&AppState` and never changes it, never sees the session, and holds no
+//! toolkit, tokio or JNI: the Android host (`app-android`) submits its [`Request`]s and draws
+//! its [`Frame`]s in Compose. Tests drive it over a real `Engine`.
+
+pub mod event;
+pub mod frame;
+pub mod mobile;
+pub mod request;
+
+pub use event::{External, UiEvent};
+pub use frame::{Class, Frame};
+pub use mobile::Mobile;
+pub use request::{Purpose, Reply, Request};

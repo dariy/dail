@@ -1,0 +1,28 @@
+---
+source: crates/app-mobile/tests/it/frames.rs
+expression: phone.frame()
+---
+{
+  "revision": 1,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "top_bar": {
+    "title": "Conversations",
+    "actions": []
+  },
+  "list": {
+    "title": "Conversations",
+    "total": 0,
+    "offset": 0,
+    "density": "cozy",
+    "checked": 0,
+    "rows": [],
+    "empty": "No accounts yet. Account setup arrives in a later version."
+  },
+  "back": false,
+  "wants_tick": false
+}

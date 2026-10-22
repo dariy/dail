@@ -1,0 +1,81 @@
+---
+source: crates/app-mobile/tests/it/frames.rs
+expression: phone.frame()
+---
+{
+  "revision": 1,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "top_bar": {
+    "title": "Inbox",
+    "subtitle": "synced 9h ago",
+    "navigation": {
+      "icon": "menu",
+      "label": "Mailboxes",
+      "action": 1
+    },
+    "actions": [
+      {
+        "icon": "search",
+        "label": "Search or run a command",
+        "action": 2
+      }
+    ]
+  },
+  "list": {
+    "title": "Inbox",
+    "total": 2,
+    "offset": 0,
+    "density": "cozy",
+    "checked": 0,
+    "rows": [
+      {
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "action": 3,
+        "long_press": 4,
+        "swipe_start": 5,
+        "swipe_end": 6,
+        "sender": "Carol",
+        "subject": "Lunch?",
+        "snippet": "Lunch at noon?",
+        "date": "Nov 14",
+        "unread": true,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "unread, Carol, Lunch?, Nov 14"
+      },
+      {
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "action": 7,
+        "long_press": 8,
+        "swipe_start": 9,
+        "swipe_end": 10,
+        "sender": "Bob",
+        "subject": "Q3 numbers",
+        "snippet": "",
+        "date": "Nov 14",
+        "unread": false,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "Bob, Q3 numbers, Nov 14"
+      }
+    ]
+  },
+  "fab": {
+    "icon": "edit",
+    "label": "Compose",
+    "action": 11
+  },
+  "back": false,
+  "wants_tick": true
+}

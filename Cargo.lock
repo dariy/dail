@@ -382,6 +382,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-mobile"
+version = "0.1.0"
+dependencies = [
+ "app-core",
+ "app-front",
+ "app-testkit",
+ "insta",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "app-sync"
 version = "0.1.0"
 dependencies = [

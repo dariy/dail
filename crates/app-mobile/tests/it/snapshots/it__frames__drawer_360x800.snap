@@ -1,0 +1,79 @@
+---
+source: crates/app-mobile/tests/it/frames.rs
+expression: phone.frame()
+---
+{
+  "revision": 1,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "drawer"
+    ]
+  },
+  "top_bar": {
+    "title": "Mailboxes",
+    "subtitle": "synced 9h ago",
+    "navigation": {
+      "icon": "back",
+      "label": "Back",
+      "action": 1
+    },
+    "actions": [
+      {
+        "icon": "search",
+        "label": "Search or run a command",
+        "action": 2
+      }
+    ]
+  },
+  "drawer": {
+    "rail": false,
+    "accounts": [
+      {
+        "name": "alice@example.com",
+        "email": "alice@example.com",
+        "mailboxes": [
+          {
+            "label": "Inbox",
+            "icon": "inbox",
+            "unread": 1,
+            "selected": true,
+            "action": 3,
+            "a11y": "Inbox, 1 unread"
+          },
+          {
+            "label": "Sent",
+            "icon": "send",
+            "unread": 0,
+            "selected": false,
+            "action": 4,
+            "a11y": "Sent"
+          },
+          {
+            "label": "Drafts",
+            "icon": "draft",
+            "unread": 0,
+            "selected": false,
+            "action": 5,
+            "a11y": "Drafts"
+          },
+          {
+            "label": "Archive",
+            "icon": "archive",
+            "unread": 0,
+            "selected": false,
+            "action": 6,
+            "a11y": "Archive"
+          }
+        ]
+      }
+    ]
+  },
+  "fab": {
+    "icon": "edit",
+    "label": "Compose",
+    "action": 7
+  },
+  "back": true,
+  "wants_tick": true
+}

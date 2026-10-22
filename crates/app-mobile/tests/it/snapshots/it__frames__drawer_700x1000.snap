@@ -1,0 +1,75 @@
+---
+source: crates/app-mobile/tests/it/frames.rs
+expression: phone.frame()
+---
+{
+  "revision": 1,
+  "layout": {
+    "class": "medium",
+    "panes": [
+      "drawer",
+      "reader"
+    ]
+  },
+  "top_bar": {
+    "title": "Inbox",
+    "subtitle": "synced 9h ago",
+    "actions": [
+      {
+        "icon": "search",
+        "label": "Search or run a command",
+        "action": 1
+      }
+    ]
+  },
+  "drawer": {
+    "rail": false,
+    "accounts": [
+      {
+        "name": "alice@example.com",
+        "email": "alice@example.com",
+        "mailboxes": [
+          {
+            "label": "Inbox",
+            "icon": "inbox",
+            "unread": 1,
+            "selected": true,
+            "action": 2,
+            "a11y": "Inbox, 1 unread"
+          },
+          {
+            "label": "Sent",
+            "icon": "send",
+            "unread": 0,
+            "selected": false,
+            "action": 3,
+            "a11y": "Sent"
+          },
+          {
+            "label": "Drafts",
+            "icon": "draft",
+            "unread": 0,
+            "selected": false,
+            "action": 4,
+            "a11y": "Drafts"
+          },
+          {
+            "label": "Archive",
+            "icon": "archive",
+            "unread": 0,
+            "selected": false,
+            "action": 5,
+            "a11y": "Archive"
+          }
+        ]
+      }
+    ]
+  },
+  "fab": {
+    "icon": "edit",
+    "label": "Compose",
+    "action": 6
+  },
+  "back": true,
+  "wants_tick": true
+}
