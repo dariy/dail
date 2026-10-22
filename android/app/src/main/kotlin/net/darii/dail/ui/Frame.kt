@@ -1,0 +1,161 @@
+package net.darii.dail.ui
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * The screen models of `app_mobile::frame`, by hand. The contract fixtures, decoded strictly,
+ * keep them in step with Rust (`FrameContractTest`).
+ */
+val contract = Json { explicitNulls = false }
+
+typealias ActionId = Int
+
+@Serializable
+data class Answer(val frame: Frame, val externals: List<External> = emptyList())
+
+@Serializable
+data class Frame(
+    val revision: Long,
+    val layout: Layout,
+    @SerialName("top_bar") val topBar: TopBar,
+    val drawer: Drawer? = null,
+    val list: ThreadList? = null,
+    val reader: Reader? = null,
+    val composer: Composer? = null,
+    val fab: Button? = null,
+    val banner: Banner? = null,
+    val snackbar: Snackbar? = null,
+    val back: Boolean,
+    @SerialName("wants_tick") val wantsTick: Boolean,
+)
+
+@Serializable
+enum class WindowClass {
+    @SerialName("compact") Compact,
+    @SerialName("medium") Medium,
+    @SerialName("expanded") Expanded,
+}
+
+@Serializable
+enum class PaneKind {
+    @SerialName("drawer") Drawer,
+    @SerialName("list") List,
+    @SerialName("reader") Reader,
+    @SerialName("composer") Composer,
+}
+
+@Serializable
+data class Layout(@SerialName("class") val windowClass: WindowClass, val panes: List<PaneKind>)
+
+@Serializable
+data class Button(val icon: String? = null, val label: String, val action: ActionId)
+
+@Serializable
+data class TopBar(
+    val title: String,
+    val subtitle: String? = null,
+    val navigation: Button? = null,
+    val actions: List<Button>,
+)
+
+@Serializable
+data class Drawer(val rail: Boolean, val accounts: List<DrawerAccount>)
+
+@Serializable
+data class DrawerAccount(val name: String, val email: String, val mailboxes: List<DrawerItem>)
+
+@Serializable
+data class DrawerItem(
+    val label: String,
+    val icon: String,
+    val unread: Int,
+    val selected: Boolean,
+    val action: ActionId,
+    val a11y: String,
+)
+
+@Serializable
+enum class Density {
+    @SerialName("cozy") Cozy,
+    @SerialName("compact") Compact,
+    @SerialName("preview") Preview,
+}
+
+@Serializable
+data class ThreadList(
+    val title: String,
+    val total: Int,
+    val offset: Int,
+    val density: Density,
+    val checked: Int,
+    val rows: List<Row>,
+    val empty: String? = null,
+)
+
+@Serializable
+data class Row(
+    val thread: String,
+    val action: ActionId,
+    @SerialName("long_press") val longPress: ActionId,
+    @SerialName("swipe_start") val swipeStart: ActionId,
+    @SerialName("swipe_end") val swipeEnd: ActionId,
+    val sender: String,
+    val subject: String,
+    val snippet: String,
+    val date: String,
+    val unread: Boolean,
+    val starred: Boolean,
+    val attachments: Boolean,
+    val messages: Int,
+    val selected: Boolean,
+    val checked: Boolean,
+    val a11y: String,
+)
+
+@Serializable
+data class Reader(
+    val thread: String,
+    val subject: String,
+    val actions: List<Button>,
+    val messages: List<ReaderMessage>,
+)
+
+@Serializable
+data class ReaderMessage(
+    val message: String,
+    val from: String,
+    val to: String,
+    val date: String,
+    val expanded: Boolean,
+    val toggle: ActionId,
+    val snippet: String,
+    val body: List<String>? = null,
+    val status: String? = null,
+    val attachments: List<Attachment>,
+    val links: List<String>,
+)
+
+@Serializable
+data class Attachment(val part: Int, val name: String, val mime: String, val size: String)
+
+@Serializable
+data class Composer(
+    val draft: String,
+    val from: String,
+    val to: String,
+    val cc: String,
+    val subject: String,
+    val body: String,
+)
+
+@Serializable
+data class Banner(val text: String, val hint: String? = null, val action: Button? = null)
+
+@Serializable
+data class Snackbar(val text: String, val action: Button? = null)
+
+/** What only the host can do (`app_mobile::External`). */
+@Serializable
+data class External(val external: String)

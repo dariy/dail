@@ -1266,6 +1266,26 @@ map onto; it builds and is tested on the desktop.
   memory session driven by events (a tap opens a thread and wakes the app, a swipe archives with `haptic`, bad JSON is
   an error), and the calls over JSON (handles, errors, the log file).
 
+**The Kotlin app** (`android/`, Gradle; application ID `net.darii.dail`). Versions live in
+`gradle/libs.versions.toml`: AGP 9.4 (its built-in Kotlin), Kotlin 2.4, and the newest Compose BOM, AndroidX core and
+lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and targetSdk 36, minSdk 29, NDK r28
+(`ndkVersion`), ABI splits arm64-v8a and x86_64 (`-Pdail.abis=x86_64` narrows a local build).
+
+- **The library.** A `cargoNdk<Variant>` task per variant runs `cargo ndk -t <abi>… --platform 29 build -p app-android
+  [--release] [--features demo]` with `-Wl,-z,max-page-size=16384`, and keeps only `libdail.so` (cargo-ndk also copies
+  dependencies' cdylibs) in `build/rustJniLibs/<variant>`, a generated jniLibs directory. So `./gradlew assembleDemoDebug`
+  and Android Studio build everything.
+- **Flavours.** `live` (the profile, the keyring, the servers) and `demo` (`net.darii.dail.demo`: the memory backend
+  with the `basic` fixture, like the GUI's demo); `BuildConfig.BACKEND` is `open`'s `backend`.
+- **Classes.** `Native` (the six calls) and `Listener`; `DailApplication` holds the `Host`, opened on first use; `Host`
+  runs `open`, `event` and `frame` on one thread, "dail-ui", and publishes the decoded frame as a `StateFlow`;
+  `MainActivity` draws it edge to edge, sends `configure` on every configuration change, `visible` on start and stop,
+  `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
+  manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DailScreen.kt`
+  a plain drawing of every pane until the screens of A3–A6.
+- **Tests** (`app/src/test`, JVM): `ContractTest` decodes every contract frame and external strictly and checks that
+  Kotlin's events encode exactly as the event fixtures.
+
 ## 8. Initial Command catalogue (MVP)
 
 | name | kind | args (sketch) | milestone |

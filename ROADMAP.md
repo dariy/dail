@@ -435,7 +435,7 @@ encryption (SEC-1), 32-bit ARM.
   behind `SecretStore` only if the crate fails review
 
 ### A2 — Android shell
-- [ ] [kt] Gradle project `android/`: version catalog, Kotlin, Compose, compile and target SDK 36, minSdk 29, ABI
+- [x] [kt] Gradle project `android/`: version catalog, Kotlin, Compose, compile and target SDK 36, minSdk 29, ABI
   splits; a Gradle task builds `libdail.so` with cargo-ndk (16 KB pages); `DailApplication` holds the `Host`;
   `MainActivity` draws frames taken on a single "dail-ui" thread (edge to edge, predictive back from `frame.back`);
   flavours `live` and `demo` (memory backend, `basic` fixture, like the GUI's demo example)
