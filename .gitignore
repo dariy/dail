@@ -7,3 +7,6 @@
 /.dail-dev/
 .env
 *.local.toml
+
+# AGENTS.md is part of the repository (a global gitignore may exclude it)
+!AGENTS.md
