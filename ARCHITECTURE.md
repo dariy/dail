@@ -1191,10 +1191,10 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example demo [open]
   [compose] [agent] [palette]` opens it on the memory backend.
 
-### 7.5 Android (`app-mobile`, ADR 0009)
+### 7.5 Android (`app-mobile`, `app-android`, ADR 0009)
 
 The touch presenter. `Mobile` is UI-local state like `Tui`: it reads `&AppState`, never changes it, and holds no
-toolkit, tokio or JNI. The Android host (`app-android`, Wave 4 A1) submits its requests through an `app_sync::Bridge`
+toolkit, tokio or JNI. The Android host (`app-android`, below) submits its requests through an `app_sync::Bridge`
 with `Origin::Gui` and hands its frames to Compose as JSON.
 
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
@@ -1227,6 +1227,27 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Contract.** `tests/it/contract.rs` writes those frames, one of every `UiEvent` and `External`, and the JSON Schema
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
+
+**The host** (`app-android`, `[lib] name = "dail"`, cdylib + rlib). `dail::Host` is the JNI-free core that Kotlin's calls
+map onto; it builds and is tested on the desktop.
+
+- **`open(&Config, wake)`.** `Config` = `{profile_dir, cache_dir?, backend: "live" | {"memory": fixture}, lang?,
+  version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
+  `app-cli` opens it (`ProfileStore`, `KeyringSecrets`, `NetVerifier`, `NetImap`, the full-text index, the audit log),
+  without an IPC socket. Memory (the `demo` feature only, app-testkit as ADR 0001): the fixture's first account added
+  and synced, the inbox open, like the GUI's demo. A tokio runtime of two workers; `Bridge::own` with `Origin::Gui`.
+- **`event(UiEvent)` / `frame()`** return `Output{frame, externals}`: the presenter's requests are submitted through
+  the bridge (only queued, never awaited), the replies fed back, the bodies for the open thread asked for. `wake` (from
+  runtime threads) says a new frame is ready.
+- **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, or `{image: {blob, part}}` /
+  `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
+  if it cannot be read or decoded.
+- **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
+  `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
+  work. `close()` shuts the session down after the queued requests.
+- **Tests** (`app-android/tests/it`): a live profile with no accounts (the lock, the background tasks), and a synced
+  memory session driven by events (a tap opens a thread and wakes the app, a swipe archives with `haptic`, bad JSON is
+  an error).
 
 ## 8. Initial Command catalogue (MVP)
 

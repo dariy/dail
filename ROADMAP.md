@@ -423,7 +423,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [mobile] Contract: the tests write every snapshot frame and event as JSON fixtures into
   `android/app/src/test/resources/contract/` (a stale fixture fails; `DAIL_UPDATE_CONTRACT=1` rewrites them); the JSON
   Schema of `Frame` and `UiEvent`
-- [ ] [android] Scaffold `app-android` (cdylib + rlib, `libdail.so`): `Host` opens a profile directory
+- [x] [android] Scaffold `app-android` (cdylib + rlib, `libdail.so`): `Host` opens a profile directory
   (`ProfileDirs::at`) with `LiveBackend`, or the memory backend behind the `demo` feature, and runs `Bridge::own` with
   `Origin::Gui`, the presenter and `event`/`frame`/`blob`/`background`; tests on the desktop, without JNI
 - [ ] [android] JNI: `JNI_OnLoad` and the six calls (`jni` 0.22), handles that are small integers, the wake-up and

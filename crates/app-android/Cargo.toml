@@ -1,0 +1,35 @@
+[package]
+name = "app-android"
+description = "dail's Android host, libdail.so: the session, the presenter and the calls Kotlin makes (ADR 0009)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "dail"
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[features]
+# The memory backend over a built-in fixture (the `demo` flavour, as ADR 0001 allows for app-cli).
+demo = ["dep:app-testkit"]
+
+[dependencies]
+app-core.workspace = true
+app-io.workspace = true
+app-mobile.workspace = true
+app-sync.workspace = true
+app-testkit = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+app-testkit.workspace = true
