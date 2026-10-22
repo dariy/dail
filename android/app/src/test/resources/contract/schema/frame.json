@@ -207,14 +207,38 @@
           },
           "type": "array"
         },
+        "all_inboxes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DrawerItem"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Every account's inbox, with two accounts or more."
+        },
+        "footer": {
+          "description": "Below the accounts: *Settings*, *Add account*.",
+          "items": {
+            "$ref": "#/$defs/DrawerItem"
+          },
+          "type": "array"
+        },
+        "modal": {
+          "description": "A modal drawer over the panes of `layout` (compact and medium windows); otherwise it is\nthe first pane.",
+          "type": "boolean"
+        },
         "rail": {
           "description": "A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).",
           "type": "boolean"
         }
       },
       "required": [
+        "modal",
         "rail",
-        "accounts"
+        "accounts",
+        "footer"
       ],
       "type": "object"
     },
@@ -235,6 +259,15 @@
         "name": {
           "description": "The account's name.",
           "type": "string"
+        },
+        "tag": {
+          "description": "Its colour: an index into the theme's `tags`, with two accounts or more.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
       "required": [
@@ -473,6 +506,11 @@
           "const": "composer",
           "description": "The open draft.",
           "type": "string"
+        },
+        {
+          "const": "settings",
+          "description": "The settings page.",
+          "type": "string"
         }
       ]
     },
@@ -686,6 +724,24 @@
       ],
       "type": "object"
     },
+    "SettingsPage": {
+      "description": "The settings page (its sections arrive with Wave 4 A6).",
+      "properties": {
+        "section": {
+          "description": "The open section (`appearance`, `keys`, `general`, `accounts`).",
+          "type": "string"
+        },
+        "text": {
+          "description": "What the page says.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section",
+        "text"
+      ],
+      "type": "object"
+    },
     "Snackbar": {
       "description": "A short message at the bottom.",
       "properties": {
@@ -887,6 +943,17 @@
       "format": "uint64",
       "minimum": 0,
       "type": "integer"
+    },
+    "settings": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SettingsPage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The settings page, while open."
     },
     "snackbar": {
       "anyOf": [

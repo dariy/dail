@@ -7,15 +7,15 @@ expression: phone.frame()
   "layout": {
     "class": "compact",
     "panes": [
-      "drawer"
+      "list"
     ]
   },
   "top_bar": {
-    "title": "Mailboxes",
+    "title": "Inbox",
     "subtitle": "synced 9h ago",
     "navigation": {
-      "icon": "back",
-      "label": "Back",
+      "icon": "menu",
+      "label": "Mailboxes",
       "action": 1
     },
     "actions": [
@@ -31,6 +31,7 @@ expression: phone.frame()
     ]
   },
   "drawer": {
+    "modal": true,
     "rail": false,
     "accounts": [
       {
@@ -71,12 +72,75 @@ expression: phone.frame()
           }
         ]
       }
+    ],
+    "footer": [
+      {
+        "label": "Settings",
+        "icon": "settings",
+        "unread": 0,
+        "selected": false,
+        "action": 8,
+        "a11y": "Settings"
+      },
+      {
+        "label": "Add account",
+        "icon": "add",
+        "unread": 0,
+        "selected": false,
+        "action": 9,
+        "a11y": "Add account"
+      }
+    ]
+  },
+  "list": {
+    "title": "Inbox",
+    "total": 2,
+    "offset": 0,
+    "density": "cozy",
+    "checked": 0,
+    "rows": [
+      {
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "action": 10,
+        "long_press": 11,
+        "swipe_start": 12,
+        "swipe_end": 13,
+        "sender": "Carol",
+        "subject": "Lunch?",
+        "snippet": "Lunch at noon?",
+        "date": "Nov 14",
+        "unread": true,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "unread, Carol, Lunch?, Nov 14"
+      },
+      {
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "action": 14,
+        "long_press": 15,
+        "swipe_start": 16,
+        "swipe_end": 17,
+        "sender": "Bob",
+        "subject": "Q3 numbers",
+        "snippet": "",
+        "date": "Nov 14",
+        "unread": false,
+        "starred": false,
+        "attachments": false,
+        "messages": 1,
+        "selected": false,
+        "checked": false,
+        "a11y": "Bob, Q3 numbers, Nov 14"
+      }
     ]
   },
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 8
+    "action": 18
   },
   "theme": {
     "id": "dail-light",

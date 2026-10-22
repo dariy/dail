@@ -3,6 +3,7 @@
 mod support;
 
 mod contract;
+mod drawer;
 mod events;
 mod frames;
 mod theme;

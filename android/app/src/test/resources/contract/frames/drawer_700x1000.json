@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 3,
+            "action": 4,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 4,
+            "action": 5,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 5,
+            "action": 6,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 6,
+            "action": 7,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -41,19 +41,83 @@
         "name": "alice@example.com"
       }
     ],
+    "footer": [
+      {
+        "a11y": "Settings",
+        "action": 8,
+        "icon": "settings",
+        "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "Add account",
+        "action": 9,
+        "icon": "add",
+        "label": "Add account",
+        "selected": false,
+        "unread": 0
+      }
+    ],
+    "modal": true,
     "rail": false
   },
   "fab": {
-    "action": 7,
+    "action": 18,
     "icon": "edit",
     "label": "Compose"
   },
   "layout": {
     "class": "medium",
     "panes": [
-      "drawer",
+      "list",
       "reader"
     ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 10,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 11,
+        "messages": 1,
+        "selected": false,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 13,
+        "swipe_start": 12,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 14,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 15,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 17,
+        "swipe_start": 16,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
   },
   "revision": 1,
   "theme": {
@@ -304,15 +368,20 @@
   "top_bar": {
     "actions": [
       {
-        "action": 1,
+        "action": 2,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 2,
+        "action": 3,
         "label": "About"
       }
     ],
+    "navigation": {
+      "action": 1,
+      "icon": "menu",
+      "label": "Mailboxes"
+    },
     "subtitle": "synced 9h ago",
     "title": "Inbox"
   },

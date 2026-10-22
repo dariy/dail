@@ -1203,8 +1203,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   does: `haptic` so far). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
-  `top_bar` (title, sync state, the drawer or back button, search), `drawer` (accounts and mailboxes; a rail on wide
-  windows after `toggle_sidebar`), `list`, `reader`, `composer` (read-only until A4), `fab` (compose), `banner` (the
+  `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
+  more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
+  unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
+  compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
+  `reader`, `composer` (read-only until A4), `settings` (the open section, a placeholder until A6, in place of the
+  list and the detail), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `back` and `wants_tick`. Later
   items add the palette, settings and setup.
@@ -1221,9 +1225,11 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
   Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it, a swipe to the start archives and to the end trashes (with `haptic`).
-- **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`; Back is the first `Escape` binding that
-  resolves (`app_front::keymap`: close the composer, the thread, the search), else uncheck the checked threads, else from the drawer of a
-  compact or medium window `focus_pane list`. `frame.back` says whether Back is taken; otherwise Android handles it.
+- **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
+  opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
+  tap in it also sends `focus_pane list`, which closes it. Back closes a modal drawer (`focus_pane list`), else is the
+  first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
+  settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Key{chord}` (hardware keyboards) goes through `KeyState`; `Refresh` (pull to refresh) is `sync_now`.
 - **The list** is a window of rows around what Kotlin reports visible (`Scrolled{first, count}`, ±20 rows), with
   `total` for `LazyColumn`; the thread IDs are cached per `AppState.revision`.
@@ -1291,8 +1297,10 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   runs `open`, `event` and `frame` on one thread, "dail-ui", and publishes the decoded frame as a `StateFlow`;
   `MainActivity` draws it edge to edge, sends `configure` on every configuration change, `visible` on start and stop,
   `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
-  manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DailScreen.kt`
-  a plain drawing of every pane until the screens of A3–A6.
+  manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DrawerScreen.kt`
+  the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
+  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/DailScreen.kt` a plain drawing of the other
+  panes until the screens of A3–A6.
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
   surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the

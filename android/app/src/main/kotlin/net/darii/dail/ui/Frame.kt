@@ -28,6 +28,7 @@ data class Frame(
     val list: ThreadList? = null,
     val reader: Reader? = null,
     val composer: Composer? = null,
+    val settings: SettingsPage? = null,
     val fab: Button? = null,
     val banner: Banner? = null,
     val snackbar: Snackbar? = null,
@@ -62,6 +63,9 @@ enum class PaneKind {
 
     @SerialName("composer")
     Composer,
+
+    @SerialName("settings")
+    Settings,
 }
 
 @Serializable
@@ -87,14 +91,18 @@ data class TopBar(
 
 @Serializable
 data class Drawer(
+    val modal: Boolean,
     val rail: Boolean,
+    @SerialName("all_inboxes") val allInboxes: DrawerItem? = null,
     val accounts: List<DrawerAccount>,
+    val footer: List<DrawerItem>,
 )
 
 @Serializable
 data class DrawerAccount(
     val name: String,
     val email: String,
+    val tag: Int? = null,
     val mailboxes: List<DrawerItem>,
 )
 
@@ -180,6 +188,12 @@ data class Attachment(
     val name: String,
     val mime: String,
     val size: String,
+)
+
+@Serializable
+data class SettingsPage(
+    val section: String,
+    val text: String,
 )
 
 @Serializable

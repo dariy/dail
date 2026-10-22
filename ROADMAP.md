@@ -450,7 +450,7 @@ encryption (SEC-1), 32-bit ARM.
   their licences on an About screen; the light, dark and high-contrast themes; the mode follows `theme` and the system
 
 ### A3 — Read & triage
-- [ ] [mobile] [kt] Drawer (modal on phones, permanent on wide screens, a rail after `toggle_sidebar`): accounts with
+- [x] [mobile] [kt] Drawer (modal on phones, permanent on wide screens, a rail after `toggle_sidebar`): accounts with
   their colour tags, mailboxes with role icons and unread counts, *All inboxes*, *Settings*, *Add account*; opening it
   is `focus_pane sidebar`, as in the TUI
 - [ ] [mobile] [kt] Thread list: rows in the three densities (sender, subject, snippet, date, unread, star, attachment,

@@ -50,8 +50,12 @@ fun color(hex: String?): Color {
 data class Chrome(
     val roles: Map<String, String>,
     val icons: Map<String, String>,
+    val tags: List<String> = emptyList(),
 ) {
     fun role(name: String) = color(roles[name])
+
+    /** An account's colour: the frame's index into the theme's tags. */
+    fun tag(index: Int) = color(tags.getOrNull(index))
 }
 
 val LocalChrome = staticCompositionLocalOf { Chrome(emptyMap(), emptyMap()) }
@@ -130,7 +134,7 @@ fun DailTheme(
         MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme(), content = content)
         return
     }
-    CompositionLocalProvider(LocalChrome provides Chrome(theme.chrome, theme.icons)) {
+    CompositionLocalProvider(LocalChrome provides Chrome(theme.chrome, theme.icons, theme.tags)) {
         MaterialTheme(colorScheme = scheme(theme), typography = typography(theme), content = content)
     }
 }

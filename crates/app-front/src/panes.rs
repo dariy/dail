@@ -57,13 +57,22 @@ pub fn composer_open(state: &AppState) -> bool {
 
 /// The panes on screen, left to right.
 pub fn choose(width: Width, state: &AppState) -> Vec<Slot> {
+    arrange(width, state, state.view.focus == Pane::Sidebar)
+}
+
+/// The panes under a modal drawer: [`choose`] as if the sidebar did not have the focus (the
+/// mobile frames draw the mailboxes over them on compact and medium windows).
+pub fn behind_drawer(width: Width, state: &AppState) -> Vec<Slot> {
+    arrange(width, state, false)
+}
+
+fn arrange(width: Width, state: &AppState, sidebar: bool) -> Vec<Slot> {
     let view = &state.view;
     let detail = if composer_open(state) {
         Slot::Composer
     } else {
         Slot::Reader
     };
-    let sidebar = view.focus == Pane::Sidebar;
     match width {
         Width::Wide if !view.sidebar_collapsed => vec![Slot::Mailboxes, Slot::List, detail],
         Width::Wide | Width::Medium => {
@@ -106,5 +115,10 @@ mod tests {
             [Slot::Mailboxes, Slot::Reader]
         );
         assert_eq!(choose(Width::Narrow, &state), [Slot::Mailboxes]);
+        assert_eq!(behind_drawer(Width::Narrow, &state), [Slot::List]);
+        assert_eq!(
+            behind_drawer(Width::Medium, &state),
+            [Slot::List, Slot::Reader]
+        );
     }
 }

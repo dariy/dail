@@ -41,10 +41,29 @@
         "name": "alice@example.com"
       }
     ],
+    "footer": [
+      {
+        "a11y": "Settings",
+        "action": 7,
+        "icon": "settings",
+        "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "Add account",
+        "action": 8,
+        "icon": "add",
+        "label": "Add account",
+        "selected": false,
+        "unread": 0
+      }
+    ],
+    "modal": false,
     "rail": false
   },
   "fab": {
-    "action": 15,
+    "action": 17,
     "icon": "edit",
     "label": "Compose"
   },
@@ -63,37 +82,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 7,
+        "action": 9,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 8,
+        "long_press": 10,
         "messages": 1,
         "selected": false,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 10,
-        "swipe_start": 9,
+        "swipe_end": 12,
+        "swipe_start": 11,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 11,
+        "action": 13,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 12,
+        "long_press": 14,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 14,
-        "swipe_start": 13,
+        "swipe_end": 16,
+        "swipe_start": 15,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }

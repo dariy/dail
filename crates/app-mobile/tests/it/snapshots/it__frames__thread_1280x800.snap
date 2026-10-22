@@ -28,6 +28,7 @@ expression: phone.frame()
     ]
   },
   "drawer": {
+    "modal": false,
     "rail": false,
     "accounts": [
       {
@@ -68,6 +69,24 @@ expression: phone.frame()
           }
         ]
       }
+    ],
+    "footer": [
+      {
+        "label": "Settings",
+        "icon": "settings",
+        "unread": 0,
+        "selected": false,
+        "action": 7,
+        "a11y": "Settings"
+      },
+      {
+        "label": "Add account",
+        "icon": "add",
+        "unread": 0,
+        "selected": false,
+        "action": 8,
+        "a11y": "Add account"
+      }
     ]
   },
   "list": {
@@ -79,10 +98,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 7,
-        "long_press": 8,
-        "swipe_start": 9,
-        "swipe_end": 10,
+        "action": 9,
+        "long_press": 10,
+        "swipe_start": 11,
+        "swipe_end": 12,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -97,10 +116,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 11,
-        "long_press": 12,
-        "swipe_start": 13,
-        "swipe_end": 14,
+        "action": 13,
+        "long_press": 14,
+        "swipe_start": 15,
+        "swipe_end": 16,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -122,22 +141,22 @@ expression: phone.frame()
       {
         "icon": "archive",
         "label": "Archive",
-        "action": 15
+        "action": 17
       },
       {
         "icon": "delete",
         "label": "Trash",
-        "action": 16
+        "action": 18
       },
       {
         "icon": "mark_email_unread",
         "label": "Mark unread",
-        "action": 17
+        "action": 19
       },
       {
         "icon": "reply",
         "label": "Reply",
-        "action": 18
+        "action": 20
       }
     ],
     "messages": [
@@ -147,7 +166,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 19,
+        "toggle": 21,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -158,7 +177,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 20
+    "action": 22
   },
   "theme": {
     "id": "dail-light",

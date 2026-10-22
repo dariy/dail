@@ -32,6 +32,9 @@ pub struct Frame {
     /// The open draft, while on screen.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub composer: Option<Composer>,
+    /// The settings page, while open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub settings: Option<SettingsPage>,
     /// The floating button (compose).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fab: Option<Button>,
@@ -92,6 +95,8 @@ pub enum PaneKind {
     Reader,
     /// The open draft.
     Composer,
+    /// The settings page.
+    Settings,
 }
 
 /// The window class and the panes, left to right.
@@ -133,10 +138,18 @@ pub struct TopBar {
 /// Accounts and their mailboxes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Drawer {
+    /// A modal drawer over the panes of `layout` (compact and medium windows); otherwise it is
+    /// the first pane.
+    pub modal: bool,
     /// A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).
     pub rail: bool,
+    /// Every account's inbox, with two accounts or more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub all_inboxes: Option<DrawerItem>,
     /// One section per account.
     pub accounts: Vec<DrawerAccount>,
+    /// Below the accounts: *Settings*, *Add account*.
+    pub footer: Vec<DrawerItem>,
 }
 
 /// An account in the drawer.
@@ -146,6 +159,9 @@ pub struct DrawerAccount {
     pub name: String,
     /// Its address.
     pub email: String,
+    /// Its colour: an index into the theme's `tags`, with two accounts or more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<usize>,
     /// Its mailboxes, in the sidebar's order.
     pub mailboxes: Vec<DrawerItem>,
 }
@@ -289,6 +305,15 @@ pub struct Attachment {
     pub mime: String,
     /// The size, for people (`12 KB`).
     pub size: String,
+}
+
+/// The settings page (its sections arrive with Wave 4 A6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingsPage {
+    /// The open section (`appearance`, `keys`, `general`, `accounts`).
+    pub section: String,
+    /// What the page says.
+    pub text: String,
 }
 
 /// The open draft (read-only until the composer item of Wave 4 A4).

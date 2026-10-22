@@ -37,7 +37,8 @@ import net.darii.dail.Screen
 
 /**
  * Draws a frame as it is: the top bar, the panes the layout names, the banner, the snackbar and
- * the floating button. The screens of Wave 4 A3–A6 replace the plain panes.
+ * the floating button, under the modal drawer of small windows. The screens of Wave 4 A3–A6
+ * replace the plain panes.
  */
 @Composable
 fun DailScreen(
@@ -59,13 +60,21 @@ fun DailScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FrameScreen(
     frame: Frame,
     send: (UiEvent) -> Unit,
 ) {
     BackHandler(enabled = frame.back) { send(UiEvent.Back) }
+    ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FrameScaffold(
+    frame: Frame,
+    send: (UiEvent) -> Unit,
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -108,12 +117,17 @@ private fun FrameScreen(
             }
             Row(Modifier.fillMaxSize()) {
                 frame.layout.panes.forEach { pane ->
+                    if (pane == PaneKind.Drawer) {
+                        frame.drawer?.let { DrawerPane(it, send) }
+                        return@forEach
+                    }
                     Box(Modifier.weight(1f).fillMaxSize()) {
                         when (pane) {
-                            PaneKind.Drawer -> frame.drawer?.let { DrawerPane(it, send) }
+                            PaneKind.Drawer -> Unit
                             PaneKind.List -> frame.list?.let { ListPane(it, send) }
                             PaneKind.Reader -> frame.reader?.let { ReaderPane(it, send) }
                             PaneKind.Composer -> frame.composer?.let { ComposerPane(it) }
+                            PaneKind.Settings -> frame.settings?.let { Text(it.text, Modifier.padding(24.dp)) }
                         }
                     }
                 }
@@ -172,30 +186,6 @@ private fun AboutScreen(
                 Text(licence.text, style = MaterialTheme.typography.labelSmall)
             }
             HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-private fun DrawerPane(
-    drawer: Drawer,
-    send: (UiEvent) -> Unit,
-) {
-    LazyColumn {
-        drawer.accounts.forEach { account ->
-            item { Text(account.email, Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall) }
-            items(account.mailboxes) { item ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { send(UiEvent.Tap(item.action)) }
-                        .semantics { contentDescription = item.a11y }
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Text(item.label, Modifier.weight(1f), fontWeight = if (item.selected) FontWeight.Bold else null)
-                    if (item.unread > 0) Text(item.unread.toString())
-                }
-            }
         }
     }
 }

@@ -5,8 +5,8 @@
 //! (`app_front::panes`); it never dispatches a command.
 
 use app_core::{
-    AppState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane, ThreadId, ThreadSummary,
-    listing,
+    AppState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane, SettingsSection,
+    ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -21,7 +21,8 @@ use app_front::{a11y, body, fold, format, palette};
 use crate::event::{External, UiEvent};
 use crate::frame::{
     ActionId, Attachment, Banner, Button, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Frame, Layout, List, PaneKind, Reader, ReaderMessage, Row, Snackbar, TopBar,
+    DrawerItem, Frame, Layout, List, PaneKind, Reader, ReaderMessage, Row, SettingsPage, Snackbar,
+    TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -39,6 +40,8 @@ const FIRST_WINDOW: usize = 30;
 enum Act {
     /// Submit this command.
     Run(Command),
+    /// Submit these commands in order (open a mailbox, then close the modal drawer).
+    Many(Vec<Command>),
     /// What Back does.
     Back,
     /// Start a new message from the current account (`create_draft`, then the composer).
@@ -314,6 +317,7 @@ impl Mobile {
         };
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
+            Act::Many(cmds) => cmds.into_iter().map(Request::user).collect(),
             Act::Back => self.back(state),
             Act::About => {
                 self.about = true;
@@ -351,14 +355,15 @@ impl Mobile {
             self.about = false;
             return Vec::new();
         }
+        // A modal drawer closes before what it covers.
+        if self.drawer_back(state) {
+            return vec![Request::user(Command::FocusPane { pane: Pane::List })];
+        }
         if let Some(cmd) = self.escape(state) {
             return vec![Request::user(cmd)];
         }
         if !state.view.checked.is_empty() {
             return vec![Request::user(Command::UncheckThreads { ids: Vec::new() })];
-        }
-        if self.drawer_back(state) {
-            return vec![Request::user(Command::FocusPane { pane: Pane::List })];
         }
         Vec::new()
     }
@@ -376,8 +381,11 @@ impl Mobile {
             })
     }
 
+    /// Whether the drawer is modal and open: compact and medium windows, the sidebar focused.
     fn drawer_back(&self, state: &AppState) -> bool {
-        self.class() != Class::Expanded && state.view.focus == Pane::Sidebar
+        self.class() != Class::Expanded
+            && state.view.focus == Pane::Sidebar
+            && !state.accounts.is_empty()
     }
 
     fn add(&mut self, act: Act) -> ActionId {
@@ -405,8 +413,11 @@ impl Mobile {
             Class::Medium => Width::Medium,
             Class::Expanded => Width::Wide,
         };
+        let modal = self.drawer_back(state);
         let slots = if state.accounts.is_empty() {
             vec![Slot::List]
+        } else if modal {
+            panes::behind_drawer(width, state)
         } else {
             panes::choose(width, state)
         };
@@ -419,6 +430,11 @@ impl Mobile {
                 Slot::Composer => PaneKind::Composer,
             })
             .collect();
+        // The settings page takes the place of the list and the detail, as in the GUI.
+        if state.view.settings.is_some() && !state.accounts.is_empty() {
+            kinds.retain(|k| *k == PaneKind::Drawer);
+            kinds.push(PaneKind::Settings);
+        }
         // A collapsed sidebar on a wide window is a rail, not gone.
         let rail =
             class == Class::Expanded && state.view.sidebar_collapsed && !state.accounts.is_empty();
@@ -426,9 +442,9 @@ impl Mobile {
             kinds.insert(0, PaneKind::Drawer);
         }
         let top_bar = self.top_bar(state, &kinds);
-        let drawer = kinds
-            .contains(&PaneKind::Drawer)
-            .then(|| self.drawer(state, rail));
+        let chosen = crate::theme::chosen(&state.settings, self.dark);
+        let drawer = (modal || kinds.contains(&PaneKind::Drawer))
+            .then(|| self.drawer(state, modal, rail, chosen.tags.len()));
         let list = kinds.contains(&PaneKind::List).then(|| self.list(state));
         let reader = if kinds.contains(&PaneKind::Reader) {
             self.reader(state)
@@ -440,15 +456,21 @@ impl Mobile {
         } else {
             None
         };
-        let fab =
-            (!self.about && !state.accounts.is_empty() && !kinds.contains(&PaneKind::Composer))
-                .then(|| self.button("edit", "Compose", Act::Compose));
+        let settings = if kinds.contains(&PaneKind::Settings) {
+            settings_page(state)
+        } else {
+            None
+        };
+        let fab = (!self.about
+            && !state.accounts.is_empty()
+            && !kinds.contains(&PaneKind::Composer)
+            && !kinds.contains(&PaneKind::Settings))
+        .then(|| self.button("edit", "Compose", Act::Compose));
         let banner = self.banner(state);
         let snackbar = self.snackbar(state);
-        let theme = crate::theme::chosen(&state.settings, self.dark);
-        let theme = (self.theme_sent.as_deref() != Some(&*theme.id)).then(|| {
-            self.theme_sent = Some(theme.id.to_string());
-            crate::theme::frame_theme(&theme)
+        let theme = (self.theme_sent.as_deref() != Some(&*chosen.id)).then(|| {
+            self.theme_sent = Some(chosen.id.to_string());
+            crate::theme::frame_theme(&chosen)
         });
         let about = self.about.then(crate::theme::about);
         let back = self.about
@@ -466,6 +488,7 @@ impl Mobile {
             list,
             reader,
             composer,
+            settings,
             fab,
             banner,
             snackbar,
@@ -485,6 +508,7 @@ impl Mobile {
             Some(PaneKind::Drawer) => "Mailboxes".to_owned(),
             Some(PaneKind::Reader) => "Message".to_owned(),
             Some(PaneKind::Composer) => "Draft".to_owned(),
+            Some(PaneKind::Settings) => "Settings".to_owned(),
             Some(PaneKind::List) | None => list_title(state),
         };
         let subtitle = (!state.accounts.is_empty())
@@ -492,7 +516,7 @@ impl Mobile {
             .filter(|s| !s.is_empty());
         let navigation = match one {
             _ if state.accounts.is_empty() => None,
-            Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer) => {
+            Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer | PaneKind::Settings) => {
                 Some(self.button("back", "Back", Act::Back))
             }
             Some(PaneKind::List) | None if !kinds.contains(&PaneKind::Drawer) => Some(self.button(
@@ -525,29 +549,80 @@ impl Mobile {
         }
     }
 
-    fn drawer(&mut self, state: &AppState, rail: bool) -> Drawer {
+    /// The drawer. A tap in a modal drawer also closes it (`focus_pane list`).
+    fn drawer(&mut self, state: &AppState, modal: bool, rail: bool, tags: usize) -> Drawer {
+        let open = |cmd: Command| {
+            if modal {
+                Act::Many(vec![cmd, Command::FocusPane { pane: Pane::List }])
+            } else {
+                Act::Run(cmd)
+            }
+        };
+        let browsing = state.view.search.is_none() && state.view.settings.is_none();
+        let several = state.accounts.len() > 1;
+        let all_inboxes = several.then(|| {
+            let unread = state
+                .mailboxes
+                .values()
+                .filter(|m| m.role == Some(MailboxRole::Inbox))
+                .map(|m| m.unread)
+                .sum();
+            let label = "All inboxes".to_owned();
+            DrawerItem {
+                a11y: a11y::nav_row(&label, unread),
+                label,
+                icon: "all_inbox".to_owned(),
+                unread,
+                selected: state.view.unified && browsing,
+                action: self.add(open(Command::OpenUnifiedInbox {})),
+            }
+        });
         let mut accounts = Vec::new();
-        for account in state.accounts.values() {
+        for (index, account) in state.accounts.values().enumerate() {
             let mut mailboxes = Vec::new();
             for mailbox in listing::mailboxes(state, Some(account.id)) {
                 let label = clean(&mailbox_name(mailbox));
-                let action = self.add(Act::Run(Command::OpenMailbox { id: mailbox.id }));
+                let action = self.add(open(Command::OpenMailbox { id: mailbox.id }));
                 mailboxes.push(DrawerItem {
                     a11y: a11y::nav_row(&label, mailbox.unread),
                     label,
                     icon: mailbox_icon(mailbox.role).to_owned(),
                     unread: mailbox.unread,
-                    selected: state.view.mailbox == Some(mailbox.id) && state.view.search.is_none(),
+                    selected: !state.view.unified
+                        && state.view.mailbox == Some(mailbox.id)
+                        && browsing,
                     action,
                 });
             }
             accounts.push(DrawerAccount {
                 name: clean(&account.display_name),
                 email: clean(&account.email),
+                tag: (several && tags > 0).then(|| index % tags),
                 mailboxes,
             });
         }
-        Drawer { rail, accounts }
+        let mut footer = Vec::new();
+        for (label, icon, section) in [
+            ("Settings", "settings", None),
+            ("Add account", "add", Some(SettingsSection::Accounts)),
+        ] {
+            let selected = section.is_none() && state.view.settings.is_some();
+            footer.push(DrawerItem {
+                a11y: label.to_owned(),
+                label: label.to_owned(),
+                icon: icon.to_owned(),
+                unread: 0,
+                selected,
+                action: self.add(open(Command::OpenSettings { section })),
+            });
+        }
+        Drawer {
+            modal,
+            rail,
+            all_inboxes,
+            accounts,
+            footer,
+        }
     }
 
     fn list(&mut self, state: &AppState) -> List {
@@ -869,6 +944,23 @@ fn list_title(state: &AppState) -> String {
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
         .map_or_else(|| "Conversations".to_owned(), |m| clean(&mailbox_name(m)))
+}
+
+/// The settings page: its section, until the settings screens of Wave 4 A6.
+fn settings_page(state: &AppState) -> Option<SettingsPage> {
+    let section = state.view.settings?;
+    let name = match section {
+        SettingsSection::Appearance => "appearance",
+        SettingsSection::Keys => "keys",
+        SettingsSection::General => "general",
+        SettingsSection::Accounts => "accounts",
+    };
+    Some(SettingsPage {
+        section: name.to_owned(),
+        text: "Settings and account setup arrive in a later version. The desktop app and \
+               `config.toml` change them meanwhile."
+            .to_owned(),
+    })
 }
 
 fn composer(state: &AppState) -> Option<Composer> {

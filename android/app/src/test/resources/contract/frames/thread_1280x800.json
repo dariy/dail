@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 18,
+            "action": 20,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 19,
+            "action": 21,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 20,
+            "action": 22,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 21,
+            "action": 23,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -41,10 +41,29 @@
         "name": "alice@example.com"
       }
     ],
+    "footer": [
+      {
+        "a11y": "Settings",
+        "action": 24,
+        "icon": "settings",
+        "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "Add account",
+        "action": 25,
+        "icon": "add",
+        "label": "Add account",
+        "selected": false,
+        "unread": 0
+      }
+    ],
+    "modal": false,
     "rail": false
   },
   "fab": {
-    "action": 35,
+    "action": 39,
     "icon": "edit",
     "label": "Compose"
   },
@@ -63,37 +82,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 22,
-        "attachments": false,
-        "checked": false,
-        "date": "Nov 14",
-        "long_press": 23,
-        "messages": 1,
-        "selected": true,
-        "sender": "Carol",
-        "snippet": "Lunch at noon?",
-        "starred": false,
-        "subject": "Lunch?",
-        "swipe_end": 25,
-        "swipe_start": 24,
-        "thread": "00000000-0000-0007-0000-000000000002",
-        "unread": true
-      },
-      {
-        "a11y": "Bob, Q3 numbers, Nov 14",
         "action": 26,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
         "long_press": 27,
         "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 29,
+        "swipe_start": 28,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 30,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 31,
+        "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 29,
-        "swipe_start": 28,
+        "swipe_end": 33,
+        "swipe_start": 32,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -104,22 +123,22 @@
   "reader": {
     "actions": [
       {
-        "action": 30,
+        "action": 34,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 31,
+        "action": 35,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 32,
+        "action": 36,
         "icon": "mark_email_unread",
         "label": "Mark unread"
       },
       {
-        "action": 33,
+        "action": 37,
         "icon": "reply",
         "label": "Reply"
       }
@@ -135,7 +154,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 34
+        "toggle": 38
       }
     ],
     "subject": "Lunch?",
@@ -145,12 +164,12 @@
   "top_bar": {
     "actions": [
       {
-        "action": 16,
+        "action": 18,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 17,
+        "action": 19,
         "label": "About"
       }
     ],
