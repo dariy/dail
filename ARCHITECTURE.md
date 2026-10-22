@@ -1309,6 +1309,11 @@ itself, as Gmail does), `VerifyAccount` against the fixture's accounts and optio
 with INBOX, Sent, Drafts and Archive;
 `Fixture::builtin("basic")`, `Fixture::from_path`).
 
+**Android** (ADR 0009): `cargo xtask android check` runs clippy (`-D warnings`) for `aarch64-linux-android` and
+`x86_64-linux-android` over the crates the app links (app-core, app-io, app-sync, app-tls, app-front, app-theme; the
+new crates join in A1). It is the `android` gate (`cargo xtask verify android`), not in the default run; without the
+rustup targets it reports "cannot run". CI runs it as the `android` job.
+
 **Packaging** (`packaging/`): the desktop entry and icon (`dail`, matching the window's `app_id` and the notifications'
 `desktop-entry` hint), and `[package.metadata.deb]` on `app-cli`: `cargo deb -p app-cli` builds a `.deb` with
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.

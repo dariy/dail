@@ -407,8 +407,9 @@ encryption (SEC-1), 32-bit ARM.
   clean, clean_lines}` → `app_front::text`; the rows' accessible names (`app_gui::list::row_name`, the sidebar's) →
   `app_front::a11y`; the pane choice of `app_tui::layout::arrange` → `app_front::panes`; `app_gui::images::decode`
   (formats, size limits) → `app_io::images`. The GUI's and TUI's tests stay green
-- [ ] `cargo xtask android check`: clippy (`-D warnings`) for `aarch64-linux-android` and `x86_64-linux-android` over
-  the crates the app links (cargo-ndk); the `android` gate (`cargo xtask verify android`, reported as not run without
+- [x] `cargo xtask android check`: clippy (`-D warnings`) for `aarch64-linux-android` and `x86_64-linux-android` over
+  the crates the app links (the rustup targets only: clippy never links, so cargo-ndk and the NDK wait for A1's
+  library build); the `android` gate (`cargo xtask verify android`, reported as not run without
   the NDK); a CI job
 - [ ] `cargo xtask android test`: the test binaries of app-core, app-io, app-tls and app-sync built for
   `x86_64-linux-android` and run on an emulator through adb (redb, tantivy's mmap, getrandom, tokio and TLS on
