@@ -35,11 +35,17 @@ pub(crate) enum Expect {
     Acceptable,
 }
 
+/// The crate's directory. Cargo sets `CARGO_MANIFEST_DIR` when it runs a test, and `cargo xtask
+/// android test` sets it to where it pushed the test data on the emulator; the build-time value is
+/// the fallback.
+pub(crate) fn manifest_dir() -> PathBuf {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .map_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")), PathBuf::from)
+}
+
 /// Reads `testdata/wycheproof/<name>`.
 pub(crate) fn wycheproof<G: for<'de> Deserialize<'de>>(name: &str) -> Wycheproof<G> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("testdata/wycheproof")
-        .join(name);
+    let path = manifest_dir().join("testdata/wycheproof").join(name);
     let text = std::fs::read_to_string(&path)
         .map_err(|err| format!("{}: {err}", path.display()))
         .unwrap();

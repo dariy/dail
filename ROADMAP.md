@@ -411,7 +411,7 @@ encryption (SEC-1), 32-bit ARM.
   the crates the app links (the rustup targets only: clippy never links, so cargo-ndk and the NDK wait for A1's
   library build); the `android` gate (`cargo xtask verify android`, reported as not run without
   the NDK); a CI job
-- [ ] `cargo xtask android test`: the test binaries of app-core, app-io, app-tls and app-sync built for
+- [x] `cargo xtask android test`: the test binaries of app-core, app-io, app-tls and app-sync built for
   `x86_64-linux-android` and run on an emulator through adb (redb, tantivy's mmap, getrandom, tokio and TLS on
   bionic); a CI emulator job
 

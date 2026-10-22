@@ -1312,7 +1312,13 @@ with INBOX, Sent, Drafts and Archive;
 **Android** (ADR 0009): `cargo xtask android check` runs clippy (`-D warnings`) for `aarch64-linux-android` and
 `x86_64-linux-android` over the crates the app links (app-core, app-io, app-sync, app-tls, app-front, app-theme; the
 new crates join in A1). It is the `android` gate (`cargo xtask verify android`), not in the default run; without the
-rustup targets it reports "cannot run". CI runs it as the `android` job.
+rustup targets it reports "cannot run". CI runs it as the `android` job. `cargo xtask android test [ARGS…]` builds
+the test binaries of app-core, app-io, app-tls and app-sync for `x86_64-linux-android` (API 29) with cargo-ndk's
+environment and the NDK's clang, pushes them and each crate's `tests/` and `testdata/` to `/data/local/tmp/dail` on
+the device adb sees, and runs them there (`CARGO_MANIFEST_DIR` and `INSTA_WORKSPACE_ROOT` point at the pushed copy,
+which is why tests read their data through the run-time `CARGO_MANIFEST_DIR`). The `ipc::` tests are skipped there:
+adb's `shell` SELinux domain may not create socket files, and the app does not use the desktop's IPC attach. Without cargo-ndk, the target, the NDK
+or a booted device it reports "cannot run". CI runs it as the `android-emulator` job (KVM, API 36 x86_64).
 
 **Packaging** (`packaging/`): the desktop entry and icon (`dail`, matching the window's `app_id` and the notifications'
 `desktop-entry` hint), and `[package.metadata.deb]` on `app-cli`: `cargo deb -p app-cli` builds a `.deb` with

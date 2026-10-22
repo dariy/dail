@@ -1,10 +1,18 @@
 //! Replay harness: every `tests/replay/*.jsonl` log is replayed and its receipts and final state
 //! are snapshot-tested. Replaying twice must give identical results.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use app_core::{CoreError, Engine, replay};
 use serde_json::json;
+
+/// The crate's directory. Cargo sets `CARGO_MANIFEST_DIR` when it runs a test, and `cargo xtask
+/// android test` sets it to where it pushed the test data on the emulator; the build-time value is
+/// the fallback.
+fn manifest_dir() -> PathBuf {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .map_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")), PathBuf::from)
+}
 
 #[test]
 fn replay_fixtures_match_snapshots() {
@@ -15,7 +23,7 @@ fn replay_fixtures_match_snapshots() {
         let steps = replay::run(&mut engine, records);
         json!({ "steps": steps, "final_state": engine.state() })
     };
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/replay");
+    let dir = manifest_dir().join("tests/replay");
     let mut paths: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|entry| entry.unwrap().path())

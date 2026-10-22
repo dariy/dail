@@ -100,7 +100,7 @@ fn the_provider_is_pinned() {
 // --- Fixtures ---------------------------------------------------------------------------------------------------
 
 fn cert_path(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    crate::testutil::manifest_dir()
         .join("testdata/certs")
         .join(name)
 }

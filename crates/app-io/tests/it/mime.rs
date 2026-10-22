@@ -5,13 +5,21 @@
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used)]
 
-use std::path::Path;
+use std::path::PathBuf;
 
 use app_io::mime::{TextSource, parse_message, parse_message_with_document};
 
+/// The crate's directory. Cargo sets `CARGO_MANIFEST_DIR` when it runs a test, and `cargo xtask
+/// android test` sets it to where it pushed the test data on the emulator; the build-time value is
+/// the fallback.
+fn manifest_dir() -> PathBuf {
+    std::env::var_os("CARGO_MANIFEST_DIR")
+        .map_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")), PathBuf::from)
+}
+
 #[test]
 fn eml_corpus_matches_snapshots() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/corpus");
+    let dir = manifest_dir().join("tests/corpus");
     let mut paths: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|entry| entry.unwrap().path())
@@ -40,9 +48,7 @@ fn eml_corpus_matches_snapshots() {
 
 #[test]
 fn html_is_rendered_without_active_content() {
-    let raw =
-        std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/corpus/03_html_only.eml"))
-            .unwrap();
+    let raw = std::fs::read(manifest_dir().join("tests/corpus/03_html_only.eml")).unwrap();
     let parsed = parse_message(&raw);
     assert_eq!(parsed.text_source, TextSource::Html);
     assert!(!parsed.text.contains("alert"), "{}", parsed.text);
@@ -57,14 +63,7 @@ fn html_is_rendered_without_active_content() {
 #[test]
 fn charsets_are_decoded() {
     let read = |name: &str| {
-        parse_message(
-            &std::fs::read(
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("tests/corpus")
-                    .join(name),
-            )
-            .unwrap(),
-        )
+        parse_message(&std::fs::read(manifest_dir().join("tests/corpus").join(name)).unwrap())
     };
     let latin = read("05_latin1_qp.eml");
     assert_eq!(latin.headers.subject, "Grüße – Preis 50 €");
