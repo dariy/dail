@@ -221,11 +221,7 @@ struct Row<'a> {
 impl Row<'_> {
     /// Screen readers hear the name, the unread count and whether it is the open one.
     fn show(self, ui: &mut Ui, t: &Tokens, focused: bool) -> egui::Response {
-        let name = if self.unread > 0 {
-            format!("{}, {} unread", self.label, self.unread)
-        } else {
-            self.label.to_owned()
-        };
+        let name = app_front::a11y::nav_row(self.label, self.unread);
         let trailing = match (self.unread, self.keys) {
             (n, _) if n > 0 => ui::Trailing::Count(n),
             (_, Some(keys)) => ui::Trailing::Keys(keys),

@@ -5,6 +5,7 @@ pub mod compose;
 pub mod config;
 pub mod document;
 pub mod fulltext;
+pub mod images;
 pub mod mime;
 pub mod original;
 pub mod profile;

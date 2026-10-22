@@ -403,7 +403,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] ADR 0009 (the decisions above, from plan §1–§4); `app-mobile` and `app-android` in ARCHITECTURE §3 and in the
   dependency rules of AGENTS.md §2; AGENTS.md §0 (targets), §1 (channel parity on Android), §5 (Kotlin, the lint
   exception) and §6 (the `android` gate)
-- [ ] [front] [io] Move what the new crates share, behaviour unchanged: the sanitizer `app_tui::text::{is_unsafe,
+- [x] [front] [io] Move what the new crates share, behaviour unchanged: the sanitizer `app_tui::text::{is_unsafe,
   clean, clean_lines}` → `app_front::text`; the rows' accessible names (`app_gui::list::row_name`, the sidebar's) →
   `app_front::a11y`; the pane choice of `app_tui::layout::arrange` → `app_front::panes`; `app_gui::images::decode`
   (formats, size limits) → `app_io::images`. The GUI's and TUI's tests stay green

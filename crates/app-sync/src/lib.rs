@@ -23,6 +23,9 @@ pub mod smtp;
 pub mod tls;
 pub mod verify;
 
+/// Image decoding with the shared limits (`app_io::images`), for the front-ends that reach
+/// `app-io` only through the runtime.
+pub use app_io::images;
 pub use audit::AuditLog;
 pub use backend::{Backend, BoxFuture};
 pub use bridge::{Bridge, Reply, Wake};

@@ -4,6 +4,7 @@
 //! Everything here reads `&AppState` (or a receipt) and returns values or `Command`s; nothing
 //! draws, and nothing talks to a session.
 
+pub mod a11y;
 pub mod alerts;
 pub mod approvals;
 pub mod body;
@@ -16,4 +17,6 @@ pub mod keymap;
 pub mod mailbox;
 pub mod notice;
 pub mod palette;
+pub mod panes;
 pub mod status;
+pub mod text;

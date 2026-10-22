@@ -104,7 +104,11 @@ status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signat
 `>` lines with their attribution, or an Outlook header block on), `mailbox` (labels), `notice` (the latest undo label, the send countdown, rejection texts),
 `keymap` (chords, bindings, `resolve`, the sequence state) and `palette` (the flows, rows, `nucleo-matcher` ranking
 and `Palette`, the state of an open palette without drawing: query, cursor, second step; `choose` returns the
-commands to submit or keeps the next step).
+commands to submit or keeps the next step), `text` (the sanitizer for untrusted text: `is_unsafe`, `clean`,
+`clean_lines`; control and bidi characters become U+FFFD), `a11y` (the accessible names of thread and nav rows, read
+by AccessKit and TalkBack) and `panes` (which panes show for a width class: `Slot`, `Width`, `choose`; the TUI maps
+columns onto it). `app_io::images` decodes untrusted images with the shared limits (PNG, JPEG, GIF, WebP; 4096 px a
+side, 96 MiB) into RGBA; `app-sync` re-exports it as `app_sync::images` for the GUI, which does not depend on `app-io`.
 
 `app-mobile` and `app-android` (ADR 0009, Wave 4) are the Android front-end. `app-mobile` (← app-core, app-front,
 app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen models ("frames") and touch events into
@@ -1123,7 +1127,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   size or state), `j`/`k` between them; `a` approves after a confirmation (`y`; anything else keeps it, and nothing
   is offered while an attachment is being checked), `e` opens the draft in the composer (the user's edits keep the
   request), `r` rejects. Approving schedules the send with the undo window like the user's own (`Origin::Tui`).
-- **Untrusted text** (`app_tui::text`): every widget draws email content and an agent's draft text through one
+- **Untrusted text** (`app_front::text`, re-exported by `app_tui::text`): every widget draws email content and an agent's draft text through one
   sanitizer, `clean` (one line) or `clean_lines` (a body): C0 and C1 controls (ESC among them), DEL and the bidi
   embeddings, overrides, isolates and marks become U+FFFD, tabs are expanded, line breaks in a line become spaces.
   No OSC 8 links and no window title are ever written. `app-tui/tests/it/untrusted.rs` puts `ESC ]52;…`, `ESC [2J`,

@@ -10,10 +10,6 @@ use std::collections::HashMap;
 
 use egui::{ColorImage, TextureHandle, TextureOptions};
 
-/// The largest image decoded, per side (bigger ones are refused, not scaled).
-const MAX_SIDE: u32 = 4096;
-/// The most memory a decoder may use.
-const MAX_ALLOC: u64 = 96 << 20;
 /// Images kept at most; the cache starts over when it is full.
 const MAX_CACHED: usize = 64;
 
@@ -82,28 +78,12 @@ impl Images {
     }
 }
 
-/// Decodes an image part: PNG, JPEG, GIF (the first frame) or WebP, recognised by its bytes,
-/// at most 4096 pixels per side. Untrusted input: anything else is an error.
+/// Decodes an image part with the shared limits ([`app_sync::images::decode`]) into a
+/// `ColorImage`. Untrusted input: anything else is an error.
 pub fn decode(bytes: &[u8]) -> Result<ColorImage, String> {
-    use image::{ImageFormat, ImageReader, Limits};
-    let reader = ImageReader::new(std::io::Cursor::new(bytes))
-        .with_guessed_format()
-        .map_err(|err| err.to_string())?;
-    if !matches!(
-        reader.format(),
-        Some(ImageFormat::Png | ImageFormat::Jpeg | ImageFormat::Gif | ImageFormat::WebP)
-    ) {
-        return Err("not a PNG, JPEG, GIF or WebP image".to_owned());
-    }
-    let mut limits = Limits::default();
-    limits.max_image_width = Some(MAX_SIDE);
-    limits.max_image_height = Some(MAX_SIDE);
-    limits.max_alloc = Some(MAX_ALLOC);
-    let mut reader = reader;
-    reader.limits(limits);
-    let image = reader.decode().map_err(|err| err.to_string())?.to_rgba8();
-    let size = [image.width() as usize, image.height() as usize];
-    Ok(ColorImage::from_rgba_unmultiplied(size, image.as_raw()))
+    let image = app_sync::images::decode(bytes).map_err(|err| err.to_string())?;
+    let size = [image.width as usize, image.height as usize];
+    Ok(ColorImage::from_rgba_unmultiplied(size, &image.pixels))
 }
 
 #[cfg(test)]
@@ -126,7 +106,7 @@ mod tests {
         assert_eq!(image.size, [2, 1]);
         assert!(decode(b"<svg xmlns='http://www.w3.org/2000/svg'/>").is_err());
         assert!(decode(b"").is_err());
-        let huge = image::RgbaImage::new(MAX_SIDE + 1, 1);
+        let huge = image::RgbaImage::new(app_sync::images::MAX_SIDE + 1, 1);
         let mut bytes = Vec::new();
         huge.write_to(
             &mut std::io::Cursor::new(&mut bytes),

@@ -8,8 +8,8 @@ use egui::{Align, Layout, Sense, Ui, Vec2};
 use crate::bridge::Request;
 use crate::theme::Tokens;
 use crate::ui;
-use app_front::format;
 use app_front::mailbox::mailbox_name;
+use app_front::{a11y, format};
 
 /// How the rows are laid out: two lines (48), one (40) or three with the snippet (72). The
 /// `list_density` setting picks it.
@@ -317,40 +317,6 @@ struct RowLook<'a> {
     snippet: Option<&'a str>,
 }
 
-/// What a screen reader says for a row: what the dot, the star, the clip and the tick show,
-/// then senders, subject, size of the conversation and date.
-fn row_name(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    if checked {
-        parts.push("checked".to_owned());
-    }
-    if summary.unread > 0 {
-        parts.push("unread".to_owned());
-    }
-    if summary.flagged {
-        parts.push("starred".to_owned());
-    }
-    if summary.has_attachments {
-        parts.push("with attachments".to_owned());
-    }
-    let senders = format::names(&summary.senders);
-    parts.push(if senders.is_empty() {
-        "(no sender)".to_owned()
-    } else {
-        senders
-    });
-    parts.push(if summary.thread.subject.trim().is_empty() {
-        "(no subject)".to_owned()
-    } else {
-        summary.thread.subject.clone()
-    });
-    if summary.messages.len() > 1 {
-        parts.push(format!("{} messages", summary.messages.len()));
-    }
-    parts.push(format::short_date(summary.thread.last_date_ms, now_ms));
-    parts.join(", ")
-}
-
 fn row(
     ui: &mut Ui,
     t: &Tokens,
@@ -364,7 +330,7 @@ fn row(
         Vec2::new(ui.available_width(), density.height(t)),
         Sense::click(),
     );
-    let name = row_name(summary, look.checked, now_ms);
+    let name = a11y::thread_row(summary, look.checked, now_ms);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
     });
