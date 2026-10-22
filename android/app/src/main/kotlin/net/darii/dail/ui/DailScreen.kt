@@ -34,19 +34,31 @@ import net.darii.dail.Screen
  * the floating button. The screens of Wave 4 A3–A6 replace the plain panes.
  */
 @Composable
-fun DailScreen(screen: Screen, send: (UiEvent) -> Unit) {
+fun DailScreen(
+    screen: Screen,
+    send: (UiEvent) -> Unit,
+) {
     when (screen) {
-        Screen.Opening ->
+        Screen.Opening -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-        is Screen.Failed ->
+        }
+
+        is Screen.Failed -> {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text(screen.error) }
-        is Screen.Ready -> FrameScreen(screen.frame, send)
+        }
+
+        is Screen.Ready -> {
+            FrameScreen(screen.frame, send)
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FrameScreen(frame: Frame, send: (UiEvent) -> Unit) {
+private fun FrameScreen(
+    frame: Frame,
+    send: (UiEvent) -> Unit,
+) {
     BackHandler(enabled = frame.back) { send(UiEvent.Back) }
     Scaffold(
         topBar = {
@@ -62,7 +74,9 @@ private fun FrameScreen(frame: Frame, send: (UiEvent) -> Unit) {
             )
         },
         floatingActionButton = {
-            frame.fab?.let { fab -> ExtendedFloatingActionButton(onClick = { send(UiEvent.Tap(fab.action)) }) { Text(fab.label) } }
+            frame.fab?.let { fab ->
+                ExtendedFloatingActionButton(onClick = { send(UiEvent.Tap(fab.action)) }) { Text(fab.label) }
+            }
         },
         bottomBar = {
             frame.snackbar?.let { snackbar ->
@@ -98,18 +112,25 @@ private fun FrameScreen(frame: Frame, send: (UiEvent) -> Unit) {
 }
 
 @Composable
-private fun ActionButton(button: Button, send: (UiEvent) -> Unit) {
+private fun ActionButton(
+    button: Button,
+    send: (UiEvent) -> Unit,
+) {
     TextButton(onClick = { send(UiEvent.Tap(button.action)) }) { Text(button.label) }
 }
 
 @Composable
-private fun DrawerPane(drawer: Drawer, send: (UiEvent) -> Unit) {
+private fun DrawerPane(
+    drawer: Drawer,
+    send: (UiEvent) -> Unit,
+) {
     LazyColumn {
         drawer.accounts.forEach { account ->
             item { Text(account.email, Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall) }
             items(account.mailboxes) { item ->
                 Row(
-                    Modifier.fillMaxWidth()
+                    Modifier
+                        .fillMaxWidth()
                         .clickable { send(UiEvent.Tap(item.action)) }
                         .semantics { contentDescription = item.a11y }
                         .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -123,7 +144,10 @@ private fun DrawerPane(drawer: Drawer, send: (UiEvent) -> Unit) {
 }
 
 @Composable
-private fun ListPane(list: ThreadList, send: (UiEvent) -> Unit) {
+private fun ListPane(
+    list: ThreadList,
+    send: (UiEvent) -> Unit,
+) {
     if (list.rows.isEmpty()) {
         list.empty?.let { Text(it, Modifier.padding(24.dp)) }
         return
@@ -131,19 +155,31 @@ private fun ListPane(list: ThreadList, send: (UiEvent) -> Unit) {
     LazyColumn {
         items(list.rows, key = { it.thread }) { row ->
             Column(
-                Modifier.fillMaxWidth()
+                Modifier
+                    .fillMaxWidth()
                     .clickable { send(UiEvent.Tap(row.action)) }
                     .semantics { contentDescription = row.a11y }
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 val weight = if (row.unread) FontWeight.Bold else null
                 Row {
-                    Text(row.sender, Modifier.weight(1f), fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        row.sender,
+                        Modifier.weight(1f),
+                        fontWeight = weight,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(row.date, style = MaterialTheme.typography.labelSmall)
                 }
                 Text(row.subject, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (row.snippet.isNotEmpty()) {
-                    Text(row.snippet, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        row.snippet,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
             HorizontalDivider()
@@ -152,7 +188,10 @@ private fun ListPane(list: ThreadList, send: (UiEvent) -> Unit) {
 }
 
 @Composable
-private fun ReaderPane(reader: Reader, send: (UiEvent) -> Unit) {
+private fun ReaderPane(
+    reader: Reader,
+    send: (UiEvent) -> Unit,
+) {
     LazyColumn(Modifier.padding(horizontal = 16.dp)) {
         item { Text(reader.subject, style = MaterialTheme.typography.titleLarge) }
         item { Row { reader.actions.forEach { ActionButton(it, send) } } }

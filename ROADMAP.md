@@ -439,7 +439,7 @@ encryption (SEC-1), 32-bit ARM.
   splits; a Gradle task builds `libdail.so` with cargo-ndk (16 KB pages); `DailApplication` holds the `Host`;
   `MainActivity` draws frames taken on a single "dail-ui" thread (edge to edge, predictive back from `frame.back`);
   flavours `live` and `demo` (memory backend, `basic` fixture, like the GUI's demo example)
-- [ ] [kt] The Gradle side of `cargo deny`: dependency verification (checksums), a licence allowlist, a formatter and
+- [x] [kt] The Gradle side of `cargo deny`: dependency verification (checksums), a licence allowlist, a formatter and
   Android Lint with warnings as errors; `cargo xtask android apk-check`: nothing but `libdail.so` (or an allowlisted
   prebuilt) under `lib/`, 16 KB alignment, the permissions pinned; all of it in `cargo xtask verify android`
 - [ ] [kt] Debug adb bridge (debug builds only): a content provider that answers only the shell UID — `exec` (origin

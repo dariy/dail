@@ -6,7 +6,9 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 /** A text field of the composer (`app_mobile::Field`). */
-enum class Field(val wire: String) {
+enum class Field(
+    val wire: String,
+) {
     To("to"),
     Cc("cc"),
     Bcc("bcc"),
@@ -40,23 +42,34 @@ sealed interface UiEvent {
             }
     }
 
-    data class Visible(val visible: Boolean) : UiEvent {
+    data class Visible(
+        val visible: Boolean,
+    ) : UiEvent {
         override fun json() = event("visible") { put("visible", visible) }
     }
 
-    data class Tap(val action: ActionId) : UiEvent {
+    data class Tap(
+        val action: ActionId,
+    ) : UiEvent {
         override fun json() = event("tap") { put("action", action) }
     }
 
-    data class LongPress(val action: ActionId) : UiEvent {
+    data class LongPress(
+        val action: ActionId,
+    ) : UiEvent {
         override fun json() = event("long_press") { put("action", action) }
     }
 
-    data class Swipe(val action: ActionId) : UiEvent {
+    data class Swipe(
+        val action: ActionId,
+    ) : UiEvent {
         override fun json() = event("swipe") { put("action", action) }
     }
 
-    data class Scrolled(val first: Int, val count: Int) : UiEvent {
+    data class Scrolled(
+        val first: Int,
+        val count: Int,
+    ) : UiEvent {
         override fun json() =
             event("scrolled") {
                 put("first", first)
@@ -72,7 +85,10 @@ sealed interface UiEvent {
         override fun json() = event("refresh")
     }
 
-    data class Text(val field: Field, val text: String) : UiEvent {
+    data class Text(
+        val field: Field,
+        val text: String,
+    ) : UiEvent {
         override fun json() =
             event("text") {
                 put("field", field.wire)
@@ -80,11 +96,15 @@ sealed interface UiEvent {
             }
     }
 
-    data class Blur(val field: Field) : UiEvent {
+    data class Blur(
+        val field: Field,
+    ) : UiEvent {
         override fun json() = event("blur") { put("field", field.wire) }
     }
 
-    data class Key(val chord: String) : UiEvent {
+    data class Key(
+        val chord: String,
+    ) : UiEvent {
         override fun json() = event("key") { put("chord", chord) }
     }
 
@@ -93,8 +113,10 @@ sealed interface UiEvent {
     }
 }
 
-private fun event(name: String, args: (kotlinx.serialization.json.JsonObjectBuilder.() -> Unit)? = null) =
-    buildJsonObject {
-        put("event", name)
-        if (args != null) putJsonObject("args", args)
-    }
+private fun event(
+    name: String,
+    args: (kotlinx.serialization.json.JsonObjectBuilder.() -> Unit)? = null,
+) = buildJsonObject {
+    put("event", name)
+    if (args != null) putJsonObject("args", args)
+}

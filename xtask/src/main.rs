@@ -3,7 +3,15 @@
 //! this way. The `android` gate runs only when named (it needs the Android Rust targets).
 //!
 //! `cargo xtask android check` — clippy (`-D warnings`) for the Android targets over the crates the
-//! app links (ADR 0009).
+//! app links, then Gradle's formatter, licence allowlist, Android Lint and JVM tests (ADR 0009).
+//!
+//! `cargo xtask android apk` — assembles the APKs [`APK_TASKS`] names (cargo-ndk builds `libdail.so`).
+//!
+//! `cargo xtask android apk-check` — checks the APKs under `android/app/build/outputs/apk`: nothing
+//! but `libdail.so` (or an allowlisted prebuilt) under `lib/`, 16 KB alignment, the permissions
+//! pinned, release builds not debuggable and without the debug bridge.
+//!
+//! `cargo xtask android all` — `check`, `apk` and `apk-check`: the `android` gate.
 //!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
 //! `x86_64-linux-android` with cargo-ndk, pushes them and their test data to the device adb sees
@@ -71,7 +79,7 @@ const GATES: &[Gate] = &[
     },
     Gate {
         name: "android",
-        args: &["xtask", "android", "check"],
+        args: &["xtask", "android", "all"],
         default: false,
     },
 ];
@@ -110,23 +118,56 @@ const DEVICE_SKIPS: &[&str] = &["ipc::"];
 /// The directories of a crate the tests read at run time.
 const TEST_DATA_DIRS: &[&str] = &["tests", "testdata"];
 
+const ANDROID_USAGE: &str = "cargo xtask android check|apk|apk-check|all|test [ARGS…]";
+
+/// The Gradle tasks of `android check`: the formatter, the licence allowlist, Lint (warnings are
+/// errors) and the JVM tests.
+const GRADLE_CHECKS: &[&str] = &[
+    "spotlessCheck",
+    "licensee",
+    "lint",
+    "testLiveDebugUnitTest",
+    "testDemoDebugUnitTest",
+];
+
+/// The APKs `android apk` assembles: the release build users get, and the debug build agents drive.
+const APK_TASKS: &[&str] = &["assembleLiveRelease", "assembleDemoDebug"];
+
+/// Native libraries an APK may carry besides `libdail.so`, each with why (AGENTS.md §5, ADR 0009).
+const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[(
+    "libandroidx.graphics.path.so",
+    "androidx.graphics:graphics-path (Apache-2.0), Compose's path iterator; built by AOSP",
+)];
+
+/// The permissions every APK asks for, exactly. A new one is a decision: add it here with its item.
+/// The last is AndroidX core's guard for receivers registered as not exported.
+const APK_PERMISSIONS: &[&str] = &[
+    "android.permission.INTERNET",
+    "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+];
+
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         Some("verify") => verify(&args.collect::<Vec<_>>()),
         Some("android") => match args.next().as_deref() {
             Some("check") => android_check(),
+            Some("apk") => android_apk(),
+            Some("apk-check") => apk_check(),
+            Some("all") => android_check()
+                .and_then(|()| android_apk())
+                .and_then(|()| apk_check()),
             Some("test") => android_test(&args.collect::<Vec<_>>()),
             _ => {
                 let mut err = std::io::stderr().lock();
-                writeln!(err, "usage: cargo xtask android check|test [ARGS…]")?;
+                writeln!(err, "usage: {ANDROID_USAGE}")?;
                 bail!("unknown or missing android task")
             }
         },
         _ => {
             let mut err = std::io::stderr().lock();
             writeln!(err, "usage: cargo xtask verify [{}]…", gate_names("|"))?;
-            writeln!(err, "       cargo xtask android check|test [ARGS…]")?;
+            writeln!(err, "       {ANDROID_USAGE}")?;
             bail!("unknown or missing task")
         }
     }
@@ -225,7 +266,239 @@ fn android_check() -> Result<()> {
             bail!("android check for {target} failed with {status}");
         }
     }
+    gradle(&root, GRADLE_CHECKS)
+}
+
+/// Assembles [`APK_TASKS`].
+fn android_apk() -> Result<()> {
+    gradle(&workspace_root()?, APK_TASKS)
+}
+
+/// Runs `android/gradlew` with `tasks`. Without a JDK or the SDK it reports "cannot run".
+fn gradle(root: &Path, tasks: &[&str]) -> Result<()> {
+    let project = root.join("android");
+    let mut err = std::io::stderr().lock();
+    if let Some(reason) = gradle_blocker(&project) {
+        writeln!(err, "android: cannot run: {reason}")?;
+        bail!("android gradle tasks cannot run");
+    }
+    let gradlew = project.join(if cfg!(windows) {
+        "gradlew.bat"
+    } else {
+        "gradlew"
+    });
+    writeln!(err, "android: gradlew {}", tasks.join(" "))?;
+    let status = Command::new(&gradlew)
+        .args(tasks)
+        .current_dir(&project)
+        .status()
+        .with_context(|| format!("failed to spawn {}", gradlew.display()))?;
+    if !status.success() {
+        bail!("`gradlew {}` failed with {status}", tasks.join(" "));
+    }
     Ok(())
+}
+
+/// Why Gradle cannot run, if it cannot: no JDK, or no Android SDK.
+fn gradle_blocker(project: &Path) -> Option<String> {
+    let java = std::env::var_os("JAVA_HOME")
+        .map(|home| PathBuf::from(home).join("bin").join("java"))
+        .unwrap_or_else(|| PathBuf::from("java"));
+    if !Command::new(&java)
+        .arg("-version")
+        .output()
+        .is_ok_and(|output| output.status.success())
+    {
+        return Some("no JDK found (install JDK 17 and set JAVA_HOME)".to_owned());
+    }
+    if sdk_dir(project).is_none() {
+        return Some(
+            "no Android SDK found (set ANDROID_HOME, or sdk.dir in android/local.properties)"
+                .to_owned(),
+        );
+    }
+    None
+}
+
+/// The Android SDK: `ANDROID_HOME`, `ANDROID_SDK_ROOT`, else `sdk.dir` in `local.properties`.
+fn sdk_dir(project: &Path) -> Option<PathBuf> {
+    ["ANDROID_HOME", "ANDROID_SDK_ROOT"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .map(PathBuf::from)
+        .chain(
+            std::fs::read_to_string(project.join("local.properties"))
+                .ok()
+                .and_then(|text| {
+                    text.lines()
+                        .find_map(|line| line.strip_prefix("sdk.dir=").map(PathBuf::from))
+                }),
+        )
+        .find(|dir| dir.is_dir())
+}
+
+/// The newest build-tools directory of the SDK (zipalign, aapt2).
+fn build_tools(sdk: &Path) -> Option<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(sdk.join("build-tools"))
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|dir| dir.join("aapt2").is_file() || dir.join("aapt2.exe").is_file())
+        .collect();
+    dirs.sort_by_key(|dir| {
+        dir.file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| {
+                name.split(['.', '-'])
+                    .map(|part| part.parse::<u32>().unwrap_or(0))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    });
+    dirs.pop()
+}
+
+/// Checks every APK under `android/app/build/outputs/apk` (§4.6 of the Android plan).
+fn apk_check() -> Result<()> {
+    let root = workspace_root()?;
+    let project = root.join("android");
+    let mut err = std::io::stderr().lock();
+    let Some(tools) = sdk_dir(&project).and_then(|sdk| build_tools(&sdk)) else {
+        writeln!(
+            err,
+            "android apk-check: cannot run: no SDK build-tools found (sdkmanager \"build-tools;36.1.0\")"
+        )?;
+        bail!("android apk-check cannot run");
+    };
+    let apks = find_apks(&project.join("app/build/outputs/apk"))?;
+    if apks.is_empty() {
+        writeln!(
+            err,
+            "android apk-check: cannot run: no APKs (run `cargo xtask android apk`)"
+        )?;
+        bail!("android apk-check cannot run");
+    }
+    let mut problems = Vec::new();
+    for apk in &apks {
+        let name = apk
+            .file_name()
+            .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+        for problem in check_one_apk(&tools, apk)? {
+            problems.push(format!("{name}: {problem}"));
+        }
+        writeln!(err, "android apk-check: {name}")?;
+    }
+    if !problems.is_empty() {
+        for problem in &problems {
+            writeln!(err, "  {problem}")?;
+        }
+        bail!("android apk-check found {} problems", problems.len());
+    }
+    writeln!(err, "android apk-check: {} APKs passed", apks.len())?;
+    Ok(())
+}
+
+fn find_apks(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut apks = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Ok(apks);
+    };
+    for entry in entries {
+        let path = entry?.path();
+        if path.is_dir() {
+            apks.extend(find_apks(&path)?);
+        } else if path.extension().is_some_and(|ext| ext == "apk") {
+            apks.push(path);
+        }
+    }
+    apks.sort();
+    Ok(apks)
+}
+
+/// Runs an SDK tool and returns its stdout.
+fn tool_output(tool: &Path, args: &[&str], apk: &Path) -> Result<(bool, String)> {
+    let output = Command::new(tool)
+        .args(args)
+        .arg(apk)
+        .output()
+        .with_context(|| format!("failed to spawn {}", tool.display()))?;
+    Ok((
+        output.status.success(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+    ))
+}
+
+/// What is wrong with one APK.
+fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
+    let mut problems = Vec::new();
+    let release = apk.to_string_lossy().contains("release");
+
+    // `zipalign -c -P 16 -v 4` lists every entry and checks each `.so` against 16 KB pages.
+    let (aligned, listing) =
+        tool_output(&tools.join("zipalign"), &["-c", "-P", "16", "-v", "4"], apk)?;
+    if !aligned {
+        problems.push("not aligned (zipalign -c -P 16 4)".to_owned());
+    }
+    for line in listing.lines() {
+        let Some(entry) = line.split_whitespace().nth(1) else {
+            continue;
+        };
+        let Some(lib) = entry.strip_prefix("lib/") else {
+            continue;
+        };
+        let file = lib.rsplit('/').next().unwrap_or(lib);
+        let allowed =
+            file == "libdail.so" || PREBUILT_ALLOWLIST.iter().any(|(name, _)| *name == file);
+        if !allowed {
+            problems.push(format!("native code not allowed: {entry}"));
+        }
+    }
+    if !listing.contains("libdail.so") {
+        problems.push("no libdail.so".to_owned());
+    }
+
+    let aapt2 = tools.join("aapt2");
+    let (_, badging) = tool_output(&aapt2, &["dump", "badging"], apk)?;
+    let app = badging
+        .lines()
+        .find_map(|line| line.strip_prefix("package: name='"))
+        .and_then(|rest| rest.split('\'').next())
+        .unwrap_or_default()
+        .to_owned();
+    let (_, permissions) = tool_output(&aapt2, &["dump", "permissions"], apk)?;
+    let mut asked: Vec<String> = permissions
+        .lines()
+        .filter_map(|line| line.strip_prefix("uses-permission: name='"))
+        .filter_map(|rest| rest.split('\'').next())
+        .map(str::to_owned)
+        .collect();
+    asked.sort();
+    let mut pinned: Vec<String> = APK_PERMISSIONS
+        .iter()
+        .map(|permission| permission.replace("{app}", &app))
+        .collect();
+    pinned.sort();
+    if asked != pinned {
+        problems.push(format!("permissions {asked:?}, pinned {pinned:?}"));
+    }
+
+    if release {
+        if badging
+            .lines()
+            .any(|line| line.trim() == "application-debuggable")
+        {
+            problems.push("a release build is debuggable".to_owned());
+        }
+        let (_, manifest) = tool_output(
+            &aapt2,
+            &["dump", "xmltree", "--file", "AndroidManifest.xml"],
+            apk,
+        )?;
+        if manifest.contains("DebugBridge") {
+            problems.push("a release build carries the debug bridge".to_owned());
+        }
+    }
+    Ok(problems)
 }
 
 /// The Android targets whose standard library is not installed for the active toolchain.

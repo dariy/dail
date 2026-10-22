@@ -1,7 +1,6 @@
 package net.darii.dail
 
 import android.content.Context
-import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,12 +14,15 @@ import net.darii.dail.ui.External
 import net.darii.dail.ui.Frame
 import net.darii.dail.ui.UiEvent
 import net.darii.dail.ui.contract
+import java.util.concurrent.Executors
 
 /**
  * The session as Kotlin sees it: every `open`, `event` and `frame` call runs on one thread,
  * "dail-ui", and the frames they return land in [frame] for Compose to draw.
  */
-class Host(private val context: Context) {
+class Host(
+    private val context: Context,
+) {
     private val ui =
         Executors.newSingleThreadExecutor { runnable -> Thread(runnable, "dail-ui").apply { isDaemon = true } }
     private val state = MutableStateFlow<Screen>(Screen.Opening)
@@ -49,7 +51,11 @@ class Host(private val context: Context) {
                     put("profile_dir", profile.path)
                     put("cache_dir", context.cacheDir.path)
                     put("backend", contract.parseToJsonElement(BuildConfig.BACKEND))
-                    put("lang", context.resources.configuration.locales[0].toLanguageTag())
+                    put(
+                        "lang",
+                        context.resources.configuration.locales[0]
+                            .toLanguageTag(),
+                    )
                     put("version", BuildConfig.VERSION_NAME)
                 }
             val answer = contract.parseToJsonElement(Native.open(config.toString(), listener, context)).jsonObject
@@ -63,8 +69,7 @@ class Host(private val context: Context) {
         }
 
     /** Sends one event on dail-ui. */
-    fun send(event: UiEvent) =
-        ui.execute { if (handle > 0) take(Native.event(handle, event.json().toString())) }
+    fun send(event: UiEvent) = ui.execute { if (handle > 0) take(Native.event(handle, event.json().toString())) }
 
     private fun take(json: String) {
         val answer = contract.parseToJsonElement(json).jsonObject
@@ -84,7 +89,11 @@ class Host(private val context: Context) {
 sealed interface Screen {
     data object Opening : Screen
 
-    data class Ready(val frame: Frame) : Screen
+    data class Ready(
+        val frame: Frame,
+    ) : Screen
 
-    data class Failed(val error: String) : Screen
+    data class Failed(
+        val error: String,
+    ) : Screen
 }

@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.licensee)
 }
 
 /** The ABIs `libdail.so` is built for; `-Pdail.abis=x86_64` narrows a local build. */
@@ -12,9 +13,12 @@ val dailAbis: List<String> =
 
 /** The workspace version (`[workspace.package] version`), the app's version name. */
 val workspaceVersion: String =
-    rootDir.resolve("../Cargo.toml").readLines()
+    rootDir
+        .resolve("../Cargo.toml")
+        .readLines()
         .first { it.startsWith("version = ") }
-        .substringAfter('"').substringBefore('"')
+        .substringAfter('"')
+        .substringBefore('"')
 
 android {
     namespace = "net.darii.dail"
@@ -45,6 +49,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -66,6 +71,14 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    // Android Lint with warnings as errors; `lint.xml` turns off, with reasons, what the pins make moot.
+    lint {
+        warningsAsErrors = true
+        abortOnError = true
+        checkDependencies = true
+        lintConfig = file("lint.xml")
     }
 
     testOptions {
@@ -140,6 +153,15 @@ androidComponents {
             }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargo, CargoNdk::output)
     }
+}
+
+// The licence allowlist (the Gradle side of `deny.toml`'s `[licenses]`): an artifact under any other
+// licence fails `licensee`, which `check` runs.
+licensee {
+    allow("Apache-2.0")
+    allow("MIT")
+    allow("BSD-2-Clause")
+    allow("BSD-3-Clause")
 }
 
 dependencies {

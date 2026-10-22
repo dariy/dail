@@ -1,14 +1,14 @@
 package net.darii.dail
 
-import java.io.File
 import kotlinx.serialization.json.Json
+import net.darii.dail.ui.External
 import net.darii.dail.ui.Field
 import net.darii.dail.ui.Frame
 import net.darii.dail.ui.UiEvent
-import net.darii.dail.ui.External
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /** The contract fixtures `app-mobile`'s tests write (`crates/app-mobile/tests/it/contract.rs`). */
 class ContractTest {
@@ -16,7 +16,11 @@ class ContractTest {
 
     private fun fixtures(kind: String): Map<String, String> {
         val dir = File(checkNotNull(javaClass.classLoader?.getResource("contract/$kind")).toURI())
-        return dir.listFiles().orEmpty().filter { it.extension == "json" }.associate { it.nameWithoutExtension to it.readText() }
+        return dir
+            .listFiles()
+            .orEmpty()
+            .filter { it.extension == "json" }
+            .associate { it.nameWithoutExtension to it.readText() }
     }
 
     @Test
@@ -43,7 +47,8 @@ class ContractTest {
             mapOf(
                 "back" to UiEvent.Back,
                 "blur" to UiEvent.Blur(Field.To),
-                "configure" to UiEvent.Configure(360, 800, dark = true, fontScale = 1.25f, locale = "en-US", keyboard = false),
+                "configure" to
+                    UiEvent.Configure(360, 800, dark = true, fontScale = 1.25f, locale = "en-US", keyboard = false),
                 "key" to UiEvent.Key("Ctrl+Z"),
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
@@ -56,6 +61,8 @@ class ContractTest {
             )
         val rust = fixtures("events")
         assertEquals(rust.keys, kotlin.keys)
-        rust.forEach { (name, json) -> assertEquals(name, strict.parseToJsonElement(json), kotlin.getValue(name).json()) }
+        rust.forEach { (name, json) ->
+            assertEquals(name, strict.parseToJsonElement(json), kotlin.getValue(name).json())
+        }
     }
 }

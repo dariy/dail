@@ -1,6 +1,7 @@
 package net.darii.dail
 
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
@@ -12,6 +13,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import net.darii.dail.ui.DailScreen
@@ -22,12 +25,22 @@ class MainActivity : ComponentActivity() {
     private val host: Host
         get() = (application as DailApplication).host
 
+    /** A short confirming vibration (`CONFIRM` from Android 11). */
+    private val haptic =
+        if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.R
+        ) {
+            HapticFeedbackConstants.CONFIRM
+        } else {
+            HapticFeedbackConstants.KEYBOARD_TAP
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         host.onExternal = { external ->
             if (external.external == "haptic") {
-                runOnUiThread { window.decorView.performHapticFeedback(HapticFeedbackConstants.CONFIRM) }
+                runOnUiThread { window.decorView.performHapticFeedback(haptic) }
             }
         }
         host.open()
@@ -35,11 +48,18 @@ class MainActivity : ComponentActivity() {
             val configuration = LocalConfiguration.current
             val dark =
                 configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-            LaunchedEffect(configuration) {
+            val size =
+                with(LocalDensity.current) {
+                    LocalWindowInfo.current.containerSize.let {
+                        it.width.toDp() to
+                            it.height.toDp()
+                    }
+                }
+            LaunchedEffect(configuration, size) {
                 host.send(
                     UiEvent.Configure(
-                        widthDp = configuration.screenWidthDp,
-                        heightDp = configuration.screenHeightDp,
+                        widthDp = size.first.value.toInt(),
+                        heightDp = size.second.value.toInt(),
                         dark = dark,
                         fontScale = configuration.fontScale,
                         locale = configuration.locales[0].toLanguageTag(),

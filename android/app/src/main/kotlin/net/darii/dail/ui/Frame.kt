@@ -13,7 +13,10 @@ val contract = Json { explicitNulls = false }
 typealias ActionId = Int
 
 @Serializable
-data class Answer(val frame: Frame, val externals: List<External> = emptyList())
+data class Answer(
+    val frame: Frame,
+    val externals: List<External> = emptyList(),
+)
 
 @Serializable
 data class Frame(
@@ -33,24 +36,43 @@ data class Frame(
 
 @Serializable
 enum class WindowClass {
-    @SerialName("compact") Compact,
-    @SerialName("medium") Medium,
-    @SerialName("expanded") Expanded,
+    @SerialName("compact")
+    Compact,
+
+    @SerialName("medium")
+    Medium,
+
+    @SerialName("expanded")
+    Expanded,
 }
 
 @Serializable
 enum class PaneKind {
-    @SerialName("drawer") Drawer,
-    @SerialName("list") List,
-    @SerialName("reader") Reader,
-    @SerialName("composer") Composer,
+    @SerialName("drawer")
+    Drawer,
+
+    @SerialName("list")
+    List,
+
+    @SerialName("reader")
+    Reader,
+
+    @SerialName("composer")
+    Composer,
 }
 
 @Serializable
-data class Layout(@SerialName("class") val windowClass: WindowClass, val panes: List<PaneKind>)
+data class Layout(
+    @SerialName("class") val windowClass: WindowClass,
+    val panes: List<PaneKind>,
+)
 
 @Serializable
-data class Button(val icon: String? = null, val label: String, val action: ActionId)
+data class Button(
+    val icon: String? = null,
+    val label: String,
+    val action: ActionId,
+)
 
 @Serializable
 data class TopBar(
@@ -61,10 +83,17 @@ data class TopBar(
 )
 
 @Serializable
-data class Drawer(val rail: Boolean, val accounts: List<DrawerAccount>)
+data class Drawer(
+    val rail: Boolean,
+    val accounts: List<DrawerAccount>,
+)
 
 @Serializable
-data class DrawerAccount(val name: String, val email: String, val mailboxes: List<DrawerItem>)
+data class DrawerAccount(
+    val name: String,
+    val email: String,
+    val mailboxes: List<DrawerItem>,
+)
 
 @Serializable
 data class DrawerItem(
@@ -78,9 +107,14 @@ data class DrawerItem(
 
 @Serializable
 enum class Density {
-    @SerialName("cozy") Cozy,
-    @SerialName("compact") Compact,
-    @SerialName("preview") Preview,
+    @SerialName("cozy")
+    Cozy,
+
+    @SerialName("compact")
+    Compact,
+
+    @SerialName("preview")
+    Preview,
 }
 
 @Serializable
@@ -138,7 +172,12 @@ data class ReaderMessage(
 )
 
 @Serializable
-data class Attachment(val part: Int, val name: String, val mime: String, val size: String)
+data class Attachment(
+    val part: Int,
+    val name: String,
+    val mime: String,
+    val size: String,
+)
 
 @Serializable
 data class Composer(
@@ -151,11 +190,20 @@ data class Composer(
 )
 
 @Serializable
-data class Banner(val text: String, val hint: String? = null, val action: Button? = null)
+data class Banner(
+    val text: String,
+    val hint: String? = null,
+    val action: Button? = null,
+)
 
 @Serializable
-data class Snackbar(val text: String, val action: Button? = null)
+data class Snackbar(
+    val text: String,
+    val action: Button? = null,
+)
 
 /** What only the host can do (`app_mobile::External`). */
 @Serializable
-data class External(val external: String)
+data class External(
+    val external: String,
+)

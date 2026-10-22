@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- reason: versions are pinned to what compiles against SDK 36 (libs.versions.toml, ADR 0009); updates are deliberate. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- reason: targetSdk 36 is ADR 0009's choice; moving to 37 is a decision of its own. -->
+    <issue id="OldTargetApi" severity="ignore" />
+    <!-- reason: the ABI list is a property (`dail.abis`) whose default includes x86_64; Lint cannot read it. -->
+    <issue id="ChromeOsAbiSupport" severity="ignore" />
+</lint>

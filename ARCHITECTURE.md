@@ -1285,6 +1285,14 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   a plain drawing of every pane until the screens of A3–A6.
 - **Tests** (`app/src/test`, JVM): `ContractTest` decodes every contract frame and external strictly and checks that
   Kotlin's events encode exactly as the event fixtures.
+- **The Gradle side of `cargo deny`.** `gradle/verification-metadata.xml` holds a SHA-256 per artifact (regenerate
+  with `./gradlew --write-verification-metadata sha256 <tasks>` after a version change); Licensee allows only
+  Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
+  `app/lint.xml` turning off, with reasons, the checks that the SDK 36 pins make moot.
+- **The APK check** (`cargo xtask android apk-check`, over every APK under `app/build/outputs/apk`): `lib/` holds
+  only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
+  with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
+  release APK is not debuggable and carries no debug bridge.
 
 ## 8. Initial Command catalogue (MVP)
 
@@ -1405,9 +1413,11 @@ with INBOX, Sent, Drafts and Archive;
 `Fixture::builtin("basic")`, `Fixture::from_path`).
 
 **Android** (ADR 0009): `cargo xtask android check` runs clippy (`-D warnings`) for `aarch64-linux-android` and
-`x86_64-linux-android` over the crates the app links (app-core, app-io, app-sync, app-tls, app-front, app-theme; the
-new crates join in A1). It is the `android` gate (`cargo xtask verify android`), not in the default run; without the
-rustup targets it reports "cannot run". CI runs it as the `android` job. `cargo xtask android test [ARGS…]` builds
+`x86_64-linux-android` over the crates the app links (app-core, app-io, app-sync, app-tls, app-front, app-theme,
+app-mobile, app-android), then Gradle's `spotlessCheck`, `licensee`, `lint` and the JVM tests; `android apk`
+assembles `liveRelease` and `demoDebug`; `android apk-check` checks them (§7.5). `android all` runs the three: it is
+the `android` gate (`cargo xtask verify android`), not in the default run; without the rustup targets, a JDK, the SDK
+or its build-tools it reports "cannot run". CI runs it as the `android` job. `cargo xtask android test [ARGS…]` builds
 the test binaries of app-core, app-io, app-tls and app-sync for `x86_64-linux-android` (API 29) with cargo-ndk's
 environment and the NDK's clang, pushes them and each crate's `tests/` and `testdata/` to `/data/local/tmp/dail` on
 the device adb sees, and runs them there (`CARGO_MANIFEST_DIR` and `INSTA_WORKSPACE_ROOT` point at the pushed copy,

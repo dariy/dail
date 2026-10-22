@@ -50,15 +50,23 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask verify test smoke
 
-  # The `android` gate (ADR 0009): clippy for the Android targets over the crates the app links. Clippy
-  # never links, so the rustup targets suffice; the NDK joins when the app's library is built (A1).
+  # The `android` gate (ADR 0009): clippy for the Android targets over the crates the app links, Gradle's
+  # formatter, licences, Lint and JVM tests, then the APKs (cargo-ndk builds libdail.so) and their check.
   android:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: rustup show active-toolchain || rustup toolchain install
       - run: rustup target add aarch64-linux-android x86_64-linux-android
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
       - uses: Swatinem/rust-cache@v2
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.1.0" > /dev/null
       - run: cargo xtask verify android
 
   # `cargo xtask android test` (ADR 0009): the Rust tests of app-core, app-io, app-tls and app-sync on an x86_64
