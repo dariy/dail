@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 27,
+    "action": 29,
     "icon": "edit",
     "label": "Compose"
   },
@@ -19,37 +19,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 14,
+        "action": 16,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 15,
+        "long_press": 17,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 17,
-        "swipe_start": 16,
+        "swipe_end": 19,
+        "swipe_start": 18,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 18,
+        "action": 20,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 19,
+        "long_press": 21,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 21,
-        "swipe_start": 20,
+        "swipe_end": 23,
+        "swipe_start": 22,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -60,22 +60,22 @@
   "reader": {
     "actions": [
       {
-        "action": 22,
+        "action": 24,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 23,
+        "action": 25,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 24,
+        "action": 26,
         "icon": "mark_email_unread",
         "label": "Mark unread"
       },
       {
-        "action": 25,
+        "action": 27,
         "icon": "reply",
         "label": "Reply"
       }
@@ -91,7 +91,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 26
+        "toggle": 28
       }
     ],
     "subject": "Lunch?",
@@ -101,13 +101,17 @@
   "top_bar": {
     "actions": [
       {
-        "action": 13,
+        "action": 14,
         "icon": "search",
         "label": "Search or run a command"
+      },
+      {
+        "action": 15,
+        "label": "About"
       }
     ],
     "navigation": {
-      "action": 12,
+      "action": 13,
       "icon": "menu",
       "label": "Mailboxes"
     },

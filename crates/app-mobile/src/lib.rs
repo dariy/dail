@@ -10,8 +10,10 @@ pub mod event;
 pub mod frame;
 pub mod mobile;
 pub mod request;
+pub mod theme;
 
 pub use event::{External, UiEvent};
 pub use frame::{Class, Frame};
 pub use mobile::Mobile;
 pub use request::{Purpose, Reply, Request};
+pub use theme::{About, FrameTheme};

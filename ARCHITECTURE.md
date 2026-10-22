@@ -1206,8 +1206,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (accounts and mailboxes; a rail on wide
   windows after `toggle_sidebar`), `list`, `reader`, `composer` (read-only until A4), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
-  rejection, or the latest undoable action with Undo for 6 s), `back` and `wants_tick`. Later items add the palette,
-  settings, setup and theme. Every string from mail goes through `app_front::text::clean`.
+  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `back` and `wants_tick`. Later
+  items add the palette, settings and setup.
+- **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
+  theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
+  follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
+  carries the content and chrome colour roles as `#RRGGBBAA`, the tags, the type scale, the metrics and the icon
+  font's glyph per icon name. The top bar's *About* opens `about` (the bundled fonts' and icons' licences, from
+  `app_theme::fonts` and `icon`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
   `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
   and detail. The class never dispatches a command.
@@ -1287,6 +1293,13 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
   manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DailScreen.kt`
   a plain drawing of every pane until the screens of A3–A6.
+- **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
+  fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
+  surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the
+  typography (Geist and JetBrains Mono at weights 400/500/600 on their `wght` axis). The status bar follows the
+  chrome's luminance, the navigation bar the content's. A `themeFonts` task copies Geist, JetBrains Mono and the
+  Material Symbols subset from `crates/app-theme/assets/fonts` into generated font resources; an icon whose name
+  has no glyph is drawn as its label.
 - **Tests** (`app/src/test`, JVM): `ContractTest` decodes every contract frame and external strictly and checks that
   Kotlin's events encode exactly as the event fixtures.
 - **The debug adb bridge** (`app/src/debug`: `DebugBridge`, a content provider at `<applicationId>.debug`, exported in

@@ -1,5 +1,31 @@
 {
   "$defs": {
+    "About": {
+      "description": "The About screen: the version and the licences of what the app bundles.",
+      "properties": {
+        "licences": {
+          "description": "One licence per bundled work.",
+          "items": {
+            "$ref": "#/$defs/Licence"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "What the app is.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The screen's title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "text",
+        "licences"
+      ],
+      "type": "object"
+    },
     "Attachment": {
       "description": "An attachment of a received message.",
       "properties": {
@@ -260,6 +286,73 @@
       ],
       "type": "object"
     },
+    "FrameTheme": {
+      "description": "A theme, sent in the frame when it changes (the settings or the system's dark mode).",
+      "properties": {
+        "chrome": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The chrome group's roles (top bar, drawer); equal to `content` in a flat theme.",
+          "type": "object"
+        },
+        "content": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The content group's colour roles (`base`, `text`, …) as `#RRGGBBAA`.",
+          "type": "object"
+        },
+        "dark": {
+          "description": "Whether it is dark (the status bar's icons, Material's dark scheme).",
+          "type": "boolean"
+        },
+        "icons": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The icon font's glyph for each icon name the frames use (`archive` → `\"\\u{e149}\"`).",
+          "type": "object"
+        },
+        "id": {
+          "description": "The theme's slug (`dail-dark`).",
+          "type": "string"
+        },
+        "metrics": {
+          "description": "Spacing, radii, strokes and sizes in dp, as `app_theme::Metrics`."
+        },
+        "name": {
+          "description": "Its name.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "The account colours, `#RRGGBBAA`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type_scale": {
+          "additionalProperties": {
+            "$ref": "#/$defs/TextStyle"
+          },
+          "description": "The type scale by token name (`body_md`, …).",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "dark",
+        "content",
+        "chrome",
+        "tags",
+        "type_scale",
+        "metrics",
+        "icons"
+      ],
+      "type": "object"
+    },
     "Layout": {
       "description": "The window class and the panes, left to right.",
       "properties": {
@@ -278,6 +371,24 @@
       "required": [
         "class",
         "panes"
+      ],
+      "type": "object"
+    },
+    "Licence": {
+      "description": "A bundled work and its licence.",
+      "properties": {
+        "name": {
+          "description": "The work (`Geist`).",
+          "type": "string"
+        },
+        "text": {
+          "description": "The licence's text.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "text"
       ],
       "type": "object"
     },
@@ -599,6 +710,45 @@
       ],
       "type": "object"
     },
+    "TextStyle": {
+      "description": "One text style.",
+      "properties": {
+        "face": {
+          "description": "`sans` (Geist) or `mono` (JetBrains Mono).",
+          "type": "string"
+        },
+        "line_height": {
+          "description": "Line height in sp.",
+          "format": "float",
+          "type": "number"
+        },
+        "size": {
+          "description": "Size in sp.",
+          "format": "float",
+          "type": "number"
+        },
+        "tracking": {
+          "description": "Letter spacing in em.",
+          "format": "float",
+          "type": "number"
+        },
+        "weight": {
+          "description": "400, 500 or 600.",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "face",
+        "size",
+        "line_height",
+        "weight",
+        "tracking"
+      ],
+      "type": "object"
+    },
     "ThreadId": {
       "description": "A conversation that groups messages across mailboxes.",
       "format": "uuid",
@@ -647,6 +797,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "One screen.",
   "properties": {
+    "about": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/About"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The About screen, while open (over everything else; Back closes it)."
+    },
     "back": {
       "description": "Whether system Back is taken (send `back`); otherwise Android handles it.",
       "type": "boolean"
@@ -737,6 +898,17 @@
         }
       ],
       "description": "A short message: a send counting down, an undoable action, a rejection."
+    },
+    "theme": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FrameTheme"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The theme, in the first frame and whenever it changes (the settings, the system's dark\nmode); the host keeps the last one."
     },
     "top_bar": {
       "$ref": "#/$defs/TopBar",

@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 16,
+            "action": 18,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 17,
+            "action": 19,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 18,
+            "action": 20,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 19,
+            "action": 21,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -44,7 +44,7 @@
     "rail": false
   },
   "fab": {
-    "action": 33,
+    "action": 35,
     "icon": "edit",
     "label": "Compose"
   },
@@ -63,37 +63,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 20,
+        "action": 22,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 21,
+        "long_press": 23,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 23,
-        "swipe_start": 22,
+        "swipe_end": 25,
+        "swipe_start": 24,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 24,
+        "action": 26,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 25,
+        "long_press": 27,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 27,
-        "swipe_start": 26,
+        "swipe_end": 29,
+        "swipe_start": 28,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -104,22 +104,22 @@
   "reader": {
     "actions": [
       {
-        "action": 28,
+        "action": 30,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 29,
+        "action": 31,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 30,
+        "action": 32,
         "icon": "mark_email_unread",
         "label": "Mark unread"
       },
       {
-        "action": 31,
+        "action": 33,
         "icon": "reply",
         "label": "Reply"
       }
@@ -135,7 +135,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 32
+        "toggle": 34
       }
     ],
     "subject": "Lunch?",
@@ -145,9 +145,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 15,
+        "action": 16,
         "icon": "search",
         "label": "Search or run a command"
+      },
+      {
+        "action": 17,
+        "label": "About"
       }
     ],
     "subtitle": "synced 9h ago",

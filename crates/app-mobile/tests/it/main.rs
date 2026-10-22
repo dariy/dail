@@ -5,3 +5,4 @@ mod support;
 mod contract;
 mod events;
 mod frames;
+mod theme;

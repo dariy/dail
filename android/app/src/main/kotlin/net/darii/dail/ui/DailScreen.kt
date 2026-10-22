@@ -10,15 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarColors
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import net.darii.dail.Screen
 
 /**
@@ -71,6 +77,7 @@ private fun FrameScreen(
                 },
                 navigationIcon = { frame.topBar.navigation?.let { ActionButton(it, send) } },
                 actions = { frame.topBar.actions.forEach { ActionButton(it, send) } },
+                colors = chromeBar(LocalChrome.current),
             )
         },
         floatingActionButton = {
@@ -87,6 +94,10 @@ private fun FrameScreen(
             }
         },
     ) { padding ->
+        frame.about?.let { about ->
+            AboutScreen(about, Modifier.padding(padding))
+            return@Scaffold
+        }
         Column(Modifier.padding(padding).fillMaxSize()) {
             frame.banner?.let { banner ->
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -116,7 +127,53 @@ private fun ActionButton(
     button: Button,
     send: (UiEvent) -> Unit,
 ) {
-    TextButton(onClick = { send(UiEvent.Tap(button.action)) }) { Text(button.label) }
+    val glyph = button.icon?.let { LocalChrome.current.icons[it] }
+    if (glyph == null) {
+        // The surrounding content colour: the chrome's text in the top bar, not `primary`.
+        val colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current)
+        TextButton(onClick = { send(UiEvent.Tap(button.action)) }, colors = colors) { Text(button.label) }
+        return
+    }
+    IconButton(
+        onClick = { send(UiEvent.Tap(button.action)) },
+        modifier = Modifier.semantics { contentDescription = button.label },
+    ) {
+        Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE)
+    }
+}
+
+private val ICON_SIZE = 24.sp
+
+/** The top bar in the theme's chrome group (dark in Dail Light, as on the desktop). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun chromeBar(chrome: Chrome): TopAppBarColors {
+    if (chrome.roles.isEmpty()) return TopAppBarDefaults.topAppBarColors()
+    return TopAppBarDefaults.topAppBarColors(
+        containerColor = chrome.role("base"),
+        titleContentColor = chrome.role("text_strong"),
+        navigationIconContentColor = chrome.role("text_strong"),
+        actionIconContentColor = chrome.role("text_strong"),
+    )
+}
+
+/** The version and the licences of the bundled fonts and icons; Back closes it. */
+@Composable
+private fun AboutScreen(
+    about: About,
+    modifier: Modifier,
+) {
+    LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        item { Text(about.title, style = MaterialTheme.typography.titleLarge) }
+        item { Text(about.text, Modifier.padding(vertical = 8.dp)) }
+        items(about.licences, key = { it.name }) { licence ->
+            Column(Modifier.padding(vertical = 8.dp)) {
+                Text(licence.name, style = MaterialTheme.typography.titleMedium)
+                Text(licence.text, style = MaterialTheme.typography.labelSmall)
+            }
+            HorizontalDivider()
+        }
+    }
 }
 
 @Composable

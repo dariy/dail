@@ -12,7 +12,12 @@ expression: phone.frame()
   },
   "top_bar": {
     "title": "Conversations",
-    "actions": []
+    "actions": [
+      {
+        "label": "About",
+        "action": 1
+      }
+    ]
   },
   "list": {
     "title": "Conversations",
@@ -22,6 +27,251 @@ expression: phone.frame()
     "checked": 0,
     "rows": [],
     "empty": "No accounts yet. Account setup arrives in a later version."
+  },
+  "theme": {
+    "id": "dail-light",
+    "name": "Dail Light",
+    "dark": false,
+    "content": {
+      "base": "#FFFFFFFF",
+      "border": "#D7D7D7FF",
+      "border_strong": "#8A8A8AFF",
+      "border_subtle": "#E9E9E9FF",
+      "canvas": "#FFFFFFFF",
+      "danger": "#B3261EFF",
+      "emphasis": "#E2E2E2FF",
+      "focus": "#0E0E0EFF",
+      "hover": "#F2F2F2FF",
+      "inverse_bg": "#0E0E0EFF",
+      "inverse_danger": "#FFB4ABFF",
+      "inverse_text": "#FFFFFFFF",
+      "raised": "#F2F2F2FF",
+      "scrim": "#0E0E0E66",
+      "selected": "#E2E2E2FF",
+      "text": "#1F1F1FFF",
+      "text_muted": "#626262FF",
+      "text_secondary": "#343434FF",
+      "text_strong": "#0E0E0EFF"
+    },
+    "chrome": {
+      "base": "#0E0E0EFF",
+      "border": "#2F2F2FFF",
+      "border_strong": "#6B6B6BFF",
+      "border_subtle": "#222222FF",
+      "canvas": "#131313FF",
+      "danger": "#FFB4ABFF",
+      "emphasis": "#343434FF",
+      "focus": "#FFFFFFFF",
+      "hover": "#1F1F1FFF",
+      "inverse_bg": "#FFFFFFFF",
+      "inverse_danger": "#B3261EFF",
+      "inverse_text": "#0E0E0EFF",
+      "raised": "#1B1B1BFF",
+      "scrim": "#00000099",
+      "selected": "#2A2A2AFF",
+      "text": "#E2E2E2FF",
+      "text_muted": "#959595FF",
+      "text_secondary": "#C6C6C6FF",
+      "text_strong": "#FFFFFFFF"
+    },
+    "tags": [
+      "#3B82F6FF",
+      "#E11D48FF",
+      "#10B981FF",
+      "#F59E0BFF",
+      "#8B5CF6FF",
+      "#06B6D4FF"
+    ],
+    "type_scale": {
+      "body_lg": {
+        "face": "sans",
+        "size": 15.0,
+        "line_height": 24.0,
+        "weight": 400,
+        "tracking": -0.01
+      },
+      "body_md": {
+        "face": "sans",
+        "size": 13.0,
+        "line_height": 20.0,
+        "weight": 400,
+        "tracking": 0.0
+      },
+      "body_sm": {
+        "face": "sans",
+        "size": 12.0,
+        "line_height": 18.0,
+        "weight": 400,
+        "tracking": 0.0
+      },
+      "code_badge": {
+        "face": "mono",
+        "size": 10.0,
+        "line_height": 12.0,
+        "weight": 600,
+        "tracking": 0.04
+      },
+      "headline_lg": {
+        "face": "sans",
+        "size": 20.0,
+        "line_height": 26.0,
+        "weight": 600,
+        "tracking": -0.02
+      },
+      "headline_md": {
+        "face": "sans",
+        "size": 15.0,
+        "line_height": 20.0,
+        "weight": 600,
+        "tracking": -0.01
+      },
+      "headline_xl": {
+        "face": "sans",
+        "size": 28.0,
+        "line_height": 34.0,
+        "weight": 600,
+        "tracking": -0.03
+      },
+      "label_md": {
+        "face": "mono",
+        "size": 12.0,
+        "line_height": 16.0,
+        "weight": 500,
+        "tracking": -0.01
+      },
+      "label_sm": {
+        "face": "mono",
+        "size": 11.0,
+        "line_height": 14.0,
+        "weight": 500,
+        "tracking": 0.02
+      }
+    },
+    "metrics": {
+      "animation_ms": 80,
+      "controls": {
+        "avatar_lg": 40.0,
+        "avatar_md": 32.0,
+        "avatar_sm": 28.0,
+        "badge": 18.0,
+        "button": 28.0,
+        "button_small": 24.0,
+        "checkbox": 14.0,
+        "icon_button": 28.0,
+        "icon_lg": 20.0,
+        "icon_md": 18.0,
+        "icon_sm": 16.0,
+        "icon_xs": 14.0,
+        "key_cap": 18.0,
+        "switch_height": 24.0,
+        "switch_width": 44.0,
+        "unread_pip": 6.0
+      },
+      "frame": {
+        "list": 410.0,
+        "list_max": 640.0,
+        "list_min": 300.0,
+        "pane_footer": 40.0,
+        "pane_header": 48.0,
+        "rail": 56.0,
+        "reader_padding": 24.0,
+        "reader_toolbar": 48.0,
+        "sidebar": 224.0,
+        "sidebar_max": 360.0,
+        "sidebar_min": 160.0,
+        "text_width_max": 720.0,
+        "top_bar": 56.0
+      },
+      "overlays": {
+        "dialog_width": 480.0,
+        "floating_composer_width": 540.0,
+        "palette_list_max": 380.0,
+        "palette_offset": 80.0,
+        "palette_width": 560.0,
+        "toast_width_max": 480.0
+      },
+      "radius": {
+        "full": 9999.0,
+        "lg": 8.0,
+        "md": 4.0,
+        "sm": 2.0
+      },
+      "rows": {
+        "compact": 40.0,
+        "cozy": 48.0,
+        "nav": 32.0,
+        "palette": 36.0,
+        "preview": 72.0
+      },
+      "space": {
+        "lg": 16.0,
+        "md": 12.0,
+        "sm": 8.0,
+        "xl": 24.0,
+        "xs": 4.0
+      },
+      "stroke": {
+        "focus": 1.0,
+        "hairline": 1.0,
+        "indicator": 2.0
+      }
+    },
+    "icons": {
+      "add": "",
+      "all_inbox": "",
+      "archive": "",
+      "attach_file": "",
+      "check": "",
+      "check_box": "",
+      "check_box_outline_blank": "",
+      "chevron_left": "",
+      "chevron_right": "",
+      "close": "",
+      "cloud_off": "",
+      "content_copy": "",
+      "contrast": "",
+      "dark_mode": "",
+      "delete": "",
+      "description": "",
+      "dock_to_left": "",
+      "download": "",
+      "draft": "",
+      "drive_file_move": "",
+      "edit": "",
+      "error": "",
+      "expand_less": "",
+      "expand_more": "",
+      "folder": "",
+      "forward": "",
+      "image": "",
+      "inbox": "",
+      "keyboard": "",
+      "light_mode": "",
+      "link": "",
+      "mail": "",
+      "mark_email_read": "",
+      "mark_email_unread": "",
+      "more_horiz": "",
+      "open_in_new": "",
+      "person": "",
+      "picture_as_pdf": "",
+      "reply": "",
+      "reply_all": "",
+      "report": "",
+      "schedule": "",
+      "search": "",
+      "send": "",
+      "settings": "",
+      "star": "",
+      "sync": "",
+      "undo": "",
+      "unfold_less": "",
+      "unfold_more": "",
+      "verified_user": "",
+      "visibility": "",
+      "visibility_off": "",
+      "warning": ""
+    }
   },
   "back": false,
   "wants_tick": false

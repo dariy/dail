@@ -39,6 +39,9 @@ fn frames() -> Vec<(String, Frame)> {
     }
     let mut phone = Phone::new(AppState::default(), 360, 800);
     out.push(("no_accounts".to_owned(), phone.frame()));
+    let about = phone.frame().top_bar.actions[0].action;
+    phone.tap(about);
+    out.push(("about".to_owned(), phone.frame()));
     out
 }
 

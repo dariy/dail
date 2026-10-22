@@ -429,6 +429,7 @@ dependencies = [
  "app-core",
  "app-front",
  "app-testkit",
+ "app-theme",
  "insta",
  "schemars",
  "serde",

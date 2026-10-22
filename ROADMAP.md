@@ -445,7 +445,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [kt] Debug adb bridge (debug builds only): a content provider that answers only the shell UID — `exec` (origin
   `cli`), `exec_agent` (origin `mcp`), `state`, `frame`; the instrumented tests use it, and so do agents, with
   `uiautomator dump`, `screencap` and `input` (plan Appendix D)
-- [ ] [mobile] [kt] Theme: `app-theme`'s tokens in the frame (roles, type scale, metrics; only when they change) mapped
+- [x] [mobile] [kt] Theme: `app-theme`'s tokens in the frame (roles, type scale, metrics; only when they change) mapped
   onto Material 3; Geist, JetBrains Mono and the Material Symbols subset from `crates/app-theme/assets/fonts`, with
   their licences on an About screen; the light, dark and high-contrast themes; the mode follows `theme` and the system
 

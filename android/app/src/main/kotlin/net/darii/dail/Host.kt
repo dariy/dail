@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import net.darii.dail.ui.Answer
 import net.darii.dail.ui.External
 import net.darii.dail.ui.Frame
+import net.darii.dail.ui.FrameTheme
 import net.darii.dail.ui.UiEvent
 import net.darii.dail.ui.contract
 import java.util.concurrent.Executors
@@ -29,6 +30,9 @@ class Host(
     private var handle = 0
 
     @Volatile private var lastFrame: String? = null
+
+    /** The theme of the last frame that carried one (frames carry it only when it changes). */
+    private var theme: FrameTheme? = null
 
     /** What to draw. */
     val frame: StateFlow<Screen> = state.asStateFlow()
@@ -95,7 +99,8 @@ class Host(
         }
         val decoded = contract.decodeFromJsonElement(Answer.serializer(), answer)
         lastFrame = answer["frame"].toString()
-        state.value = Screen.Ready(decoded.frame)
+        decoded.frame.theme?.let { theme = it }
+        state.value = Screen.Ready(decoded.frame, theme)
         decoded.externals.forEach { onExternal(it) }
     }
 
@@ -108,6 +113,7 @@ sealed interface Screen {
 
     data class Ready(
         val frame: Frame,
+        val theme: FrameTheme?,
     ) : Screen
 
     data class Failed(

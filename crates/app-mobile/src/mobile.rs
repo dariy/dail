@@ -43,6 +43,8 @@ enum Act {
     Back,
     /// Start a new message from the current account (`create_draft`, then the composer).
     Compose,
+    /// Open the About screen.
+    About,
 }
 
 /// The window, as the host last configured it.
@@ -93,6 +95,12 @@ pub struct Mobile {
     /// The draft whose send this presenter scheduled, while it can be cancelled.
     sending: Option<DraftId>,
     externals: Vec<External>,
+    /// The system's dark mode (`configure`).
+    dark: bool,
+    /// The theme the host has, by slug.
+    theme_sent: Option<String>,
+    /// Whether the About screen is open.
+    about: bool,
 }
 
 impl Default for Mobile {
@@ -164,6 +172,9 @@ impl Mobile {
             undo_until: 0,
             sending: None,
             externals: Vec::new(),
+            dark: false,
+            theme_sent: None,
+            about: false,
         }
     }
 
@@ -206,9 +217,11 @@ impl Mobile {
             UiEvent::Configure {
                 width_dp,
                 height_dp,
+                dark,
                 locale,
                 ..
             } => {
+                self.dark = dark;
                 self.window = Window {
                     width_dp,
                     height_dp,
@@ -302,6 +315,10 @@ impl Mobile {
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
             Act::Back => self.back(state),
+            Act::About => {
+                self.about = true;
+                Vec::new()
+            }
             Act::Compose => palette::current_account(state)
                 .map(|account| {
                     Request::user(Command::CreateDraft {
@@ -330,6 +347,10 @@ impl Mobile {
     /// What Back submits: the `Escape` binding (close the composer, the thread, the search, …),
     /// else uncheck the checked threads, else from the drawer of a one-pane window back to the list.
     fn back(&mut self, state: &AppState) -> Vec<Request> {
+        if self.about {
+            self.about = false;
+            return Vec::new();
+        }
         if let Some(cmd) = self.escape(state) {
             return vec![Request::user(cmd)];
         }
@@ -419,11 +440,19 @@ impl Mobile {
         } else {
             None
         };
-        let fab = (!state.accounts.is_empty() && !kinds.contains(&PaneKind::Composer))
-            .then(|| self.button("edit", "Compose", Act::Compose));
+        let fab =
+            (!self.about && !state.accounts.is_empty() && !kinds.contains(&PaneKind::Composer))
+                .then(|| self.button("edit", "Compose", Act::Compose));
         let banner = self.banner(state);
         let snackbar = self.snackbar(state);
-        let back = self.escape(state).is_some()
+        let theme = crate::theme::chosen(&state.settings, self.dark);
+        let theme = (self.theme_sent.as_deref() != Some(&*theme.id)).then(|| {
+            self.theme_sent = Some(theme.id.to_string());
+            crate::theme::frame_theme(&theme)
+        });
+        let about = self.about.then(crate::theme::about);
+        let back = self.about
+            || self.escape(state).is_some()
             || !state.view.checked.is_empty()
             || self.drawer_back(state);
         Frame {
@@ -440,6 +469,8 @@ impl Mobile {
             fab,
             banner,
             snackbar,
+            theme,
+            about,
             back,
             wants_tick: self.wants_tick(state),
         }
@@ -481,6 +512,11 @@ impl Mobile {
                 Act::Run(Command::OpenPalette {}),
             ));
         }
+        actions.push(Button {
+            icon: None,
+            label: "About".to_owned(),
+            action: self.add(Act::About),
+        });
         TopBar {
             title,
             subtitle,

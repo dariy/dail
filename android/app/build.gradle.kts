@@ -138,8 +138,40 @@ abstract class CargoNdk : DefaultTask() {
     }
 }
 
+/** `app-theme`'s fonts as Android font resources (lower-case names), copied, never duplicated. */
+abstract class ThemeFonts : DefaultTask() {
+    @get:InputDirectory abstract val fonts: DirectoryProperty
+
+    @get:OutputDirectory abstract val output: DirectoryProperty
+
+    @get:Inject abstract val files: FileSystemOperations
+
+    @TaskAction
+    fun copy() {
+        val names =
+            mapOf(
+                "Geist[wght].ttf" to "geist.ttf",
+                "JetBrainsMono[wght].ttf" to "jetbrains_mono.ttf",
+                "MaterialSymbolsOutlined-dail.ttf" to "material_symbols.ttf",
+            )
+        files.sync {
+            from(fonts)
+            into(output.dir("font"))
+            include(names.keys)
+            rename { names.getValue(it) }
+        }
+    }
+}
+
+val themeFonts =
+    tasks.register<ThemeFonts>("themeFonts") {
+        fonts.set(rootProject.layout.projectDirectory.dir("../crates/app-theme/assets/fonts"))
+        output.set(layout.buildDirectory.dir("themeFonts"))
+    }
+
 androidComponents {
     onVariants { variant: ApplicationVariant ->
+        variant.sources.res?.addGeneratedSourceDirectory(themeFonts, ThemeFonts::output)
         val name = variant.name.replaceFirstChar(Char::uppercase)
         val cargo =
             tasks.register<CargoNdk>("cargoNdk$name") {

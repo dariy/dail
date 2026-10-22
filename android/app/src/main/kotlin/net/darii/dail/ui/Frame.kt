@@ -3,6 +3,7 @@ package net.darii.dail.ui
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 
 /**
  * The screen models of `app_mobile::frame`, by hand. The contract fixtures, decoded strictly,
@@ -30,6 +31,8 @@ data class Frame(
     val fab: Button? = null,
     val banner: Banner? = null,
     val snackbar: Snackbar? = null,
+    val theme: FrameTheme? = null,
+    val about: About? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -206,4 +209,40 @@ data class Snackbar(
 @Serializable
 data class External(
     val external: String,
+)
+
+/** `app_theme`'s tokens (`app_mobile::theme`): colour roles as `#RRGGBBAA`, styles in sp. */
+@Serializable
+data class FrameTheme(
+    val id: String,
+    val name: String,
+    val dark: Boolean,
+    val content: Map<String, String>,
+    val chrome: Map<String, String>,
+    val tags: List<String>,
+    @SerialName("type_scale") val typeScale: Map<String, TextStyleToken>,
+    val metrics: JsonObject,
+    val icons: Map<String, String>,
+)
+
+@Serializable
+data class TextStyleToken(
+    val face: String,
+    val size: Float,
+    @SerialName("line_height") val lineHeight: Float,
+    val weight: Int,
+    val tracking: Float,
+)
+
+@Serializable
+data class About(
+    val title: String,
+    val text: String,
+    val licences: List<Licence>,
+)
+
+@Serializable
+data class Licence(
+    val name: String,
+    val text: String,
 )

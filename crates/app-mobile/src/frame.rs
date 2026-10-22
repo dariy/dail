@@ -5,6 +5,8 @@ use app_core::{DraftId, MessageId, ThreadId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::theme::{About, FrameTheme};
+
 /// An entry of the frame's action table. IDs only grow, so an ID from an older frame is never
 /// taken for another action: the presenter ignores it.
 pub type ActionId = u32;
@@ -39,6 +41,13 @@ pub struct Frame {
     /// A short message: a send counting down, an undoable action, a rejection.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snackbar: Option<Snackbar>,
+    /// The theme, in the first frame and whenever it changes (the settings, the system's dark
+    /// mode); the host keeps the last one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub theme: Option<FrameTheme>,
+    /// The About screen, while open (over everything else; Back closes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub about: Option<About>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
