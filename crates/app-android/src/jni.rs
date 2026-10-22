@@ -3,7 +3,7 @@
 //!
 //! ```kotlin
 //! object Native {
-//!     @JvmStatic external fun open(config: String, listener: Listener): String
+//!     @JvmStatic external fun open(config: String, listener: Listener, context: Context): String
 //!     @JvmStatic external fun event(handle: Int, event: String): String
 //!     @JvmStatic external fun frame(handle: Int): String
 //!     @JvmStatic external fun blob(handle: Int, request: String): ByteArray?
@@ -13,8 +13,8 @@
 //! interface Listener { fun wake(); fun alert(json: String) }
 //! ```
 
-// reason: JNI exports need `#[unsafe(export_name)]` and `JNI_OnLoad` takes a raw `JavaVM`
-// pointer (ADR 0009); the only unsafe code of the workspace outside app-tls's dependencies.
+// reason: JNI exports need `#[unsafe(export_name)]`, and `JNI_OnLoad` and ndk-context take raw
+// pointers (ADR 0009).
 #![allow(unsafe_code)]
 
 use std::ffi::c_void;
@@ -40,6 +40,31 @@ pub extern "system" fn jni_on_load(vm: *mut jni::sys::JavaVM, _reserved: *mut c_
     JNI_VERSION_1_6
 }
 
+/// Hands ndk-context the VM and the application context (for keyring's Android store), once.
+#[cfg(target_os = "android")]
+fn android_context(env: &mut jni::Env<'_>, context: &JObject<'_>) -> jni::errors::Result<()> {
+    static CONTEXT: std::sync::OnceLock<Global<JObject<'static>>> = std::sync::OnceLock::new();
+    if CONTEXT.get().is_some() {
+        return Ok(());
+    }
+    let global = env.new_global_ref(context)?;
+    let vm = env.get_java_vm()?;
+    let raw = global.as_raw();
+    if CONTEXT.set(global).is_ok() {
+        // SAFETY: the VM pointer lives as long as the process, and the context is a global
+        // reference kept in `CONTEXT` for good; this runs once.
+        unsafe { ndk_context::initialize_android_context(vm.get_raw().cast(), raw.cast()) };
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "android"))]
+// reason: the Android version can fail.
+#[allow(clippy::unnecessary_wraps)]
+fn android_context(_env: &mut jni::Env<'_>, _context: &JObject<'_>) -> jni::errors::Result<()> {
+    Ok(())
+}
+
 /// `Listener.wake()` from a runtime thread, attached to the VM once and kept attached.
 fn waker(listener: Global<JObject<'static>>) -> app_sync::Wake {
     let listener = Arc::new(listener);
@@ -63,9 +88,11 @@ pub extern "system" fn open<'caller>(
     _class: JClass<'caller>,
     config: JString<'caller>,
     listener: JObject<'caller>,
+    context: JObject<'caller>,
 ) -> JString<'caller> {
     env.with_env(|env| -> jni::errors::Result<_> {
         let config = config.try_to_string(env)?;
+        android_context(env, &context)?;
         let listener = env.new_global_ref(&listener)?;
         let answer = calls::open(&config, waker(listener));
         JString::from_str(env, answer)

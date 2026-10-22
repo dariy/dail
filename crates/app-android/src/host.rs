@@ -7,8 +7,8 @@ use app_core::{AppState, Command, Origin};
 use app_io::{ProfileDirs, ProfileStore};
 use app_mobile::{External, Frame, Mobile, Purpose, Reply, Request, UiEvent};
 use app_sync::{
-    AuditLog, Backend, Bridge, KeyringSecrets, LiveBackend, NetImap, NetVerifier, ProfileLock,
-    RandomSeeds, Session, SessionClient, SystemClock, Wake,
+    AuditLog, Backend, Bridge, LiveBackend, NetImap, NetVerifier, ProfileLock, RandomSeeds,
+    Session, SessionClient, SystemClock, Wake,
 };
 use serde::Serialize;
 use tokio::runtime::Runtime;
@@ -229,7 +229,7 @@ async fn open_live(dirs: &ProfileDirs) -> Result<Session, HostError> {
     let store = ProfileStore::open(dirs)?;
     let backend = LiveBackend::new(
         Arc::new(store),
-        Arc::new(KeyringSecrets),
+        crate::secrets::store()?,
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
     );

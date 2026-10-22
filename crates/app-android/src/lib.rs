@@ -11,6 +11,7 @@ pub mod error;
 pub mod host;
 mod jni;
 pub mod logging;
+pub mod secrets;
 
 pub use config::{BackendChoice, BlobRequest, Config, Task};
 pub use error::HostError;

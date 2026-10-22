@@ -430,7 +430,7 @@ encryption (SEC-1), 32-bit ARM.
   callback through attached threads (`Listener.alert` comes with the notifications, A5), panics caught at the boundary, errors as JSON; `tracing` to logcat (`warn`
   in release) and to `<profile>/logs/android.log`; the lint exception confined to `src/jni.rs` (a test pins the
   crate's `[lints]` to the workspace's but for `unsafe_code`)
-- [ ] [android] Secrets: keyring 4's `android-native-keyring-store` as the default store (ndk-context set up in
+- [x] [android] Secrets: keyring 4's `android-native-keyring-store` as the default store (ndk-context set up in
   `open`); `deny.toml` for its dependencies; a live round trip on a device (ignored test); the Kotlin Keystore vault
   behind `SecretStore` only if the crate fails review
 

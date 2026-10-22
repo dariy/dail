@@ -148,6 +148,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # Android host (ADR 0009): the JNI calls, and tracing to logcat (logd's socket, no liblog).
 jni = "0.22"
 tracing-logcat = "0.1"
+# Android secrets (ADR 0009): keyring 4's Android store (Keystore-wrapped SharedPreferences) as keyring-core's
+# default store; ndk-context hands it the VM and the application context. keyring's `v1` Entry refuses Android.
+keyring-core = "1"
+android-native-keyring-store = "1"
+ndk-context = "0.1"
 anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 
 # --- Testing ---

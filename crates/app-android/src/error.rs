@@ -24,6 +24,9 @@ pub enum HostError {
     /// The demo fixture did not load.
     #[error("demo: {0}")]
     Demo(String),
+    /// The credential store did not open.
+    #[error("secrets: {0}")]
+    Secrets(String),
     /// No open host has this handle.
     #[error("no host with handle {0}")]
     NoHost(i32),

@@ -3,3 +3,4 @@
 mod calls;
 mod host;
 mod lints;
+mod secrets;

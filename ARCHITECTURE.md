@@ -1245,13 +1245,19 @@ map onto; it builds and is tested on the desktop.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
   work. `close()` shuts the session down after the queued requests.
-- **JNI.** `dail::calls` holds Kotlin's six calls in safe Rust, JSON in and out: `open(config, wake) -> {handle}`,
+- **JNI.** `dail::calls` holds Kotlin's six calls in safe Rust, JSON in and out: `open(config, wake) -> {handle}` (Kotlin also passes the application context),
   `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
   table, never a pointer (arm64 tags heap pointers). Every call answers `{"error": "…"}` on failure, and a panic is
   caught there and becomes such an error. `src/jni.rs` only converts arguments: `JNI_OnLoad` keeps the `JavaVM`, the
   exports are `Java_net_darii_dail_Native_*` (Kotlin's `object Native` with `@JvmStatic external fun`), and
   `Listener.wake()` is called from runtime threads, each attached once (`jni` 0.22's `attach_current_thread`).
   `Listener.alert(json)` joins with the notifications (A5).
+- **Secrets** (`dail::secrets`). On Android, keyring 4's `android-native-keyring-store` (an AES key in the Keystore,
+  the ciphertext in `SharedPreferences`) becomes keyring-core's default store, and `AndroidSecrets` (keyring-core's
+  `Entry`) is the session's `SecretStore`: keyring's `v1` `Entry`, which `KeyringSecrets` uses, refuses Android.
+  `Native.open` takes the application context and hands it to ndk-context with the `JavaVM`, once. Elsewhere the host
+  uses `KeyringSecrets`. The round trip on a device is an ignored test (`DAIL_IT_ANDROID_KEYSTORE=1`, inside the app's
+  process).
 - **Logs.** `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
   (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds.
 - **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
