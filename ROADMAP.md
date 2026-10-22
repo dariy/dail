@@ -4,6 +4,7 @@ Each checkbox is roughly one agent-sized change. A box is ticked only when all g
 Command names refer to the catalogue in [`ARCHITECTURE.md §8`](ARCHITECTURE.md#8-initial-command-catalogue-mvp).
 
 Legend: **[core]** app-core · **[io]** app-io · **[sync]** app-sync · **[mcp]** · **[cli]** · **[gui]** · **[tk]** app-testkit · **[front]** app-front · **[tui]** app-tui
+· **[mobile]** app-mobile · **[android]** app-android · **[kt]** the Kotlin app (`android/`)
 
 ---
 
@@ -326,6 +327,203 @@ independent.
 
 ---
 
+## Wave 4 — Android: "a native phone app on the same engine"
+
+dail as an Android app (Android 10+; phones first, tablets, foldables and Chromebooks with two or three panes) on the
+same engine, registry, keymap, palette flows and agent policy as the desktop. Kotlin and Jetpack Compose draw screen
+models that a new Rust crate, `app-mobile`, computes from `AppState` — the TUI's pattern, with JSON frames instead of a
+terminal buffer — and do what only Android can: text input through any IME, TalkBack, notifications, background work,
+the Keystore, file pickers and intents. The plan, the options weighed, the platform facts and the review of the agent
+part are in [`docs/plans/2026-10-22-android.md`](docs/plans/2026-10-22-android.md); ADR 0009 (the first item of A0)
+records its decisions. Every item updates `ARCHITECTURE.md` in the same change (a new §5.5 Android host and §7.5
+Android, and §2, §3, §8, §9, §11 and §12 where it touches them).
+
+**Exit criteria**
+- On an Android 10+ phone, a Hostinger and a Gmail account work side by side: read, triage (swipes, checked threads,
+  undo and redo), search, compose with any keyboard (swipe typing, CJK, voice), reply, forward, attachments in and out,
+  send with the undo window. Tablets and foldables show two or three panes.
+- Leaving the app never loses work: a send inside its undo window still leaves (or is cancelled visibly), and queued
+  triage and drafts reach the servers. New mail notifies within the background interval (30 min by default), or within
+  about a minute with push turned on.
+- Every registry command is reachable from the mobile palette (parity walk). In debug builds, an agent drives and
+  reads the app through the adb bridge.
+- Email content cannot spoof the UI: control and bidi characters are replaced, links show their full target before
+  they open, remote images never load. A shared file or a `mailto:` link only creates a draft, and no intent can attach
+  the app's private files.
+- Passwords live only in Keystore-protected storage; nothing secret in logs, logcat, backups or the audit log.
+- Kotlin holds no rules: it draws frames, returns events and carries out host actions. The APK carries no native code
+  but dail's Rust library (16 KB pages, target API 36). All desktop gates stay green, plus the `android` gate and the
+  emulator job.
+
+**Decisions** (ADR 0009, from the plan; chosen with the user on 2026-10-22)
+- **UI.** Kotlin + Jetpack Compose over a Rust presenter. Not egui: winit 0.30 on NativeActivity has no IME
+  composition, and GameActivity compiles C++. Not UniFFI: its Kotlin bindings load JNA's prebuilt C library.
+- **Crates.** `app-mobile` (← app-core, app-front, app-theme; no toolkit, no tokio, no JNI): `Mobile` with
+  `frame(&state) -> Frame`, `event(UiEvent, &state) -> Vec<Request>`, `replies` and `externals`; every model
+  `Serialize + JsonSchema`. `app-android` (← app-core, app-io, app-sync, app-mobile; cdylib `libdail.so`): the `Host`
+  and six JNI calls (`open`, `event`, `frame`, `blob`, `background`, `close`) through `jni` 0.22, carrying the JSON the
+  command bus speaks. Its `[lints]` allow `unsafe` only in `src/jni.rs` (the exports); every other crate keeps
+  `forbid`.
+- **Origin.** The app is the user's graphical front-end, in-process like the GUI: `Origin::Gui`. Background checks
+  submit as `runtime`.
+- **Process.** One session per process, opened lazily and kept while the process lives (redb holds every change). A
+  foreground service carries a send from `send_draft` to its result; a one-off job flushes queued work when the app
+  leaves the screen; a periodic JobScheduler job checks mail (`background_sync` 1, the default, every
+  `background_interval_mins` = 30); push (`background_sync` 2) is a `specialUse` foreground service around the
+  engine's IMAP IDLE watches, like Thunderbird for Android's.
+- **Platform.** minSdk 29 (Android 10), compile and target SDK 36; arm64-v8a and x86_64; no Google Play Services,
+  Firebase or WorkManager. The first release is a signed APK per ABI on GitHub releases.
+- **Secrets and files.** keyring 4 with `android-native-keyring-store` (Keystore-wrapped, in SharedPreferences); the
+  profile in `filesDir/profiles/default`, backups off; picked and shared files are copied into the app before
+  `attach_file`; saving goes through the Storage Access Framework, never "open with".
+- **Agents.** No agent channel in release builds, because no on-device client could use one: Gemma 4 on the phone gets
+  4k–10k tokens of context, dail's MCP tool list is ~22k, and the system assistant reaches apps through AppFunctions,
+  which only privileged apps may call (plan §4.7). A desktop agent triages the same mailboxes from the desktop. A
+  debug-only adb bridge (`adb shell content call …`, shell UID only) submits commands as `cli` or `mcp`; with
+  `uiautomator dump`, `screencap` and `input` an agent drives and reads the app like the TUI under tmux.
+- **Tests.** `app-mobile` frames over a real `Engine` as `insta` JSON snapshots at three window sizes; contract
+  fixtures that the Kotlin types decode strictly; Compose tests on the JVM (Robolectric) over the host-built
+  `libdail.so` and the memory backend; the Rust tests on an emulator; instrumented smoke tests.
+
+**Out of scope** (plan §10): an agent channel and approvals on the phone, Google Play and F-Droid, iOS (a SwiftUI host
+over `app-mobile`), OAuth2 (with the desktop item), PDF viewing and "open original", widgets, Wear OS, at-rest
+encryption (SEC-1), 32-bit ARM.
+
+**Known limitations**
+- Periodic checks wait for Doze's maintenance windows, and some vendors' battery managers stop background work until
+  the user exempts the app; push is the remedy, at the cost of a permanent notification.
+- If Android kills the process inside a send's undo window anyway, the send comes back cancelled (ARCHITECTURE §4.4)
+  and the app says so in a notification.
+- Agents work on the desktop: their triage reaches the phone through the servers, and their send requests are approved
+  on the desktop.
+- User-installed CA certificates are not trusted (webpki roots, as on the desktop).
+- No in-app updates: Obtainium can follow the GitHub releases.
+
+### A0 — Groundwork (no Android app yet; the desktop works as before)
+- [ ] ADR 0009 (the decisions above, from plan §1–§4); `app-mobile` and `app-android` in ARCHITECTURE §3 and in the
+  dependency rules of AGENTS.md §2; AGENTS.md §0 (targets), §1 (channel parity on Android), §5 (Kotlin, the lint
+  exception) and §6 (the `android` gate)
+- [ ] [front] [io] Move what the new crates share, behaviour unchanged: the sanitizer `app_tui::text::{is_unsafe,
+  clean, clean_lines}` → `app_front::text`; the rows' accessible names (`app_gui::list::row_name`, the sidebar's) →
+  `app_front::a11y`; the pane choice of `app_tui::layout::arrange` → `app_front::panes`; `app_gui::images::decode`
+  (formats, size limits) → `app_io::images`. The GUI's and TUI's tests stay green
+- [ ] `cargo xtask android check`: clippy (`-D warnings`) for `aarch64-linux-android` and `x86_64-linux-android` over
+  the crates the app links (cargo-ndk); the `android` gate (`cargo xtask verify android`, reported as not run without
+  the NDK); a CI job
+- [ ] `cargo xtask android test`: the test binaries of app-core, app-io, app-tls and app-sync built for
+  `x86_64-linux-android` and run on an emulator through adb (redb, tantivy's mmap, getrandom, tokio and TLS on
+  bionic); a CI emulator job
+
+### A1 — The Rust side (no UI yet)
+- [ ] [mobile] Scaffold `app-mobile`: `Mobile`, `Frame`, `UiEvent`, `External`, `Request`/`Purpose`; window classes
+  (compact < 600 dp: one pane, as the TUI below 80 columns; medium: list and detail; expanded: drawer, list and
+  detail); the action table; the clock injected; tests over a real `Engine` with `insta` JSON snapshots at 360×800,
+  700×1000 and 1280×800 dp; `examples/frames.rs` prints the demo's frames
+- [ ] [mobile] Contract: the tests write every snapshot frame and event as JSON fixtures into
+  `android/app/src/test/resources/contract/` (a stale fixture fails; `DAIL_UPDATE_CONTRACT=1` rewrites them); the JSON
+  Schema of `Frame` and `UiEvent`
+- [ ] [android] Scaffold `app-android` (cdylib + rlib, `libdail.so`): `Host` opens a profile directory
+  (`ProfileDirs::at`) with `LiveBackend`, or the memory backend behind the `demo` feature, and runs `Bridge::own` with
+  `Origin::Gui`, the presenter and `event`/`frame`/`blob`/`background`; tests on the desktop, without JNI
+- [ ] [android] JNI: `JNI_OnLoad` and the six calls (`jni` 0.22), handles that are small integers, the wake-up and
+  alert callbacks through attached threads, panics caught at the boundary, errors as JSON; `tracing` to logcat (`warn`
+  in release) and to `<profile>/logs/android.log`; the lint exception confined to `src/jni.rs` (a test pins the
+  crate's `[lints]` to the workspace's but for `unsafe_code`)
+- [ ] [android] Secrets: keyring 4's `android-native-keyring-store` as the default store (ndk-context set up in
+  `open`); `deny.toml` for its dependencies; a live round trip on a device (ignored test); the Kotlin Keystore vault
+  behind `SecretStore` only if the crate fails review
+
+### A2 — Android shell
+- [ ] [kt] Gradle project `android/`: version catalog, Kotlin, Compose, compile and target SDK 36, minSdk 29, ABI
+  splits; a Gradle task builds `libdail.so` with cargo-ndk (16 KB pages); `DailApplication` holds the `Host`;
+  `MainActivity` draws frames taken on a single "dail-ui" thread (edge to edge, predictive back from `frame.back`);
+  flavours `live` and `demo` (memory backend, `basic` fixture, like the GUI's demo example)
+- [ ] [kt] The Gradle side of `cargo deny`: dependency verification (checksums), a licence allowlist, a formatter and
+  Android Lint with warnings as errors; `cargo xtask android apk-check`: nothing but `libdail.so` (or an allowlisted
+  prebuilt) under `lib/`, 16 KB alignment, the permissions pinned; all of it in `cargo xtask verify android`
+- [ ] [kt] Debug adb bridge (debug builds only): a content provider that answers only the shell UID — `exec` (origin
+  `cli`), `exec_agent` (origin `mcp`), `state`, `frame`; the instrumented tests use it, and so do agents, with
+  `uiautomator dump`, `screencap` and `input` (plan Appendix D)
+- [ ] [mobile] [kt] Theme: `app-theme`'s tokens in the frame (roles, type scale, metrics; only when they change) mapped
+  onto Material 3; Geist, JetBrains Mono and the Material Symbols subset from `crates/app-theme/assets/fonts`, with
+  their licences on an About screen; the light, dark and high-contrast themes; the mode follows `theme` and the system
+
+### A3 — Read & triage
+- [ ] [mobile] [kt] Drawer (modal on phones, permanent on wide screens, a rail after `toggle_sidebar`): accounts with
+  their colour tags, mailboxes with role icons and unread counts, *All inboxes*, *Settings*, *Add account*; opening it
+  is `focus_pane sidebar`, as in the TUI
+- [ ] [mobile] [kt] Thread list: rows in the three densities (sender, subject, snippet, date, unread, star, attachment,
+  account tag), a window of rows around what is visible (a `scale` test: a frame over 100k threads within budget), pull
+  to refresh (`sync_now`), empty states; the top bar's sync text and a banner with the first problem and its fix
+  (`app_front::status`); the undo snackbar (`LastAction`, `undo`)
+- [ ] [mobile] [kt] Gestures and checked threads: swipe left archives, right trashes; a long press checks
+  (`check_threads`) and shows the bulk bar (archive, trash, read, unread, star, uncheck); haptic feedback
+- [ ] [mobile] [kt] Reader: collapsed and expanded messages, HTML drawn natively from `app_core::document`
+  (paragraphs, headings, lists, quotes, preformatted text, tables, links), plain text with folds; the toolbar (archive,
+  trash, star, read, *Move…* opens the palette at its step), the previous and next conversation; *Links (N)*; a tap on
+  a link shows its full target first (*Open* in the browser, *Copy*); Back is the `Escape` binding
+- [ ] [mobile] [kt] Attachments out and images: image and text previews in the app (bytes through `blob`, decoded by
+  `app_io::images`); *Save* and *Save all* through the Storage Access Framework (names from `safe_file_name`, never
+  overwriting); no "open with"; inline `cid:` images for senders in `images_from` (`show_images_from`)
+- [ ] [mobile] Untrusted text: every string from mail goes through `app_front::text` before it enters a frame. Test
+  like `app-tui/tests/it/untrusted.rs`: ESC, C1 controls, `\r` and U+202E in subjects, names, addresses, bodies, link
+  texts and attachment names leave none of them in any frame, at every window class
+- [ ] [mobile] [kt] Search and the palette: the top bar's search opens the palette (commands, mailboxes, recent
+  threads, *Search mail for …*), like the desktop's search pill; second-step pickers from `app_front::palette`; query
+  results in a read-only view marked as untrusted; search results with highlights and the server search's state; the
+  parity walk reaches every registry command by taps
+
+### A4 — Compose & send
+- [ ] [mobile] [kt] Composer: From (identities), To/Cc/Bcc chips (`parse_addr`) with contact suggestions
+  (`list_contacts`), subject, the body in a native text field (any IME), the quote read-only and folded; typing goes
+  back as one `update_draft` per pause, field change or command; a change from elsewhere reloads a field unless it has
+  unsaved typing; *Discard*
+- [ ] [kt] [mobile] Attachments in: the system file picker; each file copied into `filesDir/outgoing/<uuid>/`
+  (`safe_file_name`, 25 MiB) and attached by its path; chips with checking, size or error; copies that no draft names
+  are removed at start
+- [ ] [mobile] [kt] Send with the undo window (*Sending in N s · Undo*), `cancel_send`; a foreground service from the
+  scheduled send to `MessageSent` or `SendFailed` (`shortService` from Android 14, `dataSync` before); *Not sent* once
+  for a send that a restart cancelled
+- [ ] [kt] `mailto:` links and the share sheet (text, files) open a new draft in the composer — never a send;
+  `file://` URIs and the app's own content URIs refused, shared files copied like picked ones (tests)
+
+### A5 — Background & notifications
+- [ ] [core] Settings `background_sync` (0 while open, 1 periodic, 2 push; default 1) and `background_interval_mins`
+  (15–720, default 30) in `config.toml` and `set_setting`, read only by the Android host; replay fixture;
+  ARCHITECTURE §8
+- [ ] [android] [kt] Leaving the app: a one-off job flushes queued triage, draft saves and attachment saves (at most
+  3 min); a periodic job (network required, kept across reboots) runs `sync_now` as `runtime` and waits for the
+  accounts; a network change while the app is visible syncs
+- [ ] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or
+  draft): channels *New mail*, *Not sent* and *Background*; `POST_NOTIFICATIONS` asked when first needed; lock-screen
+  versions without sender or subject; *Archive* and *Mark read* actions; a tap opens the thread
+- [ ] [kt] [android] Push: a `specialUse` foreground service (`dataSync` before Android 14) while `background_sync` is
+  2, around the engine's IMAP IDLE watches, with a silent notification (*Watching N inboxes*, *Stop*); started from
+  Settings and after a reboot; a link to the battery-optimization screen; the periodic job stays the fallback
+
+### A6 — Settings, setup & keyboards
+- [ ] [mobile] [kt] Settings (`open_settings`): Appearance, Keyboard, General, Accounts, Background & notifications;
+  account setup (preset → address → password with autofill hints → `test_account` → `sync_now`; *Find servers* for
+  other domains; *re-enter password* from a problem's fix)
+- [ ] [mobile] [kt] Hardware keyboards: Android key events → `app_front::keymap` chords, so the desktop's keys work on
+  tablets and Chromebooks; a test that every bound command has a key Android delivers
+
+### A7 — Release & devices
+- [ ] Release: a signed APK per ABI from `release.yml` with a `.sha256` each (the key from repository secrets, never in
+  the repository); the version code from the workspace version; R8 keep rules for the JNI and serialization classes;
+  the size measured; an About screen with the licences of the fonts, the Rust crates and the Android libraries
+- [ ] Device check: a Pixel, a Samsung (One UI's battery limits), a tablet or foldable, a Chromebook if at hand — Gboard
+  swipe and CJK input, TalkBack, 200 % font scale, dark mode, rotation and process death, a night of push and of
+  periodic checks under Doze, battery use, memory with a large cache. What works and what does not goes into
+  ARCHITECTURE §7.5; adjust the breakpoints and defaults
+
+### Stretch
+- [ ] Home-screen widget (unread count) and app shortcuts (Compose, Search)
+- [ ] `dail` for Termux (`aarch64-linux-android`; app-cli with the GUI made optional): the TUI in the phone's terminal.
+  Termux has no keyring, so it runs a demo on the memory backend until a secret store exists there
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
@@ -347,6 +545,10 @@ independent.
 - Reply drafting via MCP sampling; the user edits and sends
 - Natural-language search → query language translation
 - Agent-proposed rules ("you always archive X") produced as a reviewable rule draft
+- Compact MCP tool profiles for small models: a few tools, short descriptions, small results (on-device Gemma 4 gets
+  4k–10k tokens of context, dail's full tool list is ~22k; `docs/plans/2026-10-22-android.md` §4.7)
+- Cross-device approvals: approve the desktop agent's send requests from the phone (the request travels with the
+  draft's server copy in Drafts; needs its own design and threat review)
 
 **Security & trust**
 - OpenPGP sign/encrypt/verify (`pgp` crate, pure Rust); Autocrypt
@@ -363,6 +565,11 @@ independent.
 
 **Platforms**
 - macOS build (Keychain via `keyring`)
+- iOS: a SwiftUI host over `app-mobile`'s frames (Wave 4), through a C ABI instead of JNI
+- Android releases on Google Play (an AAB, the `specialUse` declaration, the data safety form) and F-Droid (a build
+  recipe with Rust and the NDK, reproducible builds)
+- Android agent channel: AppFunctions for the system assistant once Gemini's integration opens; MCP on the phone only
+  once a mobile MCP client can use a compact tool profile
 - `dail serve`: headless daemon exposing the command bus over WebSocket JSON-RPC + HTTP MCP
-- Web/PWA client for Android/iOS on top of `dail serve` (revisit egui-wasm vs a DOM UI such as Dioxus then; restore the wasm gate for `app-core`)
+- Web/PWA client in the browser on top of `dail serve` (revisit egui-wasm vs a DOM UI such as Dioxus then; restore the wasm gate for `app-core`)
 - Direct-JMAP serverless web mode
