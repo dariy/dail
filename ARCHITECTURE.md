@@ -1224,6 +1224,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Tests.** `app-mobile/tests/it` run `Mobile` over a real `Engine` with the `basic` fixture (requests dispatched with
   `Origin::Gui`, replies fed back) and snapshot frames as `insta` JSON at 360×800, 700×1000 and 1280×800 dp.
   `cargo run -p app-mobile --example frames [width height]` prints the demo's frames.
+- **Contract.** `tests/it/contract.rs` writes those frames, one of every `UiEvent` and `External`, and the JSON Schema
+  of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
+  Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
 
 ## 8. Initial Command catalogue (MVP)
 

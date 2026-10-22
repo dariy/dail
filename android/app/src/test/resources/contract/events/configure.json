@@ -1,0 +1,11 @@
+{
+  "args": {
+    "dark": true,
+    "font_scale": 1.25,
+    "height_dp": 800,
+    "keyboard": false,
+    "locale": "en-US",
+    "width_dp": 360
+  },
+  "event": "configure"
+}

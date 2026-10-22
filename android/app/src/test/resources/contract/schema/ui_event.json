@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "Field": {
+      "description": "A text field of the composer.",
+      "oneOf": [
+        {
+          "const": "to",
+          "description": "`To` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "cc",
+          "description": "`Cc` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "bcc",
+          "description": "`Bcc` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "subject",
+          "description": "The subject.",
+          "type": "string"
+        },
+        {
+          "const": "body",
+          "description": "The body.",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One event from the host, in the order the user caused it. Kotlin never builds a command: it\nreturns the action IDs of the frame it shows.",
+  "oneOf": [
+    {
+      "description": "The window and the system settings, at start and whenever they change.",
+      "properties": {
+        "args": {
+          "properties": {
+            "dark": {
+              "default": false,
+              "description": "The system's dark mode.",
+              "type": "boolean"
+            },
+            "font_scale": {
+              "default": 1.0,
+              "description": "The system's font scale (1.0 = default).",
+              "format": "float",
+              "type": "number"
+            },
+            "height_dp": {
+              "description": "Window height in dp.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "keyboard": {
+              "default": false,
+              "description": "A hardware keyboard is attached.",
+              "type": "boolean"
+            },
+            "locale": {
+              "default": null,
+              "description": "The system's language tag (`en-US`; `en-XA` is the pseudo-locale).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "width_dp": {
+              "description": "Window width in dp.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "width_dp",
+            "height_dp"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "configure",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The app came on screen (`true`) or left it.",
+      "properties": {
+        "args": {
+          "properties": {
+            "visible": {
+              "description": "Whether an activity is visible.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "visible"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "visible",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A tap on something carrying an action ID.",
+      "properties": {
+        "args": {
+          "properties": {
+            "action": {
+              "description": "The action.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "tap",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A long press on something carrying a long-press action ID.",
+      "properties": {
+        "args": {
+          "properties": {
+            "action": {
+              "description": "The action.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "long_press",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A row swiped past its threshold (the row's `swipe_start` or `swipe_end` action).",
+      "properties": {
+        "args": {
+          "properties": {
+            "action": {
+              "description": "The action.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "swipe",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The thread list scrolled: rows `first..first + count` are visible.",
+      "properties": {
+        "args": {
+          "properties": {
+            "count": {
+              "description": "How many rows are visible.",
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "first": {
+              "description": "The first visible row.",
+              "format": "uint",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "first",
+            "count"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "scrolled",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "System Back (only sent while the frame's `back` is true).",
+      "properties": {
+        "event": {
+          "const": "back",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Pull to refresh.",
+      "properties": {
+        "event": {
+          "const": "refresh",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A text field changed (the whole text, as the IME left it).",
+      "properties": {
+        "args": {
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/Field",
+              "description": "The field."
+            },
+            "text": {
+              "description": "Its text.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "field",
+            "text"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The focus left a text field.",
+      "properties": {
+        "args": {
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/Field",
+              "description": "The field."
+            }
+          },
+          "required": [
+            "field"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "blur",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A key chord from a hardware keyboard, in the keymap's notation (`Ctrl+Z`, `j`, `#`).",
+      "properties": {
+        "args": {
+          "properties": {
+            "chord": {
+              "description": "The chord.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "chord"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The clock moved on (sent every second while the frame's `wants_tick` is true).",
+      "properties": {
+        "event": {
+          "const": "tick",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "UiEvent"
+}

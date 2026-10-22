@@ -1,0 +1,117 @@
+{
+  "back": false,
+  "drawer": {
+    "accounts": [
+      {
+        "email": "alice@example.com",
+        "mailboxes": [
+          {
+            "a11y": "Inbox, 1 unread",
+            "action": 2,
+            "icon": "inbox",
+            "label": "Inbox",
+            "selected": true,
+            "unread": 1
+          },
+          {
+            "a11y": "Sent",
+            "action": 3,
+            "icon": "send",
+            "label": "Sent",
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Drafts",
+            "action": 4,
+            "icon": "draft",
+            "label": "Drafts",
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Archive",
+            "action": 5,
+            "icon": "archive",
+            "label": "Archive",
+            "selected": false,
+            "unread": 0
+          }
+        ],
+        "name": "alice@example.com"
+      }
+    ],
+    "rail": false
+  },
+  "fab": {
+    "action": 14,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "expanded",
+    "panes": [
+      "drawer",
+      "list",
+      "reader"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 6,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 7,
+        "messages": 1,
+        "selected": false,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 9,
+        "swipe_start": 8,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 10,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 11,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 13,
+        "swipe_start": 12,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
+  "revision": 1,
+  "top_bar": {
+    "actions": [
+      {
+        "action": 1,
+        "icon": "search",
+        "label": "Search or run a command"
+      }
+    ],
+    "subtitle": "synced 9h ago",
+    "title": "Inbox"
+  },
+  "wants_tick": true
+}

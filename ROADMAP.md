@@ -420,7 +420,7 @@ encryption (SEC-1), 32-bit ARM.
   (compact < 600 dp: one pane, as the TUI below 80 columns; medium: list and detail; expanded: drawer, list and
   detail); the action table; the clock injected; tests over a real `Engine` with `insta` JSON snapshots at 360×800,
   700×1000 and 1280×800 dp; `examples/frames.rs` prints the demo's frames
-- [ ] [mobile] Contract: the tests write every snapshot frame and event as JSON fixtures into
+- [x] [mobile] Contract: the tests write every snapshot frame and event as JSON fixtures into
   `android/app/src/test/resources/contract/` (a stale fixture fails; `DAIL_UPDATE_CONTRACT=1` rewrites them); the JSON
   Schema of `Frame` and `UiEvent`
 - [ ] [android] Scaffold `app-android` (cdylib + rlib, `libdail.so`): `Host` opens a profile directory

@@ -1,0 +1,759 @@
+{
+  "$defs": {
+    "Attachment": {
+      "description": "An attachment of a received message.",
+      "properties": {
+        "mime": {
+          "description": "The MIME type.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The file name.",
+          "type": "string"
+        },
+        "part": {
+          "description": "The MIME part.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "size": {
+          "description": "The size, for people (`12 KB`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "part",
+        "name",
+        "mime",
+        "size"
+      ],
+      "type": "object"
+    },
+    "Banner": {
+      "description": "A problem and the action that may fix it.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The fix."
+        },
+        "hint": {
+          "description": "What it probably means and what to do.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "text": {
+          "description": "What went wrong.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "Button": {
+      "description": "Something to tap: an icon or a text button.",
+      "properties": {
+        "action": {
+          "description": "What a tap does.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "icon": {
+          "description": "The icon's name (`menu`, `back`, `search`, `edit`, `archive`, …), if it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "description": "The label (a tooltip and TalkBack's name for an icon).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "action"
+      ],
+      "type": "object"
+    },
+    "Class": {
+      "description": "Material's window size classes, by width.",
+      "oneOf": [
+        {
+          "const": "compact",
+          "description": "Under 600 dp: one pane.",
+          "type": "string"
+        },
+        {
+          "const": "medium",
+          "description": "600–839 dp: the list and the detail.",
+          "type": "string"
+        },
+        {
+          "const": "expanded",
+          "description": "840 dp and wider: the drawer, the list and the detail.",
+          "type": "string"
+        }
+      ]
+    },
+    "Composer": {
+      "description": "The open draft (read-only until the composer item of Wave 4 A4).",
+      "properties": {
+        "body": {
+          "description": "The body.",
+          "type": "string"
+        },
+        "cc": {
+          "description": "`Cc`, as typed.",
+          "type": "string"
+        },
+        "draft": {
+          "$ref": "#/$defs/DraftId",
+          "description": "The draft."
+        },
+        "from": {
+          "description": "The sending address.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "The subject.",
+          "type": "string"
+        },
+        "to": {
+          "description": "`To`, as typed.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "draft",
+        "from",
+        "to",
+        "cc",
+        "subject",
+        "body"
+      ],
+      "type": "object"
+    },
+    "Density": {
+      "description": "Row heights (`list_density`).",
+      "oneOf": [
+        {
+          "const": "cozy",
+          "description": "Two lines.",
+          "type": "string"
+        },
+        {
+          "const": "compact",
+          "description": "One line.",
+          "type": "string"
+        },
+        {
+          "const": "preview",
+          "description": "Three lines, with the snippet.",
+          "type": "string"
+        }
+      ]
+    },
+    "DraftId": {
+      "description": "A local draft.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "Drawer": {
+      "description": "Accounts and their mailboxes.",
+      "properties": {
+        "accounts": {
+          "description": "One section per account.",
+          "items": {
+            "$ref": "#/$defs/DrawerAccount"
+          },
+          "type": "array"
+        },
+        "rail": {
+          "description": "A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "rail",
+        "accounts"
+      ],
+      "type": "object"
+    },
+    "DrawerAccount": {
+      "description": "An account in the drawer.",
+      "properties": {
+        "email": {
+          "description": "Its address.",
+          "type": "string"
+        },
+        "mailboxes": {
+          "description": "Its mailboxes, in the sidebar's order.",
+          "items": {
+            "$ref": "#/$defs/DrawerItem"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The account's name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "mailboxes"
+      ],
+      "type": "object"
+    },
+    "DrawerItem": {
+      "description": "A mailbox in the drawer.",
+      "properties": {
+        "a11y": {
+          "description": "TalkBack's name.",
+          "type": "string"
+        },
+        "action": {
+          "description": "Opens it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "icon": {
+          "description": "The icon's name (`inbox`, `send`, `folder`, …).",
+          "type": "string"
+        },
+        "label": {
+          "description": "The mailbox's name.",
+          "type": "string"
+        },
+        "selected": {
+          "description": "Whether the list shows it.",
+          "type": "boolean"
+        },
+        "unread": {
+          "description": "Unread messages.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "label",
+        "icon",
+        "unread",
+        "selected",
+        "action",
+        "a11y"
+      ],
+      "type": "object"
+    },
+    "Layout": {
+      "description": "The window class and the panes, left to right.",
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/Class",
+          "description": "The window class."
+        },
+        "panes": {
+          "description": "The panes on screen, left to right.",
+          "items": {
+            "$ref": "#/$defs/PaneKind"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "class",
+        "panes"
+      ],
+      "type": "object"
+    },
+    "List": {
+      "description": "The thread list: a window of rows around the visible ones.",
+      "properties": {
+        "checked": {
+          "description": "Checked threads (a bulk bar shows while any are).",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "density": {
+          "$ref": "#/$defs/Density",
+          "description": "Row heights."
+        },
+        "empty": {
+          "description": "What to say when the list is empty.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "offset": {
+          "description": "The index of `rows[0]`; rows outside the window are placeholders.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "description": "The rows of the window.",
+          "items": {
+            "$ref": "#/$defs/Row"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "The mailbox or the search.",
+          "type": "string"
+        },
+        "total": {
+          "description": "Rows in the whole list (`LazyColumn`'s item count).",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "title",
+        "total",
+        "offset",
+        "density",
+        "checked",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "MessageId": {
+      "description": "One message copy, i.e. one `(mailbox, uid)` pair.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "PaneKind": {
+      "description": "What a pane shows.",
+      "oneOf": [
+        {
+          "const": "drawer",
+          "description": "Accounts and mailboxes.",
+          "type": "string"
+        },
+        {
+          "const": "list",
+          "description": "The thread list.",
+          "type": "string"
+        },
+        {
+          "const": "reader",
+          "description": "The open thread.",
+          "type": "string"
+        },
+        {
+          "const": "composer",
+          "description": "The open draft.",
+          "type": "string"
+        }
+      ]
+    },
+    "Reader": {
+      "description": "The open thread.",
+      "properties": {
+        "actions": {
+          "description": "What can be done with it.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "messages": {
+          "description": "Its messages, oldest first.",
+          "items": {
+            "$ref": "#/$defs/ReaderMessage"
+          },
+          "type": "array"
+        },
+        "subject": {
+          "description": "Its subject.",
+          "type": "string"
+        },
+        "thread": {
+          "$ref": "#/$defs/ThreadId",
+          "description": "The thread."
+        }
+      },
+      "required": [
+        "thread",
+        "subject",
+        "actions",
+        "messages"
+      ],
+      "type": "object"
+    },
+    "ReaderMessage": {
+      "description": "A message of the open thread.",
+      "properties": {
+        "attachments": {
+          "description": "Its attachments.",
+          "items": {
+            "$ref": "#/$defs/Attachment"
+          },
+          "type": "array"
+        },
+        "body": {
+          "description": "The body's lines, once downloaded (expanded messages only).",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "date": {
+          "description": "The date, short.",
+          "type": "string"
+        },
+        "expanded": {
+          "description": "Whether the body shows.",
+          "type": "boolean"
+        },
+        "from": {
+          "description": "The sender, in full (`Name <address>`).",
+          "type": "string"
+        },
+        "links": {
+          "description": "The link targets in the body, in full.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "message": {
+          "$ref": "#/$defs/MessageId",
+          "description": "The message."
+        },
+        "snippet": {
+          "description": "The start of the text, for a collapsed message.",
+          "type": "string"
+        },
+        "status": {
+          "description": "Why the body is missing (`Loading…`, a download error).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "to": {
+          "description": "The recipients (`To` and `Cc`), in full.",
+          "type": "string"
+        },
+        "toggle": {
+          "description": "Expands or collapses it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "message",
+        "from",
+        "to",
+        "date",
+        "expanded",
+        "toggle",
+        "snippet",
+        "attachments",
+        "links"
+      ],
+      "type": "object"
+    },
+    "Row": {
+      "description": "One thread in the list.",
+      "properties": {
+        "a11y": {
+          "description": "TalkBack's name.",
+          "type": "string"
+        },
+        "action": {
+          "description": "A tap opens it (checks or unchecks it while threads are checked).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "attachments": {
+          "description": "Whether a message has attachments.",
+          "type": "boolean"
+        },
+        "checked": {
+          "description": "Whether it is checked.",
+          "type": "boolean"
+        },
+        "date": {
+          "description": "The newest message's date, short.",
+          "type": "string"
+        },
+        "long_press": {
+          "description": "A long press checks it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "messages": {
+          "description": "Messages in the thread.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "selected": {
+          "description": "Whether it is the open or selected thread.",
+          "type": "boolean"
+        },
+        "sender": {
+          "description": "The senders.",
+          "type": "string"
+        },
+        "snippet": {
+          "description": "The start of the newest message.",
+          "type": "string"
+        },
+        "starred": {
+          "description": "Whether a message is starred.",
+          "type": "boolean"
+        },
+        "subject": {
+          "description": "The subject.",
+          "type": "string"
+        },
+        "swipe_end": {
+          "description": "Swiped towards the end edge: trash.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "swipe_start": {
+          "description": "Swiped towards the start edge: archive.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "thread": {
+          "$ref": "#/$defs/ThreadId",
+          "description": "The thread (the item key)."
+        },
+        "unread": {
+          "description": "Whether a message is unread.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "thread",
+        "action",
+        "long_press",
+        "swipe_start",
+        "swipe_end",
+        "sender",
+        "subject",
+        "snippet",
+        "date",
+        "unread",
+        "starred",
+        "attachments",
+        "messages",
+        "selected",
+        "checked",
+        "a11y"
+      ],
+      "type": "object"
+    },
+    "Snackbar": {
+      "description": "A short message at the bottom.",
+      "properties": {
+        "action": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Its button (Undo)."
+        },
+        "text": {
+          "description": "The message.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "ThreadId": {
+      "description": "A conversation that groups messages across mailboxes.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "TopBar": {
+      "description": "The top app bar.",
+      "properties": {
+        "actions": {
+          "description": "The buttons on the right.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "navigation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The navigation button: the drawer, or back."
+        },
+        "subtitle": {
+          "description": "The sync state (`synced 2m ago`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "Where the user is.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "actions"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One screen.",
+  "properties": {
+    "back": {
+      "description": "Whether system Back is taken (send `back`); otherwise Android handles it.",
+      "type": "boolean"
+    },
+    "banner": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Banner"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A problem to fix (a failed login, a failed sync)."
+    },
+    "composer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Composer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The open draft, while on screen."
+    },
+    "drawer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Drawer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Accounts and mailboxes, while on screen."
+    },
+    "fab": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Button"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The floating button (compose)."
+    },
+    "layout": {
+      "$ref": "#/$defs/Layout",
+      "description": "The window class and the panes on screen."
+    },
+    "list": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/List"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The thread list, while on screen."
+    },
+    "reader": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Reader"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The open thread, while on screen."
+    },
+    "revision": {
+      "description": "Counts the frames this presenter made.",
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "snackbar": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Snackbar"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A short message: a send counting down, an undoable action, a rejection."
+    },
+    "top_bar": {
+      "$ref": "#/$defs/TopBar",
+      "description": "The top app bar."
+    },
+    "wants_tick": {
+      "description": "Whether to send `tick` every second (a countdown or an age is shown).",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "revision",
+    "layout",
+    "top_bar",
+    "back",
+    "wants_tick"
+  ],
+  "title": "Frame",
+  "type": "object"
+}

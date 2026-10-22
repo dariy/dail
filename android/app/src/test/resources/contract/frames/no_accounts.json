@@ -1,0 +1,24 @@
+{
+  "back": false,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "empty": "No accounts yet. Account setup arrives in a later version.",
+    "offset": 0,
+    "rows": [],
+    "title": "Conversations",
+    "total": 0
+  },
+  "revision": 1,
+  "top_bar": {
+    "actions": [],
+    "title": "Conversations"
+  },
+  "wants_tick": false
+}

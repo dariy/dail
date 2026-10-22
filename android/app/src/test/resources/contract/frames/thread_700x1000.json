@@ -1,0 +1,118 @@
+{
+  "back": true,
+  "fab": {
+    "action": 27,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "medium",
+    "panes": [
+      "list",
+      "reader"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 14,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 15,
+        "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 17,
+        "swipe_start": 16,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 18,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 19,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 21,
+        "swipe_start": 20,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
+  "reader": {
+    "actions": [
+      {
+        "action": 22,
+        "icon": "archive",
+        "label": "Archive"
+      },
+      {
+        "action": 23,
+        "icon": "delete",
+        "label": "Trash"
+      },
+      {
+        "action": 24,
+        "icon": "mark_email_unread",
+        "label": "Mark unread"
+      },
+      {
+        "action": 25,
+        "icon": "reply",
+        "label": "Reply"
+      }
+    ],
+    "messages": [
+      {
+        "attachments": [],
+        "date": "Nov 14",
+        "expanded": true,
+        "from": "Carol <carol@example.org>",
+        "links": [],
+        "message": "00000000-0000-0007-0000-000000000003",
+        "snippet": "Lunch at noon?",
+        "status": "Loading…",
+        "to": "alice@example.com",
+        "toggle": 26
+      }
+    ],
+    "subject": "Lunch?",
+    "thread": "00000000-0000-0007-0000-000000000002"
+  },
+  "revision": 2,
+  "top_bar": {
+    "actions": [
+      {
+        "action": 13,
+        "icon": "search",
+        "label": "Search or run a command"
+      }
+    ],
+    "navigation": {
+      "action": 12,
+      "icon": "menu",
+      "label": "Mailboxes"
+    },
+    "subtitle": "synced 9h ago",
+    "title": "Inbox"
+  },
+  "wants_tick": true
+}

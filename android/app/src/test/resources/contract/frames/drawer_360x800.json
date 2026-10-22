@@ -1,0 +1,75 @@
+{
+  "back": true,
+  "drawer": {
+    "accounts": [
+      {
+        "email": "alice@example.com",
+        "mailboxes": [
+          {
+            "a11y": "Inbox, 1 unread",
+            "action": 3,
+            "icon": "inbox",
+            "label": "Inbox",
+            "selected": true,
+            "unread": 1
+          },
+          {
+            "a11y": "Sent",
+            "action": 4,
+            "icon": "send",
+            "label": "Sent",
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Drafts",
+            "action": 5,
+            "icon": "draft",
+            "label": "Drafts",
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Archive",
+            "action": 6,
+            "icon": "archive",
+            "label": "Archive",
+            "selected": false,
+            "unread": 0
+          }
+        ],
+        "name": "alice@example.com"
+      }
+    ],
+    "rail": false
+  },
+  "fab": {
+    "action": 7,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "drawer"
+    ]
+  },
+  "revision": 1,
+  "top_bar": {
+    "actions": [
+      {
+        "action": 2,
+        "icon": "search",
+        "label": "Search or run a command"
+      }
+    ],
+    "navigation": {
+      "action": 1,
+      "icon": "back",
+      "label": "Back"
+    },
+    "subtitle": "synced 9h ago",
+    "title": "Mailboxes"
+  },
+  "wants_tick": true
+}
