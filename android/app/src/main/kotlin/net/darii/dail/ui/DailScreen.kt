@@ -117,6 +117,14 @@ private fun FrameScaffold(
             AboutScreen(about, Modifier.padding(padding))
             return@Scaffold
         }
+        frame.result?.let { result ->
+            ResultScreen(result, send, Modifier.padding(padding))
+            return@Scaffold
+        }
+        frame.palette?.let { sheet ->
+            PaletteScreen(sheet, send, Modifier.padding(padding))
+            return@Scaffold
+        }
         Column(Modifier.padding(padding).fillMaxSize()) {
             frame.banner?.let { BannerCard(it, send) }
             Row(Modifier.fillMaxSize()) {

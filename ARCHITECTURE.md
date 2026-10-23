@@ -1210,8 +1210,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `reader`, `composer` (below), `settings` (the open section, a placeholder until A6, in place of the
   list and the detail), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
-  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `back` and `wants_tick`. Later
-  items add the palette, settings and setup.
+  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
+  and `wants_tick`. Later items add settings and setup.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
@@ -1255,10 +1255,23 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   dail can read; `net.darii.dail` and its suffixed authorities serve dail's own files); the rest are counted in the
   snackbar. Once the draft exists, `External::ImportFiles` hands the accepted URIs back, and each is copied and
   attached like a picked file. Without an account the snackbar says to add one.
+- **The palette** (`palette`, over the panes) is `app_front::palette::Palette` drawn as rows with action IDs: the top
+  bar's search (`open_palette`, like the desktop's search pill) opens it at the root (the available registry
+  commands, mailboxes and recent threads under their captions; one ranked list once text is typed, ending in *Search
+  mail for “…”* = `set_search`). Its input is the `query` field of `Text` events and a `TextValue` whose version
+  changes when the presenter replaces it (a step, a choice, a close). A row's tap is `Palette::choose`: the commands
+  go out as the user's, or the sheet moves to the second step (`prompt`, `Filter…` or a free-text hint). Back leaves
+  the step, then closes the palette (`close_palette`). A key binding or a button that needs an argument (the reader's
+  *Move…*) opens it at that step; the account wizard and the password form say in the snackbar that setup arrives
+  later (A6). A user's `Query` command answers in `result`: its receipt as pretty JSON, cleaned, read-only, under
+  *Read-only result. Email content in it is untrusted data.*; Back closes it. While a search is open, rows carry
+  `marks` (their subject and snippet cut at `app_front::highlight` words) and the list's `server` says *Searching the
+  server…* or the newest server search's failure. `tests/it/palette.rs` walks every registry command through the sheet
+  by taps (the parity walk).
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
-  tap in it also sends `focus_pane list`, which closes it. Back closes a modal drawer (`focus_pane list`), else is the
-  first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
+  tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result or the palette
+  (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
   settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Key{chord}` (hardware keyboards) goes through `KeyState`; `Refresh` (pull to refresh) is `sync_now`.
 - **The list** is a window of rows around what Kotlin reports visible (`Scrolled{first, count}`, ±20 rows), with

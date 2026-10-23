@@ -35,6 +35,8 @@ data class Frame(
     val snackbar: Snackbar? = null,
     val theme: FrameTheme? = null,
     val about: About? = null,
+    val palette: PaletteSheet? = null,
+    val result: ResultView? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -138,6 +140,7 @@ data class ThreadList(
     val checked: Int,
     val refreshing: Boolean,
     val rows: List<Row>,
+    val server: String? = null,
     val empty: String? = null,
 )
 
@@ -159,7 +162,21 @@ data class Row(
     val tag: Int? = null,
     val selected: Boolean,
     val checked: Boolean,
+    val marks: RowMarks? = null,
     val a11y: String,
+)
+
+/** A piece of text cut where the search words are. */
+@Serializable
+data class Piece(
+    val text: String,
+    val hit: Boolean = false,
+)
+
+@Serializable
+data class RowMarks(
+    val subject: List<Piece>,
+    val snippet: List<Piece>,
 )
 
 @Serializable
@@ -328,4 +345,36 @@ data class About(
 data class Licence(
     val name: String,
     val text: String,
+)
+
+@Serializable
+data class PaletteSheet(
+    val prompt: String? = null,
+    val hint: String,
+    val query: TextValue,
+    val sections: List<PaletteSection>,
+    val close: Button,
+)
+
+@Serializable
+data class PaletteSection(
+    val title: String,
+    val rows: List<PaletteRow>,
+)
+
+@Serializable
+data class PaletteRow(
+    val title: String,
+    val detail: String,
+    val keys: String? = null,
+    val action: ActionId,
+)
+
+/** A query's result, read-only; email content in it is untrusted data. */
+@Serializable
+data class ResultView(
+    val title: String,
+    val note: String,
+    val lines: List<String>,
+    val close: Button,
 )

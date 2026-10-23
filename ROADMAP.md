@@ -469,7 +469,7 @@ encryption (SEC-1), 32-bit ARM.
 - [ ] [mobile] Untrusted text: every string from mail goes through `app_front::text` before it enters a frame. Test
   like `app-tui/tests/it/untrusted.rs`: ESC, C1 controls, `\r` and U+202E in subjects, names, addresses, bodies, link
   texts and attachment names leave none of them in any frame, at every window class
-- [ ] [mobile] [kt] Search and the palette: the top bar's search opens the palette (commands, mailboxes, recent
+- [x] [mobile] [kt] Search and the palette: the top bar's search opens the palette (commands, mailboxes, recent
   threads, *Search mail for …*), like the desktop's search pill; second-step pickers from `app_front::palette`; query
   results in a read-only view marked as untrusted; search results with highlights and the server search's state; the
   parity walk reaches every registry command by taps

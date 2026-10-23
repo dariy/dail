@@ -48,6 +48,29 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenPalette {});
+    out.push(("palette".to_owned(), phone.frame()));
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    phone.dispatch(Command::ClosePalette {});
+    let frame = phone.frame();
+    let reader = frame.reader.unwrap();
+    let mv = reader.actions.iter().find(|b| b.label == "Move…").unwrap();
+    phone.tap(mv.action);
+    out.push(("palette_step".to_owned(), phone.frame()));
+    phone.event(UiEvent::Back);
+    phone.event(UiEvent::Text {
+        field: Field::Query,
+        text: app_core::CommandName::ListMailboxes.spec().title.to_owned(),
+    });
+    let first = phone.frame().palette.unwrap().sections[0].rows[0].action;
+    phone.tap(first);
+    out.push(("result".to_owned(), phone.frame()));
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::SetSearch {
+        query: "lunch".to_owned(),
+    });
+    out.push(("search".to_owned(), phone.frame()));
     let mut phone = Phone::new(AppState::default(), 360, 800);
     out.push(("no_accounts".to_owned(), phone.frame()));
     let about = phone.frame().top_bar.actions[0].action;

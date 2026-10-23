@@ -27,6 +27,8 @@ use crate::frame::{
 };
 use crate::request::{Purpose, Reply, Request};
 
+mod sheet;
+
 /// How long a notice or an undo offer stays in the snackbar.
 const NOTICE_MS: i64 = 6_000;
 
@@ -55,6 +57,12 @@ enum Act {
     ToggleQuote,
     /// Ask the host for files to attach to a draft.
     Pick(DraftId),
+    /// Choose a row of the palette.
+    Choose(palette::Target),
+    /// Leave the palette's step, else close it.
+    PaletteBack,
+    /// Open the palette at this command's step (*Move…*).
+    Flow(CommandName),
 }
 
 /// The window, as the host last configured it.
@@ -117,6 +125,14 @@ pub struct Mobile {
     kept: Vec<DraftId>,
     /// The send errors already told in the snackbar, by draft.
     told: Vec<(DraftId, String)>,
+    /// The palette's query and step.
+    palette: palette::Palette,
+    /// The version of the palette's query field; changes when the presenter replaces it.
+    palette_version: u64,
+    /// Whether the palette was open at the last look (to forget its step once closed).
+    palette_open: bool,
+    /// A query's result, until Back.
+    result: Option<sheet::Result>,
 }
 
 impl Default for Mobile {
@@ -194,6 +210,10 @@ impl Mobile {
             compose: Buffers::default(),
             told: Vec::new(),
             kept: Vec::new(),
+            palette: palette::Palette::default(),
+            palette_version: 1,
+            palette_open: false,
+            result: None,
         }
     }
 
@@ -239,6 +259,7 @@ impl Mobile {
     /// Turns one event into what to submit.
     pub fn event(&mut self, event: UiEvent, state: &AppState) -> Vec<Request> {
         self.compose.sync(state);
+        self.palette_sync(state);
         let acts = matches!(
             event,
             UiEvent::Tap { .. }
@@ -301,6 +322,13 @@ impl Mobile {
                 Some(chord) => self.press(chord, state),
                 None => Vec::new(),
             },
+            UiEvent::Text {
+                field: Field::Query,
+                text,
+            } => {
+                self.palette_query(text);
+                Vec::new()
+            }
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
             UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
@@ -352,6 +380,9 @@ impl Mobile {
                         if self.last.label().is_some() && self.last.label() != before.as_deref() {
                             self.undo_until = now + NOTICE_MS;
                         }
+                        if let Some(result) = sheet::Result::of(reply.name, receipt) {
+                            self.result = Some(result);
+                        }
                         if creates_draft(reply.name)
                             && let Ok(id) = serde_json::from_value(receipt.data["id"].clone())
                         {
@@ -402,6 +433,9 @@ impl Mobile {
                 self.compose.quote_open = !self.compose.quote_open;
                 Vec::new()
             }
+            Act::Choose(target) => self.palette_choose(target, state),
+            Act::PaletteBack => self.palette_back(),
+            Act::Flow(name) => self.palette_flow(name, state),
             Act::Pick(draft) => {
                 self.externals.push(External::PickFiles { draft });
                 Vec::new()
@@ -485,8 +519,10 @@ impl Mobile {
         let typing = state.view.composer.is_some() && state.view.focus == Pane::Composer;
         match self.keys.press(chord, typing, state, now) {
             Press::Done(Action::Run(cmd)) => vec![Request::user(cmd)],
-            // The palette's steps, the wizard and the password form arrive with their items.
-            Press::Done(_) | Press::Pending | Press::Unbound => Vec::new(),
+            Press::Done(Action::Ask(step)) => self.ask(palette::Flow::Ask(step)),
+            Press::Done(Action::Wizard) => self.ask(palette::Flow::Wizard),
+            Press::Done(Action::Password(id)) => self.ask(palette::Flow::Password(id)),
+            Press::Pending | Press::Unbound => Vec::new(),
         }
     }
 
@@ -496,6 +532,12 @@ impl Mobile {
         if self.about {
             self.about = false;
             return Vec::new();
+        }
+        if self.result.take().is_some() {
+            return Vec::new();
+        }
+        if state.view.palette_open {
+            return self.palette_back();
         }
         // A modal drawer closes before what it covers.
         if self.drawer_back(state) {
@@ -548,6 +590,7 @@ impl Mobile {
     /// The next screen. The action IDs of earlier frames stop working.
     pub fn frame(&mut self, state: &AppState) -> Frame {
         self.compose.sync(state);
+        self.palette_sync(state);
         self.actions.clear();
         self.revision += 1;
         let class = self.class();
@@ -621,7 +664,11 @@ impl Mobile {
             crate::theme::frame_theme(&chosen)
         });
         let about = self.about.then(crate::theme::about);
+        let palette = self.palette_sheet(state);
+        let result = self.result_view();
         let back = self.about
+            || palette.is_some()
+            || result.is_some()
             || self.escape(state).is_some()
             || !state.view.checked.is_empty()
             || self.drawer_back(state);
@@ -643,6 +690,8 @@ impl Mobile {
             snackbar,
             theme,
             about,
+            palette,
+            result,
             back,
             wants_tick: self.wants_tick(state),
         }
@@ -790,6 +839,7 @@ impl Mobile {
                 checked: 0,
                 refreshing: false,
                 rows: Vec::new(),
+                server: None,
                 empty: Some(
                     "No accounts yet. Account setup arrives in a later version.".to_owned(),
                 ),
@@ -806,6 +856,12 @@ impl Mobile {
         let now = self.now_ms();
         let cursor = state.view.selected.last().copied().or(state.view.thread);
         let checking = !state.view.checked.is_empty();
+        let words = state
+            .view
+            .search
+            .as_deref()
+            .map(app_front::highlight::words)
+            .unwrap_or_default();
         let mut rows = Vec::new();
         for thread in ids
             .get(offset..end)
@@ -844,7 +900,12 @@ impl Mobile {
                 .messages
                 .last()
                 .and_then(|m| m.snippet.as_deref())
-                .unwrap_or_default();
+                .unwrap_or_default()
+                .trim();
+            let subject = match thread.subject.trim() {
+                "" => "(no subject)",
+                s => s,
+            };
             rows.push(Row {
                 thread: thread.id,
                 action,
@@ -856,11 +917,8 @@ impl Mobile {
                 } else {
                     clean(&sender)
                 },
-                subject: match thread.subject.trim() {
-                    "" => "(no subject)".to_owned(),
-                    s => clean(s),
-                },
-                snippet: clean(snippet.trim()),
+                subject: clean(subject),
+                snippet: clean(snippet),
                 date: format::short_date(thread.last_date_ms, now),
                 unread: summary.unread > 0,
                 starred: summary.flagged,
@@ -872,6 +930,7 @@ impl Mobile {
                     .map(|i| i % tags),
                 selected: Some(thread.id) == cursor,
                 checked,
+                marks: sheet::row_marks(&words, subject, snippet),
                 a11y: clean(&a11y::thread_row(&summary, checked, now)),
             });
         }
@@ -893,6 +952,7 @@ impl Mobile {
             checked: state.view.checked.len(),
             refreshing: !status::can_sync(state),
             rows,
+            server: sheet::server_state(state),
             empty,
         }
     }
@@ -925,6 +985,11 @@ impl Mobile {
                     ids,
                     messages: Vec::new(),
                 }),
+            ),
+            self.button(
+                "drive_file_move",
+                "Move…",
+                Act::Flow(CommandName::MoveThreads),
             ),
         ];
         if let Some(message) = palette::newest_message(state, thread.id) {

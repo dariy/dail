@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 21,
+    "action": 22,
     "icon": "edit",
     "label": "Compose"
   },
@@ -30,6 +30,11 @@
       },
       {
         "action": 19,
+        "icon": "drive_file_move",
+        "label": "Move…"
+      },
+      {
+        "action": 20,
         "icon": "reply",
         "label": "Reply"
       }
@@ -45,7 +50,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 20
+        "toggle": 21
       }
     ],
     "subject": "Lunch?",

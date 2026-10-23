@@ -155,9 +155,14 @@ expression: phone.frame()
         "action": 19
       },
       {
+        "icon": "drive_file_move",
+        "label": "Move…",
+        "action": 20
+      },
+      {
         "icon": "reply",
         "label": "Reply",
-        "action": 20
+        "action": 21
       }
     ],
     "messages": [
@@ -167,7 +172,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 21,
+        "toggle": 22,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -178,7 +183,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 22
+    "action": 23
   },
   "theme": {
     "id": "dail-light",

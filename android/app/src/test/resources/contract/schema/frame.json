@@ -473,6 +473,11 @@
           "const": "body",
           "description": "The body.",
           "type": "string"
+        },
+        {
+          "const": "query",
+          "description": "The palette's input.",
+          "type": "string"
         }
       ]
     },
@@ -619,6 +624,13 @@
           },
           "type": "array"
         },
+        "server": {
+          "description": "The server search's state, while a search is open: running, or its last failure.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "title": {
           "description": "The mailbox or the search.",
           "type": "string"
@@ -678,6 +690,97 @@
       ],
       "type": "object"
     },
+    "PaletteRow": {
+      "description": "One choice in the palette.",
+      "properties": {
+        "action": {
+          "description": "Chooses it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "detail": {
+          "description": "The second label (a category, an account, the senders).",
+          "type": "string"
+        },
+        "keys": {
+          "description": "The key binding, for a hardware keyboard.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "The main label.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "detail",
+        "action"
+      ],
+      "type": "object"
+    },
+    "PaletteSection": {
+      "description": "Rows of the palette under one caption.",
+      "properties": {
+        "rows": {
+          "description": "Its rows.",
+          "items": {
+            "$ref": "#/$defs/PaletteRow"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "The caption (`Recent`, `Mail`, `Mailboxes`, …); empty for a ranked list.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "PaletteSheet": {
+      "description": "The command palette: the registry's commands, mailboxes and recent threads, then the\nsecond steps of `app_front::palette`.",
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Leaves the step, else closes the palette."
+        },
+        "hint": {
+          "description": "The input's placeholder.",
+          "type": "string"
+        },
+        "prompt": {
+          "description": "The second step's question (`Move to which mailbox?`), if in one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "query": {
+          "$ref": "#/$defs/TextValue",
+          "description": "The typed text (`text` events name the `query` field)."
+        },
+        "sections": {
+          "description": "The rows, under captions (one untitled section with a query or in a step).",
+          "items": {
+            "$ref": "#/$defs/PaletteSection"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "hint",
+        "query",
+        "sections",
+        "close"
+      ],
+      "type": "object"
+    },
     "PaneKind": {
       "description": "What a pane shows.",
       "oneOf": [
@@ -707,6 +810,23 @@
           "type": "string"
         }
       ]
+    },
+    "Piece": {
+      "description": "A piece of [`Marked`] text.",
+      "properties": {
+        "hit": {
+          "description": "Whether it is a search word.",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
     },
     "QuoteFold": {
       "description": "The original below a reply or a forward: read-only, folded until tapped.",
@@ -892,6 +1012,37 @@
       ],
       "type": "object"
     },
+    "ResultView": {
+      "description": "A query's result as text, read-only. Email content in it is untrusted data.",
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Closes it."
+        },
+        "lines": {
+          "description": "The result (pretty JSON), line by line.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "note": {
+          "description": "Says that it is read-only and untrusted.",
+          "type": "string"
+        },
+        "title": {
+          "description": "The command's title.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "note",
+        "lines",
+        "close"
+      ],
+      "type": "object"
+    },
     "Row": {
       "description": "One thread in the list.",
       "properties": {
@@ -922,6 +1073,17 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "marks": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RowMarks"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The search words in the subject and the snippet, while a search is open."
         },
         "messages": {
           "description": "Messages in the thread.",
@@ -996,6 +1158,30 @@
         "selected",
         "checked",
         "a11y"
+      ],
+      "type": "object"
+    },
+    "RowMarks": {
+      "description": "A row's subject and snippet, cut where the search words are.",
+      "properties": {
+        "snippet": {
+          "description": "The snippet.",
+          "items": {
+            "$ref": "#/$defs/Piece"
+          },
+          "type": "array"
+        },
+        "subject": {
+          "description": "The subject.",
+          "items": {
+            "$ref": "#/$defs/Piece"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "subject",
+        "snippet"
       ],
       "type": "object"
     },
@@ -1233,6 +1419,17 @@
       ],
       "description": "The thread list, while on screen."
     },
+    "palette": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PaletteSheet"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The command palette, while open (a sheet over the panes; Back leaves its step, then\ncloses it)."
+    },
     "reader": {
       "anyOf": [
         {
@@ -1243,6 +1440,17 @@
         }
       ],
       "description": "The open thread, while on screen."
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResultView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A query's result, while open (over the panes; Back closes it)."
     },
     "revision": {
       "description": "Counts the frames this presenter made.",

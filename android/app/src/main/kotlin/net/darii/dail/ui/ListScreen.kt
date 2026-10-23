@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,12 +60,22 @@ fun ListPane(
         modifier = Modifier.fillMaxSize(),
     ) {
         if (list.total == 0) {
-            EmptyList(list.empty)
+            EmptyList(list.server ?: list.empty)
             return@PullToRefreshBox
         }
         val state = rememberLazyListState()
         ReportScrolling(state, send)
         LazyColumn(Modifier.fillMaxSize(), state = state) {
+            list.server?.let { server ->
+                item(key = "server") {
+                    Text(
+                        server,
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             items(
                 count = list.total,
                 key = { index -> list.rows.getOrNull(index - list.offset)?.thread ?: "placeholder-$index" },
@@ -125,6 +136,7 @@ fun ThreadRow(
             else -> colors.surface
         }
     val weight = if (row.unread) FontWeight.SemiBold else FontWeight.Normal
+    val subject = row.marks?.let { marked(it.subject) } ?: AnnotatedString(row.subject)
     Row(
         modifier
             .combinedClickable(
@@ -155,7 +167,7 @@ fun ThreadRow(
                 )
                 if (density == Density.Compact) {
                     Text(
-                        row.subject,
+                        subject,
                         Modifier.weight(0.6f).padding(start = 8.dp),
                         fontWeight = weight,
                         maxLines = 1,
@@ -166,11 +178,11 @@ fun ThreadRow(
                 Text(row.date, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelSmall)
             }
             if (density != Density.Compact) {
-                Text(row.subject, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subject, fontWeight = weight, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (density == Density.Preview && row.snippet.isNotEmpty()) {
                 Text(
-                    row.snippet,
+                    row.marks?.let { marked(it.snippet) } ?: AnnotatedString(row.snippet),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,

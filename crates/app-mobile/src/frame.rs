@@ -55,6 +55,13 @@ pub struct Frame {
     /// The About screen, while open (over everything else; Back closes it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub about: Option<About>,
+    /// The command palette, while open (a sheet over the panes; Back leaves its step, then
+    /// closes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub palette: Option<PaletteSheet>,
+    /// A query's result, while open (over the panes; Back closes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub result: Option<ResultView>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
@@ -216,6 +223,9 @@ pub struct List {
     pub refreshing: bool,
     /// The rows of the window.
     pub rows: Vec<Row>,
+    /// The server search's state, while a search is open: running, or its last failure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server: Option<String>,
     /// What to say when the list is empty.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub empty: Option<String>,
@@ -257,8 +267,33 @@ pub struct Row {
     pub selected: bool,
     /// Whether it is checked.
     pub checked: bool,
+    /// The search words in the subject and the snippet, while a search is open.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marks: Option<RowMarks>,
     /// TalkBack's name.
     pub a11y: String,
+}
+
+/// Text cut where the search words are, to draw them marked.
+pub type Marked = Vec<Piece>;
+
+/// A piece of [`Marked`] text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Piece {
+    /// The text.
+    pub text: String,
+    /// Whether it is a search word.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hit: bool,
+}
+
+/// A row's subject and snippet, cut where the search words are.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RowMarks {
+    /// The subject.
+    pub subject: Marked,
+    /// The snippet.
+    pub snippet: Marked,
 }
 
 /// What can be done with the checked threads.
@@ -462,4 +497,57 @@ pub struct Snackbar {
     /// Its button (Undo).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub action: Option<Button>,
+}
+
+/// The command palette: the registry's commands, mailboxes and recent threads, then the
+/// second steps of `app_front::palette`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PaletteSheet {
+    /// The second step's question (`Move to which mailbox?`), if in one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+    /// The input's placeholder.
+    pub hint: String,
+    /// The typed text (`text` events name the `query` field).
+    pub query: TextValue,
+    /// The rows, under captions (one untitled section with a query or in a step).
+    pub sections: Vec<PaletteSection>,
+    /// Leaves the step, else closes the palette.
+    pub close: Button,
+}
+
+/// Rows of the palette under one caption.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PaletteSection {
+    /// The caption (`Recent`, `Mail`, `Mailboxes`, …); empty for a ranked list.
+    pub title: String,
+    /// Its rows.
+    pub rows: Vec<PaletteRow>,
+}
+
+/// One choice in the palette.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PaletteRow {
+    /// The main label.
+    pub title: String,
+    /// The second label (a category, an account, the senders).
+    pub detail: String,
+    /// The key binding, for a hardware keyboard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keys: Option<String>,
+    /// Chooses it.
+    pub action: ActionId,
+}
+
+/// A query's result as text, read-only. Email content in it is untrusted data.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultView {
+    /// The command's title.
+    pub title: String,
+    /// Says that it is read-only and untrusted.
+    pub note: String,
+    /// The result (pretty JSON), line by line.
+    pub lines: Vec<String>,
+    /// Closes it.
+    pub close: Button,
 }

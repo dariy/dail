@@ -28,6 +28,9 @@ enum class Field(
 
     @SerialName("body")
     Body("body"),
+
+    @SerialName("query")
+    Query("query"),
 }
 
 /**

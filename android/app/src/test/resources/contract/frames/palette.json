@@ -1,0 +1,673 @@
+{
+  "back": true,
+  "fab": {
+    "action": 12,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 4,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 5,
+        "messages": 1,
+        "selected": false,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 7,
+        "swipe_start": 6,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 8,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 9,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 11,
+        "swipe_start": 10,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
+  "palette": {
+    "close": {
+      "action": 67,
+      "icon": "close",
+      "label": "Close"
+    },
+    "hint": "Type a command or search…",
+    "query": {
+      "text": "",
+      "version": 1
+    },
+    "sections": [
+      {
+        "rows": [
+          {
+            "action": 13,
+            "detail": "Mail",
+            "keys": "F5",
+            "title": "Sync now"
+          },
+          {
+            "action": 14,
+            "detail": "Mail",
+            "title": "List mailboxes"
+          },
+          {
+            "action": 15,
+            "detail": "Mail",
+            "title": "List threads"
+          },
+          {
+            "action": 16,
+            "detail": "Mail",
+            "title": "Show thread"
+          },
+          {
+            "action": 17,
+            "detail": "Mail",
+            "title": "Show message"
+          },
+          {
+            "action": 18,
+            "detail": "Mail",
+            "title": "Show images from sender"
+          },
+          {
+            "action": 19,
+            "detail": "Mail",
+            "title": "Save attachments"
+          },
+          {
+            "action": 20,
+            "detail": "Mail",
+            "keys": "u",
+            "title": "Mark as read"
+          },
+          {
+            "action": 21,
+            "detail": "Mail",
+            "keys": "u",
+            "title": "Mark as unread"
+          },
+          {
+            "action": 22,
+            "detail": "Mail",
+            "keys": "s",
+            "title": "Star"
+          },
+          {
+            "action": 23,
+            "detail": "Mail",
+            "title": "Remove star"
+          },
+          {
+            "action": 24,
+            "detail": "Mail",
+            "keys": "e",
+            "title": "Archive"
+          },
+          {
+            "action": 25,
+            "detail": "Mail",
+            "keys": "#",
+            "title": "Move to Trash"
+          },
+          {
+            "action": 26,
+            "detail": "Mail",
+            "keys": "v",
+            "title": "Move to…"
+          },
+          {
+            "action": 27,
+            "detail": "Mail",
+            "title": "Search mail"
+          }
+        ],
+        "title": "Mail"
+      },
+      {
+        "rows": [
+          {
+            "action": 28,
+            "detail": "Compose",
+            "keys": "c",
+            "title": "Compose"
+          },
+          {
+            "action": 29,
+            "detail": "Compose",
+            "keys": "r",
+            "title": "Reply"
+          },
+          {
+            "action": 30,
+            "detail": "Compose",
+            "keys": "a",
+            "title": "Reply all"
+          },
+          {
+            "action": 31,
+            "detail": "Compose",
+            "keys": "f",
+            "title": "Forward"
+          },
+          {
+            "action": 32,
+            "detail": "Compose",
+            "title": "List contacts"
+          }
+        ],
+        "title": "Compose"
+      },
+      {
+        "rows": [
+          {
+            "action": 33,
+            "detail": "Navigation",
+            "keys": "Escape",
+            "title": "Close command palette"
+          },
+          {
+            "action": 34,
+            "detail": "Navigation",
+            "keys": "g i",
+            "title": "Go to mailbox"
+          },
+          {
+            "action": 35,
+            "detail": "Navigation",
+            "keys": "g u",
+            "title": "Go to all inboxes"
+          },
+          {
+            "action": 36,
+            "detail": "Navigation",
+            "keys": "j",
+            "title": "Select threads"
+          },
+          {
+            "action": 37,
+            "detail": "Navigation",
+            "keys": "x",
+            "title": "Select all conversations"
+          },
+          {
+            "action": 38,
+            "detail": "Navigation",
+            "keys": "Enter",
+            "title": "Open thread"
+          },
+          {
+            "action": 39,
+            "detail": "Navigation",
+            "keys": "/",
+            "title": "Search"
+          },
+          {
+            "action": 40,
+            "detail": "Navigation",
+            "keys": "Tab",
+            "title": "Focus pane"
+          },
+          {
+            "action": 41,
+            "detail": "Navigation",
+            "keys": "Ctrl+B",
+            "title": "Toggle sidebar"
+          },
+          {
+            "action": 42,
+            "detail": "Navigation",
+            "title": "Show view state"
+          }
+        ],
+        "title": "Navigation"
+      },
+      {
+        "rows": [
+          {
+            "action": 43,
+            "detail": "Account",
+            "title": "Add account"
+          },
+          {
+            "action": 44,
+            "detail": "Account",
+            "title": "Test account connection"
+          },
+          {
+            "action": 45,
+            "detail": "Account",
+            "title": "Find the mail servers of an address"
+          },
+          {
+            "action": 46,
+            "detail": "Account",
+            "title": "Edit account"
+          },
+          {
+            "action": 47,
+            "detail": "Account",
+            "title": "Change account password"
+          },
+          {
+            "action": 48,
+            "detail": "Account",
+            "title": "Add or edit a sending address"
+          },
+          {
+            "action": 49,
+            "detail": "Account",
+            "title": "Send from an address for this mailbox"
+          },
+          {
+            "action": 50,
+            "detail": "Account",
+            "title": "Remove account"
+          },
+          {
+            "action": 51,
+            "detail": "Account",
+            "title": "Set how much mail to keep offline"
+          }
+        ],
+        "title": "Account"
+      },
+      {
+        "rows": [
+          {
+            "action": 52,
+            "detail": "App",
+            "title": "Show settings"
+          },
+          {
+            "action": 53,
+            "detail": "App",
+            "title": "Change setting"
+          },
+          {
+            "action": 54,
+            "detail": "App",
+            "title": "Change a command's keys"
+          },
+          {
+            "action": 55,
+            "detail": "App",
+            "title": "Choose the key bindings (Gmail, Vim)"
+          },
+          {
+            "action": 56,
+            "detail": "App",
+            "title": "Choose the theme"
+          },
+          {
+            "action": 57,
+            "detail": "App",
+            "keys": "Ctrl+,",
+            "title": "Settings"
+          },
+          {
+            "action": 58,
+            "detail": "App",
+            "keys": "z",
+            "title": "Undo"
+          },
+          {
+            "action": 59,
+            "detail": "App",
+            "keys": "Ctrl+Shift+Z",
+            "title": "Redo"
+          },
+          {
+            "action": 60,
+            "detail": "App",
+            "title": "Compact the local store"
+          }
+        ],
+        "title": "App"
+      },
+      {
+        "rows": [
+          {
+            "action": 61,
+            "detail": "alice@example.com",
+            "keys": "g i",
+            "title": "Go to Inbox"
+          },
+          {
+            "action": 62,
+            "detail": "alice@example.com",
+            "keys": "g s",
+            "title": "Go to Sent"
+          },
+          {
+            "action": 63,
+            "detail": "alice@example.com",
+            "keys": "g d",
+            "title": "Go to Drafts"
+          },
+          {
+            "action": 64,
+            "detail": "alice@example.com",
+            "keys": "g a",
+            "title": "Go to Archive"
+          }
+        ],
+        "title": "Mailboxes"
+      },
+      {
+        "rows": [
+          {
+            "action": 65,
+            "detail": "Carol",
+            "title": "Lunch?"
+          },
+          {
+            "action": 66,
+            "detail": "Bob",
+            "title": "Q3 numbers"
+          }
+        ],
+        "title": "Threads"
+      }
+    ]
+  },
+  "revision": 1,
+  "theme": {
+    "chrome": {
+      "base": "#0E0E0EFF",
+      "border": "#2F2F2FFF",
+      "border_strong": "#6B6B6BFF",
+      "border_subtle": "#222222FF",
+      "canvas": "#131313FF",
+      "danger": "#FFB4ABFF",
+      "emphasis": "#343434FF",
+      "focus": "#FFFFFFFF",
+      "hover": "#1F1F1FFF",
+      "inverse_bg": "#FFFFFFFF",
+      "inverse_danger": "#B3261EFF",
+      "inverse_text": "#0E0E0EFF",
+      "raised": "#1B1B1BFF",
+      "scrim": "#00000099",
+      "selected": "#2A2A2AFF",
+      "text": "#E2E2E2FF",
+      "text_muted": "#959595FF",
+      "text_secondary": "#C6C6C6FF",
+      "text_strong": "#FFFFFFFF"
+    },
+    "content": {
+      "base": "#FFFFFFFF",
+      "border": "#D7D7D7FF",
+      "border_strong": "#8A8A8AFF",
+      "border_subtle": "#E9E9E9FF",
+      "canvas": "#FFFFFFFF",
+      "danger": "#B3261EFF",
+      "emphasis": "#E2E2E2FF",
+      "focus": "#0E0E0EFF",
+      "hover": "#F2F2F2FF",
+      "inverse_bg": "#0E0E0EFF",
+      "inverse_danger": "#FFB4ABFF",
+      "inverse_text": "#FFFFFFFF",
+      "raised": "#F2F2F2FF",
+      "scrim": "#0E0E0E66",
+      "selected": "#E2E2E2FF",
+      "text": "#1F1F1FFF",
+      "text_muted": "#626262FF",
+      "text_secondary": "#343434FF",
+      "text_strong": "#0E0E0EFF"
+    },
+    "dark": false,
+    "icons": {
+      "add": "",
+      "all_inbox": "",
+      "archive": "",
+      "attach_file": "",
+      "check": "",
+      "check_box": "",
+      "check_box_outline_blank": "",
+      "chevron_left": "",
+      "chevron_right": "",
+      "close": "",
+      "cloud_off": "",
+      "content_copy": "",
+      "contrast": "",
+      "dark_mode": "",
+      "delete": "",
+      "description": "",
+      "dock_to_left": "",
+      "download": "",
+      "draft": "",
+      "drive_file_move": "",
+      "edit": "",
+      "error": "",
+      "expand_less": "",
+      "expand_more": "",
+      "folder": "",
+      "forward": "",
+      "image": "",
+      "inbox": "",
+      "keyboard": "",
+      "light_mode": "",
+      "link": "",
+      "mail": "",
+      "mark_email_read": "",
+      "mark_email_unread": "",
+      "more_horiz": "",
+      "open_in_new": "",
+      "person": "",
+      "picture_as_pdf": "",
+      "reply": "",
+      "reply_all": "",
+      "report": "",
+      "schedule": "",
+      "search": "",
+      "send": "",
+      "settings": "",
+      "star": "",
+      "sync": "",
+      "undo": "",
+      "unfold_less": "",
+      "unfold_more": "",
+      "verified_user": "",
+      "visibility": "",
+      "visibility_off": "",
+      "warning": ""
+    },
+    "id": "dail-light",
+    "metrics": {
+      "animation_ms": 80,
+      "controls": {
+        "avatar_lg": 40.0,
+        "avatar_md": 32.0,
+        "avatar_sm": 28.0,
+        "badge": 18.0,
+        "button": 28.0,
+        "button_small": 24.0,
+        "checkbox": 14.0,
+        "icon_button": 28.0,
+        "icon_lg": 20.0,
+        "icon_md": 18.0,
+        "icon_sm": 16.0,
+        "icon_xs": 14.0,
+        "key_cap": 18.0,
+        "switch_height": 24.0,
+        "switch_width": 44.0,
+        "unread_pip": 6.0
+      },
+      "frame": {
+        "list": 410.0,
+        "list_max": 640.0,
+        "list_min": 300.0,
+        "pane_footer": 40.0,
+        "pane_header": 48.0,
+        "rail": 56.0,
+        "reader_padding": 24.0,
+        "reader_toolbar": 48.0,
+        "sidebar": 224.0,
+        "sidebar_max": 360.0,
+        "sidebar_min": 160.0,
+        "text_width_max": 720.0,
+        "top_bar": 56.0
+      },
+      "overlays": {
+        "dialog_width": 480.0,
+        "floating_composer_width": 540.0,
+        "palette_list_max": 380.0,
+        "palette_offset": 80.0,
+        "palette_width": 560.0,
+        "toast_width_max": 480.0
+      },
+      "radius": {
+        "full": 9999.0,
+        "lg": 8.0,
+        "md": 4.0,
+        "sm": 2.0
+      },
+      "rows": {
+        "compact": 40.0,
+        "cozy": 48.0,
+        "nav": 32.0,
+        "palette": 36.0,
+        "preview": 72.0
+      },
+      "space": {
+        "lg": 16.0,
+        "md": 12.0,
+        "sm": 8.0,
+        "xl": 24.0,
+        "xs": 4.0
+      },
+      "stroke": {
+        "focus": 1.0,
+        "hairline": 1.0,
+        "indicator": 2.0
+      }
+    },
+    "name": "Dail Light",
+    "tags": [
+      "#3B82F6FF",
+      "#E11D48FF",
+      "#10B981FF",
+      "#F59E0BFF",
+      "#8B5CF6FF",
+      "#06B6D4FF"
+    ],
+    "type_scale": {
+      "body_lg": {
+        "face": "sans",
+        "line_height": 24.0,
+        "size": 15.0,
+        "tracking": -0.009999999776482582,
+        "weight": 400
+      },
+      "body_md": {
+        "face": "sans",
+        "line_height": 20.0,
+        "size": 13.0,
+        "tracking": 0.0,
+        "weight": 400
+      },
+      "body_sm": {
+        "face": "sans",
+        "line_height": 18.0,
+        "size": 12.0,
+        "tracking": 0.0,
+        "weight": 400
+      },
+      "code_badge": {
+        "face": "mono",
+        "line_height": 12.0,
+        "size": 10.0,
+        "tracking": 0.03999999910593033,
+        "weight": 600
+      },
+      "headline_lg": {
+        "face": "sans",
+        "line_height": 26.0,
+        "size": 20.0,
+        "tracking": -0.019999999552965164,
+        "weight": 600
+      },
+      "headline_md": {
+        "face": "sans",
+        "line_height": 20.0,
+        "size": 15.0,
+        "tracking": -0.009999999776482582,
+        "weight": 600
+      },
+      "headline_xl": {
+        "face": "sans",
+        "line_height": 34.0,
+        "size": 28.0,
+        "tracking": -0.029999999329447746,
+        "weight": 600
+      },
+      "label_md": {
+        "face": "mono",
+        "line_height": 16.0,
+        "size": 12.0,
+        "tracking": -0.009999999776482582,
+        "weight": 500
+      },
+      "label_sm": {
+        "face": "mono",
+        "line_height": 14.0,
+        "size": 11.0,
+        "tracking": 0.019999999552965164,
+        "weight": 500
+      }
+    }
+  },
+  "top_bar": {
+    "actions": [
+      {
+        "action": 2,
+        "icon": "search",
+        "label": "Search or run a command"
+      },
+      {
+        "action": 3,
+        "label": "About"
+      }
+    ],
+    "navigation": {
+      "action": 1,
+      "icon": "menu",
+      "label": "Mailboxes"
+    },
+    "subtitle": "synced 9h ago",
+    "title": "Inbox"
+  },
+  "wants_tick": true
+}

@@ -71,7 +71,7 @@ pub struct Phone {
     pub engine: Engine,
     /// Requests since the last [`Phone::take`].
     pub out: Vec<Request>,
-    seed: u128,
+    pub seed: u128,
 }
 
 impl Phone {
@@ -187,4 +187,77 @@ impl Phone {
 /// The commands of `requests`.
 pub fn requests_of(requests: &[Request]) -> Vec<Command> {
     requests.iter().map(|r| r.cmd.clone()).collect()
+}
+
+/// A phone over a state where every command has something to act on: an open thread, a pending
+/// op, an open draft with an attachment, a scheduled send and an agent's send request (like the
+/// TUI's `rich_term`; built on the phone's own engine, since a new `Engine` cancels sends
+/// scheduled before it).
+pub fn rich_phone() -> Phone {
+    let mut phone = Phone::inbox(360, 800);
+    let state = phone.state().clone();
+    let (_, threads) = inbox_of(&state);
+    let account = *state.accounts.keys().next().unwrap();
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    phone.dispatch(Command::MarkRead {
+        ids: vec![threads[0]],
+        messages: Vec::new(),
+    });
+    let draft = |phone: &mut Phone, to: &str, origin: Origin| -> app_core::DraftId {
+        phone.seed += 1;
+        let ctx = Ctx {
+            now_ms: NOW,
+            id_seed: phone.seed << 64,
+            origin,
+        };
+        let receipt = phone
+            .engine
+            .dispatch(
+                Command::CreateDraft {
+                    account,
+                    to: (!to.is_empty())
+                        .then(|| app_core::Addr {
+                            name: None,
+                            email: to.to_owned(),
+                        })
+                        .into_iter()
+                        .collect(),
+                    cc: Vec::new(),
+                    bcc: Vec::new(),
+                    subject: "Hi".into(),
+                    body: String::new(),
+                },
+                &ctx,
+            )
+            .unwrap()
+            .receipt;
+        let id = serde_json::from_value(receipt.data["id"].clone()).unwrap();
+        if origin == Origin::Mcp {
+            phone.seed += 1;
+            let ctx = Ctx {
+                id_seed: phone.seed << 64,
+                ..ctx
+            };
+            phone
+                .engine
+                .dispatch(Command::SendDraft { id }, &ctx)
+                .unwrap();
+        }
+        id
+    };
+    let scheduled = draft(&mut phone, "bob@example.org", Origin::Gui);
+    phone.dispatch(Command::SendDraft { id: scheduled });
+    draft(&mut phone, "carol@example.org", Origin::Mcp);
+    let open = draft(&mut phone, "", Origin::Gui);
+    phone.dispatch(Command::AttachFile {
+        draft: open,
+        path: "/tmp/a.txt".into(),
+        index: None,
+    });
+    phone.dispatch(Command::OpenComposer { id: open });
+    phone.dispatch(Command::FocusPane {
+        pane: app_core::Pane::List,
+    });
+    phone.take();
+    phone
 }

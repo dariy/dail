@@ -89,7 +89,7 @@ pub enum AskKind {
     Confirm(String),
 }
 
-type Next = Box<dyn Fn(&AppState, Choice) -> Flow>;
+type Next = Box<dyn Fn(&AppState, Choice) -> Flow + Send + Sync>;
 
 /// A second step: what to ask and what to do with the answer.
 pub struct Ask {
@@ -135,7 +135,7 @@ pub enum Flow {
 fn ask(
     prompt: impl Into<String>,
     kind: AskKind,
-    next: impl Fn(&AppState, Choice) -> Flow + 'static,
+    next: impl Fn(&AppState, Choice) -> Flow + Send + Sync + 'static,
 ) -> Flow {
     Flow::Ask(Ask {
         prompt: prompt.into(),
@@ -232,7 +232,7 @@ fn on_draft(state: &AppState, scheduled: bool, make: fn(DraftId) -> Command) -> 
 fn pick_mailbox(
     prompt: &str,
     account: Option<AccountId>,
-    make: impl Fn(MailboxId) -> Command + 'static,
+    make: impl Fn(MailboxId) -> Command + Send + Sync + 'static,
 ) -> Flow {
     ask(
         prompt,
@@ -244,7 +244,7 @@ fn pick_mailbox(
     )
 }
 
-fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + 'static) -> Flow {
+fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'static) -> Flow {
     ask(
         "Which account?",
         AskKind::Accounts,
@@ -296,7 +296,11 @@ pub fn theme_command(text: &str) -> Command {
     }
 }
 
-fn text(prompt: &str, hint: impl Into<String>, make: impl Fn(String) -> Command + 'static) -> Flow {
+fn text(
+    prompt: &str,
+    hint: impl Into<String>,
+    make: impl Fn(String) -> Command + Send + Sync + 'static,
+) -> Flow {
     ask(
         prompt,
         AskKind::Text(hint.into()),

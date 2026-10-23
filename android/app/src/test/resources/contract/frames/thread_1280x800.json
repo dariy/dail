@@ -63,7 +63,7 @@
     "rail": false
   },
   "fab": {
-    "action": 39,
+    "action": 40,
     "icon": "edit",
     "label": "Compose"
   },
@@ -140,6 +140,11 @@
       },
       {
         "action": 37,
+        "icon": "drive_file_move",
+        "label": "Move…"
+      },
+      {
+        "action": 38,
         "icon": "reply",
         "label": "Reply"
       }
@@ -155,7 +160,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 38
+        "toggle": 39
       }
     ],
     "subject": "Lunch?",

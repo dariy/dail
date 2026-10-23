@@ -27,6 +27,11 @@
           "const": "body",
           "description": "The body.",
           "type": "string"
+        },
+        {
+          "const": "query",
+          "description": "The palette's input.",
+          "type": "string"
         }
       ]
     }

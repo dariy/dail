@@ -21,6 +21,8 @@ pub enum Field {
     Subject,
     /// The body.
     Body,
+    /// The palette's input.
+    Query,
 }
 
 /// One event from the host, in the order the user caused it. Kotlin never builds a command: it
