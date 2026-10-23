@@ -52,6 +52,7 @@ class ContractTest {
                 "key" to UiEvent.Key("Ctrl+Z"),
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
+                "online" to UiEvent.Online,
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
                 "share" to
                     UiEvent.Share(

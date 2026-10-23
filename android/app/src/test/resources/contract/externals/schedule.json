@@ -1,0 +1,7 @@
+{
+  "args": {
+    "interval_mins": 30,
+    "sync": 1
+  },
+  "external": "schedule"
+}

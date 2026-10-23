@@ -52,7 +52,7 @@ fn attachments_preview_by_kind_and_save_through_the_host() {
     let message = first(&mut phone);
     phone.tap(message.attachments[2].save);
     assert_eq!(
-        phone.mobile.externals(),
+        phone.externals(),
         [External::SaveFiles {
             blob: "b0".to_owned(),
             files: vec![SaveFile {
@@ -65,7 +65,7 @@ fn attachments_preview_by_kind_and_save_through_the_host() {
     let all = message.save_all.unwrap();
     assert_eq!(all.label, "Save all (3)");
     phone.tap(all.action);
-    let externals = phone.mobile.externals();
+    let externals = phone.externals();
     assert!(
         matches!(&externals[..], [External::SaveFiles { files, .. }] if files.len() == 3),
         "{externals:?}"

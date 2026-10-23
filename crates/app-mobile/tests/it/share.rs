@@ -39,10 +39,7 @@ fn a_mailto_link_opens_a_filled_draft_and_never_sends() {
     let id = phone.state().view.composer.unwrap();
     assert!(!phone.state().drafts[&id].is_outgoing());
     assert!(phone.frame().composer.is_some());
-    assert!(
-        phone.mobile.externals().is_empty(),
-        "no files, nothing to import"
-    );
+    assert!(phone.externals().is_empty(), "no files, nothing to import");
 }
 
 #[test]
@@ -73,7 +70,7 @@ fn shared_text_and_files_become_a_draft_with_checked_files() {
     );
     let frame = phone.frame();
     assert_eq!(
-        phone.mobile.externals(),
+        phone.externals(),
         [External::ImportFiles {
             draft: id,
             uris: vec![

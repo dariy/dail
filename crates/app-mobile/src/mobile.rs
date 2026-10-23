@@ -140,6 +140,8 @@ pub struct Mobile {
     compose: Buffers,
     /// The drafts whose scheduled or leaving send the host was told about (`sending`).
     kept: Vec<DraftId>,
+    /// The background schedule last told to the host (`External::Schedule`).
+    schedule: Option<(u64, u64)>,
     /// The send errors already told in the snackbar, by draft.
     told: Vec<(DraftId, String)>,
     /// The palette's query and step.
@@ -233,6 +235,7 @@ impl Mobile {
             compose: Buffers::default(),
             told: Vec::new(),
             kept: Vec::new(),
+            schedule: None,
             palette: palette::Palette::default(),
             palette_version: 1,
             palette_open: false,
@@ -344,6 +347,13 @@ impl Mobile {
             }
             UiEvent::Back => self.back(state),
             UiEvent::Refresh => vec![Request::user(Command::SyncNow { account: None })],
+            UiEvent::Online => {
+                if self.visible && !state.accounts.is_empty() {
+                    vec![Request::user(Command::SyncNow { account: None })]
+                } else {
+                    Vec::new()
+                }
+            }
             UiEvent::Key { chord } => match parse_chord(&chord) {
                 Some(chord) => self.press(chord, state),
                 None => Vec::new(),
@@ -706,6 +716,7 @@ impl Mobile {
         .then(|| self.button("edit", "Compose", Act::Compose));
         self.tell_send_errors(state);
         self.keep_sends(state);
+        self.tell_schedule(state);
         let bulk = self.bulk(state);
         let banner = self.banner(state);
         let snackbar = self.snackbar(state);
@@ -1244,6 +1255,21 @@ impl Mobile {
             problems,
             actions,
         })
+    }
+
+    /// `External::Schedule` with the first frame and when the background settings change.
+    fn tell_schedule(&mut self, state: &AppState) {
+        let now = (
+            state.settings.background_sync,
+            state.settings.background_interval_mins,
+        );
+        if self.schedule != Some(now) {
+            self.schedule = Some(now);
+            self.externals.push(External::Schedule {
+                sync: now.0,
+                interval_mins: now.1,
+            });
+        }
     }
 
     /// `External::Sending` once per send that is scheduled or leaving, from `send_draft` or the

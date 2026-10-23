@@ -1200,7 +1200,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`, `schedule {sync, interval_mins}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
@@ -1247,6 +1247,15 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the app never strands a send. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
   composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
+- **Leaving the app** (A5). With the first frame and whenever `background_sync` or `background_interval_mins`
+  changes, the presenter asks for `External::Schedule{sync, interval_mins}`; `Host.kt` applies it with or without an
+  activity. `DailJobService` (JobScheduler; no WorkManager) runs two jobs through the host's `background` call, which
+  opens the session if no activity has: `flush` (one-off, any network, scheduled by `MainActivity.onStop`: queued
+  triage, draft and attachment saves, at most 3 min) and `check` (periodic every `interval_mins`, network required,
+  persisted across reboots with `RECEIVE_BOOT_COMPLETED`; `sync_now` as `runtime`, then waits until no account is
+  syncing), scheduled unless `sync` is 0 (push keeps it as the fallback). While the activity is started, a default
+  network callback (`ACCESS_NETWORK_STATE`) sends `UiEvent::Online` when a network comes back, which syncs if the app
+  is visible and has an account.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,

@@ -151,6 +151,16 @@ impl Phone {
         self.engine.ingest(event, &ctx).unwrap();
     }
 
+    /// The host actions asked for since the last call, but the background schedule (which the
+    /// first frame and each change of the settings carry; `background.rs` tests it).
+    pub fn externals(&mut self) -> Vec<app_mobile::External> {
+        self.mobile
+            .externals()
+            .into_iter()
+            .filter(|e| !matches!(e, app_mobile::External::Schedule { .. }))
+            .collect()
+    }
+
     /// Takes the requests submitted since the last call.
     pub fn take(&mut self) -> Vec<Request> {
         std::mem::take(&mut self.out)

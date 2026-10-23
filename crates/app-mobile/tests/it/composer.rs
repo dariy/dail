@@ -253,7 +253,7 @@ fn attach_asks_the_host_and_the_files_show_as_chips() {
         .unwrap();
     assert!(phone.tap(attach.action).is_empty());
     assert_eq!(
-        phone.mobile.externals(),
+        phone.externals(),
         [app_mobile::External::PickFiles { draft: id }]
     );
     for path in ["/files/outgoing/a/notes.txt", "/files/outgoing/b/big.bin"] {
@@ -321,19 +321,19 @@ fn send_needs_a_recipient_and_keeps_the_process_until_it_leaves() {
     assert_eq!(phone.tap(send), [Command::SendDraft { id }]);
     let frame = phone.frame();
     assert_eq!(
-        phone.mobile.externals(),
+        phone.externals(),
         [app_mobile::External::Sending { draft: id }]
     );
     assert!(frame.snackbar.unwrap().text.starts_with("Sending in"));
     let snackbar = phone.frame().snackbar.unwrap();
-    assert!(phone.mobile.externals().is_empty(), "once per send");
+    assert!(phone.externals().is_empty(), "once per send");
     assert_eq!(
         phone.tap(snackbar.action.unwrap().action),
         [Command::CancelSend { id }]
     );
     assert!(!phone.state().drafts[&id].is_outgoing());
     phone.frame();
-    assert!(phone.mobile.externals().is_empty());
+    assert!(phone.externals().is_empty());
 }
 
 #[test]

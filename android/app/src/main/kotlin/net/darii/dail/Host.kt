@@ -142,7 +142,16 @@ class Host(
         lastFrame = answer["frame"].toString()
         decoded.frame.theme?.let { theme = it }
         state.value = Screen.Ready(decoded.frame, theme)
-        decoded.externals.forEach { onExternal(it) }
+        decoded.externals.forEach { external ->
+            // The schedule is the host's, with or without an activity.
+            if (external.external == "schedule") {
+                val sync = external.args?.sync
+                val interval = external.args?.intervalMins
+                if (sync != null && interval != null) DailJobService.schedule(context, sync, interval)
+            } else {
+                onExternal(external)
+            }
+        }
     }
 
     private fun error(answer: JsonObject) = (answer["error"] as? JsonPrimitive)?.content ?: answer.toString()

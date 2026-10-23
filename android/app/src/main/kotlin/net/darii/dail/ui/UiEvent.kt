@@ -102,6 +102,10 @@ sealed interface UiEvent {
         override fun json() = event("refresh")
     }
 
+    data object Online : UiEvent {
+        override fun json() = event("online")
+    }
+
     data class Text(
         val field: Field,
         val text: String,

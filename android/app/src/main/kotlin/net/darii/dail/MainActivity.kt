@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -247,13 +249,32 @@ class MainActivity : ComponentActivity() {
         picking?.let { outState.putString(PICKING, it) }
     }
 
+    /** A network that comes back while the app is visible syncs (the first answer is the current one). */
+    private val network =
+        object : ConnectivityManager.NetworkCallback() {
+            @Volatile var seen = false
+
+            override fun onAvailable(network: Network) {
+                if (seen) host.send(UiEvent.Online) else seen = true
+            }
+
+            override fun onLost(network: Network) {
+                seen = true
+            }
+        }
+
     override fun onStart() {
         super.onStart()
         host.send(UiEvent.Visible(true))
+        network.seen = false
+        getSystemService(ConnectivityManager::class.java)?.registerDefaultNetworkCallback(network)
     }
 
     override fun onStop() {
+        getSystemService(ConnectivityManager::class.java)?.let { runCatching { it.unregisterNetworkCallback(network) } }
         host.send(UiEvent.Visible(false))
+        // Queued triage, draft saves and attachment saves still reach the servers.
+        DailJobService.flush(this)
         super.onStop()
     }
 

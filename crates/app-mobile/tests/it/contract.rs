@@ -121,6 +121,7 @@ fn events() -> Vec<UiEvent> {
         },
         UiEvent::Back,
         UiEvent::Refresh,
+        UiEvent::Online,
         UiEvent::Text {
             field: Field::Subject,
             text: "Lunch?".to_owned(),
@@ -148,6 +149,7 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Scrolled { .. }
             | UiEvent::Back
             | UiEvent::Refresh
+            | UiEvent::Online
             | UiEvent::Text { .. }
             | UiEvent::Blur { .. }
             | UiEvent::Key { .. }
@@ -186,6 +188,10 @@ fn externals() -> Vec<External> {
                 mime: "application/pdf".to_owned(),
             }],
         },
+        External::Schedule {
+            sync: 1,
+            interval_mins: 30,
+        },
     ];
     for external in &all {
         match external {
@@ -195,7 +201,8 @@ fn externals() -> Vec<External> {
             | External::Sending { .. }
             | External::OpenUrl { .. }
             | External::Copy { .. }
-            | External::SaveFiles { .. } => {}
+            | External::SaveFiles { .. }
+            | External::Schedule { .. } => {}
         }
     }
     all

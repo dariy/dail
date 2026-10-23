@@ -3,6 +3,7 @@
 mod support;
 
 mod attachments;
+mod background;
 mod composer;
 mod contract;
 mod drawer;

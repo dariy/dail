@@ -146,6 +146,9 @@ const APK_PERMISSIONS: &[&str] = &[
     // A4: the send service (`shortService` from Android 14, `dataSync` before).
     "android.permission.FOREGROUND_SERVICE",
     "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+    // A5: the periodic check is kept across reboots; a network change syncs.
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.ACCESS_NETWORK_STATE",
     "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];
 

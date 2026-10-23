@@ -80,6 +80,9 @@ pub enum UiEvent {
     Back,
     /// Pull to refresh.
     Refresh,
+    /// A network came back while the app is visible: syncs, as a pull would (nothing while the
+    /// app is off screen or has no account).
+    Online,
     /// A text field changed (the whole text, as the IME left it).
     Text {
         /// The field.
@@ -171,6 +174,15 @@ pub enum External {
     Sending {
         /// The draft being sent.
         draft: DraftId,
+    },
+    /// The background schedule (`background_sync`, `background_interval_mins`), with the first
+    /// frame and whenever it changes: the host keeps a periodic check unless `sync` is 0
+    /// (2 adds push).
+    Schedule {
+        /// `background_sync`: 0 only while open, 1 periodic, 2 push.
+        sync: u64,
+        /// `background_interval_mins`.
+        interval_mins: u64,
     },
 }
 

@@ -143,14 +143,14 @@ fn an_html_body_is_drawn_as_blocks_with_links_behind_a_sheet() {
         panic!()
     };
     assert!(phone.tap(spans[1].link.unwrap()).is_empty());
-    assert!(phone.mobile.externals().is_empty());
+    assert!(phone.externals().is_empty());
     let frame = phone.frame();
     let sheet = frame.link.as_ref().unwrap();
     assert_eq!(sheet.url, "https://evil.example/login");
     assert!(frame.back, "Back closes the sheet");
     phone.tap(sheet.open.action);
     assert_eq!(
-        phone.mobile.externals(),
+        phone.externals(),
         [External::OpenUrl {
             url: "https://evil.example/login".to_owned()
         }]
@@ -163,9 +163,7 @@ fn an_html_body_is_drawn_as_blocks_with_links_behind_a_sheet() {
     phone.tap(links[0].action);
     let copy = phone.frame().link.unwrap().copy.action;
     phone.tap(copy);
-    assert!(
-        matches!(&phone.mobile.externals()[..], [External::Copy { text }] if text.contains("evil"))
-    );
+    assert!(matches!(&phone.externals()[..], [External::Copy { text }] if text.contains("evil")));
     let frame = phone.frame();
     phone.tap(reader(&frame).messages[0].links[0].action);
     assert!(phone.frame().link.is_some());
@@ -195,7 +193,7 @@ fn a_mailto_link_opens_a_draft_not_an_app() {
         matches!(got.first(), Some(Command::CreateDraft { subject, .. }) if subject == "Hi"),
         "{got:?}"
     );
-    assert!(phone.mobile.externals().is_empty());
+    assert!(phone.externals().is_empty());
 }
 
 #[test]

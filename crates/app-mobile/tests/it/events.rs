@@ -48,7 +48,7 @@ fn swipes_archive_and_trash_with_a_haptic() {
             messages: Vec::new()
         }]
     );
-    assert_eq!(phone.mobile.externals(), [External::Haptic]);
+    assert_eq!(phone.externals(), [External::Haptic]);
     let frame = phone.frame();
     let snackbar = frame.snackbar.unwrap();
     assert_eq!(snackbar.action.as_ref().unwrap().label, "Undo");
@@ -193,7 +193,7 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
     phone.event(UiEvent::LongPress {
         action: rows[0].long_press,
     });
-    assert_eq!(phone.mobile.externals(), [External::Haptic]);
+    assert_eq!(phone.externals(), [External::Haptic]);
     let rows = phone.frame().list.unwrap().rows;
     phone.tap(rows[1].action);
     let bulk = phone.frame().bulk.unwrap();

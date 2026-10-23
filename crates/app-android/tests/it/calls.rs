@@ -23,7 +23,11 @@ fn a_live_profile_through_the_calls() {
     let configure = r#"{"event": "configure", "args": {"width_dp": 360, "height_dp": 800}}"#;
     let out = json(&calls::event(handle, configure));
     assert_eq!(out["frame"]["layout"]["class"], "compact");
-    assert!(out["externals"].as_array().unwrap().is_empty());
+    // The first frame tells the background schedule (the defaults: periodic, every 30 min).
+    assert_eq!(
+        out["externals"],
+        serde_json::json!([{"external": "schedule", "args": {"sync": 1, "interval_mins": 30}}])
+    );
     assert!(json(&calls::frame(handle))["frame"].is_object());
     assert_eq!(json(&calls::background(handle, r#""flush""#))["done"], true);
     assert_eq!(

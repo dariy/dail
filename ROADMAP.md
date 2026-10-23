@@ -492,7 +492,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [core] Settings `background_sync` (0 while open, 1 periodic, 2 push; default 1) and `background_interval_mins`
   (15–720, default 30) in `config.toml` and `set_setting`, read only by the Android host; replay fixture;
   ARCHITECTURE §8
-- [ ] [android] [kt] Leaving the app: a one-off job flushes queued triage, draft saves and attachment saves (at most
+- [x] [android] [kt] Leaving the app: a one-off job flushes queued triage, draft saves and attachment saves (at most
   3 min); a periodic job (network required, kept across reboots) runs `sync_now` as `runtime` and waits for the
   accounts; a network change while the app is visible syncs
 - [ ] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or

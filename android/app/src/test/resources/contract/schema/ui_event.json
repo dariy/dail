@@ -270,6 +270,19 @@
       "type": "object"
     },
     {
+      "description": "A network came back while the app is visible: syncs, as a pull would (nothing while the\napp is off screen or has no account).",
+      "properties": {
+        "event": {
+          "const": "online",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "type": "object"
+    },
+    {
       "description": "A text field changed (the whole text, as the IME left it).",
       "properties": {
         "args": {

@@ -444,6 +444,8 @@ data class ExternalArgs(
     val text: String? = null,
     val blob: String? = null,
     val files: List<SaveFile> = emptyList(),
+    val sync: Int? = null,
+    @SerialName("interval_mins") val intervalMins: Int? = null,
 )
 
 /** One attachment to save; the name was made safe by the host. */
