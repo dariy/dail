@@ -37,6 +37,7 @@ data class Frame(
     val about: About? = null,
     val palette: PaletteSheet? = null,
     val result: ResultView? = null,
+    val link: LinkSheet? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -191,6 +192,9 @@ data class Reader(
     val thread: String,
     val subject: String,
     val actions: List<Button>,
+    val previous: Button? = null,
+    val next: Button? = null,
+    val position: String? = null,
     val messages: List<ReaderMessage>,
 )
 
@@ -203,10 +207,92 @@ data class ReaderMessage(
     val expanded: Boolean,
     val toggle: ActionId,
     val snippet: String,
-    val body: List<String>? = null,
+    val body: List<DocBlock>? = null,
     val status: String? = null,
     val attachments: List<Attachment>,
-    val links: List<String>,
+    val links: List<Button>,
+)
+
+/** A block of a message body (`app_mobile::frame::DocBlock`), by its `type`. */
+@Serializable
+sealed interface DocBlock {
+    @Serializable
+    @SerialName("paragraph")
+    data class Paragraph(
+        val spans: List<DocSpan>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("heading")
+    data class Heading(
+        val level: Int,
+        val spans: List<DocSpan>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("list")
+    data class Items(
+        val ordered: Boolean,
+        val start: Int,
+        val items: List<List<DocBlock>>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("quote")
+    data class Quote(
+        val blocks: List<DocBlock>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("preformatted")
+    data class Preformatted(
+        val lines: List<String>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("table")
+    data class Table(
+        val rows: List<List<DocCell>>,
+    ) : DocBlock
+
+    @Serializable
+    @SerialName("rule")
+    data object Rule : DocBlock
+
+    @Serializable
+    @SerialName("fold")
+    data class Fold(
+        val label: String,
+        val expanded: Boolean,
+        val toggle: ActionId,
+        val blocks: List<DocBlock>,
+    ) : DocBlock
+}
+
+@Serializable
+data class DocCell(
+    val header: Boolean = false,
+    val spans: List<DocSpan>,
+)
+
+@Serializable
+data class DocSpan(
+    val text: String,
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    val code: Boolean = false,
+    val strike: Boolean = false,
+    val hit: Boolean = false,
+    val link: ActionId? = null,
+)
+
+/** A tapped link's full target, before it opens. */
+@Serializable
+data class LinkSheet(
+    val url: String,
+    val open: Button,
+    val copy: Button,
+    val close: Button,
 )
 
 @Serializable
@@ -309,6 +395,8 @@ data class External(
 data class ExternalArgs(
     val draft: String? = null,
     val uris: List<String> = emptyList(),
+    val url: String? = null,
+    val text: String? = null,
 )
 
 /** `app_theme`'s tokens (`app_mobile::theme`): colour roles as `#RRGGBBAA`, styles in sp. */

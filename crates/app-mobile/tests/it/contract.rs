@@ -67,6 +67,17 @@ fn frames() -> Vec<(String, Frame)> {
     phone.tap(first);
     out.push(("result".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    phone.bodies = Some(vec![crate::support::html_body(
+        "Q3 numbers See the report",
+        &crate::support::sample_document(),
+    )]);
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    out.push(("reader_html".to_owned(), phone.frame()));
+    let link = phone.frame().reader.unwrap().messages[0].links[0].action;
+    phone.tap(link);
+    out.push(("link".to_owned(), phone.frame()));
+    let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::SetSearch {
         query: "lunch".to_owned(),
     });
@@ -151,13 +162,21 @@ fn externals() -> Vec<External> {
         External::Sending {
             draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
         },
+        External::OpenUrl {
+            url: "https://example.org/a".to_owned(),
+        },
+        External::Copy {
+            text: "https://example.org/a".to_owned(),
+        },
     ];
     for external in &all {
         match external {
             External::Haptic
             | External::PickFiles { .. }
             | External::ImportFiles { .. }
-            | External::Sending { .. } => {}
+            | External::Sending { .. }
+            | External::OpenUrl { .. }
+            | External::Copy { .. } => {}
         }
     }
     all

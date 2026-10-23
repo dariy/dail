@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 22,
+    "action": 24,
     "icon": "edit",
     "label": "Compose"
   },
@@ -25,16 +25,21 @@
       },
       {
         "action": 18,
-        "icon": "mark_email_unread",
-        "label": "Mark unread"
+        "icon": "star",
+        "label": "Star"
       },
       {
         "action": 19,
+        "icon": "mark_email_read",
+        "label": "Mark read"
+      },
+      {
+        "action": 20,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 20,
+        "action": 21,
         "icon": "reply",
         "label": "Reply"
       }
@@ -50,9 +55,15 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 21
+        "toggle": 23
       }
     ],
+    "next": {
+      "action": 22,
+      "icon": "expand_more",
+      "label": "Next conversation"
+    },
+    "position": "1 of 2",
     "subject": "Lunch?",
     "thread": "00000000-0000-0007-0000-000000000002"
   },

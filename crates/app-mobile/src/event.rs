@@ -145,6 +145,17 @@ pub enum External {
         /// The content URIs.
         uris: Vec<String>,
     },
+    /// Open this `http` or `https` URL in the browser (the user saw it in full and chose
+    /// *Open*).
+    OpenUrl {
+        /// The URL.
+        url: String,
+    },
+    /// Put this text on the clipboard.
+    Copy {
+        /// The text.
+        text: String,
+    },
     /// A send was scheduled: keep the process alive (a foreground service running the
     /// `sends` task) until no send is scheduled or leaving, so leaving the app never loses it.
     Sending {

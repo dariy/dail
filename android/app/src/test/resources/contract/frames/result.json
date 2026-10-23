@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 115,
+    "action": 123,
     "icon": "edit",
     "label": "Compose"
   },
@@ -14,27 +14,32 @@
   "reader": {
     "actions": [
       {
-        "action": 109,
+        "action": 115,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 110,
+        "action": 116,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 111,
-        "icon": "mark_email_unread",
-        "label": "Mark unread"
+        "action": 117,
+        "icon": "star",
+        "label": "Star"
       },
       {
-        "action": 112,
+        "action": 118,
+        "icon": "mark_email_read",
+        "label": "Mark read"
+      },
+      {
+        "action": 119,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 113,
+        "action": 120,
         "icon": "reply",
         "label": "Reply"
       }
@@ -50,15 +55,21 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 114
+        "toggle": 122
       }
     ],
+    "next": {
+      "action": 121,
+      "icon": "expand_more",
+      "label": "Next conversation"
+    },
+    "position": "1 of 2",
     "subject": "Lunch?",
     "thread": "00000000-0000-0007-0000-000000000002"
   },
   "result": {
     "close": {
-      "action": 116,
+      "action": 124,
       "icon": "close",
       "label": "Close"
     },
@@ -119,17 +130,17 @@
   "top_bar": {
     "actions": [
       {
-        "action": 107,
+        "action": 113,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 108,
+        "action": 114,
         "label": "About"
       }
     ],
     "navigation": {
-      "action": 106,
+      "action": 112,
       "icon": "back",
       "label": "Back"
     },

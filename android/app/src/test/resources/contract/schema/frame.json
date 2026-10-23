@@ -319,6 +319,276 @@
         }
       ]
     },
+    "DocBlock": {
+      "description": "A block of a message body (`app_core::document::Block`, cleaned, with action IDs).",
+      "oneOf": [
+        {
+          "description": "A run of text; `\\n` in a span is a line break.",
+          "properties": {
+            "spans": {
+              "description": "The text.",
+              "items": {
+                "$ref": "#/$defs/DocSpan"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "paragraph",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "spans"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A heading, 1 to 6.",
+          "properties": {
+            "level": {
+              "description": "1 to 6.",
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "spans": {
+              "description": "The text.",
+              "items": {
+                "$ref": "#/$defs/DocSpan"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "heading",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "level",
+            "spans"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A list.",
+          "properties": {
+            "items": {
+              "description": "The items, each a list of blocks.",
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/DocBlock"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "ordered": {
+              "description": "Numbered.",
+              "type": "boolean"
+            },
+            "start": {
+              "description": "The first item's number.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "list",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ordered",
+            "start",
+            "items"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Quoted blocks.",
+          "properties": {
+            "blocks": {
+              "description": "The quoted blocks.",
+              "items": {
+                "$ref": "#/$defs/DocBlock"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "quote",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "blocks"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Monospace text with its spacing kept, line by line.",
+          "properties": {
+            "lines": {
+              "description": "The lines.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "preformatted",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "lines"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A data table.",
+          "properties": {
+            "rows": {
+              "description": "The rows, each a list of cells.",
+              "items": {
+                "items": {
+                  "$ref": "#/$defs/DocCell"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": {
+              "const": "table",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "rows"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "A horizontal rule.",
+          "properties": {
+            "type": {
+              "const": "rule",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Quoted earlier messages or a signature, folded until tapped.",
+          "properties": {
+            "blocks": {
+              "description": "What it holds, while open.",
+              "items": {
+                "$ref": "#/$defs/DocBlock"
+              },
+              "type": "array"
+            },
+            "expanded": {
+              "description": "Whether it is open.",
+              "type": "boolean"
+            },
+            "label": {
+              "description": "`Quoted text` or `Signature`.",
+              "type": "string"
+            },
+            "toggle": {
+              "description": "Opens or folds it.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "const": "fold",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "label",
+            "expanded",
+            "toggle",
+            "blocks"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DocCell": {
+      "description": "A table cell.",
+      "properties": {
+        "header": {
+          "description": "A header cell.",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text.",
+          "items": {
+            "$ref": "#/$defs/DocSpan"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "spans"
+      ],
+      "type": "object"
+    },
+    "DocSpan": {
+      "description": "Text with one style.",
+      "properties": {
+        "bold": {
+          "description": "Bold.",
+          "type": "boolean"
+        },
+        "code": {
+          "description": "Monospace.",
+          "type": "boolean"
+        },
+        "hit": {
+          "description": "A search word, while a search is open.",
+          "type": "boolean"
+        },
+        "italic": {
+          "description": "Italic (also an image's alt text).",
+          "type": "boolean"
+        },
+        "link": {
+          "description": "A link: a tap shows its full target first (the text may say something else).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "strike": {
+          "description": "Struck through.",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
     "DraftId": {
       "description": "A local draft.",
       "format": "uuid",
@@ -584,6 +854,34 @@
       "required": [
         "name",
         "text"
+      ],
+      "type": "object"
+    },
+    "LinkSheet": {
+      "description": "A link's full target, before it opens.",
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Closes the sheet."
+        },
+        "copy": {
+          "$ref": "#/$defs/Button",
+          "description": "*Copy* the target."
+        },
+        "open": {
+          "$ref": "#/$defs/Button",
+          "description": "*Open* in the browser (a `mailto:` link opens a new draft instead)."
+        },
+        "url": {
+          "description": "The target, in full.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "open",
+        "copy",
+        "close"
       ],
       "type": "object"
     },
@@ -865,7 +1163,7 @@
       "description": "The open thread.",
       "properties": {
         "actions": {
-          "description": "What can be done with it.",
+          "description": "What can be done with it: archive, trash, star, read, *Move…*, reply.",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -877,6 +1175,35 @@
             "$ref": "#/$defs/ReaderMessage"
           },
           "type": "array"
+        },
+        "next": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The conversation below it in the list, if any."
+        },
+        "position": {
+          "description": "Where it is in the list (`2 of 14`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "previous": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The conversation above it in the list, if any."
         },
         "subject": {
           "description": "Its subject.",
@@ -906,9 +1233,9 @@
           "type": "array"
         },
         "body": {
-          "description": "The body's lines, once downloaded (expanded messages only).",
+          "description": "The body as blocks, once downloaded (expanded messages only): an HTML body's document,\nor the plain text's paragraphs with its signature and quote folded.",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/DocBlock"
           },
           "type": [
             "array",
@@ -928,9 +1255,9 @@
           "type": "string"
         },
         "links": {
-          "description": "The link targets in the body, in full.",
+          "description": "*Links (N)*: every link target in the body, in full; a tap shows it before it opens.",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/Button"
           },
           "type": "array"
         },
@@ -1407,6 +1734,17 @@
     "layout": {
       "$ref": "#/$defs/Layout",
       "description": "The window class and the panes on screen."
+    },
+    "link": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LinkSheet"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A tapped link's full target, before it opens (a sheet; Back closes it)."
     },
     "list": {
       "anyOf": [

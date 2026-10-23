@@ -9,5 +9,6 @@ mod events;
 mod frames;
 mod list;
 mod palette;
+mod reader;
 mod share;
 mod theme;

@@ -72,6 +72,9 @@ pub struct Phone {
     /// Requests since the last [`Phone::take`].
     pub out: Vec<Request>,
     pub seed: u128,
+    /// The bodies `get_thread` answers with, message by message (`untrusted_content.body`), in
+    /// place of the engine's (which has no blobs).
+    pub bodies: Option<Vec<serde_json::Value>>,
 }
 
 impl Phone {
@@ -82,6 +85,7 @@ impl Phone {
             engine: Engine::new(state),
             out: Vec::new(),
             seed: 1000,
+            bodies: None,
         };
         phone.event(UiEvent::Configure {
             width_dp,
@@ -170,6 +174,32 @@ impl Phone {
                     origin: Origin::Gui,
                 };
                 let name = request.cmd.command_name();
+                if let (app_mobile::Purpose::Bodies(thread), Some(bodies)) =
+                    (&request.purpose, &self.bodies)
+                {
+                    let messages: Vec<serde_json::Value> = self.engine.state().threads[thread]
+                        .messages
+                        .iter()
+                        .zip(bodies)
+                        .map(|(id, body)| {
+                            serde_json::json!({"id": id, "untrusted_content": {"body": body}})
+                        })
+                        .collect();
+                    let receipt = app_core::CommandReceipt {
+                        ok: true,
+                        name: "get_thread".into(),
+                        kind: Some(app_core::CommandKind::Query),
+                        affected: Vec::new(),
+                        data: serde_json::json!({ "messages": messages }),
+                        undo_label: None,
+                    };
+                    replies.push(Reply {
+                        purpose: request.purpose,
+                        name,
+                        result: Ok(Ok(receipt)),
+                    });
+                    continue;
+                }
                 let result = self.engine.dispatch(request.cmd, &ctx).map(|o| o.receipt);
                 replies.push(Reply {
                     purpose: request.purpose,
@@ -260,4 +290,86 @@ pub fn rich_phone() -> Phone {
     });
     phone.take();
     phone
+}
+
+/// A plain-text body as `get_thread` returns it.
+pub fn plain_body(text: &str) -> serde_json::Value {
+    serde_json::json!({"text": text, "text_source": "plain", "attachments": []})
+}
+
+/// An HTML body: its text and its document (`app_core::document`).
+pub fn html_body(text: &str, document: &app_core::document::Document) -> serde_json::Value {
+    serde_json::json!({
+        "text": text,
+        "text_source": "html",
+        "document": document,
+        "attachments": [],
+    })
+}
+
+/// A document with every kind of block, a link and an inline image.
+pub fn sample_document() -> app_core::document::Document {
+    use app_core::document::{Block, Cell, Document, FoldKind, Span};
+    let span = |text: &str| Span {
+        text: text.to_owned(),
+        ..Span::default()
+    };
+    Document {
+        blocks: vec![
+            Block::Heading {
+                level: 2,
+                spans: vec![span("Q3 numbers")],
+            },
+            Block::Paragraph {
+                spans: vec![
+                    span("See "),
+                    Span {
+                        text: "the report".to_owned(),
+                        link: Some("https://example.org/q3".to_owned()),
+                        bold: true,
+                        ..Span::default()
+                    },
+                    Span {
+                        text: "[chart]".to_owned(),
+                        image: Some("chart@example.org".to_owned()),
+                        ..Span::default()
+                    },
+                ],
+            },
+            Block::List {
+                ordered: false,
+                start: 1,
+                items: vec![vec![Block::Paragraph {
+                    spans: vec![span("up 4%")],
+                }]],
+            },
+            Block::Preformatted {
+                text: "total  12".to_owned(),
+            },
+            Block::Table {
+                rows: vec![vec![
+                    Cell {
+                        header: true,
+                        spans: vec![span("Q")],
+                    },
+                    Cell {
+                        header: false,
+                        spans: vec![span("3")],
+                    },
+                ]],
+            },
+            Block::Rule,
+            Block::Quote {
+                blocks: vec![Block::Paragraph {
+                    spans: vec![span("as said")],
+                }],
+            },
+            Block::Fold {
+                kind: FoldKind::Signature,
+                blocks: vec![Block::Paragraph {
+                    spans: vec![span("Carol")],
+                }],
+            },
+        ],
+    }
 }

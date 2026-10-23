@@ -92,21 +92,32 @@ expression: phone.frame()
         "action": 13
       },
       {
-        "icon": "mark_email_unread",
-        "label": "Mark unread",
+        "icon": "star",
+        "label": "Star",
         "action": 14
+      },
+      {
+        "icon": "mark_email_read",
+        "label": "Mark read",
+        "action": 15
       },
       {
         "icon": "drive_file_move",
         "label": "Move…",
-        "action": 15
+        "action": 16
       },
       {
         "icon": "reply",
         "label": "Reply",
-        "action": 16
+        "action": 17
       }
     ],
+    "next": {
+      "icon": "expand_more",
+      "label": "Next conversation",
+      "action": 18
+    },
+    "position": "1 of 2",
     "messages": [
       {
         "message": "00000000-0000-0007-0000-000000000003",
@@ -114,7 +125,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 17,
+        "toggle": 19,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -125,7 +136,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 18
+    "action": 20
   },
   "theme": {
     "id": "dail-light",

@@ -1,11 +1,15 @@
 package net.darii.dail
 
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -17,6 +21,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import net.darii.dail.ui.DailScreen
@@ -51,6 +56,18 @@ class MainActivity : ComponentActivity() {
             io.execute { uris.forEach { host.import(draft, it) } }
         }
 
+    /** Opens an `http(s)` URL the user saw in full and chose to open, in the browser. */
+    private fun openUrl(url: String) {
+        val uri = url.toUri()
+        if (uri.scheme?.lowercase() !in setOf("http", "https")) return
+        val view = Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE)
+        try {
+            startActivity(view)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "No app can open this link.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -66,6 +83,19 @@ class MainActivity : ComponentActivity() {
 
                 "sending" -> {
                     runOnUiThread { SendService.start(this) }
+                }
+
+                "open_url" -> {
+                    external.args?.url?.let { url -> runOnUiThread { openUrl(url) } }
+                }
+
+                "copy" -> {
+                    external.args?.text?.let { text ->
+                        runOnUiThread {
+                            getSystemService(ClipboardManager::class.java)
+                                ?.setPrimaryClip(ClipData.newPlainText("link", text))
+                        }
+                    }
                 }
 
                 "haptic" -> {

@@ -4,8 +4,11 @@
 //! `open_thread`, and Back is the `Escape` binding. The window class only chooses panes
 //! (`app_front::panes`); it never dispatches a command.
 
+use std::collections::HashSet;
+
+use app_core::document::FoldKind;
 use app_core::{
-    Addr, AppState, AttachmentState, BodyState, Command, CommandName, Draft, DraftId, MailboxRole,
+    Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, MailboxRole, MessageId,
     Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
@@ -16,17 +19,18 @@ use app_front::notice::{self, LastAction};
 use app_front::panes::{self, Slot, Width};
 use app_front::status::{self, Fix};
 use app_front::text::{clean, clean_lines};
-use app_front::{a11y, body, compose, fold, format, palette};
+use app_front::{a11y, compose, format, palette};
 
 use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
-    ActionId, Attachment, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer,
-    DrawerAccount, DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Reader,
-    ReaderMessage, Recipients, Row, SettingsPage, Snackbar, TopBar,
+    ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
+    DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
+    SettingsPage, Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
+mod reader;
 mod sheet;
 
 /// How long a notice or an undo offer stays in the snackbar.
@@ -63,6 +67,14 @@ enum Act {
     PaletteBack,
     /// Open the palette at this command's step (*Move…*).
     Flow(CommandName),
+    /// Open or fold a message's quote or signature.
+    Fold(MessageId, FoldKind),
+    /// Show a link's full target (the link sheet).
+    Link(String),
+    /// Open the link of the sheet.
+    OpenLink(String),
+    /// Copy the link of the sheet.
+    CopyLink(String),
 }
 
 /// The window, as the host last configured it.
@@ -133,6 +145,10 @@ pub struct Mobile {
     palette_open: bool,
     /// A query's result, until Back.
     result: Option<sheet::Result>,
+    /// The folds (quotes, signatures) the user opened, per message.
+    folds: HashSet<(MessageId, FoldKind)>,
+    /// The tapped link, while its sheet is open.
+    link: Option<String>,
 }
 
 impl Default for Mobile {
@@ -214,6 +230,8 @@ impl Mobile {
             palette_version: 1,
             palette_open: false,
             result: None,
+            folds: HashSet::new(),
+            link: None,
         }
     }
 
@@ -436,6 +454,19 @@ impl Mobile {
             Act::Choose(target) => self.palette_choose(target, state),
             Act::PaletteBack => self.palette_back(),
             Act::Flow(name) => self.palette_flow(name, state),
+            Act::Fold(message, kind) => {
+                self.toggle_fold(message, kind);
+                Vec::new()
+            }
+            Act::Link(url) => {
+                self.link = Some(url);
+                Vec::new()
+            }
+            Act::OpenLink(url) => self.open_link(&url, state),
+            Act::CopyLink(url) => {
+                self.copy_link(url);
+                Vec::new()
+            }
             Act::Pick(draft) => {
                 self.externals.push(External::PickFiles { draft });
                 Vec::new()
@@ -533,7 +564,7 @@ impl Mobile {
             self.about = false;
             return Vec::new();
         }
-        if self.result.take().is_some() {
+        if self.result.take().is_some() || self.link.take().is_some() {
             return Vec::new();
         }
         if state.view.palette_open {
@@ -666,9 +697,14 @@ impl Mobile {
         let about = self.about.then(crate::theme::about);
         let palette = self.palette_sheet(state);
         let result = self.result_view();
+        if reader.is_none() {
+            self.link = None;
+        }
+        let link = self.link_sheet();
         let back = self.about
             || palette.is_some()
             || result.is_some()
+            || link.is_some()
             || self.escape(state).is_some()
             || !state.view.checked.is_empty()
             || self.drawer_back(state);
@@ -692,6 +728,7 @@ impl Mobile {
             about,
             palette,
             result,
+            link,
             back,
             wants_tick: self.wants_tick(state),
         }
@@ -955,137 +992,6 @@ impl Mobile {
             server: sheet::server_state(state),
             empty,
         }
-    }
-
-    fn reader(&mut self, state: &AppState) -> Option<Reader> {
-        let thread = state.view.thread.and_then(|id| state.threads.get(&id))?;
-        let now = self.now_ms();
-        let ids = vec![thread.id];
-        let mut actions = vec![
-            self.button(
-                "archive",
-                "Archive",
-                Act::Run(Command::ArchiveThreads {
-                    ids: ids.clone(),
-                    messages: Vec::new(),
-                }),
-            ),
-            self.button(
-                "delete",
-                "Trash",
-                Act::Run(Command::TrashThreads {
-                    ids: ids.clone(),
-                    messages: Vec::new(),
-                }),
-            ),
-            self.button(
-                "mark_email_unread",
-                "Mark unread",
-                Act::Run(Command::MarkUnread {
-                    ids,
-                    messages: Vec::new(),
-                }),
-            ),
-            self.button(
-                "drive_file_move",
-                "Move…",
-                Act::Flow(CommandName::MoveThreads),
-            ),
-        ];
-        if let Some(message) = palette::newest_message(state, thread.id) {
-            actions.push(self.button(
-                "reply",
-                "Reply",
-                Act::Run(Command::Reply {
-                    message,
-                    body: None,
-                }),
-            ));
-        }
-        let mut messages = Vec::new();
-        for message in thread
-            .messages
-            .iter()
-            .filter_map(|id| state.messages.get(id))
-        {
-            let expanded = listing::is_expanded(state, thread, message);
-            let toggle = self.add(Act::Run(if expanded {
-                Command::CollapseMessages {
-                    ids: vec![message.id],
-                }
-            } else {
-                Command::ExpandMessages {
-                    ids: vec![message.id],
-                }
-            }));
-            let loaded = self.bodies.get(message.id);
-            let snippet = loaded
-                .map(|b| fold::split(&b.text).main)
-                .and_then(|text| text.lines().find(|l| !l.trim().is_empty()))
-                .or(message.snippet.as_deref())
-                .unwrap_or_default()
-                .trim()
-                .chars()
-                .take(120)
-                .collect::<String>();
-            let (lines, status) = match (expanded, loaded, &message.body) {
-                (false, _, _) => (None, None),
-                (true, Some(body), _) => (Some(clean_lines(body.text.trim_end())), None),
-                (true, None, BodyState::Failed { error }) => (
-                    None,
-                    Some(format!(
-                        "The body could not be downloaded: {}",
-                        clean(error)
-                    )),
-                ),
-                (true, None, _) => (None, Some("Loading…".to_owned())),
-            };
-            let to: Vec<String> = message
-                .to
-                .iter()
-                .chain(&message.cc)
-                .map(|a| clean(&format::full(a)))
-                .collect();
-            messages.push(ReaderMessage {
-                message: message.id,
-                from: message
-                    .from
-                    .first()
-                    .map_or_else(|| "(no sender)".to_owned(), |a| clean(&format::full(a))),
-                to: to.join(", "),
-                date: format::short_date(message.date_ms, now),
-                expanded,
-                toggle,
-                snippet: clean(&snippet),
-                body: lines,
-                status,
-                attachments: loaded
-                    .map(|b| {
-                        b.attachments
-                            .iter()
-                            .map(|a| Attachment {
-                                part: a.part,
-                                name: clean(&a.name),
-                                mime: clean(&a.content_type),
-                                size: format::size(a.size),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                links: loaded
-                    .map(|b| body::links(&b.text).iter().map(|l| clean(l)).collect())
-                    .unwrap_or_default(),
-            });
-        }
-        Some(Reader {
-            thread: thread.id,
-            subject: match thread.subject.trim() {
-                "" => "(no subject)".to_owned(),
-                s => clean(s),
-            },
-            actions,
-            messages,
-        })
     }
 
     /// The bulk bar over `palette::targets` (the checked threads), while any are checked.

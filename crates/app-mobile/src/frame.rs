@@ -62,6 +62,9 @@ pub struct Frame {
     /// A query's result, while open (over the panes; Back closes it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<ResultView>,
+    /// A tapped link's full target, before it opens (a sheet; Back closes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<LinkSheet>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
@@ -314,8 +317,17 @@ pub struct Reader {
     pub thread: ThreadId,
     /// Its subject.
     pub subject: String,
-    /// What can be done with it.
+    /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
+    /// The conversation above it in the list, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous: Option<Button>,
+    /// The conversation below it in the list, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<Button>,
+    /// Where it is in the list (`2 of 14`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<String>,
     /// Its messages, oldest first.
     pub messages: Vec<ReaderMessage>,
 }
@@ -337,16 +349,120 @@ pub struct ReaderMessage {
     pub toggle: ActionId,
     /// The start of the text, for a collapsed message.
     pub snippet: String,
-    /// The body's lines, once downloaded (expanded messages only).
+    /// The body as blocks, once downloaded (expanded messages only): an HTML body's document,
+    /// or the plain text's paragraphs with its signature and quote folded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body: Option<Vec<String>>,
+    pub body: Option<Vec<DocBlock>>,
     /// Why the body is missing (`Loading…`, a download error).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     /// Its attachments.
     pub attachments: Vec<Attachment>,
-    /// The link targets in the body, in full.
-    pub links: Vec<String>,
+    /// *Links (N)*: every link target in the body, in full; a tap shows it before it opens.
+    pub links: Vec<Button>,
+}
+
+/// A block of a message body (`app_core::document::Block`, cleaned, with action IDs).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DocBlock {
+    /// A run of text; `\n` in a span is a line break.
+    Paragraph {
+        /// The text.
+        spans: Vec<DocSpan>,
+    },
+    /// A heading, 1 to 6.
+    Heading {
+        /// 1 to 6.
+        level: u8,
+        /// The text.
+        spans: Vec<DocSpan>,
+    },
+    /// A list.
+    List {
+        /// Numbered.
+        ordered: bool,
+        /// The first item's number.
+        start: u32,
+        /// The items, each a list of blocks.
+        items: Vec<Vec<DocBlock>>,
+    },
+    /// Quoted blocks.
+    Quote {
+        /// The quoted blocks.
+        blocks: Vec<DocBlock>,
+    },
+    /// Monospace text with its spacing kept, line by line.
+    Preformatted {
+        /// The lines.
+        lines: Vec<String>,
+    },
+    /// A data table.
+    Table {
+        /// The rows, each a list of cells.
+        rows: Vec<Vec<DocCell>>,
+    },
+    /// A horizontal rule.
+    Rule,
+    /// Quoted earlier messages or a signature, folded until tapped.
+    Fold {
+        /// `Quoted text` or `Signature`.
+        label: String,
+        /// Whether it is open.
+        expanded: bool,
+        /// Opens or folds it.
+        toggle: ActionId,
+        /// What it holds, while open.
+        blocks: Vec<DocBlock>,
+    },
+}
+
+/// A table cell.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocCell {
+    /// A header cell.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub header: bool,
+    /// The text.
+    pub spans: Vec<DocSpan>,
+}
+
+/// Text with one style.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct DocSpan {
+    /// The text.
+    pub text: String,
+    /// Bold.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bold: bool,
+    /// Italic (also an image's alt text).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub italic: bool,
+    /// Monospace.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub code: bool,
+    /// Struck through.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub strike: bool,
+    /// A search word, while a search is open.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hit: bool,
+    /// A link: a tap shows its full target first (the text may say something else).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<ActionId>,
+}
+
+/// A link's full target, before it opens.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct LinkSheet {
+    /// The target, in full.
+    pub url: String,
+    /// *Open* in the browser (a `mailto:` link opens a new draft instead).
+    pub open: Button,
+    /// *Copy* the target.
+    pub copy: Button,
+    /// Closes the sheet.
+    pub close: Button,
 }
 
 /// An attachment of a received message.

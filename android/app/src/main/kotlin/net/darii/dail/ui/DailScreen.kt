@@ -69,6 +69,7 @@ private fun FrameScreen(
 ) {
     BackHandler(enabled = frame.back) { send(UiEvent.Back) }
     ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send) }
+    frame.link?.let { LinkDialog(it, send) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -221,29 +222,6 @@ private fun AboutScreen(
             Column(Modifier.padding(vertical = 8.dp)) {
                 Text(licence.name, style = MaterialTheme.typography.titleMedium)
                 Text(licence.text, style = MaterialTheme.typography.labelSmall)
-            }
-            HorizontalDivider()
-        }
-    }
-}
-
-@Composable
-private fun ReaderPane(
-    reader: Reader,
-    send: (UiEvent) -> Unit,
-) {
-    LazyColumn(Modifier.padding(horizontal = 16.dp)) {
-        item { Text(reader.subject, style = MaterialTheme.typography.titleLarge) }
-        item { Row { reader.actions.forEach { ActionButton(it, send) } } }
-        items(reader.messages, key = { it.message }) { message ->
-            Column(Modifier.fillMaxWidth().clickable { send(UiEvent.Tap(message.toggle)) }.padding(vertical = 8.dp)) {
-                Text(message.from, fontWeight = FontWeight.Bold)
-                Text(message.date, style = MaterialTheme.typography.labelSmall)
-                when {
-                    !message.expanded -> Text(message.snippet, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    message.body != null -> message.body.forEach { Text(it) }
-                    else -> message.status?.let { Text(it) }
-                }
             }
             HorizontalDivider()
         }

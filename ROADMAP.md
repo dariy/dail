@@ -459,7 +459,7 @@ encryption (SEC-1), 32-bit ARM.
   (`app_front::status`); the undo snackbar (`LastAction`, `undo`)
 - [x] [mobile] [kt] Gestures and checked threads: swipe left archives, right trashes; a long press checks
   (`check_threads`) and shows the bulk bar (archive, trash, read, unread, star, uncheck); haptic feedback
-- [ ] [mobile] [kt] Reader: collapsed and expanded messages, HTML drawn natively from `app_core::document`
+- [x] [mobile] [kt] Reader: collapsed and expanded messages, HTML drawn natively from `app_core::document`
   (paragraphs, headings, lists, quotes, preformatted text, tables, links), plain text with folds; the toolbar (archive,
   trash, star, read, *Move…* opens the palette at its step), the previous and next conversation; *Links (N)*; a tap on
   a link shows its full target first (*Open* in the browser, *Copy*); Back is the `Escape` binding

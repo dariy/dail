@@ -1,0 +1,6 @@
+{
+  "args": {
+    "url": "https://example.org/a"
+  },
+  "external": "open_url"
+}

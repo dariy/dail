@@ -1200,14 +1200,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
-  `reader`, `composer` (below), `settings` (the open section, a placeholder until A6, in place of the
+  `reader` (below), `link`, `composer` (below), `settings` (the open section, a placeholder until A6, in place of the
   list and the detail), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
@@ -1255,6 +1255,17 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   dail can read; `net.darii.dail` and its suffixed authorities serve dail's own files); the rest are counted in the
   snackbar. Once the draft exists, `External::ImportFiles` hands the accepted URIs back, and each is copied and
   attached like a picked file. Without an account the snackbar says to add one.
+- **The reader** (`app_mobile::mobile::reader`): the thread's messages, collapsed (sender, date, snippet) or expanded,
+  a tap toggling (`expand_messages`/`collapse_messages`). An expanded body is `DocBlock`s: an HTML body's
+  `app_core::document` (paragraphs, headings, lists, quotes, preformatted lines, tables, rules, folds), or plain
+  text's paragraphs with its signature and quote folded (`app_front::fold`). Every span is cleaned (line breaks
+  kept), marked where search words are (`hit`), and a link span carries only an action ID. Folds stay closed until
+  tapped (presenter state per message and kind, no command). *Links (N)* lists every target in full. A link's tap
+  opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
+  only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
+  another app; *Copy* is `copy`. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
+  palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list,
+  with `position` (`2 of 14`). Back closes the link dialog, then the thread (the `Escape` binding).
 - **The palette** (`palette`, over the panes) is `app_front::palette::Palette` drawn as rows with action IDs: the top
   bar's search (`open_palette`, like the desktop's search pill) opens it at the root (the available registry
   commands, mailboxes and recent threads under their captions; one ranked list once text is typed, ending in *Search
