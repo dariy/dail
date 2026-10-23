@@ -16,6 +16,8 @@ list_density = 0
 tui_colors = 0
 text_scale = 100
 notifications = 1
+background_sync = 1
+background_interval_mins = 30
 images_from = ["news@example.org"]
 key_preset = "vim"
 

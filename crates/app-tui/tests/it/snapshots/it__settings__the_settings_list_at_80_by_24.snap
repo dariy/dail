@@ -7,19 +7,19 @@ dail · Conversations
 ┌ Settings ────────────────────────────────────────────────────────────────────┐
 │ General   Keys   Accounts                                                    │
 │                                                                              │
-│undo_send_ms    10000                                                         │
-│poll_secs       120                                                           │
-│initial_window  500                                                           │
-│history_cap     200                                                           │
-│theme           0                                                             │
-│text_scale      100                                                           │
-│notifications   1                                                             │
-│list_density    0                                                             │
-│tui_colors      0                                                             │
-│theme_light     dail-light                                                    │
-│theme_dark      dail-dark                                                     │
-│                                                                              │
-│                                                                              │
+│undo_send_ms              10000                                               │
+│poll_secs                 120                                                 │
+│initial_window            500                                                 │
+│history_cap               200                                                 │
+│theme                     0                                                   │
+│text_scale                100                                                 │
+│notifications             1                                                   │
+│list_density              0                                                   │
+│tui_colors                0                                                   │
+│background_sync           1                                                   │
+│background_interval_mins  30                                                  │
+│theme_light               dail-light                                          │
+│theme_dark                dail-dark                                           │
 │                                                                              │
 │                                                                              │
 │Tab section · j/k move · Enter change · Esc close                             │

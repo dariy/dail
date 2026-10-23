@@ -689,6 +689,12 @@ pub enum SettingKey {
     /// TUI colours: 0 = the terminal's own (bold, dim, reverse), 1 = the active theme's roles in
     /// truecolor (`NO_COLOR` still turns them off).
     TuiColors,
+    /// Android: mail checks while the app is not on screen: 0 = only while it is open,
+    /// 1 = periodic (every `background_interval_mins`), 2 = push (a permanent notification while
+    /// the IMAP IDLE watches run).
+    BackgroundSync,
+    /// Android: minutes between periodic background checks (15–720).
+    BackgroundIntervalMins,
 }
 
 impl SettingKey {
@@ -703,6 +709,8 @@ impl SettingKey {
         Self::Notifications,
         Self::ListDensity,
         Self::TuiColors,
+        Self::BackgroundSync,
+        Self::BackgroundIntervalMins,
     ];
 
     /// The key's `snake_case` name.
@@ -717,6 +725,8 @@ impl SettingKey {
             Self::Notifications => "notifications",
             Self::ListDensity => "list_density",
             Self::TuiColors => "tui_colors",
+            Self::BackgroundSync => "background_sync",
+            Self::BackgroundIntervalMins => "background_interval_mins",
         }
     }
 
@@ -732,6 +742,8 @@ impl SettingKey {
             Self::Notifications => (0, 1),
             Self::ListDensity => (0, 2),
             Self::TuiColors => (0, 1),
+            Self::BackgroundSync => (0, 2),
+            Self::BackgroundIntervalMins => (15, 720),
         }
     }
 
@@ -747,6 +759,8 @@ impl SettingKey {
             Self::Notifications => settings.notifications,
             Self::ListDensity => settings.list_density,
             Self::TuiColors => settings.tui_colors,
+            Self::BackgroundSync => settings.background_sync,
+            Self::BackgroundIntervalMins => settings.background_interval_mins,
         }
     }
 
@@ -762,6 +776,8 @@ impl SettingKey {
             Self::Notifications => settings.notifications = value,
             Self::ListDensity => settings.list_density = value,
             Self::TuiColors => settings.tui_colors = value,
+            Self::BackgroundSync => settings.background_sync = value,
+            Self::BackgroundIntervalMins => settings.background_interval_mins = value,
         }
     }
 }

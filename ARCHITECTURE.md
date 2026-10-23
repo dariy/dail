@@ -1417,7 +1417,7 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |

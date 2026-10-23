@@ -1,0 +1,9 @@
+# Android background settings (A5): periodic by default every 30 min; push; the interval's range; undo and redo.
+{"t": 1700000000000, "origin": "gui", "input": {"command": {"cmd": "get_settings", "args": {}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "background_sync", "value": 2}}}}
+{"t": 1700000002000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "background_sync", "value": 3}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "background_interval_mins", "value": 14}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "background_interval_mins", "value": 720}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "background_sync", "value": 0}}}}

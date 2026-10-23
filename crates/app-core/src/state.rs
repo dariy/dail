@@ -274,6 +274,12 @@ pub struct Settings {
     pub text_scale: u64,
     /// Desktop notifications while the GUI is in the background: 0 = off, 1 = on.
     pub notifications: u64,
+    /// Android: mail checks while the app is not on screen: 0 = only while open, 1 = periodic
+    /// (every `background_interval_mins`), 2 = push (IMAP IDLE in a foreground service). Read only
+    /// by the Android host (ADR 0009).
+    pub background_sync: u64,
+    /// Android: minutes between periodic background checks (`background_sync` = 1).
+    pub background_interval_mins: u64,
     /// Senders (lower-case addresses) whose messages show their inline images, the `cid:` parts
     /// of the message itself (`show_images_from`). Remote images are never loaded.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -327,6 +333,8 @@ impl Default for Settings {
             tui_colors: 0,
             text_scale: 100,
             notifications: 1,
+            background_sync: 1,
+            background_interval_mins: 30,
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),

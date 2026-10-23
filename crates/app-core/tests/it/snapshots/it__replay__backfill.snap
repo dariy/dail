@@ -191,6 +191,8 @@ expression: first
     },
     "outbox": {},
     "settings": {
+      "background_interval_mins": 30,
+      "background_sync": 1,
       "history_cap": 200,
       "initial_window": 500,
       "list_density": 0,

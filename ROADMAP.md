@@ -489,7 +489,7 @@ encryption (SEC-1), 32-bit ARM.
   `file://` URIs and the app's own content URIs refused, shared files copied like picked ones (tests)
 
 ### A5 — Background & notifications
-- [ ] [core] Settings `background_sync` (0 while open, 1 periodic, 2 push; default 1) and `background_interval_mins`
+- [x] [core] Settings `background_sync` (0 while open, 1 periodic, 2 push; default 1) and `background_interval_mins`
   (15–720, default 30) in `config.toml` and `set_setting`, read only by the Android host; replay fixture;
   ARCHITECTURE §8
 - [ ] [android] [kt] Leaving the app: a one-off job flushes queued triage, draft saves and attachment saves (at most

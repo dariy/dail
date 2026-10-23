@@ -1,0 +1,338 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "background_interval_mins": 720,
+      "background_sync": 0,
+      "history_cap": 200,
+      "initial_window": 500,
+      "list_density": 0,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "background_interval_mins": 30,
+              "background_sync": 1,
+              "history_cap": 200,
+              "initial_window": 500,
+              "list_density": 0,
+              "notifications": 1,
+              "poll_secs": 120,
+              "text_scale": 100,
+              "theme": 0,
+              "theme_dark": "dail-dark",
+              "theme_light": "dail-light",
+              "tui_colors": 0,
+              "undo_send_ms": 10000
+            },
+            "kind": "query",
+            "name": "get_settings",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 2,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "key": "background_sync",
+              "previous": 1,
+              "value": 2
+            },
+            "kind": "mutation",
+            "name": "set_setting",
+            "ok": true,
+            "undo_label": "Set background_sync"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "value",
+          "reason": "background_sync must be between 0 and 2"
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "value",
+          "reason": "background_interval_mins must be between 15 and 720"
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 720,
+                    "background_sync": 2,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "key": "background_interval_mins",
+              "previous": 30,
+              "value": 720
+            },
+            "kind": "mutation",
+            "name": "set_setting",
+            "ok": true,
+            "undo_label": "Set background_interval_mins"
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 2,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "undone": "Set background_interval_mins"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 720,
+                    "background_sync": 2,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "redone": "Set background_interval_mins"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Set background_interval_mins"
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 720,
+                    "background_sync": 0,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "key": "background_sync",
+              "previous": 2,
+              "value": 0
+            },
+            "kind": "mutation",
+            "name": "set_setting",
+            "ok": true,
+            "undo_label": "Set background_sync"
+          }
+        }
+      }
+    }
+  ]
+}

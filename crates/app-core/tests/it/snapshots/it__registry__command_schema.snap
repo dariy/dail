@@ -496,6 +496,16 @@ expression: command_schema()
           "const": "tui_colors",
           "description": "TUI colours: 0 = the terminal's own (bold, dim, reverse), 1 = the active theme's roles in\ntruecolor (`NO_COLOR` still turns them off).",
           "type": "string"
+        },
+        {
+          "const": "background_sync",
+          "description": "Android: mail checks while the app is not on screen: 0 = only while it is open,\n1 = periodic (every `background_interval_mins`), 2 = push (a permanent notification while\nthe IMAP IDLE watches run).",
+          "type": "string"
+        },
+        {
+          "const": "background_interval_mins",
+          "description": "Android: minutes between periodic background checks (15–720).",
+          "type": "string"
         }
       ]
     },
