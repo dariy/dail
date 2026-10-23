@@ -79,6 +79,14 @@ private fun FrameScaffold(
 ) {
     Scaffold(
         topBar = {
+            frame.bulk?.let { bulk ->
+                TopAppBar(
+                    title = { Text(bulk.title) },
+                    navigationIcon = { ActionButton(bulk.close, send) },
+                    actions = { bulk.actions.forEach { ActionButton(it, send) } },
+                )
+                return@Scaffold
+            }
             TopAppBar(
                 title = {
                     Column {

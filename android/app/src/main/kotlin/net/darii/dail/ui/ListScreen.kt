@@ -1,7 +1,7 @@
 package net.darii.dail.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +23,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
@@ -49,7 +52,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun ListPane(
     list: ThreadList,
     send: (UiEvent) -> Unit,
-    row: @Composable (Row, @Composable () -> Unit) -> Unit = { _, content -> content() },
 ) {
     PullToRefreshBox(
         isRefreshing = list.refreshing,
@@ -71,7 +73,7 @@ fun ListPane(
                 if (thread == null) {
                     Placeholder(list.density)
                 } else {
-                    row(thread) { ThreadRow(thread, list.density, send) }
+                    SwipeRow(thread, send) { ThreadRow(thread, list.density, send) }
                 }
                 HorizontalDivider()
             }
@@ -125,8 +127,10 @@ fun ThreadRow(
     val weight = if (row.unread) FontWeight.SemiBold else FontWeight.Normal
     Row(
         modifier
-            .clickable { send(UiEvent.Tap(row.action)) }
-            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { send(UiEvent.Tap(row.action)) },
+                onLongClick = { send(UiEvent.LongPress(row.longPress)) },
+            ).fillMaxWidth()
             .background(background)
             .semantics(mergeDescendants = true) { contentDescription = row.a11y }
             .padding(horizontal = 12.dp, vertical = if (density == Density.Compact) 6.dp else 10.dp),
@@ -174,6 +178,48 @@ fun ThreadRow(
                 )
             }
         }
+    }
+}
+
+/**
+ * A row that swipes: towards the start edge (left) archives, towards the end edge (right)
+ * trashes. The row springs back; the next frame drops it.
+ */
+@Composable
+private fun SwipeRow(
+    row: Row,
+    send: (UiEvent) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val state =
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                when (value) {
+                    SwipeToDismissBoxValue.EndToStart -> send(UiEvent.Swipe(row.swipeStart))
+                    SwipeToDismissBoxValue.StartToEnd -> send(UiEvent.Swipe(row.swipeEnd))
+                    SwipeToDismissBoxValue.Settled -> Unit
+                }
+                false
+            },
+        )
+    SwipeToDismissBox(
+        state = state,
+        backgroundContent = { SwipeBackground(state.dismissDirection) },
+        content = { content() },
+    )
+}
+
+@Composable
+private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
+    val colors = MaterialTheme.colorScheme
+    val (icon, color, alignment) =
+        when (direction) {
+            SwipeToDismissBoxValue.EndToStart -> Triple("archive", colors.secondaryContainer, Alignment.CenterEnd)
+            SwipeToDismissBoxValue.StartToEnd -> Triple("delete", colors.errorContainer, Alignment.CenterStart)
+            SwipeToDismissBoxValue.Settled -> Triple(null, Color.Transparent, Alignment.Center)
+        }
+    Box(Modifier.fillMaxSize().background(color).padding(horizontal = 24.dp), contentAlignment = alignment) {
+        icon?.let { Glyph(it) }
     }
 }
 

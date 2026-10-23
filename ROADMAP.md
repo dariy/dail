@@ -457,7 +457,7 @@ encryption (SEC-1), 32-bit ARM.
   account tag), a window of rows around what is visible (a `scale` test: a frame over 100k threads within budget), pull
   to refresh (`sync_now`), empty states; the top bar's sync text and a banner with the first problem and its fix
   (`app_front::status`); the undo snackbar (`LastAction`, `undo`)
-- [ ] [mobile] [kt] Gestures and checked threads: swipe left archives, right trashes; a long press checks
+- [x] [mobile] [kt] Gestures and checked threads: swipe left archives, right trashes; a long press checks
   (`check_threads`) and shows the bulk bar (archive, trash, read, unread, star, uncheck); haptic feedback
 - [ ] [mobile] [kt] Reader: collapsed and expanded messages, HTML drawn natively from `app_core::document`
   (paragraphs, headings, lists, quotes, preformatted text, tables, links), plain text with folds; the toolbar (archive,

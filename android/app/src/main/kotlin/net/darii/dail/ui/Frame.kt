@@ -29,6 +29,7 @@ data class Frame(
     val reader: Reader? = null,
     val composer: Composer? = null,
     val settings: SettingsPage? = null,
+    val bulk: Bulk? = null,
     val fab: Button? = null,
     val banner: Banner? = null,
     val snackbar: Snackbar? = null,
@@ -159,6 +160,13 @@ data class Row(
     val selected: Boolean,
     val checked: Boolean,
     val a11y: String,
+)
+
+@Serializable
+data class Bulk(
+    val title: String,
+    val actions: List<Button>,
+    val close: Button,
 )
 
 @Serializable

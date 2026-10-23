@@ -87,6 +87,32 @@
       ],
       "type": "object"
     },
+    "Bulk": {
+      "description": "What can be done with the checked threads.",
+      "properties": {
+        "actions": {
+          "description": "Archive, trash, read, unread, star.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Unchecks every thread."
+        },
+        "title": {
+          "description": "`3 selected`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "actions",
+        "close"
+      ],
+      "type": "object"
+    },
     "Button": {
       "description": "Something to tap: an icon or a text button.",
       "properties": {
@@ -892,6 +918,17 @@
         }
       ],
       "description": "A problem to fix (a failed login, a failed sync)."
+    },
+    "bulk": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Bulk"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The bulk bar, while threads are checked (in place of the top bar's actions)."
     },
     "composer": {
       "anyOf": [

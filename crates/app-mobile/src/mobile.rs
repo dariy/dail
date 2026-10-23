@@ -20,7 +20,7 @@ use app_front::{a11y, body, fold, format, palette};
 
 use crate::event::{External, UiEvent};
 use crate::frame::{
-    ActionId, Attachment, Banner, Button, Class, Composer, Density, Drawer, DrawerAccount,
+    ActionId, Attachment, Banner, Bulk, Button, Class, Composer, Density, Drawer, DrawerAccount,
     DrawerItem, Frame, Layout, List, PaneKind, Reader, ReaderMessage, Row, SettingsPage, Snackbar,
     TopBar,
 };
@@ -236,8 +236,8 @@ impl Mobile {
                 self.visible = visible;
                 Vec::new()
             }
-            UiEvent::Tap { action } | UiEvent::LongPress { action } => self.act(action, state),
-            UiEvent::Swipe { action } => {
+            UiEvent::Tap { action } => self.act(action, state),
+            UiEvent::LongPress { action } | UiEvent::Swipe { action } => {
                 let out = self.act(action, state);
                 if !out.is_empty() {
                     self.externals.push(External::Haptic);
@@ -468,6 +468,7 @@ impl Mobile {
             && !kinds.contains(&PaneKind::Composer)
             && !kinds.contains(&PaneKind::Settings))
         .then(|| self.button("edit", "Compose", Act::Compose));
+        let bulk = self.bulk(state);
         let banner = self.banner(state);
         let snackbar = self.snackbar(state);
         let theme = (self.theme_sent.as_deref() != Some(&*chosen.id)).then(|| {
@@ -491,6 +492,7 @@ impl Mobile {
             reader,
             composer,
             settings,
+            bulk,
             fab,
             banner,
             snackbar,
@@ -873,6 +875,70 @@ impl Mobile {
             },
             actions,
             messages,
+        })
+    }
+
+    /// The bulk bar over `palette::targets` (the checked threads), while any are checked.
+    fn bulk(&mut self, state: &AppState) -> Option<Bulk> {
+        if state.view.checked.is_empty() {
+            return None;
+        }
+        let ids = palette::targets(state);
+        let messages = Vec::new;
+        let actions = [
+            (
+                "archive",
+                "Archive",
+                Command::ArchiveThreads {
+                    ids: ids.clone(),
+                    messages: messages(),
+                },
+            ),
+            (
+                "delete",
+                "Trash",
+                Command::TrashThreads {
+                    ids: ids.clone(),
+                    messages: messages(),
+                },
+            ),
+            (
+                "mark_email_read",
+                "Mark read",
+                Command::MarkRead {
+                    ids: ids.clone(),
+                    messages: messages(),
+                },
+            ),
+            (
+                "mark_email_unread",
+                "Mark unread",
+                Command::MarkUnread {
+                    ids: ids.clone(),
+                    messages: messages(),
+                },
+            ),
+            (
+                "star",
+                "Star",
+                Command::Star {
+                    ids: ids.clone(),
+                    messages: messages(),
+                },
+            ),
+        ]
+        .into_iter()
+        .map(|(icon, label, cmd)| self.button(icon, label, Act::Run(cmd)))
+        .collect();
+        let close = self.button(
+            "close",
+            "Uncheck all",
+            Act::Run(Command::UncheckThreads { ids: Vec::new() }),
+        );
+        Some(Bulk {
+            title: format!("{} selected", ids.len()),
+            actions,
+            close,
         })
     }
 

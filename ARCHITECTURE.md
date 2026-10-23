@@ -1224,7 +1224,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
   grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
   Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
-  press checks it, a swipe to the start archives and to the end trashes (with `haptic`).
+  press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
+  threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
+  `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
   tap in it also sends `focus_pane list`, which closes it. Back closes a modal drawer (`focus_pane list`), else is the

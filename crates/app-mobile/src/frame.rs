@@ -35,6 +35,9 @@ pub struct Frame {
     /// The settings page, while open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<SettingsPage>,
+    /// The bulk bar, while threads are checked (in place of the top bar's actions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bulk: Option<Bulk>,
     /// The floating button (compose).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fab: Option<Button>,
@@ -255,6 +258,17 @@ pub struct Row {
     pub checked: bool,
     /// TalkBack's name.
     pub a11y: String,
+}
+
+/// What can be done with the checked threads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Bulk {
+    /// `3 selected`.
+    pub title: String,
+    /// Archive, trash, read, unread, star.
+    pub actions: Vec<Button>,
+    /// Unchecks every thread.
+    pub close: Button,
 }
 
 /// The open thread.

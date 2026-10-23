@@ -183,3 +183,37 @@ fn bodies_load_for_the_open_thread() {
     let expanded = reader.messages.iter().find(|m| m.expanded).unwrap();
     assert!(expanded.body.is_some() || expanded.status.is_some());
 }
+
+#[test]
+fn the_bulk_bar_acts_on_the_checked_threads() {
+    let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    assert!(phone.frame().bulk.is_none());
+    let rows = phone.frame().list.unwrap().rows;
+    phone.event(UiEvent::LongPress {
+        action: rows[0].long_press,
+    });
+    assert_eq!(phone.mobile.externals(), [External::Haptic]);
+    let rows = phone.frame().list.unwrap().rows;
+    phone.tap(rows[1].action);
+    let bulk = phone.frame().bulk.unwrap();
+    assert_eq!(bulk.title, "2 selected");
+    let labels: Vec<_> = bulk.actions.iter().map(|b| b.label.as_str()).collect();
+    assert_eq!(
+        labels,
+        ["Archive", "Trash", "Mark read", "Mark unread", "Star"]
+    );
+    let sent = phone.tap(bulk.actions[4].action);
+    let ids = match &sent[0] {
+        Command::Star { ids, .. } => ids.clone(),
+        _ => Vec::new(),
+    };
+    assert_eq!(ids.len(), 2);
+    assert!(ids.contains(&threads[0]) && ids.contains(&threads[1]));
+    let close = phone.frame().bulk.unwrap().close;
+    assert_eq!(
+        phone.tap(close.action),
+        [Command::UncheckThreads { ids: Vec::new() }]
+    );
+    assert!(phone.frame().bulk.is_none());
+}
