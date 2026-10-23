@@ -113,10 +113,13 @@ fn externals() -> Vec<External> {
         External::PickFiles {
             draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
         },
+        External::Sending {
+            draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
+        },
     ];
     for external in &all {
         match external {
-            External::Haptic | External::PickFiles { .. } => {}
+            External::Haptic | External::PickFiles { .. } | External::Sending { .. } => {}
         }
     }
     all

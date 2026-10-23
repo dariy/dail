@@ -143,6 +143,9 @@ const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[(
 /// The last is AndroidX core's guard for receivers registered as not exported.
 const APK_PERMISSIONS: &[&str] = &[
     "android.permission.INTERNET",
+    // A4: the send service (`shortService` from Android 14, `dataSync` before).
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
     "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];
 

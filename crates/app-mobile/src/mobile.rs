@@ -5,8 +5,8 @@
 //! (`app_front::panes`); it never dispatches a command.
 
 use app_core::{
-    Addr, AppState, AttachmentState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane,
-    QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
+    Addr, AppState, AttachmentState, BodyState, Command, CommandName, Draft, DraftId, MailboxRole,
+    Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -113,6 +113,10 @@ pub struct Mobile {
     about: bool,
     /// The composer's typed text.
     compose: Buffers,
+    /// The drafts whose scheduled or leaving send the host was told about (`sending`).
+    kept: Vec<DraftId>,
+    /// The send errors already told in the snackbar, by draft.
+    told: Vec<(DraftId, String)>,
 }
 
 impl Default for Mobile {
@@ -188,6 +192,8 @@ impl Mobile {
             theme_sent: None,
             about: false,
             compose: Buffers::default(),
+            told: Vec::new(),
+            kept: Vec::new(),
         }
     }
 
@@ -318,6 +324,7 @@ impl Mobile {
                         if let Some(draft) = self.last.observe(receipt) {
                             self.sending = Some(draft);
                         }
+
                         if self.last.label().is_some() && self.last.label() != before.as_deref() {
                             self.undo_until = now + NOTICE_MS;
                         }
@@ -522,6 +529,8 @@ impl Mobile {
             && !kinds.contains(&PaneKind::Composer)
             && !kinds.contains(&PaneKind::Settings))
         .then(|| self.button("edit", "Compose", Act::Compose));
+        self.tell_send_errors(state);
+        self.keep_sends(state);
         let bulk = self.bulk(state);
         let banner = self.banner(state);
         let snackbar = self.snackbar(state);
@@ -1126,6 +1135,13 @@ impl Mobile {
             });
         }
         let mut actions = Vec::new();
+        if editable && compose::sendable(&draft) {
+            actions.push(self.button(
+                "send",
+                "Send",
+                Act::Run(Command::SendDraft { id: draft.id }),
+            ));
+        }
         if editable {
             actions.push(self.button("attach_file", "Attach files", Act::Pick(draft.id)));
             actions.push(self.button(
@@ -1149,6 +1165,44 @@ impl Mobile {
             problems,
             actions,
         })
+    }
+
+    /// `External::Sending` once per send that is scheduled or leaving, from `send_draft` or the
+    /// undo of `cancel_send`, whoever scheduled it.
+    fn keep_sends(&mut self, state: &AppState) {
+        let outgoing = |id: &DraftId| state.drafts.get(id).is_some_and(Draft::is_outgoing);
+        self.kept.retain(|id| outgoing(id));
+        for draft in state.drafts.values().filter(|d| d.is_outgoing()) {
+            if !self.kept.contains(&draft.id) {
+                self.kept.push(draft.id);
+                self.externals.push(External::Sending { draft: draft.id });
+            }
+        }
+    }
+
+    /// *Not sent* once per send error (a failed send, or one a restart cancelled), until the
+    /// draft's error changes.
+    fn tell_send_errors(&mut self, state: &AppState) {
+        self.told.retain(|(id, error)| {
+            state
+                .drafts
+                .get(id)
+                .is_some_and(|d| d.send_error.as_ref() == Some(error))
+        });
+        for draft in state.drafts.values() {
+            let Some(error) = &draft.send_error else {
+                continue;
+            };
+            if self.told.iter().any(|(id, _)| *id == draft.id) {
+                continue;
+            }
+            self.told.push((draft.id, error.clone()));
+            let subject = match draft.subject.trim() {
+                "" => "(no subject)",
+                s => s,
+            };
+            self.notify(&format!("Not sent: “{subject}”: {error}"));
+        }
     }
 
     fn banner(&mut self, state: &AppState) -> Option<Banner> {

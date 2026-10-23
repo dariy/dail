@@ -75,6 +75,9 @@ pub enum Task {
     Check,
     /// Wait until the queued work (remote ops, draft saves, attachment saves) is done.
     Flush,
+    /// Wait until no send is scheduled or leaving (`MessageSent`, `SendFailed` or
+    /// `cancel_send`): what the send service runs.
+    Sends,
 }
 
 /// `background`'s argument for a file the user picked or shared: `{"import": {…}}`. The host

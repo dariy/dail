@@ -292,3 +292,63 @@ fn attach_asks_the_host_and_the_files_show_as_chips() {
     );
     assert_eq!(phone.state().drafts[&id].attachments.len(), 1);
 }
+
+fn addressed(phone: &mut Phone, id: DraftId) {
+    phone.dispatch(Command::UpdateDraft {
+        id,
+        to: Some(vec![addr("bob@example.org")]),
+        cc: None,
+        bcc: None,
+        subject: Some("Hi".to_owned()),
+        body: None,
+    });
+}
+
+fn send_button(phone: &mut Phone) -> Option<u32> {
+    composer(phone)
+        .actions
+        .into_iter()
+        .find(|b| b.label == "Send")
+        .map(|b| b.action)
+}
+
+#[test]
+fn send_needs_a_recipient_and_keeps_the_process_until_it_leaves() {
+    let (mut phone, id) = composing();
+    assert!(send_button(&mut phone).is_none(), "no recipient yet");
+    addressed(&mut phone, id);
+    let send = send_button(&mut phone).unwrap();
+    assert_eq!(phone.tap(send), [Command::SendDraft { id }]);
+    let frame = phone.frame();
+    assert_eq!(
+        phone.mobile.externals(),
+        [app_mobile::External::Sending { draft: id }]
+    );
+    assert!(frame.snackbar.unwrap().text.starts_with("Sending in"));
+    let snackbar = phone.frame().snackbar.unwrap();
+    assert!(phone.mobile.externals().is_empty(), "once per send");
+    assert_eq!(
+        phone.tap(snackbar.action.unwrap().action),
+        [Command::CancelSend { id }]
+    );
+    assert!(!phone.state().drafts[&id].is_outgoing());
+    phone.frame();
+    assert!(phone.mobile.externals().is_empty());
+}
+
+#[test]
+fn a_send_a_restart_cancelled_is_told_once() {
+    let (mut phone, id) = composing();
+    addressed(&mut phone, id);
+    phone.dispatch(Command::SendDraft { id });
+    // A restart: the engine starts again over the persisted state.
+    let state = phone.state().clone();
+    let mut phone = Phone::new(state, 360, 800);
+    let frame = phone.frame();
+    let text = frame.snackbar.unwrap().text;
+    assert!(text.starts_with("Not sent: “Hi”"), "{text}");
+    assert!(text.contains("restart"), "{text}");
+    advance(7_000);
+    assert!(phone.frame().snackbar.is_none(), "told once");
+    advance(-7_000);
+}

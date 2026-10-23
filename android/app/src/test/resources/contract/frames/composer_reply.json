@@ -4,11 +4,16 @@
     "actions": [
       {
         "action": 16,
+        "icon": "send",
+        "label": "Send"
+      },
+      {
+        "action": 17,
         "icon": "attach_file",
         "label": "Attach files"
       },
       {
-        "action": 17,
+        "action": 18,
         "icon": "delete",
         "label": "Discard"
       }
@@ -87,7 +92,7 @@
   "revision": 2,
   "snackbar": {
     "action": {
-      "action": 18,
+      "action": 19,
       "label": "Undo"
     },
     "text": "Reply"

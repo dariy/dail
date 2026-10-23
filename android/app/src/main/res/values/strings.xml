@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">dail</string>
+    <string name="channel_sending">Sending</string>
+    <string name="sending">Sending mail…</string>
 </resources>

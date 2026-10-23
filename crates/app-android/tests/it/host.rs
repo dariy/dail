@@ -382,3 +382,36 @@ fn copies_no_draft_names_are_swept() {
     assert_eq!(dail::outgoing::sweep(&dir, engine.state()), 1);
     assert!(named.exists() && !orphan.exists());
 }
+
+#[test]
+fn the_sends_task_waits_until_no_send_is_scheduled() {
+    let (host, _) = synced_host();
+    assert!(
+        host.background(Task::Sends, Duration::from_secs(5))
+            .unwrap()
+    );
+    let draft = composing(&host);
+    let exec = |command: serde_json::Value| {
+        host.debug(dail::DebugTask::Exec {
+            origin: Origin::Cli,
+            command,
+        })
+        .unwrap()
+    };
+    exec(
+        serde_json::json!({"cmd": "update_draft", "args": {"id": draft, "to": [{"email": "bob@example.org"}]}}),
+    );
+    exec(serde_json::json!({"cmd": "send_draft", "args": {"id": draft}}));
+    assert!(host.state().drafts[&draft].is_outgoing());
+    assert!(
+        !host
+            .background(Task::Sends, Duration::from_millis(200))
+            .unwrap()
+    );
+    exec(serde_json::json!({"cmd": "cancel_send", "args": {"id": draft}}));
+    assert!(
+        host.background(Task::Sends, Duration::from_secs(5))
+            .unwrap()
+    );
+    host.close();
+}

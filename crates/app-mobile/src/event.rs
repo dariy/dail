@@ -115,4 +115,10 @@ pub enum External {
         /// The draft the files go to.
         draft: DraftId,
     },
+    /// A send was scheduled: keep the process alive (a foreground service running the
+    /// `sends` task) until no send is scheduled or leaving, so leaving the app never loses it.
+    Sending {
+        /// The draft being sent.
+        draft: DraftId,
+    },
 }

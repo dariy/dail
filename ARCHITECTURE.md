@@ -1200,7 +1200,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic`, `pick_files {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`, `sending {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
@@ -1240,7 +1240,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and folded (a tap shows its header); the draft's text is scrubbed like the TUI's (unsafe characters become
   U+FFFD, line breaks stay). *Attach files* asks the host for the system file picker (`External::PickFiles{draft}`);
   the draft's files are chips with `checking…`, their size or why they cannot be sent (a tap is
-  `remove_attachment`). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
+  `remove_attachment`). *Send* (`send_draft`) shows while `compose::sendable` (a recipient, every file checked); the
+  snackbar counts the undo window down (*Sending in N s · Undo* = `cancel_send`). Once per draft that becomes
+  scheduled or leaving, by whatever command, the presenter asks for `External::Sending`: Kotlin starts `SendService`, a
+  foreground service (`shortService` from Android 14, `dataSync` before) that runs the host's `sends` task, so leaving
+  the app never strands a send. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
+  including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
   composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
@@ -1288,7 +1293,7 @@ map onto; it builds and is tested on the desktop.
   `Task`, an import or a `DebugTask`.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
-  work. `close()` shuts the session down after the queued requests.
+  work; `sends` waits until no draft is scheduled or leaving (`Draft::is_outgoing`). `close()` shuts the session down after the queued requests.
 - **JNI.** `dail::calls` holds Kotlin's six calls in safe Rust, JSON in and out: `open(config, wake) -> {handle}` (Kotlin also passes the application context),
   `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
   table, never a pointer (arm64 tags heap pointers). Every call answers `{"error": "…"}` on failure, and a panic is

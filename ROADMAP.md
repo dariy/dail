@@ -482,7 +482,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [kt] [mobile] Attachments in: the system file picker; each file copied into `filesDir/outgoing/<uuid>/`
   (`safe_file_name`, 25 MiB) and attached by its path; chips with checking, size or error; copies that no draft names
   are removed at start
-- [ ] [mobile] [kt] Send with the undo window (*Sending in N s · Undo*), `cancel_send`; a foreground service from the
+- [x] [mobile] [kt] Send with the undo window (*Sending in N s · Undo*), `cancel_send`; a foreground service from the
   scheduled send to `MessageSent` or `SendFailed` (`shortService` from Android 14, `dataSync` before); *Not sent* once
   for a send that a restart cancelled
 - [ ] [kt] `mailto:` links and the share sheet (text, files) open a new draft in the composer — never a send;

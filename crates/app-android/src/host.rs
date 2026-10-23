@@ -217,6 +217,14 @@ impl Host {
                         Ok(())
                     }
                     Task::Flush => Ok::<(), HostError>(client.flush().await?),
+                    Task::Sends => {
+                        let mut state = client.subscribe();
+                        state
+                            .wait_for(|s| !s.drafts.values().any(app_core::Draft::is_outgoing))
+                            .await
+                            .map_err(|_| HostError::Closed)?;
+                        Ok(())
+                    }
                 }
             };
             match tokio::time::timeout(limit, work).await {

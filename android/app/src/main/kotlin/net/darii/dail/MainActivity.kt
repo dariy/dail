@@ -55,6 +55,10 @@ class MainActivity : ComponentActivity() {
         picking = savedInstanceState?.getString(PICKING)
         host.onExternal = { external ->
             when (external.external) {
+                "sending" -> {
+                    runOnUiThread { SendService.start(this) }
+                }
+
                 "haptic" -> {
                     runOnUiThread { window.decorView.performHapticFeedback(haptic) }
                 }
