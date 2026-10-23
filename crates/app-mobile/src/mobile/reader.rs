@@ -124,7 +124,9 @@ impl Doc<'_> {
                 .zip(self.images)
                 .map(|(cid, blob)| InlineImage {
                     blob: blob.to_owned(),
-                    cid: cid.clone(),
+                    // A Content-ID with unsafe characters is cleaned like any text from mail
+                    // (and then finds no part).
+                    cid: clean(cid),
                 });
             let style = DocSpan {
                 text: String::new(),

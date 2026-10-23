@@ -1305,6 +1305,11 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Tests.** `app-mobile/tests/it` run `Mobile` over a real `Engine` with the `basic` fixture (requests dispatched with
   `Origin::Gui`, replies fed back) and snapshot frames as `insta` JSON at 360×800, 700×1000 and 1280×800 dp.
   `cargo run -p app-mobile --example frames [width height]` prints the demo's frames.
+  `tests/it/untrusted.rs` poisons a thread's subject, names, addresses, snippets, a folder's name, both bodies (HTML
+  with a link, a picture's Content-ID and a table; plain text with a signature), link targets and attachment names
+  and types with `ESC`, C1 controls, `\r` and U+202E, and walks every string of the list, drawer, reader, link
+  dialog, preview, palette, query result and reply frames at the three window sizes: none is left (a body keeps
+  its line breaks), only U+FFFD.
 - **Contract.** `tests/it/contract.rs` writes those frames, one of every `UiEvent` and `External`, and the JSON Schema
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.

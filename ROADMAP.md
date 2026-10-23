@@ -466,7 +466,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [mobile] [kt] Attachments out and images: image and text previews in the app (bytes through `blob`, decoded by
   `app_io::images`); *Save* and *Save all* through the Storage Access Framework (names from `safe_file_name`, never
   overwriting); no "open with"; inline `cid:` images for senders in `images_from` (`show_images_from`)
-- [ ] [mobile] Untrusted text: every string from mail goes through `app_front::text` before it enters a frame. Test
+- [x] [mobile] Untrusted text: every string from mail goes through `app_front::text` before it enters a frame. Test
   like `app-tui/tests/it/untrusted.rs`: ESC, C1 controls, `\r` and U+202E in subjects, names, addresses, bodies, link
   texts and attachment names leave none of them in any frame, at every window class
 - [x] [mobile] [kt] Search and the palette: the top bar's search opens the palette (commands, mailboxes, recent

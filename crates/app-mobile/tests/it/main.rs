@@ -13,3 +13,4 @@ mod palette;
 mod reader;
 mod share;
 mod theme;
+mod untrusted;
