@@ -9,6 +9,7 @@ mod contract;
 mod drawer;
 mod events;
 mod frames;
+mod keys;
 mod list;
 mod palette;
 mod reader;

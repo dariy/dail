@@ -74,7 +74,7 @@
           {
             "action": 13,
             "detail": "Mail",
-            "keys": "F5",
+            "keys": "Ctrl+R",
             "title": "Sync now"
           },
           {

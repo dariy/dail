@@ -156,6 +156,14 @@ fn events() -> Vec<UiEvent> {
         UiEvent::Key {
             chord: "Ctrl+Z".to_owned(),
         },
+        UiEvent::KeyDown {
+            code: 33,
+            unicode: 101,
+            ctrl: false,
+            shift: false,
+            alt: false,
+            meta: false,
+        },
         UiEvent::Tick,
         UiEvent::Share {
             mailto: Some("mailto:bob@example.org?subject=Hi".to_owned()),
@@ -180,6 +188,7 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Text { .. }
             | UiEvent::Blur { .. }
             | UiEvent::Key { .. }
+            | UiEvent::KeyDown { .. }
             | UiEvent::Tick
             | UiEvent::Share { .. } => {}
         }

@@ -506,7 +506,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [mobile] [kt] Settings (`open_settings`): Appearance, Keyboard, General, Accounts, Background & notifications;
   account setup (preset → address → password with autofill hints → `test_account` → `sync_now`; *Find servers* for
   other domains; *re-enter password* from a problem's fix)
-- [ ] [mobile] [kt] Hardware keyboards: Android key events → `app_front::keymap` chords, so the desktop's keys work on
+- [x] [mobile] [kt] Hardware keyboards: Android key events → `app_front::keymap` chords, so the desktop's keys work on
   tablets and Chromebooks; a test that every bound command has a key Android delivers
 
 ### A7 — Release & devices

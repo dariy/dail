@@ -117,6 +117,28 @@ pub enum UiEvent {
         /// The chord.
         chord: String,
     },
+    /// A key pressed on a hardware keyboard that no text field took, as Android reports it; the
+    /// presenter maps it onto the keymap (`app_mobile::keys`).
+    KeyDown {
+        /// `KeyEvent.getKeyCode()`.
+        code: i32,
+        /// The character as typed with Shift only (`getUnicodeChar` without Ctrl, Alt and Meta);
+        /// 0 for none.
+        #[serde(default)]
+        unicode: u32,
+        /// Ctrl is held.
+        #[serde(default)]
+        ctrl: bool,
+        /// Shift is held.
+        #[serde(default)]
+        shift: bool,
+        /// Alt is held.
+        #[serde(default)]
+        alt: bool,
+        /// Meta (Search, Windows) is held.
+        #[serde(default)]
+        meta: bool,
+    },
     /// The clock moved on (sent every second while the frame's `wants_tick` is true).
     Tick,
     /// Another app opened a `mailto:` link or shared text or files with dail: a new draft from

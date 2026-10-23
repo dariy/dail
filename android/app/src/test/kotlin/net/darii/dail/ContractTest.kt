@@ -63,6 +63,7 @@ class ContractTest {
                 "configure" to
                     UiEvent.Configure(360, 800, dark = true, fontScale = 1.25f, locale = "en-US", keyboard = false),
                 "key" to UiEvent.Key("Ctrl+Z"),
+                "key_down" to UiEvent.KeyDown(33, 101, ctrl = false, shift = false, alt = false, meta = false),
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
                 "online" to UiEvent.Online,

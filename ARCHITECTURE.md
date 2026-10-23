@@ -1347,7 +1347,16 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result or the palette
   (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
   settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
-  `Key{chord}` (hardware keyboards) goes through `KeyState`; `Refresh` (pull to refresh) is `sync_now`.
+  `Refresh` (pull to refresh) is `sync_now`.
+- **Hardware keyboards** (`app_mobile::keys`). `MainActivity.onKeyDown` gets the keys that no view took (text fields
+  take typing; Back, Home and volume stay the system's) and sends `KeyDown{code, unicode, ctrl, shift, alt, meta}`,
+  with the character as typed with Shift only. `keys::chord_of` maps it onto the keymap's chords (named keys by key
+  code, a letter or digit with Ctrl or Alt by key code, a symbol with them as `Key::Symbol`, anything else as
+  `Chord::typed`) and the chord goes through `KeyState`, as on the desktop. Meta is the system's, and so are the chords
+  `keys::delivers` refuses: Ctrl+Space (the next keyboard layout), Alt+Tab (the app switcher), and the function keys
+  (a Chromebook's top row). The palette's key hints and the Keyboard settings show only delivered keys.
+  `Key{chord}` (the keymap's notation) is still taken, for the adb bridge. `tests/it/keys.rs`: every command with
+  default keys has one Android delivers, in both presets, and some key event produces each of them.
 - **The list** is a window of rows around what Kotlin reports visible (`Scrolled{first, count}`, ±20 rows), with
   `total` for `LazyColumn`; the thread IDs are cached per `AppState.revision`. Rows come in the `list_density`
   (cozy, compact, preview) and carry the account's tag with two accounts or more; `refreshing` is true while a sync

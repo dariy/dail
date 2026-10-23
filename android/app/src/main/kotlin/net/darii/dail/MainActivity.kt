@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import android.provider.Settings
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -140,6 +141,30 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "No app can open this link.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /**
+     * A hardware key that no view took (text fields take typing): its code, its character with
+     * Shift only, and the modifiers go to the presenter, which maps them onto the keymap. System
+     * keys (Back, Home, volume) stay Android's.
+     */
+    override fun onKeyDown(
+        keyCode: Int,
+        event: KeyEvent,
+    ): Boolean {
+        if (event.isSystem || keyCode == KeyEvent.KEYCODE_BACK) return super.onKeyDown(keyCode, event)
+        val held = KeyEvent.META_CTRL_MASK or KeyEvent.META_ALT_MASK or KeyEvent.META_META_MASK
+        host.send(
+            UiEvent.KeyDown(
+                code = keyCode,
+                unicode = event.getUnicodeChar(event.metaState and held.inv()),
+                ctrl = event.isCtrlPressed,
+                shift = event.isShiftPressed,
+                alt = event.isAltPressed,
+                meta = event.isMetaPressed,
+            ),
+        )
+        return true
     }
 
     /** Opens a screen of the system's settings that dail's settings link to. */

@@ -128,6 +128,26 @@ sealed interface UiEvent {
         override fun json() = event("notification") { put("act", act) }
     }
 
+    /** A hardware key no text field took, as Android reports it; Rust maps it to a chord. */
+    data class KeyDown(
+        val code: Int,
+        val unicode: Int,
+        val ctrl: Boolean,
+        val shift: Boolean,
+        val alt: Boolean,
+        val meta: Boolean,
+    ) : UiEvent {
+        override fun json() =
+            event("key_down") {
+                put("code", code)
+                put("unicode", unicode)
+                put("ctrl", ctrl)
+                put("shift", shift)
+                put("alt", alt)
+                put("meta", meta)
+            }
+    }
+
     data class Text(
         val field: Field,
         val text: String,

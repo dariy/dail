@@ -142,7 +142,13 @@ impl Mobile {
                 section.rows.push(PaletteRow {
                     title: clean(&row.title),
                     detail: clean(&row.detail),
-                    keys: row.keys.clone(),
+                    // A hint only for a key Android delivers.
+                    keys: match &row.target {
+                        Target::Command(name) => crate::keys::deliverable(&state.settings, *name)
+                            .into_iter()
+                            .next(),
+                        _ => row.keys.clone(),
+                    },
                     action,
                 });
             }

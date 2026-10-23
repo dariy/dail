@@ -314,6 +314,7 @@ impl Mobile {
                 | UiEvent::Refresh
                 | UiEvent::Notification { .. }
                 | UiEvent::Key { .. }
+                | UiEvent::KeyDown { .. }
         );
         // Typed text goes back before any command, so the command sees it.
         let flushed: Vec<Request> = if acts {
@@ -378,6 +379,27 @@ impl Mobile {
                 Some(chord) => self.press(chord, state),
                 None => Vec::new(),
             },
+            UiEvent::KeyDown {
+                code,
+                unicode,
+                ctrl,
+                shift,
+                alt,
+                meta,
+            } => {
+                let key = crate::keys::AndroidKey {
+                    code,
+                    unicode,
+                    ctrl,
+                    shift,
+                    alt,
+                    meta,
+                };
+                match crate::keys::chord_of(key) {
+                    Some(chord) => self.press(chord, state),
+                    None => Vec::new(),
+                }
+            }
             UiEvent::Text {
                 field: Field::Query,
                 text,

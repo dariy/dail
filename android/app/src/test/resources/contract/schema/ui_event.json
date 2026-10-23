@@ -536,6 +536,60 @@
       "type": "object"
     },
     {
+      "description": "A key pressed on a hardware keyboard that no text field took, as Android reports it; the\npresenter maps it onto the keymap (`app_mobile::keys`).",
+      "properties": {
+        "args": {
+          "properties": {
+            "alt": {
+              "default": false,
+              "description": "Alt is held.",
+              "type": "boolean"
+            },
+            "code": {
+              "description": "`KeyEvent.getKeyCode()`.",
+              "format": "int32",
+              "type": "integer"
+            },
+            "ctrl": {
+              "default": false,
+              "description": "Ctrl is held.",
+              "type": "boolean"
+            },
+            "meta": {
+              "default": false,
+              "description": "Meta (Search, Windows) is held.",
+              "type": "boolean"
+            },
+            "shift": {
+              "default": false,
+              "description": "Shift is held.",
+              "type": "boolean"
+            },
+            "unicode": {
+              "default": 0,
+              "description": "The character as typed with Shift only (`getUnicodeChar` without Ctrl, Alt and Meta);\n0 for none.",
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "key_down",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "The clock moved on (sent every second while the frame's `wants_tick` is true).",
       "properties": {
         "event": {
