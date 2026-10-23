@@ -46,6 +46,8 @@ pub struct Host {
     task: Mutex<Option<JoinHandle<()>>>,
     /// The alert watcher (`watch_alerts`).
     alerts: JoinHandle<()>,
+    /// Kotlin's `Listener.alert`.
+    alert: Alert,
     /// Whether an activity is visible (the last `visible` event); alerts only while it is not.
     visible: Arc<AtomicBool>,
     wake: Wake,
@@ -126,7 +128,7 @@ impl Host {
         let alerts = runtime.spawn(watch_alerts(
             client.subscribe(),
             Arc::clone(&visible),
-            alert,
+            Arc::clone(&alert),
         ));
         let (bridge, task) = Bridge::own(runtime.handle(), session, Origin::Gui, Arc::clone(&wake));
         Self {
@@ -136,6 +138,7 @@ impl Host {
             mobile: Mutex::new(Mobile::default()),
             task: Mutex::new(Some(task)),
             alerts,
+            alert,
             visible,
             wake,
             outgoing,
@@ -233,6 +236,12 @@ impl Host {
 
     /// Runs `task` until it is done or `limit` passed; `Ok(true)` when it finished. Blocks.
     pub fn background(&self, task: Task, limit: Duration) -> Result<bool, HostError> {
+        if task == Task::Push {
+            if let Some(note) = app_mobile::push_status(&AppState::default(), &self.state()) {
+                send_note(&self.alert, &note);
+            }
+            return Ok(true);
+        }
         let client = self.client.clone();
         self.runtime.block_on(async move {
             let work = async {
@@ -249,7 +258,7 @@ impl Host {
                             .map_err(|_| HostError::Closed)?;
                         Ok(())
                     }
-                    Task::Flush => Ok::<(), HostError>(client.flush().await?),
+                    Task::Flush | Task::Push => Ok::<(), HostError>(client.flush().await?),
                     Task::Sends => {
                         let mut state = client.subscribe();
                         state
@@ -332,24 +341,36 @@ impl Host {
 }
 
 /// Hands `alert` the notifications for each change of the state while no activity is visible
-/// (`app_mobile::notifications`), as JSON. Ends with the session.
+/// (`app_mobile::notifications`), and the push service's whenever its text changes
+/// (`app_mobile::push_status`), as JSON. Ends with the session.
 async fn watch_alerts(
     mut state: tokio::sync::watch::Receiver<Arc<AppState>>,
     visible: Arc<AtomicBool>,
     alert: Alert,
 ) {
     let mut before = Arc::clone(&state.borrow_and_update());
+    // The push service's notification shows from the start, visible or not.
+    if let Some(note) = app_mobile::push_status(&AppState::default(), &before) {
+        send_note(&alert, &note);
+    }
     while state.changed().await.is_ok() {
         let after = Arc::clone(&state.borrow_and_update());
+        if let Some(note) = app_mobile::push_status(&before, &after) {
+            send_note(&alert, &note);
+        }
         if !visible.load(Ordering::Relaxed) {
             for note in app_mobile::notifications(&before, &after) {
-                match serde_json::to_string(&note) {
-                    Ok(json) => alert(json),
-                    Err(err) => tracing::warn!(error = %err, "notification not encoded"),
-                }
+                send_note(&alert, &note);
             }
         }
         before = after;
+    }
+}
+
+fn send_note(alert: &Alert, note: &app_mobile::Notification) {
+    match serde_json::to_string(note) {
+        Ok(json) => alert(json),
+        Err(err) => tracing::warn!(error = %err, "notification not encoded"),
     }
 }
 

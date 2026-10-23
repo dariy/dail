@@ -45,10 +45,10 @@ class ContractTest {
     @Test
     fun everyNotificationDecodesStrictly() {
         val notes = fixtures("notifications")
-        assertEquals(setOf("new_mail", "not_sent"), notes.keys)
+        assertEquals(setOf("new_mail", "not_sent", "push"), notes.keys)
         notes.forEach { (name, json) ->
             val note = strict.decodeFromString(Note.serializer(), json)
-            assertEquals(name, note.channel)
+            assertEquals(name, if (note.tag == "push") "push" else note.channel)
             assertTrue(name, note.publicTitle.isNotEmpty())
         }
     }

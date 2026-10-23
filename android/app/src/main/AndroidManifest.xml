@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- A5: notifications, asked for when an account first exists. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- A5: push, a `specialUse` foreground service (`dataSync` before Android 14). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:name=".DailApplication"
@@ -57,6 +59,21 @@
         <receiver
             android:name=".Notifier$NoteReceiver"
             android:exported="false" />
+        <service
+            android:name=".PushService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|dataSync">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps IMAP IDLE connections open so that new mail arrives as it comes" />
+        </service>
+        <receiver
+            android:name=".PushService$Boot"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

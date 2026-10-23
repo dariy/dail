@@ -86,6 +86,9 @@ pub enum Task {
     /// Wait until no send is scheduled or leaving (`MessageSent`, `SendFailed` or
     /// `cancel_send`): what the send service runs.
     Sends,
+    /// Hand `Listener.alert` the push service's notification again (`app_mobile::push_status`),
+    /// if push is on: what the push service runs once it is in the foreground.
+    Push,
 }
 
 /// `background`'s argument for a file the user picked or shared: `{"import": {…}}`. The host

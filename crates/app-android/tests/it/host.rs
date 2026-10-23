@@ -513,3 +513,38 @@ fn new_mail_alerts_only_while_no_activity_is_visible() {
     );
     host.close();
 }
+
+#[test]
+fn push_shows_its_notification_again_when_the_service_asks() {
+    let (host, _, _, got) = synced_host_with_alerts();
+    assert!(host.background(Task::Push, Duration::from_secs(1)).unwrap());
+    assert!(got.lock().unwrap().is_empty(), "push is off");
+    host.event(UiEvent::Visible { visible: true });
+    let client_state = host.state();
+    assert_eq!(client_state.settings.background_sync, 1);
+    let out = host.debug(dail::DebugTask::Exec {
+        origin: Origin::Cli,
+        command: serde_json::json!({"cmd": "set_setting", "args": {"key": "background_sync", "value": 2}}),
+    });
+    assert!(out.unwrap()["receipt"]["ok"].as_bool().unwrap());
+    // The change itself shows it (visible or not), and so does the service's request.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while got.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline, "no push notification");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(host.background(Task::Push, Duration::from_secs(1)).unwrap());
+    let notes = got.lock().unwrap().clone();
+    assert_eq!(notes.len(), 2, "{notes:?}");
+    let note: serde_json::Value = serde_json::from_str(&notes[1]).unwrap();
+    assert_eq!(note["tag"], "push");
+    assert_eq!(note["actions"][0]["act"]["act"], "stop_push");
+    // The schedule tells Kotlin to start the service.
+    let out = frame_until(&host, |out| {
+        out.externals
+            .iter()
+            .any(|e| matches!(e, app_mobile::External::Schedule { sync: 2, .. }))
+    });
+    assert!(out.frame.revision > 0);
+    host.close();
+}

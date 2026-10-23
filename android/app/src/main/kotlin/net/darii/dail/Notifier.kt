@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -45,6 +46,7 @@ object Notifier {
     const val OPEN = "net.darii.dail.OPEN"
     private const val ACT = "act"
     private const val TAG = "tag"
+    private const val PUSH = "push"
 
     /** Creates the channels (idempotent). */
     fun channels(context: Context) {
@@ -82,6 +84,9 @@ object Notifier {
     ) {
         if (!allowed(context)) return
         val note = runCatching { contract.decodeFromString(Note.serializer(), json) }.getOrNull() ?: return
+        // The push service's notification exists only while the service runs.
+        val push = note.tag == PUSH
+        if (push && !PushService.running) return
         channels(context)
         val id = note.tag.hashCode()
         val public =
@@ -98,9 +103,18 @@ object Notifier {
                 .setContentText(note.body)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setPublicVersion(public)
-                .setAutoCancel(true)
+                .setAutoCancel(!push)
+                .setOngoing(push)
                 .setContentIntent(open(context, id, note.open))
         note.actions.forEachIndexed { index, action ->
+            if (action.act["act"]?.toString() == "\"battery_settings\"") {
+                // A host action: the system screen, straight from the notification.
+                val settings = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                val pending =
+                    PendingIntent.getActivity(context, id * 8 + index, settings, PendingIntent.FLAG_IMMUTABLE)
+                builder.addAction(Notification.Action.Builder(null, action.label, pending).build())
+                return@forEachIndexed
+            }
             val intent =
                 Intent(context, NoteReceiver::class.java)
                     .putExtra(ACT, action.act.toString())
@@ -114,7 +128,12 @@ object Notifier {
                 )
             builder.addAction(Notification.Action.Builder(null, action.label, pending).build())
         }
-        context.getSystemService(NotificationManager::class.java)?.notify(note.tag, 0, builder.build())
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (push) {
+            manager.notify(PushService.NOTIFICATION, builder.build())
+        } else {
+            manager.notify(note.tag, 0, builder.build())
+        }
     }
 
     private fun open(
@@ -158,7 +177,10 @@ object Notifier {
             Thread({
                 try {
                     host.background(buildJsonObject { put("notification", act) }.toString())
-                    tag?.let { context.getSystemService(NotificationManager::class.java)?.cancel(it, 0) }
+                    // The push notification goes with its service, not with a button.
+                    tag?.takeIf { it != PUSH }?.let {
+                        context.getSystemService(NotificationManager::class.java)?.cancel(it, 0)
+                    }
                 } finally {
                     pending.finish()
                 }

@@ -151,6 +151,8 @@ const APK_PERMISSIONS: &[&str] = &[
     "android.permission.ACCESS_NETWORK_STATE",
     // A5: notifications (asked for at run time from Android 13).
     "android.permission.POST_NOTIFICATIONS",
+    // A5: push, a `specialUse` foreground service.
+    "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
     "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];
 

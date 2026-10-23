@@ -1268,6 +1268,16 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   gone submit nothing. `POST_NOTIFICATIONS` is asked once, on the first frame with an account. The `notifications`
   setting turns them off as on the desktop. Sends a restart cancelled are told in the snackbar only: the restart
   happens before the watcher's first state.
+- **Push** (A5, `background_sync` 2). The engine's IMAP IDLE watches (§5.2 step 11) already run while the session
+  lives, so `PushService` only keeps the process: a foreground service (`specialUse` from Android 14 with its
+  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`, `dataSync` before), started and stopped by the `schedule` external (Kotlin keeps
+  the last answer in preferences) and after a reboot by `PushService.Boot` (`BOOT_COMPLETED`). Its silent notification
+  on the *Background* channel is Rust's `app_mobile::push_status`: *Watching N inboxes* (the accounts whose watch is
+  `watching`; *Connecting to your inboxes* while none is), handed out whenever the text changes, visible or not, and
+  again by the `push` task the service runs once it is in the foreground. Its buttons: *Stop* (`NoteAct::StopPush` =
+  `set_setting background_sync 1`, as the user, which stops the service through the next `schedule`) and *Battery*
+  (the system's battery-optimization screen, a host action). The periodic check stays scheduled as the fallback.
+  The Settings screen that turns push on comes with A6; until then it is `set_setting` from the palette.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,

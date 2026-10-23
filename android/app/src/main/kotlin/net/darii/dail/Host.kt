@@ -147,7 +147,10 @@ class Host(
             if (external.external == "schedule") {
                 val sync = external.args?.sync
                 val interval = external.args?.intervalMins
-                if (sync != null && interval != null) DailJobService.schedule(context, sync, interval)
+                if (sync != null && interval != null) {
+                    DailJobService.schedule(context, sync, interval)
+                    PushService.apply(context, sync)
+                }
             } else {
                 onExternal(external)
             }

@@ -17,6 +17,6 @@ pub mod theme;
 pub use event::{External, UiEvent};
 pub use frame::{Class, Frame};
 pub use mobile::{Mobile, preview_text};
-pub use notify::{NoteAct, Notification, notifications};
+pub use notify::{NoteAct, Notification, notifications, push_status};
 pub use request::{Purpose, Reply, Request};
 pub use theme::{About, FrameTheme};

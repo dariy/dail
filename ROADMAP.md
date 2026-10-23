@@ -498,7 +498,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or
   draft), through the host's alert watcher and `Listener.alert` (called from an attached runtime thread): channels *New mail*, *Not sent* and *Background*; `POST_NOTIFICATIONS` asked when first needed; lock-screen
   versions without sender or subject; *Archive* and *Mark read* actions; a tap opens the thread
-- [ ] [kt] [android] Push: a `specialUse` foreground service (`dataSync` before Android 14) while `background_sync` is
+- [x] [kt] [android] Push: a `specialUse` foreground service (`dataSync` before Android 14) while `background_sync` is
   2, around the engine's IMAP IDLE watches, with a silent notification (*Watching N inboxes*, *Stop*); started from
   Settings and after a reboot; a link to the battery-optimization screen; the periodic job stays the fallback
 

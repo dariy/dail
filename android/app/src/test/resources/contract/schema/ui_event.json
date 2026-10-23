@@ -120,6 +120,32 @@
             "draft"
           ],
           "type": "object"
+        },
+        {
+          "description": "Stop push: `background_sync` back to 1 (periodic checks).",
+          "properties": {
+            "act": {
+              "const": "stop_push",
+              "type": "string"
+            }
+          },
+          "required": [
+            "act"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open the system's battery-optimization settings (a host action; no command).",
+          "properties": {
+            "act": {
+              "const": "battery_settings",
+              "type": "string"
+            }
+          },
+          "required": [
+            "act"
+          ],
+          "type": "object"
         }
       ]
     },

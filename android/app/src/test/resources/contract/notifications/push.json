@@ -1,0 +1,22 @@
+{
+  "actions": [
+    {
+      "act": {
+        "act": "stop_push"
+      },
+      "label": "Stop"
+    },
+    {
+      "act": {
+        "act": "battery_settings"
+      },
+      "label": "Battery"
+    }
+  ],
+  "body": "New mail arrives as it comes",
+  "channel": "background",
+  "open": null,
+  "public_title": "Watching 1 inbox",
+  "tag": "push",
+  "title": "Watching 1 inbox"
+}

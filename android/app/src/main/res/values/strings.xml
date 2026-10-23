@@ -6,4 +6,5 @@
     <string name="channel_new_mail">New mail</string>
     <string name="channel_not_sent">Not sent</string>
     <string name="channel_background">Background</string>
+    <string name="push_starting">Connecting to your inboxes</string>
 </resources>

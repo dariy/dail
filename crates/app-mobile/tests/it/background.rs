@@ -6,7 +6,7 @@
 
 use app_core::{Command, DraftId, SettingKey, ThreadId};
 use app_mobile::notify::Channel;
-use app_mobile::{External, NoteAct, Notification, UiEvent, notifications};
+use app_mobile::{External, NoteAct, Notification, UiEvent, notifications, push_status};
 
 use crate::support::{Phone, inbox_of, requests_of, synced_state};
 
@@ -119,7 +119,56 @@ pub fn samples() -> Vec<(&'static str, Notification)> {
             Channel::NewMail => ("new_mail", n),
             Channel::NotSent | Channel::Background => ("not_sent", n),
         })
+        .chain(push_status(&before, &pushing(&before, 1)).map(|n| ("push", n)))
         .collect()
+}
+
+/// `state` with push on and `watching` accounts watching their INBOX.
+fn pushing(state: &app_core::AppState, watching: usize) -> app_core::AppState {
+    let mut state = state.clone();
+    state.settings.background_sync = 2;
+    for status in state.status.sync.values_mut() {
+        status.watch = app_core::WatchState::Off;
+    }
+    for status in state.status.sync.values_mut().take(watching) {
+        status.watch = app_core::WatchState::Watching;
+    }
+    state
+}
+
+#[test]
+fn push_shows_what_it_watches_and_stops_as_the_user() {
+    let state = synced_state();
+    assert!(!state.status.sync.is_empty());
+    assert!(push_status(&state, &state).is_none(), "push is off");
+    let connecting = pushing(&state, 0);
+    let note = push_status(&state, &connecting).unwrap();
+    assert_eq!(note.channel, Channel::Background);
+    assert_eq!(note.tag, "push");
+    assert_eq!(note.title, "Connecting to your inboxes");
+    let up = pushing(&state, 1);
+    assert_eq!(
+        push_status(&connecting, &up).unwrap().title,
+        "Watching 1 inbox"
+    );
+    assert!(
+        push_status(&up, &up).is_none(),
+        "only when the text changes"
+    );
+    let stop = &note.actions[0];
+    assert_eq!(stop.label, "Stop");
+    assert_eq!(
+        stop.act.commands(&up),
+        [Command::SetSetting {
+            key: SettingKey::BackgroundSync,
+            value: 1.into()
+        }]
+    );
+    assert_eq!(note.actions[1].act, NoteAct::BatterySettings);
+    assert!(
+        NoteAct::BatterySettings.commands(&up).is_empty(),
+        "a host action"
+    );
 }
 
 #[test]

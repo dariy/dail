@@ -6,7 +6,7 @@
 //! Texts come from `app_front::alerts` (cleaned, short). The lock-screen version
 //! (`public_title`) names no sender and no subject.
 
-use app_core::{AppState, Command, DraftId, ThreadId};
+use app_core::{AppState, Command, DraftId, SettingKey, ThreadId, WatchState};
 use app_front::alerts::{AlertKind, alerts};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -75,6 +75,10 @@ pub enum NoteAct {
         /// The draft.
         draft: DraftId,
     },
+    /// Stop push: `background_sync` back to 1 (periodic checks).
+    StopPush,
+    /// Open the system's battery-optimization settings (a host action; no command).
+    BatterySettings,
 }
 
 impl NoteAct {
@@ -109,7 +113,11 @@ impl NoteAct {
             Self::OpenDraft { draft } if state.drafts.contains_key(draft) => {
                 vec![Command::OpenComposer { id: *draft }]
             }
-            Self::OpenThread { .. } | Self::OpenDraft { .. } => Vec::new(),
+            Self::StopPush => vec![Command::SetSetting {
+                key: SettingKey::BackgroundSync,
+                value: 1.into(),
+            }],
+            Self::OpenThread { .. } | Self::OpenDraft { .. } | Self::BatterySettings => Vec::new(),
         }
     }
 }
@@ -175,4 +183,52 @@ pub fn notifications(before: &AppState, after: &AppState) -> Vec<Notification> {
             AlertKind::ApprovalNeeded => None,
         })
         .collect()
+}
+
+/// The tag of the push service's notification.
+pub const PUSH_TAG: &str = "push";
+
+/// The push service's silent notification (`background_sync` 2), when its text changes from
+/// `before` to `after`: *Watching N inboxes* (the accounts whose INBOX watch is up), with *Stop*
+/// and *Battery*. `None` when nothing changed or push is off.
+pub fn push_status(before: &AppState, after: &AppState) -> Option<Notification> {
+    let text = push_text(after)?;
+    if push_text(before).as_ref() == Some(&text) {
+        return None;
+    }
+    Some(Notification {
+        tag: PUSH_TAG.to_owned(),
+        channel: Channel::Background,
+        public_title: text.clone(),
+        title: text,
+        body: "New mail arrives as it comes".to_owned(),
+        open: None,
+        actions: vec![
+            NoteAction {
+                label: "Stop".to_owned(),
+                act: NoteAct::StopPush,
+            },
+            NoteAction {
+                label: "Battery".to_owned(),
+                act: NoteAct::BatterySettings,
+            },
+        ],
+    })
+}
+
+fn push_text(state: &AppState) -> Option<String> {
+    if state.settings.background_sync != 2 {
+        return None;
+    }
+    let watching = state
+        .status
+        .sync
+        .values()
+        .filter(|s| s.watch == WatchState::Watching)
+        .count();
+    Some(match watching {
+        0 => "Connecting to your inboxes".to_owned(),
+        1 => "Watching 1 inbox".to_owned(),
+        n => format!("Watching {n} inboxes"),
+    })
 }
