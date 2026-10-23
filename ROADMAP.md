@@ -503,7 +503,7 @@ encryption (SEC-1), 32-bit ARM.
   Settings and after a reboot; a link to the battery-optimization screen; the periodic job stays the fallback
 
 ### A6 — Settings, setup & keyboards
-- [ ] [mobile] [kt] Settings (`open_settings`): Appearance, Keyboard, General, Accounts, Background & notifications;
+- [x] [mobile] [kt] Settings (`open_settings`): Appearance, Keyboard, General, Accounts, Background & notifications;
   account setup (preset → address → password with autofill hints → `test_account` → `sync_now`; *Find servers* for
   other domains; *re-enter password* from a problem's fix)
 - [ ] [mobile] [kt] Hardware keyboards: Android key events → `app_front::keymap` chords, so the desktop's keys work on

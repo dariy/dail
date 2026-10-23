@@ -37,6 +37,31 @@
           "const": "query",
           "description": "The palette's input.",
           "type": "string"
+        },
+        {
+          "const": "email",
+          "description": "Account setup: the email address.",
+          "type": "string"
+        },
+        {
+          "const": "name",
+          "description": "Account setup: the display name.",
+          "type": "string"
+        },
+        {
+          "const": "imap",
+          "description": "Account setup: the IMAP server (`host:port`).",
+          "type": "string"
+        },
+        {
+          "const": "smtp",
+          "description": "Account setup: the SMTP server (`host:port`).",
+          "type": "string"
+        },
+        {
+          "const": "password",
+          "description": "Account setup: the password. It never comes back in a frame: the presenter moves it\ninto a `Secret` for the keyring.",
+          "type": "string"
         }
       ]
     },

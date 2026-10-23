@@ -229,9 +229,13 @@ fn every_registry_command_is_reachable_by_taps() {
         match name {
             CommandName::AddAccount | CommandName::SetPassword => {
                 assert_eq!(got, [Command::ClosePalette {}], "{name:?}");
-                let frame = phone.frame();
-                let text = frame.snackbar.map(|s| s.text).unwrap_or_default();
-                assert!(text.contains("Account setup"), "{name:?}: {text}");
+                let setup = phone.frame().setup.expect("the account setup opens");
+                let title = if name == CommandName::AddAccount {
+                    "Add an account"
+                } else {
+                    "Change the password"
+                };
+                assert_eq!(setup.title, title, "{name:?}");
             }
             name => {
                 let expected = match name {

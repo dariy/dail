@@ -23,6 +23,17 @@ pub enum Field {
     Body,
     /// The palette's input.
     Query,
+    /// Account setup: the email address.
+    Email,
+    /// Account setup: the display name.
+    Name,
+    /// Account setup: the IMAP server (`host:port`).
+    Imap,
+    /// Account setup: the SMTP server (`host:port`).
+    Smtp,
+    /// Account setup: the password. It never comes back in a frame: the presenter moves it
+    /// into a `Secret` for the keyring.
+    Password,
 }
 
 /// One event from the host, in the order the user caused it. Kotlin never builds a command: it
@@ -190,6 +201,21 @@ pub enum External {
         /// `background_interval_mins`.
         interval_mins: u64,
     },
+    /// Open a screen of the system's settings (a link in dail's settings).
+    SystemSettings {
+        /// Which screen.
+        screen: SystemScreen,
+    },
+}
+
+/// A screen of the system's settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SystemScreen {
+    /// The battery-optimization list (exempting dail keeps background checks on time).
+    Battery,
+    /// dail's notification settings (channels, lock screen).
+    Notifications,
 }
 
 /// One attachment to save.

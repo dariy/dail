@@ -94,9 +94,30 @@ fn frames() -> Vec<(String, Frame)> {
     out.push(("search".to_owned(), phone.frame()));
     let mut phone = Phone::new(AppState::default(), 360, 800);
     out.push(("no_accounts".to_owned(), phone.frame()));
-    let about = phone.frame().top_bar.actions[0].action;
+    let about = phone.frame().top_bar.actions;
+    let about = about.iter().find(|b| b.label == "About").unwrap().action;
     phone.tap(about);
     out.push(("about".to_owned(), phone.frame()));
+    phone.event(UiEvent::Back);
+    let custom = phone.frame().setup.unwrap().presets[2].action;
+    phone.tap(custom);
+    let next = phone.frame().setup.unwrap().actions[0].action;
+    phone.tap(next);
+    phone.event(UiEvent::Text {
+        field: Field::Email,
+        text: "me@example.org".to_owned(),
+    });
+    out.push(("setup_address".to_owned(), phone.frame()));
+    for (name, section) in [
+        ("settings_general", app_core::SettingsSection::General),
+        ("settings_accounts", app_core::SettingsSection::Accounts),
+    ] {
+        let mut phone = Phone::inbox(360, 800);
+        phone.dispatch(Command::OpenSettings {
+            section: Some(section),
+        });
+        out.push((name.to_owned(), phone.frame()));
+    }
     out
 }
 
@@ -198,6 +219,9 @@ fn externals() -> Vec<External> {
             sync: 1,
             interval_mins: 30,
         },
+        External::SystemSettings {
+            screen: app_mobile::event::SystemScreen::Battery,
+        },
     ];
     for external in &all {
         match external {
@@ -208,7 +232,8 @@ fn externals() -> Vec<External> {
             | External::OpenUrl { .. }
             | External::Copy { .. }
             | External::SaveFiles { .. }
-            | External::Schedule { .. } => {}
+            | External::Schedule { .. }
+            | External::SystemSettings { .. } => {}
         }
     }
     all

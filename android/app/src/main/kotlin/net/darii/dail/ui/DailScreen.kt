@@ -126,6 +126,10 @@ private fun FrameScaffold(
             ResultScreen(result, send, Modifier.padding(padding))
             return@Scaffold
         }
+        frame.setup?.let { sheet ->
+            SetupScreen(sheet, send, Modifier.padding(padding))
+            return@Scaffold
+        }
         frame.palette?.let { sheet ->
             PaletteScreen(sheet, send, Modifier.padding(padding))
             return@Scaffold
@@ -144,7 +148,7 @@ private fun FrameScaffold(
                             PaneKind.List -> frame.list?.let { ListPane(it, send) }
                             PaneKind.Reader -> frame.reader?.let { ReaderPane(it, send) }
                             PaneKind.Composer -> frame.composer?.let { ComposerPane(it, send) }
-                            PaneKind.Settings -> frame.settings?.let { Text(it.text, Modifier.padding(24.dp)) }
+                            PaneKind.Settings -> frame.settings?.let { SettingsPane(it, send) }
                         }
                     }
                 }

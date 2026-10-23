@@ -1,0 +1,6 @@
+{
+  "args": {
+    "screen": "battery"
+  },
+  "external": "system_settings"
+}

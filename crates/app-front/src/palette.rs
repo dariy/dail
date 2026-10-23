@@ -255,6 +255,23 @@ fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'sta
     )
 }
 
+/// The confirmation step of `remove_account` for `id` (the settings' *Remove* starts here).
+pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
+    let email = state
+        .accounts
+        .get(&id)
+        .map(|a| a.email.clone())
+        .unwrap_or_default();
+    ask(
+        "Remove this account? This cannot be undone.",
+        AskKind::Confirm(format!("Remove {email} and its password")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::RemoveAccount { id, confirm: true }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// The `set_theme` that typed text asks for: a mode (`system`, `light`, `dark`), then optionally
 /// a theme name for that mode (`dark dail-dark-hc`); a name alone sets the mode its name says
 /// (`…-light…` light, else dark). Anything else gives a `set_theme` the engine rejects.
@@ -409,21 +426,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 }
             })
         }),
-        CommandName::RemoveAccount => pick_account(|state, id| {
-            let email = state
-                .accounts
-                .get(&id)
-                .map(|a| a.email.clone())
-                .unwrap_or_default();
-            ask(
-                "Remove this account? This cannot be undone.",
-                AskKind::Confirm(format!("Remove {email} and its password")),
-                move |_, choice| match choice {
-                    Choice::Yes => Flow::Run(Command::RemoveAccount { id, confirm: true }),
-                    _ => Flow::Hidden,
-                },
-            )
-        }),
+        CommandName::RemoveAccount => pick_account(remove_account),
         CommandName::SyncNow => Flow::Run(Command::SyncNow { account: None }),
         CommandName::ListMailboxes => Flow::Run(Command::ListMailboxes { account: None }),
         CommandName::ListThreads => {

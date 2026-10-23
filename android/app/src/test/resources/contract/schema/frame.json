@@ -773,6 +773,31 @@
           "const": "query",
           "description": "The palette's input.",
           "type": "string"
+        },
+        {
+          "const": "email",
+          "description": "Account setup: the email address.",
+          "type": "string"
+        },
+        {
+          "const": "name",
+          "description": "Account setup: the display name.",
+          "type": "string"
+        },
+        {
+          "const": "imap",
+          "description": "Account setup: the IMAP server (`host:port`).",
+          "type": "string"
+        },
+        {
+          "const": "smtp",
+          "description": "Account setup: the SMTP server (`host:port`).",
+          "type": "string"
+        },
+        {
+          "const": "password",
+          "description": "Account setup: the password. It never comes back in a frame: the presenter moves it\ninto a `Secret` for the keyring.",
+          "type": "string"
         }
       ]
     },
@@ -883,6 +908,31 @@
         "cid"
       ],
       "type": "object"
+    },
+    "InputKind": {
+      "description": "The kind of a setup field: chooses the keyboard and the autofill hints.",
+      "oneOf": [
+        {
+          "const": "email",
+          "description": "An email address (autofill: email address, username).",
+          "type": "string"
+        },
+        {
+          "const": "name",
+          "description": "A name (autofill: person name).",
+          "type": "string"
+        },
+        {
+          "const": "server",
+          "description": "A server, `host:port` (no autofill, no autocorrect).",
+          "type": "string"
+        },
+        {
+          "const": "password",
+          "description": "A password (masked; autofill: password).",
+          "type": "string"
+        }
+      ]
     },
     "Layout": {
       "description": "The window class and the panes, left to right.",
@@ -1189,6 +1239,36 @@
       },
       "required": [
         "text"
+      ],
+      "type": "object"
+    },
+    "PresetChoice": {
+      "description": "A provider to choose in the first step.",
+      "properties": {
+        "action": {
+          "description": "Chooses it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "hint": {
+          "description": "What it needs (`Needs an App Password`).",
+          "type": "string"
+        },
+        "label": {
+          "description": "`Gmail`, `Hostinger Mail`, `Other IMAP / SMTP`.",
+          "type": "string"
+        },
+        "selected": {
+          "description": "Whether it is chosen.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "hint",
+        "selected",
+        "action"
       ],
       "type": "object"
     },
@@ -1672,21 +1752,200 @@
       ],
       "type": "object"
     },
-    "SettingsPage": {
-      "description": "The settings page (its sections arrive with Wave 4 A6).",
+    "SettingRow": {
+      "description": "One setting, an account or a link.",
       "properties": {
-        "section": {
-          "description": "The open section (`appearance`, `keys`, `general`, `accounts`).",
+        "actions": {
+          "description": "Buttons (*Test*, *Password*, *Remove*, *Add an account*, a link).",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "choices": {
+          "description": "The values to choose from (segmented buttons; the current one selected). A tap sets it.",
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "type": "array"
+        },
+        "hint": {
+          "description": "A line under it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "description": "What it is (`Undo send`, an account's address).",
           "type": "string"
         },
-        "text": {
-          "description": "What the page says.",
+        "value": {
+          "description": "Its current value or state, as text.",
           "type": "string"
         }
       },
       "required": [
+        "label",
+        "value",
+        "choices",
+        "actions"
+      ],
+      "type": "object"
+    },
+    "SettingsGroup": {
+      "description": "Rows of the settings page under one caption.",
+      "properties": {
+        "hint": {
+          "description": "What the group is about, if it needs saying.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rows": {
+          "description": "Its rows.",
+          "items": {
+            "$ref": "#/$defs/SettingRow"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "The caption (`Background & notifications`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "SettingsPage": {
+      "description": "The settings page: the sections as tabs, and the open one's rows in groups.",
+      "properties": {
+        "groups": {
+          "description": "The open section's rows, under captions.",
+          "items": {
+            "$ref": "#/$defs/SettingsGroup"
+          },
+          "type": "array"
+        },
+        "section": {
+          "description": "The open section (`appearance`, `keys`, `general`, `accounts`).",
+          "type": "string"
+        },
+        "tabs": {
+          "description": "The sections; a tap opens one (`open_settings`).",
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
         "section",
-        "text"
+        "tabs",
+        "groups"
+      ],
+      "type": "object"
+    },
+    "SetupField": {
+      "description": "A text field of the account setup.",
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/Field",
+          "description": "Which field (`text` events name it)."
+        },
+        "hint": {
+          "description": "The placeholder.",
+          "type": "string"
+        },
+        "input": {
+          "$ref": "#/$defs/InputKind",
+          "description": "The keyboard and the autofill hints."
+        },
+        "label": {
+          "description": "Its label.",
+          "type": "string"
+        },
+        "value": {
+          "$ref": "#/$defs/TextValue",
+          "description": "Its text. Always empty for the password, whose `version` changes when the host must\nclear it."
+        }
+      },
+      "required": [
+        "field",
+        "label",
+        "hint",
+        "input",
+        "value"
+      ],
+      "type": "object"
+    },
+    "SetupSheet": {
+      "description": "The account setup (over the panes; Back goes a step back, then closes it): provider →\naddress → password → test → sync, like the desktop's wizard. Also the password form of an\nexisting account.",
+      "properties": {
+        "actions": {
+          "description": "The step's buttons, the main one last (*Next*, *Add and test*, *Sync now*, …).",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "back": {
+          "$ref": "#/$defs/Button",
+          "description": "*Back* or *Cancel*."
+        },
+        "busy": {
+          "description": "Whether it waits for the server (a spinner).",
+          "type": "boolean"
+        },
+        "error": {
+          "description": "What is wrong (an invalid address, a failed login).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fields": {
+          "description": "The text fields of the step.",
+          "items": {
+            "$ref": "#/$defs/SetupField"
+          },
+          "type": "array"
+        },
+        "note": {
+          "description": "A line to read (where the password goes, what *Find servers* found, the test's result).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presets": {
+          "description": "The providers, in the first step.",
+          "items": {
+            "$ref": "#/$defs/PresetChoice"
+          },
+          "type": "array"
+        },
+        "step": {
+          "description": "The step (`2 / 4  Address`, or the account's address).",
+          "type": "string"
+        },
+        "title": {
+          "description": "`Add an account` or `Change the password`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "step",
+        "presets",
+        "fields",
+        "busy",
+        "actions",
+        "back"
       ],
       "type": "object"
     },
@@ -1977,6 +2236,17 @@
         }
       ],
       "description": "The settings page, while open."
+    },
+    "setup": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SetupSheet"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The account setup, while open (over the panes)."
     },
     "snackbar": {
       "anyOf": [

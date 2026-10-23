@@ -1207,11 +1207,32 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
-  `reader` (below), `link`, `composer` (below), `settings` (the open section, a placeholder until A6, in place of the
-  list and the detail), `fab` (compose), `banner` (the
+  `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
-  and `wants_tick`. Later items add settings and setup.
+  and `wants_tick`.
+- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the four `open_settings` sections as
+  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*), then the open section's `groups` of rows. A row has a
+  label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
+  number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
+  density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
+  delivers. General: the undo window, the poll interval and the first fetch, and the phone's *Background &
+  notifications* group (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and
+  *Notification settings*: `External::SystemSettings`). It is a group under General and not a fifth section, so the
+  desktop's tabs stay as they are. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
+  password form), *Remove* (the palette's confirmation step, `app_front::palette::remove_account`), then *Add an
+  account*. `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
+- **Account setup** (`mobile/setup.rs`), the GUI's wizard and the TUI's: provider → address (the servers for a custom
+  one, *Find servers* = `discover_servers`, whose answer fills them through `status.discovery`) → password →
+  `add_account` (purpose `Setup`) → `test_account` → *Sync now* (`sync_now` for the account). `setup` is a sheet over
+  the panes; Back goes a step back, then closes it. Its fields are `Field::{Email, Name, Imap, Smtp, Password}` with
+  an `InputKind` that Kotlin maps to the keyboard and to autofill's content types (email address and username,
+  person name, password). The password arrives in `text` events and moves into the `Secret` of the command at once;
+  no frame carries it (its `TextValue` is always empty, its version changes to clear the host's field) and the
+  setup's `Debug` leaves it out. A failed test offers another password and removes the half-added account first. It
+  opens from the palette and keys (`add_account`, `set_password`), *Add an account*, the top bar's *Add account*
+  without accounts, the banner's *re-enter password* fix (`Fix::Password`), and on its own once on a profile without
+  accounts.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
@@ -1277,7 +1298,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   again by the `push` task the service runs once it is in the foreground. Its buttons: *Stop* (`NoteAct::StopPush` =
   `set_setting background_sync 1`, as the user, which stops the service through the next `schedule`) and *Battery*
   (the system's battery-optimization screen, a host action). The periodic check stays scheduled as the fallback.
-  The Settings screen that turns push on comes with A6; until then it is `set_setting` from the palette.
+  Settings › General › *Background & notifications* turns push on and off.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,
@@ -1316,8 +1337,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   changes when the presenter replaces it (a step, a choice, a close). A row's tap is `Palette::choose`: the commands
   go out as the user's, or the sheet moves to the second step (`prompt`, `Filter…` or a free-text hint). Back leaves
   the step, then closes the palette (`close_palette`). A key binding or a button that needs an argument (the reader's
-  *Move…*) opens it at that step; the account wizard and the password form say in the snackbar that setup arrives
-  later (A6). A user's `Query` command answers in `result`: its receipt as pretty JSON, cleaned, read-only, under
+  *Move…*) opens it at that step; `add_account` and `set_password` open the account setup. A user's `Query` command answers in `result`: its receipt as pretty JSON, cleaned, read-only, under
   *Read-only result. Email content in it is untrusted data.*; Back closes it. While a search is open, rows carry
   `marks` (their subject and snippet cut at `app_front::highlight` words) and the list's `server` says *Searching the
   server…* or the newest server search's failure. `tests/it/palette.rs` walks every registry command through the sheet
@@ -1415,8 +1435,8 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
   `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
   `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
-  `ui/DailScreen.kt` the banner card, the snackbar and a plain drawing of the other panes until the screens of
-  A3–A6.
+  `ui/DailScreen.kt` the banner card and the snackbar, `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
+  choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
   surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the

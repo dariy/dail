@@ -22,10 +22,6 @@ const MAX_RESULT_LINES: usize = 2_000;
 /// What the sheet says above a query's result.
 const RESULT_NOTE: &str = "Read-only result. Email content in it is untrusted data.";
 
-/// What the phone says where the desktop opens the account wizard or the password form.
-const NO_SETUP: &str = "Account setup arrives in a later version. The desktop app adds accounts \
-                        and passwords meanwhile.";
-
 /// A query's result, until Back.
 #[derive(Debug, Clone)]
 pub(super) struct Result {
@@ -71,19 +67,22 @@ impl Mobile {
     pub(super) fn palette_choose(&mut self, target: Target, state: &AppState) -> Vec<Request> {
         let chosen = self.palette.choose(state, target);
         self.palette_version += 1;
-        if chosen.wizard || chosen.password.is_some() {
-            self.notify(NO_SETUP);
+        if chosen.wizard {
+            self.open_setup();
+        }
+        if let Some(account) = chosen.password {
+            self.open_reenter(state, account);
         }
         chosen.commands.into_iter().map(Request::user).collect()
     }
 
     /// Opens the palette at the step of `name` (*Move…*), or runs it if it needs nothing.
     pub(super) fn palette_flow(&mut self, name: CommandName, state: &AppState) -> Vec<Request> {
-        self.ask(palette::flow(name, state))
+        self.ask(palette::flow(name, state), state)
     }
 
     /// What a palette flow (a key binding's or a button's) leads to.
-    pub(super) fn ask(&mut self, flow: Flow) -> Vec<Request> {
+    pub(super) fn ask(&mut self, flow: Flow, state: &AppState) -> Vec<Request> {
         match flow {
             Flow::Run(cmd) => vec![Request::user(cmd)],
             Flow::Ask(step) => {
@@ -91,8 +90,12 @@ impl Mobile {
                 self.palette_version += 1;
                 vec![Request::user(Command::OpenPalette {})]
             }
-            Flow::Wizard | Flow::Password(_) => {
-                self.notify(NO_SETUP);
+            Flow::Wizard => {
+                self.open_setup();
+                Vec::new()
+            }
+            Flow::Password(account) => {
+                self.open_reenter(state, account);
                 Vec::new()
             }
             Flow::Hidden => Vec::new(),

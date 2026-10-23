@@ -9,6 +9,7 @@
 pub mod composer;
 pub mod event;
 pub mod frame;
+pub mod keys;
 pub mod mobile;
 pub mod notify;
 pub mod request;

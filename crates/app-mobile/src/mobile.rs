@@ -8,8 +8,8 @@ use std::collections::HashSet;
 
 use app_core::document::FoldKind;
 use app_core::{
-    Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, MailboxRole, MessageId,
-    Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
+    AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, MailboxRole,
+    MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -25,13 +25,15 @@ use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
     ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
-    SettingsPage, Snackbar, TopBar,
+    DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row, Snackbar,
+    TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
 mod reader;
 pub use reader::preview_text;
+mod settings;
+mod setup;
 mod sheet;
 
 /// How long a notice or an undo offer stays in the snackbar.
@@ -80,6 +82,14 @@ enum Act {
     Preview(MessageId, usize),
     /// Save attachments of the body with this blob.
     Save(Option<String>, Vec<crate::event::SaveFile>),
+    /// A button of the account setup.
+    Setup(setup::SetupAct),
+    /// Open the password form of an account.
+    Reenter(AccountId),
+    /// Ask to confirm removing an account (the palette's confirmation step).
+    RemoveAccount(AccountId),
+    /// Open a screen of the system's settings.
+    System(crate::event::SystemScreen),
 }
 
 /// The window, as the host last configured it.
@@ -158,6 +168,10 @@ pub struct Mobile {
     link: Option<String>,
     /// The attachment shown in the app, by message and part.
     preview: Option<(MessageId, usize)>,
+    /// The account setup, while open.
+    setup: Option<setup::Setup>,
+    /// Whether the setup was opened on its own for a profile without accounts (once).
+    offered: bool,
 }
 
 impl Default for Mobile {
@@ -243,6 +257,8 @@ impl Mobile {
             folds: HashSet::new(),
             link: None,
             preview: None,
+            setup: None,
+            offered: false,
         }
     }
 
@@ -369,6 +385,19 @@ impl Mobile {
                 self.palette_query(text);
                 Vec::new()
             }
+            UiEvent::Text {
+                field:
+                    field @ (Field::Email | Field::Name | Field::Imap | Field::Smtp | Field::Password),
+                text,
+            } => {
+                if let Some(setup) = self.setup.as_mut() {
+                    setup.text(field, text);
+                }
+                Vec::new()
+            }
+            UiEvent::Blur {
+                field: Field::Email | Field::Name | Field::Imap | Field::Smtp | Field::Password,
+            } => Vec::new(),
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
             UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
@@ -405,6 +434,11 @@ impl Mobile {
                 }
             }
             match reply.purpose {
+                Purpose::Setup => {
+                    if let Some(next) = self.setup.as_mut().and_then(|s| s.accept(&reply)) {
+                        out.push(next);
+                    }
+                }
                 Purpose::Bodies(thread) => {
                     let receipt = reply.result.as_ref().ok().and_then(|r| r.as_ref().ok());
                     self.bodies.accept(thread, receipt);
@@ -497,6 +531,16 @@ impl Mobile {
                 self.save(blob, files);
                 Vec::new()
             }
+            Act::Setup(act) => self.setup_act(act),
+            Act::Reenter(account) => {
+                self.open_reenter(state, account);
+                Vec::new()
+            }
+            Act::RemoveAccount(account) => self.ask(palette::remove_account(state, account), state),
+            Act::System(screen) => {
+                self.system(screen);
+                Vec::new()
+            }
             Act::Pick(draft) => {
                 self.externals.push(External::PickFiles { draft });
                 Vec::new()
@@ -580,9 +624,9 @@ impl Mobile {
         let typing = state.view.composer.is_some() && state.view.focus == Pane::Composer;
         match self.keys.press(chord, typing, state, now) {
             Press::Done(Action::Run(cmd)) => vec![Request::user(cmd)],
-            Press::Done(Action::Ask(step)) => self.ask(palette::Flow::Ask(step)),
-            Press::Done(Action::Wizard) => self.ask(palette::Flow::Wizard),
-            Press::Done(Action::Password(id)) => self.ask(palette::Flow::Password(id)),
+            Press::Done(Action::Ask(step)) => self.ask(palette::Flow::Ask(step), state),
+            Press::Done(Action::Wizard) => self.ask(palette::Flow::Wizard, state),
+            Press::Done(Action::Password(id)) => self.ask(palette::Flow::Password(id), state),
             Press::Pending | Press::Unbound => Vec::new(),
         }
     }
@@ -592,6 +636,12 @@ impl Mobile {
     fn back(&mut self, state: &AppState) -> Vec<Request> {
         if self.about {
             self.about = false;
+            return Vec::new();
+        }
+        if let Some(setup) = self.setup.as_mut() {
+            if !setup.back() {
+                self.setup = None;
+            }
             return Vec::new();
         }
         if self.result.take().is_some()
@@ -657,6 +707,10 @@ impl Mobile {
         self.palette_sync(state);
         self.actions.clear();
         self.revision += 1;
+        if !self.offered && state.accounts.is_empty() {
+            self.offered = true;
+            self.open_setup();
+        }
         let class = self.class();
         let width = match class {
             Class::Compact => Width::Narrow,
@@ -709,11 +763,12 @@ impl Mobile {
             None
         };
         let settings = if kinds.contains(&PaneKind::Settings) {
-            settings_page(state)
+            self.settings_page(state)
         } else {
             None
         };
         let fab = (!self.about
+            && self.setup.is_none()
             && !state.accounts.is_empty()
             && !kinds.contains(&PaneKind::Composer)
             && !kinds.contains(&PaneKind::Settings))
@@ -729,6 +784,7 @@ impl Mobile {
             crate::theme::frame_theme(&chosen)
         });
         let about = self.about.then(crate::theme::about);
+        let setup = self.setup_sheet(state);
         let palette = self.palette_sheet(state);
         let result = self.result_view();
         if reader.is_none() {
@@ -741,6 +797,7 @@ impl Mobile {
             self.preview = None;
         }
         let back = self.about
+            || setup.is_some()
             || palette.is_some()
             || result.is_some()
             || link.is_some()
@@ -760,6 +817,7 @@ impl Mobile {
             reader,
             composer,
             settings,
+            setup,
             bulk,
             fab,
             banner,
@@ -811,6 +869,13 @@ impl Mobile {
                 "Search or run a command",
                 Act::Run(Command::OpenPalette {}),
             ));
+        }
+        if state.accounts.is_empty() {
+            actions.push(Button {
+                icon: None,
+                label: "Add account".to_owned(),
+                action: self.add(Act::Setup(setup::SetupAct::Open)),
+            });
         }
         actions.push(Button {
             icon: None,
@@ -918,9 +983,7 @@ impl Mobile {
                 refreshing: false,
                 rows: Vec::new(),
                 server: None,
-                empty: Some(
-                    "No accounts yet. Account setup arrives in a later version.".to_owned(),
-                ),
+                empty: Some("No accounts yet. Add one to read your mail here.".to_owned()),
             };
         }
         let ids = self.rows.get(state).to_vec();
@@ -1316,20 +1379,19 @@ impl Mobile {
 
     fn banner(&mut self, state: &AppState) -> Option<Banner> {
         let problem = status::problems(state, self.lang).into_iter().next()?;
-        let action = problem.fix.and_then(|fix| {
-            let cmd = match fix {
-                Fix::Retry(account) => Command::SyncNow {
+        let action = problem.fix.map(|fix| {
+            let act = match fix {
+                Fix::Retry(account) => Act::Run(Command::SyncNow {
                     account: Some(account),
-                },
-                Fix::Test(id) => Command::TestAccount { id },
-                // The password form arrives with account setup (Wave 4 A6).
-                Fix::Password(_) => return None,
+                }),
+                Fix::Test(id) => Act::Run(Command::TestAccount { id }),
+                Fix::Password(account) => Act::Reenter(account),
             };
-            Some(Button {
+            Button {
                 icon: None,
                 label: fix.label(self.lang),
-                action: self.add(Act::Run(cmd)),
-            })
+                action: self.add(act),
+            }
         });
         Some(Banner {
             text: clean(&problem.text),
@@ -1413,21 +1475,4 @@ fn list_title(state: &AppState) -> String {
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
         .map_or_else(|| "Conversations".to_owned(), |m| clean(&mailbox_name(m)))
-}
-
-/// The settings page: its section, until the settings screens of Wave 4 A6.
-fn settings_page(state: &AppState) -> Option<SettingsPage> {
-    let section = state.view.settings?;
-    let name = match section {
-        SettingsSection::Appearance => "appearance",
-        SettingsSection::Keys => "keys",
-        SettingsSection::General => "general",
-        SettingsSection::Accounts => "accounts",
-    };
-    Some(SettingsPage {
-        section: name.to_owned(),
-        text: "Settings and account setup arrive in a later version. The desktop app and \
-               `config.toml` change them meanwhile."
-            .to_owned(),
-    })
 }

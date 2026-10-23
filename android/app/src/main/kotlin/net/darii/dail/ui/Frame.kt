@@ -29,6 +29,7 @@ data class Frame(
     val reader: Reader? = null,
     val composer: Composer? = null,
     val settings: SettingsPage? = null,
+    val setup: SetupSheet? = null,
     val bulk: Bulk? = null,
     val fab: Button? = null,
     val banner: Banner? = null,
@@ -351,7 +352,70 @@ data class Attachment(
 @Serializable
 data class SettingsPage(
     val section: String,
-    val text: String,
+    val tabs: List<Choice>,
+    val groups: List<SettingsGroup>,
+)
+
+@Serializable
+data class SettingsGroup(
+    val title: String,
+    val hint: String? = null,
+    val rows: List<SettingRow>,
+)
+
+@Serializable
+data class SettingRow(
+    val label: String,
+    val value: String,
+    val hint: String? = null,
+    val choices: List<Choice>,
+    val actions: List<Button>,
+)
+
+/** The kind of a setup field (`app_mobile::frame::InputKind`): keyboard and autofill. */
+@Serializable
+enum class InputKind {
+    @SerialName("email")
+    Email,
+
+    @SerialName("name")
+    Name,
+
+    @SerialName("server")
+    Server,
+
+    @SerialName("password")
+    Password,
+}
+
+@Serializable
+data class SetupField(
+    val field: Field,
+    val label: String,
+    val hint: String,
+    val input: InputKind,
+    val value: TextValue,
+)
+
+@Serializable
+data class PresetChoice(
+    val label: String,
+    val hint: String,
+    val selected: Boolean,
+    val action: ActionId,
+)
+
+@Serializable
+data class SetupSheet(
+    val title: String,
+    val step: String,
+    val presets: List<PresetChoice>,
+    val fields: List<SetupField>,
+    val note: String? = null,
+    val error: String? = null,
+    val busy: Boolean,
+    val actions: List<Button>,
+    val back: Button,
 )
 
 @Serializable
@@ -446,6 +510,7 @@ data class ExternalArgs(
     val files: List<SaveFile> = emptyList(),
     val sync: Int? = null,
     @SerialName("interval_mins") val intervalMins: Int? = null,
+    val screen: String? = null,
 )
 
 /** One attachment to save; the name was made safe by the host. */

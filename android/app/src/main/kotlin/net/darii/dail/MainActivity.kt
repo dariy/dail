@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
@@ -140,6 +142,30 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Opens a screen of the system's settings that dail's settings link to. */
+    private fun systemSettings(screen: String) {
+        val intent =
+            when (screen) {
+                "battery" -> {
+                    Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                }
+
+                "notifications" -> {
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+
+                else -> {
+                    return
+                }
+            }
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "This phone has no such settings screen.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -174,6 +200,10 @@ class MainActivity : ComponentActivity() {
                                 ?.setPrimaryClip(ClipData.newPlainText("link", text))
                         }
                     }
+                }
+
+                "system_settings" -> {
+                    external.args?.screen?.let { screen -> runOnUiThread { systemSettings(screen) } }
                 }
 
                 "haptic" -> {
@@ -259,7 +289,7 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || Notifier.allowed(this)) return
         val prefs = getSharedPreferences("dail", MODE_PRIVATE)
         if (prefs.getBoolean(ASKED_NOTIFICATIONS, false)) return
-        prefs.edit().putBoolean(ASKED_NOTIFICATIONS, true).apply()
+        prefs.edit { putBoolean(ASKED_NOTIFICATIONS, true) }
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }
 

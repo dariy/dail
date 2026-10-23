@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import androidx.core.content.edit
 
 /**
  * Push (`background_sync` 2, A5): a foreground service that keeps the process, and with it the
@@ -88,7 +89,7 @@ class PushService : Service() {
             sync: Int,
         ) {
             val push = sync == 2
-            prefs(context).edit().putBoolean(PUSH, push).apply()
+            prefs(context).edit { putBoolean(PUSH, push) }
             if (push && !running) {
                 start(context)
             } else if (!push && running) {

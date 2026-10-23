@@ -1,0 +1,94 @@
+{
+  "back": true,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "empty": "No accounts yet. Add one to read your mail here.",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [],
+    "title": "Conversations",
+    "total": 0
+  },
+  "revision": 6,
+  "setup": {
+    "actions": [
+      {
+        "action": 38,
+        "label": "Find servers"
+      }
+    ],
+    "back": {
+      "action": 39,
+      "label": "Back"
+    },
+    "busy": false,
+    "error": "IMAP: ``: expected host:port[:tls|starttls]",
+    "fields": [
+      {
+        "field": "email",
+        "hint": "you@example.com",
+        "input": "email",
+        "label": "Email address",
+        "value": {
+          "text": "me@example.org",
+          "version": 1
+        }
+      },
+      {
+        "field": "name",
+        "hint": "shown in the drawer",
+        "input": "name",
+        "label": "Name (optional)",
+        "value": {
+          "text": "",
+          "version": 1
+        }
+      },
+      {
+        "field": "imap",
+        "hint": "imap.example.com:993",
+        "input": "server",
+        "label": "IMAP server",
+        "value": {
+          "text": "",
+          "version": 1
+        }
+      },
+      {
+        "field": "smtp",
+        "hint": "smtp.example.com:465",
+        "input": "server",
+        "label": "SMTP server",
+        "value": {
+          "text": "",
+          "version": 1
+        }
+      }
+    ],
+    "note": "host:port, optionally :tls or :starttls. Find servers asks the provider, then Mozilla's list.",
+    "presets": [],
+    "step": "2 / 4  Address",
+    "title": "Add an account"
+  },
+  "top_bar": {
+    "actions": [
+      {
+        "action": 36,
+        "label": "Add account"
+      },
+      {
+        "action": 37,
+        "label": "About"
+      }
+    ],
+    "title": "Conversations"
+  },
+  "wants_tick": false
+}

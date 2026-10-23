@@ -67,7 +67,14 @@ const fn recipients(field: Field) -> Option<compose::Field> {
         Field::To => Some(compose::Field::To),
         Field::Cc => Some(compose::Field::Cc),
         Field::Bcc => Some(compose::Field::Bcc),
-        Field::Subject | Field::Body | Field::Query => None,
+        Field::Subject
+        | Field::Body
+        | Field::Query
+        | Field::Email
+        | Field::Name
+        | Field::Imap
+        | Field::Smtp
+        | Field::Password => None,
     }
 }
 

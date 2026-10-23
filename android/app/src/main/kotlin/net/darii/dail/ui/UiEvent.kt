@@ -9,7 +9,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-/** A text field of the composer (`app_mobile::Field`). */
+/** A text field of the composer, the palette or the account setup (`app_mobile::Field`). */
 @Serializable
 enum class Field(
     val wire: String,
@@ -31,6 +31,21 @@ enum class Field(
 
     @SerialName("query")
     Query("query"),
+
+    @SerialName("email")
+    Email("email"),
+
+    @SerialName("name")
+    Name("name"),
+
+    @SerialName("imap")
+    Imap("imap"),
+
+    @SerialName("smtp")
+    Smtp("smtp"),
+
+    @SerialName("password")
+    Password("password"),
 }
 
 /**

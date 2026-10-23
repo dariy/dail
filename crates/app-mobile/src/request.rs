@@ -10,6 +10,9 @@ pub enum Purpose {
     /// The `create_draft` of a share or a `mailto:` link: once it exists, these shared files
     /// (checked content URIs) are imported into it. Otherwise like `User`.
     Shared(Vec<String>),
+    /// A command of the account setup (`add_account`, `set_password`, `discover_servers`): its
+    /// result goes back to the setup sheet.
+    Setup,
     /// `get_thread` with bodies for the reader (`app_front::body`).
     Bodies(ThreadId),
 }

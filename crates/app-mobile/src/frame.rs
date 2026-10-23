@@ -36,6 +36,9 @@ pub struct Frame {
     /// The settings page, while open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<SettingsPage>,
+    /// The account setup, while open (over the panes).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup: Option<SetupSheet>,
     /// The bulk bar, while threads are checked (in place of the top bar's actions).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bulk: Option<Bulk>,
@@ -551,13 +554,113 @@ pub struct Preview {
     pub close: Button,
 }
 
-/// The settings page (its sections arrive with Wave 4 A6).
+/// The settings page: the sections as tabs, and the open one's rows in groups.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SettingsPage {
     /// The open section (`appearance`, `keys`, `general`, `accounts`).
     pub section: String,
-    /// What the page says.
-    pub text: String,
+    /// The sections; a tap opens one (`open_settings`).
+    pub tabs: Vec<Choice>,
+    /// The open section's rows, under captions.
+    pub groups: Vec<SettingsGroup>,
+}
+
+/// Rows of the settings page under one caption.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingsGroup {
+    /// The caption (`Background & notifications`).
+    pub title: String,
+    /// What the group is about, if it needs saying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    /// Its rows.
+    pub rows: Vec<SettingRow>,
+}
+
+/// One setting, an account or a link.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingRow {
+    /// What it is (`Undo send`, an account's address).
+    pub label: String,
+    /// Its current value or state, as text.
+    pub value: String,
+    /// A line under it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    /// The values to choose from (segmented buttons; the current one selected). A tap sets it.
+    pub choices: Vec<Choice>,
+    /// Buttons (*Test*, *Password*, *Remove*, *Add an account*, a link).
+    pub actions: Vec<Button>,
+}
+
+/// The kind of a setup field: chooses the keyboard and the autofill hints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InputKind {
+    /// An email address (autofill: email address, username).
+    Email,
+    /// A name (autofill: person name).
+    Name,
+    /// A server, `host:port` (no autofill, no autocorrect).
+    Server,
+    /// A password (masked; autofill: password).
+    Password,
+}
+
+/// A text field of the account setup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SetupField {
+    /// Which field (`text` events name it).
+    pub field: Field,
+    /// Its label.
+    pub label: String,
+    /// The placeholder.
+    pub hint: String,
+    /// The keyboard and the autofill hints.
+    pub input: InputKind,
+    /// Its text. Always empty for the password, whose `version` changes when the host must
+    /// clear it.
+    pub value: TextValue,
+}
+
+/// A provider to choose in the first step.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct PresetChoice {
+    /// `Gmail`, `Hostinger Mail`, `Other IMAP / SMTP`.
+    pub label: String,
+    /// What it needs (`Needs an App Password`).
+    pub hint: String,
+    /// Whether it is chosen.
+    pub selected: bool,
+    /// Chooses it.
+    pub action: ActionId,
+}
+
+/// The account setup (over the panes; Back goes a step back, then closes it): provider →
+/// address → password → test → sync, like the desktop's wizard. Also the password form of an
+/// existing account.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SetupSheet {
+    /// `Add an account` or `Change the password`.
+    pub title: String,
+    /// The step (`2 / 4  Address`, or the account's address).
+    pub step: String,
+    /// The providers, in the first step.
+    pub presets: Vec<PresetChoice>,
+    /// The text fields of the step.
+    pub fields: Vec<SetupField>,
+    /// A line to read (where the password goes, what *Find servers* found, the test's result).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// What is wrong (an invalid address, a failed login).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    /// Whether it waits for the server (a spinner).
+    pub busy: bool,
+    /// The step's buttons, the main one last (*Next*, *Add and test*, *Sync now*, …).
+    pub actions: Vec<Button>,
+    /// *Back* or *Cancel*.
+    pub back: Button,
 }
 
 /// A text field's content. The host reloads its field only when `version` changes, so a frame

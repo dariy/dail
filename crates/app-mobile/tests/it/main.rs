@@ -12,6 +12,7 @@ mod frames;
 mod list;
 mod palette;
 mod reader;
+mod settings;
 mod share;
 mod theme;
 mod untrusted;

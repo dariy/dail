@@ -14,8 +14,12 @@ expression: phone.frame()
     "title": "Conversations",
     "actions": [
       {
-        "label": "About",
+        "label": "Add account",
         "action": 1
+      },
+      {
+        "label": "About",
+        "action": 2
       }
     ]
   },
@@ -27,7 +31,43 @@ expression: phone.frame()
     "checked": 0,
     "refreshing": false,
     "rows": [],
-    "empty": "No accounts yet. Account setup arrives in a later version."
+    "empty": "No accounts yet. Add one to read your mail here."
+  },
+  "setup": {
+    "title": "Add an account",
+    "step": "1 / 4  Provider",
+    "presets": [
+      {
+        "label": "Gmail",
+        "hint": "Needs an App Password (2-Step Verification on).",
+        "selected": true,
+        "action": 3
+      },
+      {
+        "label": "Hostinger Mail",
+        "hint": "Your mailbox password.",
+        "selected": false,
+        "action": 4
+      },
+      {
+        "label": "Other IMAP / SMTP",
+        "hint": "Enter the servers yourself, or find them.",
+        "selected": false,
+        "action": 5
+      }
+    ],
+    "fields": [],
+    "busy": false,
+    "actions": [
+      {
+        "label": "Next",
+        "action": 6
+      }
+    ],
+    "back": {
+      "label": "Cancel",
+      "action": 7
+    }
   },
   "theme": {
     "id": "dail-light",
@@ -274,6 +314,6 @@ expression: phone.frame()
       "warning": ""
     }
   },
-  "back": false,
+  "back": true,
   "wants_tick": false
 }

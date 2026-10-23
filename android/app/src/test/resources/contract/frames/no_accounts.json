@@ -1,5 +1,5 @@
 {
-  "back": false,
+  "back": true,
   "layout": {
     "class": "compact",
     "panes": [
@@ -9,7 +9,7 @@
   "list": {
     "checked": 0,
     "density": "cozy",
-    "empty": "No accounts yet. Account setup arrives in a later version.",
+    "empty": "No accounts yet. Add one to read your mail here.",
     "offset": 0,
     "refreshing": false,
     "rows": [],
@@ -17,6 +17,42 @@
     "total": 0
   },
   "revision": 1,
+  "setup": {
+    "actions": [
+      {
+        "action": 6,
+        "label": "Next"
+      }
+    ],
+    "back": {
+      "action": 7,
+      "label": "Cancel"
+    },
+    "busy": false,
+    "fields": [],
+    "presets": [
+      {
+        "action": 3,
+        "hint": "Needs an App Password (2-Step Verification on).",
+        "label": "Gmail",
+        "selected": true
+      },
+      {
+        "action": 4,
+        "hint": "Your mailbox password.",
+        "label": "Hostinger Mail",
+        "selected": false
+      },
+      {
+        "action": 5,
+        "hint": "Enter the servers yourself, or find them.",
+        "label": "Other IMAP / SMTP",
+        "selected": false
+      }
+    ],
+    "step": "1 / 4  Provider",
+    "title": "Add an account"
+  },
   "theme": {
     "chrome": {
       "base": "#0E0E0EFF",
@@ -266,6 +302,10 @@
     "actions": [
       {
         "action": 1,
+        "label": "Add account"
+      },
+      {
+        "action": 2,
         "label": "About"
       }
     ],
