@@ -97,6 +97,26 @@ pub enum UiEvent {
     },
     /// The clock moved on (sent every second while the frame's `wants_tick` is true).
     Tick,
+    /// Another app opened a `mailto:` link or shared text or files with dail: a new draft from
+    /// the current account opens in the composer. It is never sent. Only `content://` files of
+    /// other apps are attached (copied first); `file://` URIs and dail's own are refused.
+    Share {
+        /// The `mailto:` URI, if it was one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mailto: Option<String>,
+        /// Addresses (`EXTRA_EMAIL`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        to: Vec<String>,
+        /// The subject (`EXTRA_SUBJECT`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        subject: Option<String>,
+        /// The text (`EXTRA_TEXT`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        text: Option<String>,
+        /// The shared files' URIs (`EXTRA_STREAM`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        files: Vec<String>,
+    },
 }
 
 const fn one() -> f32 {
@@ -114,6 +134,14 @@ pub enum External {
     PickFiles {
         /// The draft the files go to.
         draft: DraftId,
+    },
+    /// Copy these shared files (content URIs that passed the presenter's check) into the app and
+    /// attach them to `draft`, as `pick_files` does with picked ones.
+    ImportFiles {
+        /// The draft.
+        draft: DraftId,
+        /// The content URIs.
+        uris: Vec<String>,
     },
     /// A send was scheduled: keep the process alive (a foreground service running the
     /// `sends` task) until no send is scheduled or leaving, so leaving the app never loses it.

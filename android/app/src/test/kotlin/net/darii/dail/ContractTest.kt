@@ -53,6 +53,14 @@ class ContractTest {
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
+                "share" to
+                    UiEvent.Share(
+                        mailto = "mailto:bob@example.org?subject=Hi",
+                        to = listOf("carol@example.org"),
+                        subject = "Photos",
+                        text = "Here",
+                        files = listOf("content://com.example.files/a.pdf"),
+                    ),
                 "swipe" to UiEvent.Swipe(9),
                 "tap" to UiEvent.Tap(7),
                 "text" to UiEvent.Text(Field.Subject, "Lunch?"),

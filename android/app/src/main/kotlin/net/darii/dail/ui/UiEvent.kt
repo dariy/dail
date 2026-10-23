@@ -3,8 +3,10 @@ package net.darii.dail.ui
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /** A text field of the composer (`app_mobile::Field`). */
@@ -122,6 +124,24 @@ sealed interface UiEvent {
 
     data object Tick : UiEvent {
         override fun json() = event("tick")
+    }
+
+    /** A `mailto:` link or a share from another app; Rust decides what the draft gets. */
+    data class Share(
+        val mailto: String?,
+        val to: List<String>,
+        val subject: String?,
+        val text: String?,
+        val files: List<String>,
+    ) : UiEvent {
+        override fun json() =
+            event("share") {
+                mailto?.let { put("mailto", it) }
+                if (to.isNotEmpty()) putJsonArray("to") { to.forEach { add(it) } }
+                subject?.let { put("subject", it) }
+                text?.let { put("text", it) }
+                if (files.isNotEmpty()) putJsonArray("files") { files.forEach { add(it) } }
+            }
     }
 }
 

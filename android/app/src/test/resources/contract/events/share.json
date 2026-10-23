@@ -1,0 +1,14 @@
+{
+  "args": {
+    "files": [
+      "content://com.example.files/a.pdf"
+    ],
+    "mailto": "mailto:bob@example.org?subject=Hi",
+    "subject": "Photos",
+    "text": "Here",
+    "to": [
+      "carol@example.org"
+    ]
+  },
+  "event": "share"
+}

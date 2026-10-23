@@ -86,6 +86,13 @@ fn events() -> Vec<UiEvent> {
             chord: "Ctrl+Z".to_owned(),
         },
         UiEvent::Tick,
+        UiEvent::Share {
+            mailto: Some("mailto:bob@example.org?subject=Hi".to_owned()),
+            to: vec!["carol@example.org".to_owned()],
+            subject: Some("Photos".to_owned()),
+            text: Some("Here".to_owned()),
+            files: vec!["content://com.example.files/a.pdf".to_owned()],
+        },
     ];
     for event in &all {
         match event {
@@ -100,7 +107,8 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Text { .. }
             | UiEvent::Blur { .. }
             | UiEvent::Key { .. }
-            | UiEvent::Tick => {}
+            | UiEvent::Tick
+            | UiEvent::Share { .. } => {}
         }
     }
     all
@@ -113,13 +121,20 @@ fn externals() -> Vec<External> {
         External::PickFiles {
             draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
         },
+        External::ImportFiles {
+            draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
+            uris: vec!["content://com.example.files/a.pdf".to_owned()],
+        },
         External::Sending {
             draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
         },
     ];
     for external in &all {
         match external {
-            External::Haptic | External::PickFiles { .. } | External::Sending { .. } => {}
+            External::Haptic
+            | External::PickFiles { .. }
+            | External::ImportFiles { .. }
+            | External::Sending { .. } => {}
         }
     }
     all

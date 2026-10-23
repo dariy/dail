@@ -7,6 +7,9 @@ use app_core::{Command, CommandName, CommandReceipt, CoreError, ThreadId};
 pub enum Purpose {
     /// A user action: rejections and undo labels show in the snackbar.
     User,
+    /// The `create_draft` of a share or a `mailto:` link: once it exists, these shared files
+    /// (checked content URIs) are imported into it. Otherwise like `User`.
+    Shared(Vec<String>),
     /// `get_thread` with bodies for the reader (`app_front::body`).
     Bodies(ThreadId),
 }

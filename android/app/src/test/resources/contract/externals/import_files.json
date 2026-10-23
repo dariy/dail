@@ -1,0 +1,9 @@
+{
+  "args": {
+    "draft": "00000000-0000-0000-0000-000000000007",
+    "uris": [
+      "content://com.example.files/a.pdf"
+    ]
+  },
+  "external": "import_files"
+}

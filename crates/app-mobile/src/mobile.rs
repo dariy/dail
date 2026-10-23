@@ -304,6 +304,13 @@ impl Mobile {
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
             UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
+            UiEvent::Share {
+                mailto,
+                to,
+                subject,
+                text,
+                files,
+            } => self.share(state, mailto.as_deref(), &to, subject, text, files),
         }
     }
 
@@ -312,13 +319,30 @@ impl Mobile {
     pub fn replies(&mut self, replies: Vec<Reply>, _state: &AppState) -> Vec<Request> {
         let mut out = Vec::new();
         let now = self.now_ms();
-        for reply in replies {
+        for mut reply in replies {
+            if matches!(reply.purpose, Purpose::Shared(_))
+                && let Purpose::Shared(files) = std::mem::replace(&mut reply.purpose, Purpose::User)
+            {
+                let draft = reply
+                    .result
+                    .as_ref()
+                    .ok()
+                    .and_then(|r| r.as_ref().ok())
+                    .and_then(|r| serde_json::from_value(r.data["id"].clone()).ok());
+                if let Some(draft) = draft
+                    && !files.is_empty()
+                {
+                    self.externals
+                        .push(External::ImportFiles { draft, uris: files });
+                }
+            }
             match reply.purpose {
                 Purpose::Bodies(thread) => {
                     let receipt = reply.result.as_ref().ok().and_then(|r| r.as_ref().ok());
                     self.bodies.accept(thread, receipt);
                 }
-                Purpose::User => match &reply.result {
+                // A share's draft is a user action once its files are handed on.
+                Purpose::User | Purpose::Shared(_) => match &reply.result {
                     Ok(Ok(receipt)) => {
                         let before = self.last.label().map(str::to_owned);
                         if let Some(draft) = self.last.observe(receipt) {
@@ -396,6 +420,64 @@ impl Mobile {
                 .into_iter()
                 .collect(),
         }
+    }
+
+    /// A new draft from a share or a `mailto:` link; the files follow once it exists.
+    fn share(
+        &mut self,
+        state: &AppState,
+        mailto: Option<&str>,
+        to: &[String],
+        subject: Option<String>,
+        text: Option<String>,
+        files: Vec<String>,
+    ) -> Vec<Request> {
+        let Some(account) = palette::current_account(state) else {
+            self.notify("Add an account in dail before sharing to it.");
+            return Vec::new();
+        };
+        let mut fields = mailto
+            .and_then(app_front::mailto::parse)
+            .unwrap_or_default();
+        for addr in to.iter().filter_map(|a| compose::parse_addr(a)) {
+            if !fields
+                .to
+                .iter()
+                .any(|a| a.email.eq_ignore_ascii_case(&addr.email))
+            {
+                fields.to.push(addr);
+            }
+        }
+        if let Some(subject) = subject.filter(|s| !s.trim().is_empty()) {
+            fields.subject = subject;
+        }
+        if let Some(text) = text.filter(|t| !t.trim().is_empty()) {
+            fields.body = if fields.body.is_empty() {
+                text
+            } else {
+                format!("{}\n\n{text}", fields.body)
+            };
+        }
+        let total = files.len();
+        let files: Vec<String> = files.into_iter().filter(|u| shareable(u)).collect();
+        if files.len() < total {
+            let refused = total - files.len();
+            self.notify(&format!(
+                "{refused} shared file{} could not be attached: only files shared by other apps can.",
+                if refused == 1 { "" } else { "s" }
+            ));
+        }
+        vec![Request {
+            purpose: Purpose::Shared(files),
+            cmd: Command::CreateDraft {
+                account,
+                to: fields.to,
+                cc: fields.cc,
+                bcc: fields.bcc,
+                subject: fields.subject,
+                body: fields.body,
+            },
+        }]
     }
 
     fn press(&mut self, chord: Chord, state: &AppState) -> Vec<Request> {
@@ -1266,6 +1348,29 @@ impl Mobile {
         }
         None
     }
+}
+
+/// The application ID; content URIs of its providers are its own files.
+const APP_ID: &str = "net.darii.dail";
+
+/// Whether a shared URI may be attached: a `content://` URI of another app. `file://` would
+/// let a sender name any file dail can read, and dail's own providers serve its private files.
+fn shareable(uri: &str) -> bool {
+    let Some(rest) = uri
+        .get(..10)
+        .filter(|s| s.eq_ignore_ascii_case("content://"))
+        .and_then(|_| uri.get(10..))
+    else {
+        return false;
+    };
+    // `user@` before the host names another user's provider (`content://10@…`).
+    let authority = rest.split('/').next().unwrap_or_default();
+    let authority = authority
+        .rsplit('@')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    !authority.is_empty() && authority != APP_ID && !authority.starts_with(&format!("{APP_ID}."))
 }
 
 /// The list's title: the search, or the open mailbox.

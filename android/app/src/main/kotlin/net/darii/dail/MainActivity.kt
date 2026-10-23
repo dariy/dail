@@ -1,6 +1,8 @@
 package net.darii.dail
 
+import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
@@ -55,6 +57,13 @@ class MainActivity : ComponentActivity() {
         picking = savedInstanceState?.getString(PICKING)
         host.onExternal = { external ->
             when (external.external) {
+                "import_files" -> {
+                    external.args?.draft?.let { draft ->
+                        val uris = external.args.uris.map(Uri::parse)
+                        io.execute { uris.forEach { host.import(draft, it) } }
+                    }
+                }
+
                 "sending" -> {
                     runOnUiThread { SendService.start(this) }
                 }
@@ -74,6 +83,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         host.open()
+        if (savedInstanceState == null) shared(intent)?.let(host::send)
         setContent {
             val configuration = LocalConfiguration.current
             val dark =
@@ -120,6 +130,11 @@ class MainActivity : ComponentActivity() {
     private fun bars(dark: Boolean) =
         if (dark) SystemBarStyle.dark(TRANSPARENT) else SystemBarStyle.light(TRANSPARENT, TRANSPARENT)
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        shared(intent)?.let(host::send)
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         picking?.let { outState.putString(PICKING, it) }
@@ -151,3 +166,42 @@ class MainActivity : ComponentActivity() {
         const val TRANSPARENT = android.graphics.Color.TRANSPARENT
     }
 }
+
+/**
+ * A `mailto:` link or a share as the presenter's `share` event, or `null` for any other intent.
+ * Kotlin only reads the extras: which URIs may be attached is Rust's decision.
+ */
+fun shared(intent: Intent): UiEvent.Share? {
+    val action = intent.action
+    val mailto = intent.data?.takeIf { it.scheme.equals("mailto", ignoreCase = true) }?.toString()
+    if (action !in setOf(Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE) && mailto == null) return null
+    val files =
+        when (action) {
+            Intent.ACTION_SEND -> listOfNotNull(stream(intent))
+            Intent.ACTION_SEND_MULTIPLE -> streams(intent)
+            else -> emptyList()
+        }
+    return UiEvent.Share(
+        mailto = mailto,
+        to = intent.getStringArrayExtra(Intent.EXTRA_EMAIL)?.toList().orEmpty(),
+        subject = intent.getStringExtra(Intent.EXTRA_SUBJECT),
+        text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString(),
+        files = files.map(Uri::toString),
+    )
+}
+
+private fun stream(intent: Intent): Uri? =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+    }
+
+private fun streams(intent: Intent): List<Uri> =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+    } else {
+        @Suppress("DEPRECATION")
+        intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+    }

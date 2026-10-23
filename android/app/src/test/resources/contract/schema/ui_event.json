@@ -359,6 +359,60 @@
         "event"
       ],
       "type": "object"
+    },
+    {
+      "description": "Another app opened a `mailto:` link or shared text or files with dail: a new draft from\nthe current account opens in the composer. It is never sent. Only `content://` files of\nother apps are attached (copied first); `file://` URIs and dail's own are refused.",
+      "properties": {
+        "args": {
+          "properties": {
+            "files": {
+              "description": "The shared files' URIs (`EXTRA_STREAM`).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "mailto": {
+              "description": "The `mailto:` URI, if it was one.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "subject": {
+              "description": "The subject (`EXTRA_SUBJECT`).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "text": {
+              "description": "The text (`EXTRA_TEXT`).",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "to": {
+              "description": "Addresses (`EXTRA_EMAIL`).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "event": {
+          "const": "share",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
     }
   ],
   "title": "UiEvent"

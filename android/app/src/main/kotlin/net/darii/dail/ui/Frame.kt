@@ -291,6 +291,7 @@ data class External(
 @Serializable
 data class ExternalArgs(
     val draft: String? = null,
+    val uris: List<String> = emptyList(),
 )
 
 /** `app_theme`'s tokens (`app_mobile::theme`): colour roles as `#RRGGBBAA`, styles in sp. */

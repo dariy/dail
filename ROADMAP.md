@@ -485,7 +485,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [mobile] [kt] Send with the undo window (*Sending in N s · Undo*), `cancel_send`; a foreground service from the
   scheduled send to `MessageSent` or `SendFailed` (`shortService` from Android 14, `dataSync` before); *Not sent* once
   for a send that a restart cancelled
-- [ ] [kt] `mailto:` links and the share sheet (text, files) open a new draft in the composer — never a send;
+- [x] [kt] `mailto:` links and the share sheet (text, files) open a new draft in the composer — never a send;
   `file://` URIs and the app's own content URIs refused, shared files copied like picked ones (tests)
 
 ### A5 — Background & notifications

@@ -8,4 +8,5 @@ mod drawer;
 mod events;
 mod frames;
 mod list;
+mod share;
 mod theme;

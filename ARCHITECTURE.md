@@ -1200,7 +1200,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic`, `pick_files {draft}`, `sending {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
@@ -1247,6 +1247,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the app never strands a send. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
   composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
+- **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
+  of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
+  parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,
+  the subject and the text, and submits `create_draft` for the current account (`Purpose::Shared`), which opens in the
+  composer — never a send. Of the shared URIs only `content://` ones of other apps pass (`file://` would name any file
+  dail can read; `net.darii.dail` and its suffixed authorities serve dail's own files); the rest are counted in the
+  snackbar. Once the draft exists, `External::ImportFiles` hands the accepted URIs back, and each is copied and
+  attached like a picked file. Without an account the snackbar says to add one.
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
   tap in it also sends `focus_pane list`, which closes it. Back closes a modal drawer (`focus_pane list`), else is the
