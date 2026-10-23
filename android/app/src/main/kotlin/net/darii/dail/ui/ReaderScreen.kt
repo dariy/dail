@@ -92,10 +92,27 @@ private fun MessageCard(
         }
         if (!message.expanded) return@Column
         message.status?.let { Text(it, Modifier.padding(vertical = 8.dp)) }
+        message.images?.let { images ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(images.text, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { send(UiEvent.Tap(images.toggle.action)) }) { Text(images.toggle.label) }
+            }
+        }
         message.body?.let { Blocks(it, send) }
         message.attachments.forEach { file ->
-            Text("${file.name} · ${file.size}", style = MaterialTheme.typography.bodySmall)
+            Row(
+                Modifier.fillMaxWidth().clickable { send(UiEvent.Tap(file.open)) },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Glyph("attach_file")
+                Column(Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                    Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${file.mime} · ${file.size}", style = MaterialTheme.typography.labelSmall)
+                }
+                ActionButton(Button(icon = "download", label = "Save ${file.name}", action = file.save), send)
+            }
         }
+        message.saveAll?.let { all -> TextButton(onClick = { send(UiEvent.Tap(all.action)) }) { Text(all.label) } }
         if (message.links.isNotEmpty()) {
             Text(
                 "Links (${message.links.size})",
@@ -204,9 +221,48 @@ private fun Block(
     }
 }
 
-/** Styled spans; a link span carries its action and nothing else of the target. */
+/** Spans, with the message's own pictures (while the sender's show) between runs of text. */
 @Composable
 private fun Spans(
+    spans: List<DocSpan>,
+    style: TextStyle,
+    send: (UiEvent) -> Unit,
+) {
+    if (spans.none { it.image != null }) {
+        SpanText(spans, style, send)
+        return
+    }
+    Column {
+        runs(spans).forEach { run ->
+            val image = run.singleOrNull()?.image
+            if (image == null) {
+                SpanText(run, style, send)
+            } else {
+                BlobImage(blobRequest("inline", image.blob, cid = image.cid), run[0].text) {
+                    SpanText(run, style, send)
+                }
+            }
+        }
+    }
+}
+
+/** Runs of text spans, each picture span a run of its own. */
+private fun runs(spans: List<DocSpan>): List<List<DocSpan>> {
+    val out = mutableListOf<MutableList<DocSpan>>()
+    spans.forEach { span ->
+        val last = out.lastOrNull()
+        if (span.image != null || last == null || last.last().image != null) {
+            out.add(mutableListOf(span))
+        } else {
+            last.add(span)
+        }
+    }
+    return out
+}
+
+/** Styled spans; a link span carries its action and nothing else of the target. */
+@Composable
+private fun SpanText(
     spans: List<DocSpan>,
     style: TextStyle,
     send: (UiEvent) -> Unit,

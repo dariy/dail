@@ -373,3 +373,28 @@ pub fn sample_document() -> app_core::document::Document {
         ],
     }
 }
+
+/// The fixture's newest thread open, its first message fetched (blob `b0`) with three
+/// attachments and the sample document.
+pub fn with_files() -> Phone {
+    let phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    let mut state = phone.state().clone();
+    let first = state.threads[&threads[0]].messages[0];
+    state.messages.get_mut(&first).unwrap().body = app_core::BodyState::Fetched {
+        blob: "b0".to_owned(),
+    };
+    let mut phone = Phone::new(state, 360, 800);
+    let (inbox, _) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenMailbox { id: inbox });
+    let mut body = html_body("Q3 numbers", &sample_document());
+    body["attachments"] = serde_json::json!([
+        {"part": 2, "filename": "chart.png", "content_type": "image/png", "size": 2048},
+        {"part": 3, "filename": "notes.txt", "content_type": "text/plain", "size": 12},
+        {"part": 4, "filename": "q3.pdf", "content_type": "application/pdf", "size": 120_000},
+        {"part": 5, "filename": "logo.png", "content_type": "image/png", "size": 10, "inline": true},
+    ]);
+    phone.bodies = Some(vec![body]);
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    phone
+}

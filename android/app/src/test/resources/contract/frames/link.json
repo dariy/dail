@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 45,
+    "action": 48,
     "icon": "edit",
     "label": "Compose"
   },
@@ -13,17 +13,17 @@
   },
   "link": {
     "close": {
-      "action": 48,
+      "action": 51,
       "icon": "close",
       "label": "Close"
     },
     "copy": {
-      "action": 47,
+      "action": 50,
       "icon": "content_copy",
       "label": "Copy"
     },
     "open": {
-      "action": 46,
+      "action": 49,
       "icon": "open_in_new",
       "label": "Open"
     },
@@ -32,32 +32,32 @@
   "reader": {
     "actions": [
       {
-        "action": 34,
+        "action": 36,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 35,
+        "action": 37,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 36,
+        "action": 38,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 37,
+        "action": 39,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 38,
+        "action": 40,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 39,
+        "action": 41,
         "icon": "reply",
         "label": "Reply"
       }
@@ -82,7 +82,7 @@
               },
               {
                 "bold": true,
-                "link": 42,
+                "link": 44,
                 "text": "the report"
               },
               {
@@ -157,16 +157,25 @@
             "blocks": [],
             "expanded": false,
             "label": "Signature",
-            "toggle": 43,
+            "toggle": 45,
             "type": "fold"
           }
         ],
         "date": "Nov 14",
         "expanded": true,
         "from": "Carol <carol@example.org>",
+        "images": {
+          "shown": false,
+          "text": "Pictures in this message are hidden.",
+          "toggle": {
+            "action": 47,
+            "icon": "visibility",
+            "label": "Show images from carol@example.org"
+          }
+        },
         "links": [
           {
-            "action": 44,
+            "action": 46,
             "icon": "link",
             "label": "https://example.org/q3"
           }
@@ -174,11 +183,11 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Q3 numbers See the report",
         "to": "alice@example.com",
-        "toggle": 41
+        "toggle": 43
       }
     ],
     "next": {
-      "action": 40,
+      "action": 42,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -190,17 +199,17 @@
   "top_bar": {
     "actions": [
       {
-        "action": 32,
+        "action": 34,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 33,
+        "action": 35,
         "label": "About"
       }
     ],
     "navigation": {
-      "action": 31,
+      "action": 33,
       "icon": "back",
       "label": "Back"
     },

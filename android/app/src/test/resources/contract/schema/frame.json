@@ -37,9 +37,21 @@
           "description": "The file name.",
           "type": "string"
         },
+        "open": {
+          "description": "Shows it in the app ([`Preview`]).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
         "part": {
           "description": "The MIME part.",
           "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "save": {
+          "description": "Saves it through the system's file picker.",
+          "format": "uint32",
           "minimum": 0,
           "type": "integer"
         },
@@ -52,7 +64,9 @@
         "part",
         "name",
         "mime",
-        "size"
+        "size",
+        "open",
+        "save"
       ],
       "type": "object"
     },
@@ -562,6 +576,17 @@
           "description": "A search word, while a search is open.",
           "type": "boolean"
         },
+        "image": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InlineImage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A picture of the message, shown in place of `text` (its alt text) while the sender's\npictures show."
+        },
         "italic": {
           "description": "Italic (also an image's alt text).",
           "type": "boolean"
@@ -815,6 +840,47 @@
         "type_scale",
         "metrics",
         "icons"
+      ],
+      "type": "object"
+    },
+    "ImagesBar": {
+      "description": "The pictures of a message body.",
+      "properties": {
+        "shown": {
+          "description": "Whether they show.",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "`Pictures in this message are hidden.`, or that they show.",
+          "type": "string"
+        },
+        "toggle": {
+          "$ref": "#/$defs/Button",
+          "description": "*Show images from …* or *Hide images from …*."
+        }
+      },
+      "required": [
+        "shown",
+        "text",
+        "toggle"
+      ],
+      "type": "object"
+    },
+    "InlineImage": {
+      "description": "A picture carried in the message (`cid:`), drawn from the body's blob.",
+      "properties": {
+        "blob": {
+          "description": "The body's blob key (`blob`'s `inline` request).",
+          "type": "string"
+        },
+        "cid": {
+          "description": "The part's Content-ID.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "blob",
+        "cid"
       ],
       "type": "object"
     },
@@ -1126,6 +1192,78 @@
       ],
       "type": "object"
     },
+    "Preview": {
+      "description": "A received attachment, shown in the app. There is no \"open with\": other apps get it only\nthrough *Save*.",
+      "properties": {
+        "blob": {
+          "description": "The body's blob key.",
+          "type": "string"
+        },
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Closes it."
+        },
+        "detail": {
+          "description": "The MIME type and the size.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/PreviewKind",
+          "description": "How to show it."
+        },
+        "name": {
+          "description": "The file name.",
+          "type": "string"
+        },
+        "note": {
+          "description": "What to say instead of the content (no preview for this type).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "part": {
+          "description": "The attachment's MIME part.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "save": {
+          "$ref": "#/$defs/Button",
+          "description": "*Save*."
+        }
+      },
+      "required": [
+        "name",
+        "detail",
+        "kind",
+        "blob",
+        "part",
+        "save",
+        "close"
+      ],
+      "type": "object"
+    },
+    "PreviewKind": {
+      "description": "How an attachment is shown in the app.",
+      "oneOf": [
+        {
+          "const": "image",
+          "description": "Decoded by the host (`blob`'s `image` request: width, height, RGBA).",
+          "type": "string"
+        },
+        {
+          "const": "text",
+          "description": "Cleaned text from the host (`blob`'s `text` request: UTF-8).",
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Not shown; it can be saved.",
+          "type": "string"
+        }
+      ]
+    },
     "QuoteFold": {
       "description": "The original below a reply or a forward: read-only, folded until tapped.",
       "properties": {
@@ -1254,6 +1392,17 @@
           "description": "The sender, in full (`Name <address>`).",
           "type": "string"
         },
+        "images": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImagesBar"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Whether the body's own pictures show, and the button that changes it for the sender,\nwhen the body has any (`show_images_from`; nothing remote ever loads)."
+        },
         "links": {
           "description": "*Links (N)*: every link target in the body, in full; a tap shows it before it opens.",
           "items": {
@@ -1264,6 +1413,17 @@
         "message": {
           "$ref": "#/$defs/MessageId",
           "description": "The message."
+        },
+        "save_all": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "*Save all*, with two attachments or more."
         },
         "snippet": {
           "description": "The start of the text, for a collapsed message.",
@@ -1767,6 +1927,17 @@
         }
       ],
       "description": "The command palette, while open (a sheet over the panes; Back leaves its step, then\ncloses it)."
+    },
+    "preview": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Preview"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A received attachment shown in the app (over the panes; Back closes it)."
     },
     "reader": {
       "anyOf": [

@@ -31,6 +31,7 @@ use crate::frame::{
 use crate::request::{Purpose, Reply, Request};
 
 mod reader;
+pub use reader::preview_text;
 mod sheet;
 
 /// How long a notice or an undo offer stays in the snackbar.
@@ -75,6 +76,10 @@ enum Act {
     OpenLink(String),
     /// Copy the link of the sheet.
     CopyLink(String),
+    /// Show a message's attachment in the app.
+    Preview(MessageId, usize),
+    /// Save attachments of the body with this blob.
+    Save(Option<String>, Vec<crate::event::SaveFile>),
 }
 
 /// The window, as the host last configured it.
@@ -149,6 +154,8 @@ pub struct Mobile {
     folds: HashSet<(MessageId, FoldKind)>,
     /// The tapped link, while its sheet is open.
     link: Option<String>,
+    /// The attachment shown in the app, by message and part.
+    preview: Option<(MessageId, usize)>,
 }
 
 impl Default for Mobile {
@@ -232,6 +239,7 @@ impl Mobile {
             result: None,
             folds: HashSet::new(),
             link: None,
+            preview: None,
         }
     }
 
@@ -467,6 +475,14 @@ impl Mobile {
                 self.copy_link(url);
                 Vec::new()
             }
+            Act::Preview(message, part) => {
+                self.preview = Some((message, part));
+                Vec::new()
+            }
+            Act::Save(blob, files) => {
+                self.save(blob, files);
+                Vec::new()
+            }
             Act::Pick(draft) => {
                 self.externals.push(External::PickFiles { draft });
                 Vec::new()
@@ -564,7 +580,10 @@ impl Mobile {
             self.about = false;
             return Vec::new();
         }
-        if self.result.take().is_some() || self.link.take().is_some() {
+        if self.result.take().is_some()
+            || self.link.take().is_some()
+            || self.preview.take().is_some()
+        {
             return Vec::new();
         }
         if state.view.palette_open {
@@ -699,12 +718,18 @@ impl Mobile {
         let result = self.result_view();
         if reader.is_none() {
             self.link = None;
+            self.preview = None;
         }
         let link = self.link_sheet();
+        let preview = self.preview_view(state);
+        if preview.is_none() {
+            self.preview = None;
+        }
         let back = self.about
             || palette.is_some()
             || result.is_some()
             || link.is_some()
+            || preview.is_some()
             || self.escape(state).is_some()
             || !state.view.checked.is_empty()
             || self.drawer_back(state);
@@ -729,6 +754,7 @@ impl Mobile {
             palette,
             result,
             link,
+            preview,
             back,
             wants_tick: self.wants_tick(state),
         }

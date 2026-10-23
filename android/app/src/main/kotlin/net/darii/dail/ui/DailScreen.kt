@@ -118,6 +118,10 @@ private fun FrameScaffold(
             AboutScreen(about, Modifier.padding(padding))
             return@Scaffold
         }
+        frame.preview?.let { preview ->
+            PreviewScreen(preview, send, Modifier.padding(padding))
+            return@Scaffold
+        }
         frame.result?.let { result ->
             ResultScreen(result, send, Modifier.padding(padding))
             return@Scaffold

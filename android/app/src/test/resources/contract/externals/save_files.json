@@ -1,0 +1,13 @@
+{
+  "args": {
+    "blob": "b0",
+    "files": [
+      {
+        "mime": "application/pdf",
+        "name": "q3.pdf",
+        "part": 2
+      }
+    ]
+  },
+  "external": "save_files"
+}

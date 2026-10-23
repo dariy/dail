@@ -51,6 +51,14 @@ pub enum BlobRequest {
         /// The attachment's index.
         part: usize,
     },
+    /// Attachment `part` as text for the preview: UTF-8, at most 256 KiB, every line cleaned
+    /// (`app_mobile::preview_text`).
+    Text {
+        /// The body's blob key.
+        blob: String,
+        /// The attachment's index.
+        part: usize,
+    },
     /// Attachment `part`, decoded as an image (within `app_io::images`' limits).
     Image {
         /// The body's blob key.

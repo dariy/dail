@@ -151,6 +151,16 @@ pub enum External {
         /// The URL.
         url: String,
     },
+    /// Save attachments of a stored message through the Storage Access Framework: one file
+    /// with the system's "create document" picker, several into a folder the user picks.
+    /// Nothing is overwritten (the documents provider gives a taken name a suffix). The host
+    /// reads each file with `blob`'s `attachment` request.
+    SaveFiles {
+        /// The body's blob key.
+        blob: String,
+        /// The files.
+        files: Vec<SaveFile>,
+    },
     /// Put this text on the clipboard.
     Copy {
         /// The text.
@@ -162,4 +172,16 @@ pub enum External {
         /// The draft being sent.
         draft: DraftId,
     },
+}
+
+/// One attachment to save.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SaveFile {
+    /// The MIME part.
+    pub part: usize,
+    /// The file name to suggest: the host makes it safe (`app_io::mime::safe_file_name`)
+    /// before Kotlin sees it.
+    pub name: String,
+    /// The MIME type.
+    pub mime: String,
 }

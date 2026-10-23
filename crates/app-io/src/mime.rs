@@ -338,7 +338,8 @@ pub fn attachment_files(raw: &[u8], parts: &[usize]) -> Result<Vec<(String, Vec<
 }
 
 /// A file name that is safe to create in a folder: the last path component of `name`, without
-/// control characters and the characters Windows forbids, without leading dots (no hidden or
+/// control characters, bidirectional controls (a right-to-left override would make
+/// `invoice\u{202e}fdp.exe` read as `invoiceexe.pdf`) and the characters Windows forbids, without leading dots (no hidden or
 /// dot files) and trailing dots or spaces, not a reserved Windows device name, at most 200
 /// bytes; `attachment-<part>` if nothing is left.
 pub fn safe_file_name(name: Option<&str>, part: usize) -> String {
@@ -346,7 +347,11 @@ pub fn safe_file_name(name: Option<&str>, part: usize) -> String {
     let last = name.rsplit(['/', '\\']).next().unwrap_or_default();
     let cleaned: String = last
         .chars()
-        .filter(|c| !c.is_control() && !matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*'))
+        .filter(|c| {
+            !c.is_control()
+                && !is_bidi_control(*c)
+                && !matches!(c, '<' | '>' | ':' | '"' | '|' | '?' | '*')
+        })
         .collect();
     let mut cleaned = cleaned
         .trim()
@@ -375,6 +380,14 @@ pub fn safe_file_name(name: Option<&str>, part: usize) -> String {
     } else {
         cleaned
     }
+}
+
+/// The characters that reorder text (embeddings, overrides, isolates and marks).
+const fn is_bidi_control(c: char) -> bool {
+    matches!(
+        c,
+        '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{200e}' | '\u{200f}' | '\u{061c}'
+    )
 }
 
 /// `name (n).ext`: the `n`-th alternative to an existing `name.ext`.
@@ -598,6 +611,10 @@ iVBORw0K\r\n--b--\r\n";
         assert_eq!(safe_file_name(Some("CON.txt"), 2), "_CON.txt");
         assert_eq!(safe_file_name(Some("com1"), 2), "_com1");
         assert_eq!(safe_file_name(Some("..."), 7), "attachment-7");
+        assert_eq!(
+            safe_file_name(Some("invoice\u{202e}fdp.exe\u{2066}"), 2),
+            "invoicefdp.exe"
+        );
         assert_eq!(safe_file_name(None, 3), "attachment-3");
         let long = format!("{}.pdf", "é".repeat(150));
         let safe = safe_file_name(Some(&long), 1);

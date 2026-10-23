@@ -463,7 +463,7 @@ encryption (SEC-1), 32-bit ARM.
   (paragraphs, headings, lists, quotes, preformatted text, tables, links), plain text with folds; the toolbar (archive,
   trash, star, read, *Move…* opens the palette at its step), the previous and next conversation; *Links (N)*; a tap on
   a link shows its full target first (*Open* in the browser, *Copy*); Back is the `Escape` binding
-- [ ] [mobile] [kt] Attachments out and images: image and text previews in the app (bytes through `blob`, decoded by
+- [x] [mobile] [kt] Attachments out and images: image and text previews in the app (bytes through `blob`, decoded by
   `app_io::images`); *Save* and *Save all* through the Storage Access Framework (names from `safe_file_name`, never
   overwriting); no "open with"; inline `cid:` images for senders in `images_from` (`show_images_from`)
 - [ ] [mobile] Untrusted text: every string from mail goes through `app_front::text` before it enters a frame. Test

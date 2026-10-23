@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use app_core::{AppState, Command, DraftId, Origin};
 use app_io::{ProfileDirs, ProfileStore};
+use app_mobile::event::SaveFile;
 use app_mobile::{External, Frame, Mobile, Purpose, Reply, Request, UiEvent};
 use app_sync::{
     AuditLog, Backend, Bridge, LiveBackend, NetImap, NetVerifier, ProfileLock, RandomSeeds,
@@ -151,6 +152,10 @@ impl Host {
             let (bytes, decode) = match request {
                 BlobRequest::Attachment { blob, part } => {
                     (client.attachment_part(blob, *part).await.ok()??.1, false)
+                }
+                BlobRequest::Text { blob, part } => {
+                    let bytes = client.attachment_part(blob, *part).await.ok()??.1;
+                    return Some(app_mobile::preview_text(&bytes.bytes).into_bytes());
                 }
                 BlobRequest::Image { blob, part } => {
                     (client.attachment_part(blob, *part).await.ok()??.1, true)
@@ -301,7 +306,25 @@ fn next(bridge: &Bridge<Purpose>, mobile: &mut Mobile) -> Output {
     submit(bridge, mobile.refresh(&state));
     Output {
         frame: mobile.frame(&state),
-        externals: mobile.externals(),
+        externals: mobile.externals().into_iter().map(safe_names).collect(),
+    }
+}
+
+/// Makes the names of files to save safe (`app_io::mime::safe_file_name`: no path, no control
+/// characters, no reserved names) before Kotlin suggests them to the documents provider.
+fn safe_names(external: External) -> External {
+    match external {
+        External::SaveFiles { blob, files } => External::SaveFiles {
+            blob,
+            files: files
+                .into_iter()
+                .map(|file| SaveFile {
+                    name: app_io::mime::safe_file_name(Some(&file.name), file.part),
+                    ..file
+                })
+                .collect(),
+        },
+        other => other,
     }
 }
 
@@ -377,4 +400,30 @@ async fn open_demo(fixture: &str) -> Result<Session, HostError> {
 #[cfg(not(feature = "demo"))]
 async fn open_demo(_fixture: &str) -> Result<Session, HostError> {
     Err(HostError::NoBackend("memory"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn names_to_save_are_made_safe() {
+        let external = External::SaveFiles {
+            blob: "b".to_owned(),
+            files: vec![SaveFile {
+                part: 3,
+                name: "../../etc/\u{202e}fdp.exe\u{1b}".to_owned(),
+                mime: "application/pdf".to_owned(),
+            }],
+        };
+        let files = match safe_names(external) {
+            External::SaveFiles { files, .. } => files,
+            _ => Vec::new(),
+        };
+        assert_eq!(files.len(), 1, "still a save");
+        let name = &files[0].name;
+        assert!(!name.contains('/') && !name.contains('\u{202e}') && !name.contains('\u{1b}'));
+        assert_eq!(files[0].part, 3);
+        assert_eq!(safe_names(External::Haptic), External::Haptic);
+    }
 }

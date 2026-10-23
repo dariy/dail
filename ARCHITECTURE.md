@@ -856,7 +856,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   attachment (an icon tile by type, the name, size and type) with the icon buttons *Save…*, *Preview* and, for PDFs,
   *Open ↗*, and *Save all…* by the caption (the shown, non-inline ones). The folder comes from `rfd`'s folder dialog on its own thread; the choice
   becomes `save_attachments {message, parts, dir}`. The runtime (`app_sync::saves`; `app-testkit` writes into its fake
-  file system) writes each part under `app_io::mime::safe_file_name` (last path component, no control or
+  file system) writes each part under `app_io::mime::safe_file_name` (last path component, no control, bidi or
   Windows-forbidden characters, no leading dots, no reserved device names, ≤ 200 bytes) with `create_new`, so an
   existing file is never overwritten: the copy becomes `name (1).ext`. The message's entry in `status.saves` shows
   *Saving into …*, *Saved as …* or the error. PNG/JPEG/GIF/WebP and text attachments (not `text/html`) have
@@ -1200,7 +1200,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
@@ -1265,7 +1265,19 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
   palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list,
-  with `position` (`2 of 14`). Back closes the link dialog, then the thread (the `Escape` binding).
+  with `position` (`2 of 14`). Back closes the link dialog or the preview, then the thread (the `Escape` binding).
+- **Attachments and pictures.** An expanded message lists its attachments (not the inline parts): a tap opens
+  `preview` over the panes, a picture (`kind: image`, the host's `blob` `image` request decoded by `app_io::images`),
+  text (`kind: text`, not HTML: `blob`'s `text` request, which answers `app_mobile::preview_text` — UTF-8, at most
+  256 KiB, every line cleaned) or a note that dail does not show the type. There is no "open with": other apps get a
+  file only through *Save*. *Save* (one file) and *Save all (N)* ask for `External::SaveFiles{blob, files}`; the host
+  replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin reads each file with
+  `blob`'s `attachment` request into a document the Storage Access Framework creates: one file through the "create
+  document" picker, several through a folder (`OpenDocumentTree`, `DocumentsContract.createDocument`, which gives a
+  taken name a suffix, so nothing is overwritten). A body with `cid:` pictures shows *Pictures in this message are
+  hidden.* and *Show images from \<sender\>* (`show_images_from`); while the sender is in `images_from`, those spans
+  carry `image {blob, cid}` and Kotlin draws `blob`'s `inline` answer in place of the alt text. Nothing remote ever
+  loads.
 - **The palette** (`palette`, over the panes) is `app_front::palette::Palette` drawn as rows with action IDs: the top
   bar's search (`open_palette`, like the desktop's search pill) opens it at the root (the available registry
   commands, mailboxes and recent threads under their captions; one ranked list once text is typed, ending in *Search
@@ -1308,7 +1320,8 @@ map onto; it builds and is tested on the desktop.
 - **`event(UiEvent)` / `frame()`** return `Output{frame, externals}`: the presenter's requests are submitted through
   the bridge (only queued, never awaited), the replies fed back, the bodies for the open thread asked for. `wake` (from
   runtime threads) says a new frame is ready.
-- **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, or `{image: {blob, part}}` /
+- **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, `{text: {blob, part}}` as
+  `app_mobile::preview_text`, or `{image: {blob, part}}` /
   `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
   if it cannot be read or decoded.
 - **`import(draft, name, source)`** (IO threads, blocks while it copies): a picked or shared file. Kotlin opens the

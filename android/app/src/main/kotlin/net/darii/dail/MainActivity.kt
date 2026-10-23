@@ -8,6 +8,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.view.HapticFeedbackConstants
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -15,6 +16,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.luminance
@@ -26,7 +28,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import net.darii.dail.ui.DailScreen
 import net.darii.dail.ui.DailTheme
+import net.darii.dail.ui.LocalBlobs
+import net.darii.dail.ui.SaveFile
 import net.darii.dail.ui.UiEvent
+import net.darii.dail.ui.blobRequest
 import net.darii.dail.ui.color
 
 /** The one activity: draws the host's frames edge to edge and returns the user's events. */
@@ -55,6 +60,70 @@ class MainActivity : ComponentActivity() {
             if (uris.isEmpty()) return@registerForActivityResult
             io.execute { uris.forEach { host.import(draft, it) } }
         }
+
+    /** The attachments the open "create document" or folder picker saves. */
+    private var saving: Pair<String, List<SaveFile>>? = null
+
+    /** One file: the system's "create document" picker, which never overwrites without asking. */
+    private val createOne =
+        registerForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+            val (blob, files) = saving ?: return@registerForActivityResult
+            saving = null
+            val file = files.firstOrNull() ?: return@registerForActivityResult
+            if (uri != null) io.execute { report(listOf(write(blob, file, uri))) }
+        }
+
+    /** Several files: a folder; each becomes a new document (the provider renames taken names). */
+    private val createAll =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+            val (blob, files) = saving ?: return@registerForActivityResult
+            saving = null
+            if (tree == null) return@registerForActivityResult
+            io.execute {
+                val folder =
+                    DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+                report(
+                    files.map { file ->
+                        val uri =
+                            runCatching {
+                                DocumentsContract.createDocument(contentResolver, folder, file.mime, file.name)
+                            }.getOrNull()
+                        uri != null && write(blob, file, uri)
+                    },
+                )
+            }
+        }
+
+    private fun save(
+        blob: String,
+        files: List<SaveFile>,
+    ) {
+        saving = blob to files
+        if (files.size == 1) createOne.launch(files[0].name) else createAll.launch(null)
+    }
+
+    /** Writes one attachment's bytes (read through `blob`) into a new document. */
+    private fun write(
+        blob: String,
+        file: SaveFile,
+        uri: Uri,
+    ): Boolean {
+        val bytes = host.blob(blobRequest("attachment", blob, part = file.part)) ?: return false
+        return runCatching {
+            contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
+        }.getOrDefault(false)
+    }
+
+    private fun report(saved: List<Boolean>) {
+        val good = saved.count { it }
+        val text =
+            when {
+                good == saved.size && good == 1 -> "Saved."
+                good == saved.size -> "Saved $good files."
+                else -> "Saved $good of ${saved.size} files."
+            }
+        runOnUiThread { Toast.makeText(this, text, Toast.LENGTH_SHORT).show() }
+    }
 
     /** Opens an `http(s)` URL the user saw in full and chose to open, in the browser. */
     private fun openUrl(url: String) {
@@ -87,6 +156,12 @@ class MainActivity : ComponentActivity() {
 
                 "open_url" -> {
                     external.args?.url?.let { url -> runOnUiThread { openUrl(url) } }
+                }
+
+                "save_files" -> {
+                    val blob = external.args?.blob
+                    val files = external.args?.files.orEmpty()
+                    if (blob != null && files.isNotEmpty()) runOnUiThread { save(blob, files) }
                 }
 
                 "copy" -> {
@@ -153,7 +228,9 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(chromeDark, contentDark) {
                 enableEdgeToEdge(statusBarStyle = bars(chromeDark), navigationBarStyle = bars(contentDark))
             }
-            DailTheme(theme, dark) { DailScreen(screen, host::send) }
+            CompositionLocalProvider(LocalBlobs provides host::blob) {
+                DailTheme(theme, dark) { DailScreen(screen, host::send) }
+            }
         }
     }
 

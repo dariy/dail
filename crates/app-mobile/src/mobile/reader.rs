@@ -13,9 +13,10 @@ use app_front::text::{clean, clean_lines};
 use app_front::{fold, format, highlight, palette};
 
 use super::{Act, Mobile};
-use crate::event::External;
+use crate::event::{External, SaveFile};
 use crate::frame::{
-    Attachment, Button, DocBlock, DocCell, DocSpan, LinkSheet, Reader, ReaderMessage,
+    Attachment, Button, DocBlock, DocCell, DocSpan, ImagesBar, InlineImage, LinkSheet, Preview,
+    PreviewKind, Reader, ReaderMessage,
 };
 use crate::request::Request;
 
@@ -37,6 +38,8 @@ struct Doc<'a> {
     mobile: &'a mut Mobile,
     message: MessageId,
     words: &'a [String],
+    /// The body's blob, while the sender's pictures show.
+    images: Option<&'a str>,
 }
 
 impl Doc<'_> {
@@ -107,7 +110,7 @@ impl Doc<'_> {
     }
 
     /// Spans with their link actions, cut at the search words. An inline image shows as its
-    /// alt text here (the pictures of `show_images_from` come with the attachments).
+    /// alt text, or as itself while the sender's pictures show.
     fn spans(&mut self, spans: &[Span]) -> Vec<DocSpan> {
         let mut out = Vec::new();
         for span in spans {
@@ -115,6 +118,14 @@ impl Doc<'_> {
                 .link
                 .as_ref()
                 .map(|url| self.mobile.add(Act::Link(url.clone())));
+            let image = span
+                .image
+                .as_ref()
+                .zip(self.images)
+                .map(|(cid, blob)| InlineImage {
+                    blob: blob.to_owned(),
+                    cid: cid.clone(),
+                });
             let style = DocSpan {
                 text: String::new(),
                 bold: span.bold,
@@ -123,6 +134,7 @@ impl Doc<'_> {
                 strike: span.strike,
                 hit: false,
                 link,
+                image,
             };
             out.extend(self.marked(&span.text, &style));
         }
@@ -333,6 +345,20 @@ impl Mobile {
                 .chars()
                 .take(120)
                 .collect::<String>();
+            let blob = match &message.body {
+                BodyState::Fetched { blob } => Some(blob.clone()),
+                _ => None,
+            };
+            let sender = message
+                .from
+                .first()
+                .map(|a| a.email.clone())
+                .unwrap_or_default();
+            let pictures = loaded
+                .as_ref()
+                .and_then(|b| b.document.as_ref())
+                .is_some_and(|d| !d.images().is_empty());
+            let shown = pictures && state.settings.shows_images_from(&sender);
             let (body, status) = match (expanded, &loaded, &message.body) {
                 (false, _, _) => (None, None),
                 (true, Some(loaded), _) => {
@@ -340,6 +366,7 @@ impl Mobile {
                         mobile: self,
                         message: message.id,
                         words: &words,
+                        images: blob.as_deref().filter(|_| shown),
                     };
                     let blocks = match loaded.document.as_ref().filter(|d| !d.blocks.is_empty()) {
                         Some(document) => doc.blocks(&document.blocks),
@@ -367,6 +394,78 @@ impl Mobile {
                     .collect(),
                 _ => Vec::new(),
             };
+            let images = (expanded && pictures && !sender.is_empty()).then(|| {
+                let who = clean(&sender);
+                let (text, label, cmd) = if shown {
+                    (
+                        "Showing the pictures in this message.",
+                        format!("Hide images from {who}"),
+                        Command::HideImagesFrom {
+                            sender: sender.clone(),
+                        },
+                    )
+                } else {
+                    (
+                        "Pictures in this message are hidden.",
+                        format!("Show images from {who}"),
+                        Command::ShowImagesFrom {
+                            sender: sender.clone(),
+                        },
+                    )
+                };
+                ImagesBar {
+                    shown,
+                    text: text.to_owned(),
+                    toggle: Button {
+                        icon: Some(
+                            if shown {
+                                "visibility_off"
+                            } else {
+                                "visibility"
+                            }
+                            .to_owned(),
+                        ),
+                        label,
+                        action: self.add(Act::Run(cmd)),
+                    },
+                }
+            });
+            let files = loaded
+                .as_ref()
+                .filter(|_| expanded)
+                .map(|b| b.attachments.clone())
+                .unwrap_or_default();
+            let mut attachments = Vec::new();
+            for file in &files {
+                let save = SaveFile {
+                    part: file.part,
+                    name: file.name.clone(),
+                    mime: file.content_type.clone(),
+                };
+                attachments.push(Attachment {
+                    part: file.part,
+                    name: clean(&file.name),
+                    mime: clean(&file.content_type),
+                    size: format::size(file.size),
+                    open: self.add(Act::Preview(message.id, file.part)),
+                    save: self.add(Act::Save(blob.clone(), vec![save])),
+                });
+            }
+            let save_all = (files.len() > 1).then(|| {
+                let all = files
+                    .iter()
+                    .map(|file| SaveFile {
+                        part: file.part,
+                        name: file.name.clone(),
+                        mime: file.content_type.clone(),
+                    })
+                    .collect();
+                self.button(
+                    "download",
+                    &format!("Save all ({})", files.len()),
+                    Act::Save(blob.clone(), all),
+                )
+            });
             let to: Vec<String> = message
                 .to
                 .iter()
@@ -386,20 +485,9 @@ impl Mobile {
                 snippet: clean(&snippet),
                 body,
                 status,
-                attachments: loaded
-                    .as_ref()
-                    .map(|b| {
-                        b.attachments
-                            .iter()
-                            .map(|a| Attachment {
-                                part: a.part,
-                                name: clean(&a.name),
-                                mime: clean(&a.content_type),
-                                size: format::size(a.size),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default(),
+                attachments,
+                save_all,
+                images,
                 links,
             });
         }
@@ -490,6 +578,92 @@ impl Mobile {
     pub(super) fn toggle_fold(&mut self, message: MessageId, kind: FoldKind) {
         if !self.folds.remove(&(message, kind)) {
             self.folds.insert((message, kind));
+        }
+    }
+}
+
+/// Text a preview carries at most.
+const MAX_PREVIEW_BYTES: usize = 256 * 1024;
+
+/// A text attachment's bytes as the preview shows them: UTF-8 (invalid sequences replaced),
+/// at most 256 KiB, every line cleaned (`app_front::text`). The host answers `blob`'s `text`
+/// request with it.
+pub fn preview_text(bytes: &[u8]) -> String {
+    let cut = bytes.len() > MAX_PREVIEW_BYTES;
+    let text = String::from_utf8_lossy(bytes.get(..MAX_PREVIEW_BYTES).unwrap_or(bytes));
+    let mut out = clean_text(&text);
+    if cut {
+        out.push_str("\n…");
+    }
+    out
+}
+
+/// How an attachment of type `mime` is shown (HTML is not shown as its source, as on the
+/// desktop).
+fn preview_kind(mime: &str) -> PreviewKind {
+    let mime = mime.trim().to_ascii_lowercase();
+    if mime.starts_with("image/") {
+        PreviewKind::Image
+    } else if mime.starts_with("text/") && !mime.starts_with("text/html") {
+        PreviewKind::Text
+    } else {
+        PreviewKind::None
+    }
+}
+
+impl Mobile {
+    /// The attachment shown in the app, while open (and still in the open thread).
+    pub(super) fn preview_view(&mut self, state: &AppState) -> Option<Preview> {
+        let (message, part) = self.preview?;
+        let blob = match state.messages.get(&message).map(|m| &m.body) {
+            Some(BodyState::Fetched { blob }) => blob.clone(),
+            _ => return None,
+        };
+        let file = self
+            .bodies
+            .get(message)?
+            .attachments
+            .iter()
+            .find(|a| a.part == part)?
+            .clone();
+        let kind = preview_kind(&file.content_type);
+        let save = SaveFile {
+            part,
+            name: file.name.clone(),
+            mime: file.content_type.clone(),
+        };
+        let save = self.button(
+            "download",
+            "Save",
+            Act::Save(Some(blob.clone()), vec![save]),
+        );
+        let close = self.button("close", "Close", Act::Back);
+        Some(Preview {
+            name: clean(&file.name),
+            detail: format!(
+                "{} · {}",
+                clean(&file.content_type),
+                format::size(file.size)
+            ),
+            kind,
+            blob,
+            part,
+            note: (kind == PreviewKind::None).then(|| {
+                "dail does not show this kind of file. Save it to open it in another app."
+                    .to_owned()
+            }),
+            save,
+            close,
+        })
+    }
+
+    /// *Save* or *Save all*: the host's pickers, with the names made safe by the host.
+    pub(super) fn save(&mut self, blob: Option<String>, files: Vec<SaveFile>) {
+        match blob {
+            Some(blob) if !files.is_empty() => {
+                self.externals.push(External::SaveFiles { blob, files });
+            }
+            _ => self.notify("The message is not downloaded yet."),
         }
     }
 }

@@ -116,6 +116,16 @@ class Host(
         }
     }
 
+    /**
+     * `blob`'s answer to [request] (`{"attachment" | "image" | "text": {blob, part}}` or
+     * `{"inline": {blob, cid}}`), on the calling (IO) thread; `null` if it cannot be read.
+     */
+    fun blob(request: JsonObject): ByteArray? {
+        val opened = ui.submit<Int> { handle }.get()
+        if (opened == 0) return null
+        return Native.blob(opened, request.toString())
+    }
+
     /** The JSON of the frame last drawn, for the debug bridge. */
     fun frameJson(): String? = lastFrame
 

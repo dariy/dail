@@ -142,6 +142,15 @@ fn the_config_is_json() {
             cid: "logo".to_owned()
         }
     );
+    let request: BlobRequest =
+        serde_json::from_str(r#"{"text": {"blob": "b", "part": 2}}"#).unwrap();
+    assert_eq!(
+        request,
+        BlobRequest::Text {
+            blob: "b".to_owned(),
+            part: 2
+        }
+    );
 }
 
 #[cfg(not(feature = "demo"))]

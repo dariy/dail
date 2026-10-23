@@ -77,6 +77,16 @@ fn frames() -> Vec<(String, Frame)> {
     let link = phone.frame().reader.unwrap().messages[0].links[0].action;
     phone.tap(link);
     out.push(("link".to_owned(), phone.frame()));
+    let mut phone = crate::support::with_files();
+    let images = phone.frame().reader.unwrap().messages[0]
+        .images
+        .clone()
+        .unwrap();
+    phone.tap(images.toggle.action);
+    out.push(("attachments".to_owned(), phone.frame()));
+    let open = phone.frame().reader.unwrap().messages[0].attachments[0].open;
+    phone.tap(open);
+    out.push(("preview".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::SetSearch {
         query: "lunch".to_owned(),
@@ -168,6 +178,14 @@ fn externals() -> Vec<External> {
         External::Copy {
             text: "https://example.org/a".to_owned(),
         },
+        External::SaveFiles {
+            blob: "b0".to_owned(),
+            files: vec![app_mobile::event::SaveFile {
+                part: 2,
+                name: "q3.pdf".to_owned(),
+                mime: "application/pdf".to_owned(),
+            }],
+        },
     ];
     for external in &all {
         match external {
@@ -176,7 +194,8 @@ fn externals() -> Vec<External> {
             | External::ImportFiles { .. }
             | External::Sending { .. }
             | External::OpenUrl { .. }
-            | External::Copy { .. } => {}
+            | External::Copy { .. }
+            | External::SaveFiles { .. } => {}
         }
     }
     all

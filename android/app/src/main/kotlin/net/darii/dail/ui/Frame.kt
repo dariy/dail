@@ -38,6 +38,7 @@ data class Frame(
     val palette: PaletteSheet? = null,
     val result: ResultView? = null,
     val link: LinkSheet? = null,
+    val preview: Preview? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -210,7 +211,48 @@ data class ReaderMessage(
     val body: List<DocBlock>? = null,
     val status: String? = null,
     val attachments: List<Attachment>,
+    @SerialName("save_all") val saveAll: Button? = null,
+    val images: ImagesBar? = null,
     val links: List<Button>,
+)
+
+@Serializable
+data class ImagesBar(
+    val shown: Boolean,
+    val text: String,
+    val toggle: Button,
+)
+
+/** A picture carried in the message: `blob`'s `inline` request. */
+@Serializable
+data class InlineImage(
+    val blob: String,
+    val cid: String,
+)
+
+@Serializable
+enum class PreviewKind {
+    @SerialName("image")
+    Image,
+
+    @SerialName("text")
+    Text,
+
+    @SerialName("none")
+    None,
+}
+
+/** A received attachment shown in the app; other apps get it only through Save. */
+@Serializable
+data class Preview(
+    val name: String,
+    val detail: String,
+    val kind: PreviewKind,
+    val blob: String,
+    val part: Int,
+    val note: String? = null,
+    val save: Button,
+    val close: Button,
 )
 
 /** A block of a message body (`app_mobile::frame::DocBlock`), by its `type`. */
@@ -284,6 +326,7 @@ data class DocSpan(
     val strike: Boolean = false,
     val hit: Boolean = false,
     val link: ActionId? = null,
+    val image: InlineImage? = null,
 )
 
 /** A tapped link's full target, before it opens. */
@@ -301,6 +344,8 @@ data class Attachment(
     val name: String,
     val mime: String,
     val size: String,
+    val open: ActionId,
+    val save: ActionId,
 )
 
 @Serializable
@@ -397,6 +442,16 @@ data class ExternalArgs(
     val uris: List<String> = emptyList(),
     val url: String? = null,
     val text: String? = null,
+    val blob: String? = null,
+    val files: List<SaveFile> = emptyList(),
+)
+
+/** One attachment to save; the name was made safe by the host. */
+@Serializable
+data class SaveFile(
+    val part: Int,
+    val name: String,
+    val mime: String,
 )
 
 /** `app_theme`'s tokens (`app_mobile::theme`): colour roles as `#RRGGBBAA`, styles in sp. */

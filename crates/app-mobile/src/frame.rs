@@ -65,6 +65,9 @@ pub struct Frame {
     /// A tapped link's full target, before it opens (a sheet; Back closes it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<LinkSheet>,
+    /// A received attachment shown in the app (over the panes; Back closes it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<Preview>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
@@ -358,6 +361,13 @@ pub struct ReaderMessage {
     pub status: Option<String>,
     /// Its attachments.
     pub attachments: Vec<Attachment>,
+    /// *Save all*, with two attachments or more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub save_all: Option<Button>,
+    /// Whether the body's own pictures show, and the button that changes it for the sender,
+    /// when the body has any (`show_images_from`; nothing remote ever loads).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub images: Option<ImagesBar>,
     /// *Links (N)*: every link target in the body, in full; a tap shows it before it opens.
     pub links: Vec<Button>,
 }
@@ -450,6 +460,10 @@ pub struct DocSpan {
     /// A link: a tap shows its full target first (the text may say something else).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<ActionId>,
+    /// A picture of the message, shown in place of `text` (its alt text) while the sender's
+    /// pictures show.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image: Option<InlineImage>,
 }
 
 /// A link's full target, before it opens.
@@ -476,6 +490,65 @@ pub struct Attachment {
     pub mime: String,
     /// The size, for people (`12 KB`).
     pub size: String,
+    /// Shows it in the app ([`Preview`]).
+    pub open: ActionId,
+    /// Saves it through the system's file picker.
+    pub save: ActionId,
+}
+
+/// The pictures of a message body.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ImagesBar {
+    /// Whether they show.
+    pub shown: bool,
+    /// `Pictures in this message are hidden.`, or that they show.
+    pub text: String,
+    /// *Show images from …* or *Hide images from …*.
+    pub toggle: Button,
+}
+
+/// A picture carried in the message (`cid:`), drawn from the body's blob.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct InlineImage {
+    /// The body's blob key (`blob`'s `inline` request).
+    pub blob: String,
+    /// The part's Content-ID.
+    pub cid: String,
+}
+
+/// How an attachment is shown in the app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PreviewKind {
+    /// Decoded by the host (`blob`'s `image` request: width, height, RGBA).
+    Image,
+    /// Cleaned text from the host (`blob`'s `text` request: UTF-8).
+    Text,
+    /// Not shown; it can be saved.
+    None,
+}
+
+/// A received attachment, shown in the app. There is no "open with": other apps get it only
+/// through *Save*.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Preview {
+    /// The file name.
+    pub name: String,
+    /// The MIME type and the size.
+    pub detail: String,
+    /// How to show it.
+    pub kind: PreviewKind,
+    /// The body's blob key.
+    pub blob: String,
+    /// The attachment's MIME part.
+    pub part: usize,
+    /// What to say instead of the content (no preview for this type).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// *Save*.
+    pub save: Button,
+    /// Closes it.
+    pub close: Button,
 }
 
 /// The settings page (its sections arrive with Wave 4 A6).

@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 15,
+    "action": 16,
     "icon": "edit",
     "label": "Compose"
   },
@@ -146,6 +146,15 @@
         "date": "Nov 14",
         "expanded": true,
         "from": "Carol <carol@example.org>",
+        "images": {
+          "shown": false,
+          "text": "Pictures in this message are hidden.",
+          "toggle": {
+            "action": 15,
+            "icon": "visibility",
+            "label": "Show images from carol@example.org"
+          }
+        },
         "links": [
           {
             "action": 14,

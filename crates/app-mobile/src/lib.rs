@@ -15,6 +15,6 @@ pub mod theme;
 
 pub use event::{External, UiEvent};
 pub use frame::{Class, Frame};
-pub use mobile::Mobile;
+pub use mobile::{Mobile, preview_text};
 pub use request::{Purpose, Reply, Request};
 pub use theme::{About, FrameTheme};
