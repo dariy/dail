@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.luminance
@@ -36,12 +37,36 @@ class MainActivity : ComponentActivity() {
             HapticFeedbackConstants.KEYBOARD_TAP
         }
 
+    /** The draft the open file picker attaches to. */
+    private var picking: String? = null
+
+    /** The system file picker; each picked file is copied and attached off the main thread. */
+    private val pick =
+        registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            val draft = picking ?: return@registerForActivityResult
+            picking = null
+            if (uris.isEmpty()) return@registerForActivityResult
+            io.execute { uris.forEach { host.import(draft, it) } }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        picking = savedInstanceState?.getString(PICKING)
         host.onExternal = { external ->
-            if (external.external == "haptic") {
-                runOnUiThread { window.decorView.performHapticFeedback(haptic) }
+            when (external.external) {
+                "haptic" -> {
+                    runOnUiThread { window.decorView.performHapticFeedback(haptic) }
+                }
+
+                "pick_files" -> {
+                    external.args?.draft?.let { draft ->
+                        runOnUiThread {
+                            picking = draft
+                            pick.launch(arrayOf("*/*"))
+                        }
+                    }
+                }
             }
         }
         host.open()
@@ -91,6 +116,11 @@ class MainActivity : ComponentActivity() {
     private fun bars(dark: Boolean) =
         if (dark) SystemBarStyle.dark(TRANSPARENT) else SystemBarStyle.light(TRANSPARENT, TRANSPARENT)
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        picking?.let { outState.putString(PICKING, it) }
+    }
+
     override fun onStart() {
         super.onStart()
         host.send(UiEvent.Visible(true))
@@ -102,7 +132,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
+        /** Copies of picked files, one at a time, off the main thread. */
+        val io: java.util.concurrent.ExecutorService =
+            java.util.concurrent.Executors.newSingleThreadExecutor {
+                Thread(
+                    it,
+                    "dail-import",
+                ).apply { isDaemon = true }
+            }
+
         const val TICK_MS = 1_000L
+        const val PICKING = "picking"
         const val HALF = 0.5f
         const val TRANSPARENT = android.graphics.Color.TRANSPARENT
     }

@@ -106,6 +106,22 @@ fn events() -> Vec<UiEvent> {
     all
 }
 
+/// One of every `External`; the `match` breaks the build when a variant is added.
+fn externals() -> Vec<External> {
+    let all = vec![
+        External::Haptic,
+        External::PickFiles {
+            draft: serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap(),
+        },
+    ];
+    for external in &all {
+        match external {
+            External::Haptic | External::PickFiles { .. } => {}
+        }
+    }
+    all
+}
+
 fn tag(value: &serde_json::Value, key: &str) -> String {
     value[key].as_str().unwrap().to_owned()
 }
@@ -127,8 +143,10 @@ fn fixtures() -> BTreeMap<String, String> {
         let value = serde_json::to_value(event).unwrap();
         put(format!("events/{}.json", tag(&value, "event")), value);
     }
-    let value = serde_json::to_value(External::Haptic).unwrap();
-    put(format!("externals/{}.json", tag(&value, "external")), value);
+    for external in externals() {
+        let value = serde_json::to_value(external).unwrap();
+        put(format!("externals/{}.json", tag(&value, "external")), value);
+    }
     put(
         "schema/frame.json".to_owned(),
         serde_json::to_value(schemars::schema_for!(Frame)).unwrap(),

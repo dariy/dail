@@ -4,10 +4,16 @@
     "actions": [
       {
         "action": 16,
+        "icon": "attach_file",
+        "label": "Attach files"
+      },
+      {
+        "action": 17,
         "icon": "delete",
         "label": "Discard"
       }
     ],
+    "attachments": [],
     "body": {
       "text": "",
       "version": 5
@@ -81,7 +87,7 @@
   "revision": 2,
   "snackbar": {
     "action": {
-      "action": 17,
+      "action": 18,
       "label": "Undo"
     },
     "text": "Reply"

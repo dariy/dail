@@ -1,9 +1,10 @@
 //! `Host`: one session and its presenter, driven by Kotlin's calls (ADR 0009).
 
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
-use app_core::{AppState, Command, Origin};
+use app_core::{AppState, Command, DraftId, Origin};
 use app_io::{ProfileDirs, ProfileStore};
 use app_mobile::{External, Frame, Mobile, Purpose, Reply, Request, UiEvent};
 use app_sync::{
@@ -37,6 +38,9 @@ pub struct Host {
     client: SessionClient,
     mobile: Mutex<Mobile>,
     task: Mutex<Option<JoinHandle<()>>>,
+    wake: Wake,
+    /// Where picked and shared files are copied (`outgoing`).
+    outgoing: PathBuf,
     _lock: Option<ProfileLock>,
 }
 
@@ -75,23 +79,40 @@ impl Host {
             }
             BackendChoice::Memory(fixture) => (runtime.block_on(open_demo(fixture))?, None),
         };
-        Ok(Self::start(runtime, session, lock, wake))
+        let outgoing = config
+            .outgoing_dir
+            .clone()
+            .unwrap_or_else(|| config.profile_dir.join("outgoing"));
+        let removed = crate::outgoing::sweep(&outgoing, &session.state());
+        if removed > 0 {
+            tracing::info!(removed, "removed outgoing copies no draft names");
+        }
+        Ok(Self::start(runtime, session, lock, wake, outgoing))
     }
 
-    /// Runs over an open `session` (opened on `runtime`), as the app with `Origin::Gui`.
-    pub fn with_session(runtime: Runtime, session: Session, wake: Wake) -> Self {
-        Self::start(runtime, session, None, wake)
+    /// Runs over an open `session` (opened on `runtime`), as the app with `Origin::Gui`; picked
+    /// files are copied into `outgoing`.
+    pub fn with_session(runtime: Runtime, session: Session, wake: Wake, outgoing: PathBuf) -> Self {
+        Self::start(runtime, session, None, wake, outgoing)
     }
 
-    fn start(runtime: Runtime, session: Session, lock: Option<ProfileLock>, wake: Wake) -> Self {
+    fn start(
+        runtime: Runtime,
+        session: Session,
+        lock: Option<ProfileLock>,
+        wake: Wake,
+        outgoing: PathBuf,
+    ) -> Self {
         let client = session.client();
-        let (bridge, task) = Bridge::own(runtime.handle(), session, Origin::Gui, wake);
+        let (bridge, task) = Bridge::own(runtime.handle(), session, Origin::Gui, Arc::clone(&wake));
         Self {
             runtime,
             bridge: Mutex::new(bridge),
             client,
             mobile: Mutex::new(Mobile::default()),
             task: Mutex::new(Some(task)),
+            wake,
+            outgoing,
             _lock: lock,
         }
     }
@@ -151,6 +172,30 @@ impl Host {
             out.extend_from_slice(&image.pixels);
             Some(out)
         })
+    }
+
+    /// Copies a picked or shared file into `outgoing` and attaches the copy to `draft` as the
+    /// user; returns the copy's path. A file that cannot be copied shows in the snackbar too.
+    /// Blocks while it copies.
+    pub fn import(&self, draft: DraftId, name: &str, source: &Path) -> Result<PathBuf, HostError> {
+        match crate::outgoing::import(&self.outgoing, name, source) {
+            Ok(path) => {
+                lock(&self.bridge).submit(
+                    Purpose::User,
+                    Command::AttachFile {
+                        draft,
+                        path: path.to_string_lossy().into_owned(),
+                        index: None,
+                    },
+                );
+                Ok(path)
+            }
+            Err(err) => {
+                lock(&self.mobile).notify(&err.to_string());
+                (self.wake)();
+                Err(err.into())
+            }
+        }
     }
 
     /// Runs `task` until it is done or `limit` passed; `Ok(true)` when it finished. Blocks.

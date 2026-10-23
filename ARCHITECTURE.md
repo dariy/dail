@@ -1200,7 +1200,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **API.** `frame(&state) -> Frame` (the next screen), `event(UiEvent, &state) -> Vec<Request>` (what to submit),
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
-  does: `haptic` so far). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
+  does: `haptic`, `pick_files {draft}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
@@ -1238,7 +1238,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   contacts matching the typed text (`listing::contacts`, cached per revision) are suggestions; a tap adds one. With
   two addresses or more, `from_choices` is a menu of `set_draft_from`. The quote of a reply or forward is read-only
   and folded (a tap shows its header); the draft's text is scrubbed like the TUI's (unsafe characters become
-  U+FFFD, line breaks stay). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
+  U+FFFD, line breaks stay). *Attach files* asks the host for the system file picker (`External::PickFiles{draft}`);
+  the draft's files are chips with `checking…`, their size or why they cannot be sent (a tap is
+  `remove_attachment`). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
   composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
@@ -1261,7 +1263,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 **The host** (`app-android`, `[lib] name = "dail"`, cdylib + rlib). `dail::Host` is the JNI-free core that Kotlin's calls
 map onto; it builds and is tested on the desktop.
 
-- **`open(&Config, wake)`.** `Config` = `{profile_dir, cache_dir?, backend: "live" | {"memory": fixture}, lang?,
+- **`open(&Config, wake)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
   `app-cli` opens it (`ProfileStore`, `KeyringSecrets`, `NetVerifier`, `NetImap`, the full-text index, the audit log),
   without an IPC socket. Memory (the `demo` feature only, app-testkit as ADR 0001): the fixture's first account added
@@ -1272,10 +1274,18 @@ map onto; it builds and is tested on the desktop.
 - **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, or `{image: {blob, part}}` /
   `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
   if it cannot be read or decoded.
+- **`import(draft, name, source)`** (IO threads, blocks while it copies): a picked or shared file. Kotlin opens the
+  content URI and passes `/proc/self/fd/<n>`, so Rust reads it without a new JNI call; `dail::outgoing` copies it into
+  `<outgoing_dir>/<32 hex digits>/` under `safe_file_name(name)`, at most 25 MiB (`MAX_ATTACHMENT_BYTES`; a larger file
+  is not kept and the snackbar says so), and submits `attach_file` with the copy's path as the user. A content URI's
+  permission ends with the activity; the copy outlives it. `open` removes the folders no draft names
+  (`outgoing::sweep`). `calls::background` takes it as `{"import": {draft, name, source}}` and answers
+  `{"attached": path}`. In the demo the memory backend checks files in its fake file system, so a picked file shows as
+  failed there.
 - **`debug(DebugTask)`** (the debug adb bridge; a release build of the library refuses it): `{"exec": {origin,
   command}}` submits a registry command (`args` may be left out) as `cli` or `mcp` only, never as `gui` or `runtime`,
   and answers `{"receipt": …}` or `{"rejected": …}`; `"state"` answers the `AppState`. `calls::background` takes a
-  `Task` or a `DebugTask`.
+  `Task`, an import or a `DebugTask`.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
   work. `close()` shuts the session down after the queued requests.

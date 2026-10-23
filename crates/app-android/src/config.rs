@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use app_core::Origin;
+use app_core::{DraftId, Origin};
 use serde::{Deserialize, Serialize};
 
 /// `open`'s argument.
@@ -13,6 +13,10 @@ pub struct Config {
     /// The app's cache directory (temporary files).
     #[serde(default)]
     pub cache_dir: Option<PathBuf>,
+    /// Where picked and shared files are copied before they are attached
+    /// (`<filesDir>/outgoing`; `<profile_dir>/outgoing` if unset).
+    #[serde(default)]
+    pub outgoing_dir: Option<PathBuf>,
     /// Which backend the session runs over.
     #[serde(default)]
     pub backend: BackendChoice,
@@ -71,6 +75,22 @@ pub enum Task {
     Check,
     /// Wait until the queued work (remote ops, draft saves, attachment saves) is done.
     Flush,
+}
+
+/// `background`'s argument for a file the user picked or shared: `{"import": {…}}`. The host
+/// copies it into the app (`outgoing`) and attaches the copy to `draft`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImportTask {
+    /// Copy and attach one file.
+    Import {
+        /// The draft.
+        draft: DraftId,
+        /// The file's display name (sanitized before use).
+        name: String,
+        /// A path the host can read it from: Kotlin's `/proc/self/fd/<n>` of an open descriptor.
+        source: PathBuf,
+    },
 }
 
 /// `background`'s argument from the debug adb bridge (debug builds only; a release build refuses

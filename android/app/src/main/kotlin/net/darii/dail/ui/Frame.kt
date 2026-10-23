@@ -254,8 +254,17 @@ data class Composer(
     val subject: TextValue,
     val body: TextValue,
     val quote: QuoteFold? = null,
+    val attachments: List<OutgoingFile>,
     val problems: List<String>,
     val actions: List<Button>,
+)
+
+@Serializable
+data class OutgoingFile(
+    val name: String,
+    val detail: String,
+    val failed: Boolean,
+    val remove: ActionId? = null,
 )
 
 @Serializable
@@ -275,6 +284,13 @@ data class Snackbar(
 @Serializable
 data class External(
     val external: String,
+    val args: ExternalArgs? = null,
+)
+
+/** The arguments of an [External]; each external fills the ones it has. */
+@Serializable
+data class ExternalArgs(
+    val draft: String? = null,
 )
 
 /** `app_theme`'s tokens (`app_mobile::theme`): colour roles as `#RRGGBBAA`, styles in sp. */

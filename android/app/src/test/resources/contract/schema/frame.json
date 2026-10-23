@@ -209,9 +209,16 @@
       "description": "The open draft, editable unless a send is scheduled or under way.",
       "properties": {
         "actions": {
-          "description": "*Discard*.",
+          "description": "*Attach files* (`pick_files`) and *Discard*, while the draft is editable.",
           "items": {
             "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "attachments": {
+          "description": "The attached files, in order.",
+          "items": {
+            "$ref": "#/$defs/OutgoingFile"
           },
           "type": "array"
         },
@@ -286,6 +293,7 @@
         "recipients",
         "subject",
         "body",
+        "attachments",
         "problems",
         "actions"
       ],
@@ -637,6 +645,38 @@
       "description": "One message copy, i.e. one `(mailbox, uid)` pair.",
       "format": "uuid",
       "type": "string"
+    },
+    "OutgoingFile": {
+      "description": "A file attached to the open draft.",
+      "properties": {
+        "detail": {
+          "description": "`checking…`, the size, or why it cannot be sent.",
+          "type": "string"
+        },
+        "failed": {
+          "description": "Whether the check failed (the draft cannot be sent with it).",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "The file name recipients see.",
+          "type": "string"
+        },
+        "remove": {
+          "description": "Removes it from the draft, while the draft is editable.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "detail",
+        "failed"
+      ],
+      "type": "object"
     },
     "PaneKind": {
       "description": "What a pane shows.",

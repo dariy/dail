@@ -5,8 +5,8 @@
 //! (`app_front::panes`); it never dispatches a command.
 
 use app_core::{
-    Addr, AppState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane, QuoteStyle,
-    SettingsSection, ThreadId, ThreadSummary, listing,
+    Addr, AppState, AttachmentState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane,
+    QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -22,8 +22,8 @@ use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
     ActionId, Attachment, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer,
-    DrawerAccount, DrawerItem, Frame, Layout, List, PaneKind, QuoteFold, Reader, ReaderMessage,
-    Recipients, Row, SettingsPage, Snackbar, TopBar,
+    DrawerAccount, DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Reader,
+    ReaderMessage, Recipients, Row, SettingsPage, Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -53,6 +53,8 @@ enum Act {
     Suggest(Field, Addr),
     /// Expand or fold the composer's quote.
     ToggleQuote,
+    /// Ask the host for files to attach to a draft.
+    Pick(DraftId),
 }
 
 /// The window, as the host last configured it.
@@ -217,6 +219,12 @@ impl Mobile {
             .collect()
     }
 
+    /// Shows `text` in the snackbar for a while: something the host did on its own failed
+    /// (a picked file that could not be copied).
+    pub fn notify(&mut self, text: &str) {
+        self.notice = Some((clean(text), self.now_ms() + NOTICE_MS));
+    }
+
     /// What only the host can do, asked for since the last call.
     pub fn externals(&mut self) -> Vec<External> {
         std::mem::take(&mut self.externals)
@@ -361,6 +369,10 @@ impl Mobile {
             Act::Suggest(field, addr) => self.compose.suggest(field, addr, state),
             Act::ToggleQuote => {
                 self.compose.quote_open = !self.compose.quote_open;
+                Vec::new()
+            }
+            Act::Pick(draft) => {
+                self.externals.push(External::PickFiles { draft });
                 Vec::new()
             }
             Act::Compose => palette::current_account(state)
@@ -1090,8 +1102,32 @@ impl Mobile {
         if let Some(error) = &draft.save_error {
             problems.push(format!("Draft save failed: {}", clean(error)));
         }
+        let mut attachments = Vec::new();
+        for (i, file) in draft.attachments.iter().enumerate() {
+            let (detail, failed) = match &file.state {
+                AttachmentState::Checking => ("checking…".to_owned(), false),
+                AttachmentState::Ready { size, .. } => (format::size(*size), false),
+                AttachmentState::Failed { error } => (clean(error), true),
+            };
+            let remove = editable
+                .then(|| u32::try_from(i).ok())
+                .flatten()
+                .map(|index| {
+                    self.add(Act::Run(Command::RemoveAttachment {
+                        draft: draft.id,
+                        index,
+                    }))
+                });
+            attachments.push(OutgoingFile {
+                name: clean(&file.name),
+                detail,
+                failed,
+                remove,
+            });
+        }
         let mut actions = Vec::new();
         if editable {
+            actions.push(self.button("attach_file", "Attach files", Act::Pick(draft.id)));
             actions.push(self.button(
                 "delete",
                 "Discard",
@@ -1109,6 +1145,7 @@ impl Mobile {
             subject: self.compose.value(Field::Subject),
             body: self.compose.value(Field::Body),
             quote,
+            attachments,
             problems,
             actions,
         })

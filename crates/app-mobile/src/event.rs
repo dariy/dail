@@ -3,6 +3,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use app_core::DraftId;
+
 use crate::frame::ActionId;
 
 /// A text field of the composer.
@@ -107,4 +109,10 @@ const fn one() -> f32 {
 pub enum External {
     /// A short vibration, after a swipe that acted.
     Haptic,
+    /// Open the system file picker (several files). The host copies each picked file into the
+    /// app and attaches the copy to `draft` (`app-android`'s `import`).
+    PickFiles {
+        /// The draft the files go to.
+        draft: DraftId,
+    },
 }

@@ -86,7 +86,12 @@ fn leaving_a_field_or_acting_writes_back_first() {
         [Command::UpdateDraft { subject: Some(s), body: None, .. }] if s == "Hi"
     ));
     text(&mut phone, Field::Body, "Text");
-    let discard = composer(&mut phone).actions[0].action;
+    let discard = composer(&mut phone)
+        .actions
+        .into_iter()
+        .find(|b| b.label == "Discard")
+        .unwrap()
+        .action;
     let sent = phone.tap(discard);
     assert!(matches!(&sent[0], Command::UpdateDraft { body: Some(b), .. } if b == "Text"));
     assert_eq!(sent[1], Command::DiscardDraft { id });
@@ -236,4 +241,54 @@ fn keys_type_rather_than_act_in_the_composer() {
         phone.take().is_empty(),
         "`e` archives in the list, not here"
     );
+}
+
+#[test]
+fn attach_asks_the_host_and_the_files_show_as_chips() {
+    let (mut phone, id) = composing();
+    let attach = composer(&mut phone)
+        .actions
+        .into_iter()
+        .find(|b| b.label == "Attach files")
+        .unwrap();
+    assert!(phone.tap(attach.action).is_empty());
+    assert_eq!(
+        phone.mobile.externals(),
+        [app_mobile::External::PickFiles { draft: id }]
+    );
+    for path in ["/files/outgoing/a/notes.txt", "/files/outgoing/b/big.bin"] {
+        phone.dispatch(Command::AttachFile {
+            draft: id,
+            path: path.to_owned(),
+            index: None,
+        });
+    }
+    let files = composer(&mut phone).attachments;
+    assert_eq!(files[0].name, "notes.txt");
+    assert_eq!((&*files[0].detail, files[0].failed), ("checking…", false));
+    phone.ingest(app_core::Event::AttachmentInspected {
+        draft: id,
+        path: "/files/outgoing/a/notes.txt".to_owned(),
+        size: 2048,
+        content_type: "text/plain".to_owned(),
+    });
+    phone.ingest(app_core::Event::AttachmentFailed {
+        draft: id,
+        path: "/files/outgoing/b/big.bin".to_owned(),
+        error: "gone\u{202e}".to_owned(),
+    });
+    let files = composer(&mut phone).attachments;
+    assert!(
+        !files[0].failed && files[0].detail.contains("KB"),
+        "{files:?}"
+    );
+    assert!(files[1].failed && !files[1].detail.contains('\u{202e}'));
+    assert_eq!(
+        phone.tap(files[1].remove.unwrap()),
+        [Command::RemoveAttachment {
+            draft: id,
+            index: 1
+        }]
+    );
+    assert_eq!(phone.state().drafts[&id].attachments.len(), 1);
 }

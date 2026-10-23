@@ -479,7 +479,7 @@ encryption (SEC-1), 32-bit ARM.
   (`list_contacts`), subject, the body in a native text field (any IME), the quote read-only and folded; typing goes
   back as one `update_draft` per pause, field change or command; a change from elsewhere reloads a field unless it has
   unsaved typing; *Discard*
-- [ ] [kt] [mobile] Attachments in: the system file picker; each file copied into `filesDir/outgoing/<uuid>/`
+- [x] [kt] [mobile] Attachments in: the system file picker; each file copied into `filesDir/outgoing/<uuid>/`
   (`safe_file_name`, 25 MiB) and attached by its path; chips with checking, size or error; copies that no draft names
   are removed at start
 - [ ] [mobile] [kt] Send with the undo window (*Sending in N s · Undo*), `cancel_send`; a foreground service from the

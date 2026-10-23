@@ -419,10 +419,26 @@ pub struct Composer {
     /// The original, for a reply or a forward.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quote: Option<QuoteFold>,
+    /// The attached files, in order.
+    pub attachments: Vec<OutgoingFile>,
     /// What went wrong: a failed send (with its hint), a failed save.
     pub problems: Vec<String>,
-    /// *Discard*.
+    /// *Attach files* (`pick_files`) and *Discard*, while the draft is editable.
     pub actions: Vec<Button>,
+}
+
+/// A file attached to the open draft.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OutgoingFile {
+    /// The file name recipients see.
+    pub name: String,
+    /// `checking…`, the size, or why it cannot be sent.
+    pub detail: String,
+    /// Whether the check failed (the draft cannot be sent with it).
+    pub failed: bool,
+    /// Removes it from the draft, while the draft is editable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remove: Option<ActionId>,
 }
 
 /// A problem and the action that may fix it.

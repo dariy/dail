@@ -23,6 +23,7 @@ fn live(dir: &std::path::Path) -> Config {
     Config {
         profile_dir: dir.to_path_buf(),
         cache_dir: None,
+        outgoing_dir: None,
         backend: BackendChoice::Live,
         lang: None,
         version: None,
@@ -66,7 +67,8 @@ fn synced_host() -> (Host, Arc<AtomicUsize>) {
         synced.session
     });
     let (wakes, wake) = counter();
-    (Host::with_session(runtime, session, wake), wakes)
+    let outgoing = temp_profile(&format!("outgoing-{wakes:p}"));
+    (Host::with_session(runtime, session, wake, outgoing), wakes)
 }
 
 /// Frames until `done` holds (the session answers on its own threads).
@@ -260,4 +262,123 @@ fn the_debug_bridge_submits_as_cli_or_mcp_only() {
     let state = host.debug(dail::DebugTask::State).unwrap();
     assert!(state["mailboxes"].is_object(), "{state}");
     host.close();
+}
+
+/// The outgoing folder a copy lies in: its folder's parent.
+fn host_outgoing(copy: &std::path::Path) -> PathBuf {
+    let folder = copy.parent().unwrap();
+    assert_eq!(
+        folder.file_name().unwrap().len(),
+        32,
+        "a random folder per file"
+    );
+    folder.parent().unwrap().to_path_buf()
+}
+
+/// A new draft from the composer's button, opened.
+fn composing(host: &Host) -> app_core::DraftId {
+    host.event(configure(360));
+    let out = host.frame();
+    host.event(UiEvent::Tap {
+        action: out.frame.fab.unwrap().action,
+    });
+    frame_until(host, |out| out.frame.composer.is_some())
+        .frame
+        .composer
+        .unwrap()
+        .draft
+}
+
+#[test]
+fn a_picked_file_is_copied_under_a_safe_name_and_attached() {
+    let (host, _) = synced_host();
+    let draft = composing(&host);
+    let source = temp_profile("picked");
+    std::fs::create_dir_all(&source).unwrap();
+    let file = source.join("in");
+    std::fs::write(&file, b"hello").unwrap();
+    let copy = host.import(draft, "../.no:tes.txt", &file).unwrap();
+    assert_eq!(copy.file_name().unwrap(), "notes.txt");
+    assert!(copy.starts_with(host_outgoing(&copy)));
+    assert_eq!(std::fs::read(&copy).unwrap(), b"hello");
+    // The memory backend checks files in its fake file system, so only the chip is asserted.
+    let out = frame_until(&host, |out| {
+        out.frame
+            .composer
+            .as_ref()
+            .is_some_and(|c| !c.attachments.is_empty())
+    });
+    assert_eq!(out.frame.composer.unwrap().attachments[0].name, "notes.txt");
+    let path = copy.to_string_lossy().into_owned();
+    assert!(host.state().drafts[&draft].attachments[0].path == path);
+    host.close();
+}
+
+#[test]
+fn a_file_over_25_mib_is_not_copied_and_says_so() {
+    let (host, _) = synced_host();
+    let draft = composing(&host);
+    let source = temp_profile("large");
+    std::fs::create_dir_all(&source).unwrap();
+    let file = source.join("big");
+    let big = std::fs::File::create(&file).unwrap();
+    big.set_len(25 * 1024 * 1024 + 1).unwrap();
+    let err = host.import(draft, "big.iso", &file).unwrap_err();
+    assert!(matches!(err, HostError::Import(_)), "{err}");
+    let out = host.frame();
+    assert!(
+        out.frame
+            .snackbar
+            .unwrap()
+            .text
+            .contains("larger than 25 MiB")
+    );
+    assert!(host.state().drafts[&draft].attachments.is_empty());
+    host.close();
+}
+
+#[test]
+fn copies_no_draft_names_are_swept() {
+    let dir = temp_profile("sweep");
+    let named = dir.join("aaaa");
+    let orphan = dir.join("bbbb");
+    std::fs::create_dir_all(&named).unwrap();
+    std::fs::create_dir_all(&orphan).unwrap();
+    std::fs::write(named.join("a.txt"), b"a").unwrap();
+    std::fs::write(orphan.join("b.txt"), b"b").unwrap();
+    let ctx = app_core::Ctx {
+        now_ms: 0,
+        id_seed: 1 << 64,
+        origin: Origin::Cli,
+    };
+    let fixture = app_testkit::Fixture::builtin("basic").unwrap();
+    let synced = app_testkit::synced_state(fixture).unwrap();
+    let mut engine = app_core::Engine::new(synced);
+    let account = *engine.state().accounts.keys().next().unwrap();
+    let created = engine
+        .dispatch(
+            Command::CreateDraft {
+                account,
+                to: Vec::new(),
+                cc: Vec::new(),
+                bcc: Vec::new(),
+                subject: String::new(),
+                body: String::new(),
+            },
+            &ctx,
+        )
+        .unwrap();
+    let id = serde_json::from_value(created.receipt.data["id"].clone()).unwrap();
+    engine
+        .dispatch(
+            Command::AttachFile {
+                draft: id,
+                path: named.join("a.txt").to_string_lossy().into_owned(),
+                index: None,
+            },
+            &ctx,
+        )
+        .unwrap();
+    assert_eq!(dail::outgoing::sweep(&dir, engine.state()), 1);
+    assert!(named.exists() && !orphan.exists());
 }

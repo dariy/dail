@@ -1,6 +1,8 @@
 package net.darii.dail
 
 import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -9,6 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import net.darii.dail.ui.Answer
 import net.darii.dail.ui.External
 import net.darii.dail.ui.Frame
@@ -56,6 +59,7 @@ class Host(
                 buildJsonObject {
                     put("profile_dir", profile.path)
                     put("cache_dir", context.cacheDir.path)
+                    put("outgoing_dir", context.filesDir.resolve("outgoing").path)
                     put("backend", contract.parseToJsonElement(BuildConfig.BACKEND))
                     put(
                         "lang",
@@ -83,6 +87,33 @@ class Host(
         val opened = ui.submit<Int> { handle }.get()
         if (opened == 0) return """{"error": "the session did not open"}"""
         return Native.background(opened, task)
+    }
+
+    /**
+     * Copies a picked or shared file into the app and attaches the copy to [draft]: Rust reads it
+     * through `/proc/self/fd`, chooses the name and enforces the size limit. Runs on the calling
+     * (IO) thread; a failure shows in the snackbar.
+     */
+    fun import(
+        draft: String,
+        uri: Uri,
+    ) {
+        val name =
+            context.contentResolver
+                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null } ?: uri.lastPathSegment.orEmpty()
+        val opened = runCatching { context.contentResolver.openFileDescriptor(uri, "r") }.getOrNull() ?: return
+        opened.use { fd ->
+            val task =
+                buildJsonObject {
+                    putJsonObject("import") {
+                        put("draft", draft)
+                        put("name", name)
+                        put("source", "/proc/self/fd/${fd.fd}")
+                    }
+                }
+            background(task.toString())
+        }
     }
 
     /** The JSON of the frame last drawn, for the debug bridge. */

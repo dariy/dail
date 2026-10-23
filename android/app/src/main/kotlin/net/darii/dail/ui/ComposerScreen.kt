@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
@@ -77,12 +78,46 @@ fun ComposerPane(
             singleLine = false,
             send = send,
         )
+        Attachments(composer, send)
         composer.quote?.let { quote ->
             HorizontalDivider()
             Column(Modifier.fillMaxWidth().clickable { send(UiEvent.Tap(quote.toggle)) }.padding(vertical = 8.dp)) {
                 Text(quote.label, style = MaterialTheme.typography.labelMedium)
                 quote.header.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
+        }
+    }
+}
+
+/** The attached files: name and size, `checking…` or why it cannot be sent; a tap removes one. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Attachments(
+    composer: Composer,
+    send: (UiEvent) -> Unit,
+) {
+    if (composer.attachments.isEmpty()) return
+    FlowRow(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        composer.attachments.forEach { file ->
+            val remove = file.remove
+            InputChip(
+                selected = false,
+                enabled = remove != null,
+                onClick = { remove?.let { send(UiEvent.Tap(it)) } },
+                label = {
+                    Column {
+                        Text(file.name)
+                        Text(
+                            file.detail,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (file.failed) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        )
+                    }
+                },
+                leadingIcon = { Glyph("attach_file") },
+                trailingIcon = remove?.let { { Glyph("close") } },
+                modifier = Modifier.semantics { contentDescription = "${file.name}, ${file.detail}" },
+            )
         }
     }
 }

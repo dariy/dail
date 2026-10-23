@@ -136,6 +136,17 @@ impl Phone {
         self.out.clone()
     }
 
+    /// Ingests a runtime event (an effect's result).
+    pub fn ingest(&mut self, event: app_core::Event) {
+        self.seed += 1;
+        let ctx = Ctx {
+            now_ms: NOW,
+            id_seed: self.seed << 64,
+            origin: Origin::Runtime,
+        };
+        self.engine.ingest(event, &ctx).unwrap();
+    }
+
     /// Takes the requests submitted since the last call.
     pub fn take(&mut self) -> Vec<Request> {
         std::mem::take(&mut self.out)

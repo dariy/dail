@@ -33,6 +33,9 @@ pub enum HostError {
     /// A debug task in a release build, or from an origin the bridge does not speak for.
     #[error("debug bridge: {0}")]
     Debug(&'static str),
+    /// A picked or shared file was not copied.
+    #[error(transparent)]
+    Import(#[from] crate::outgoing::ImportError),
     /// The session is closed.
     #[error("the session is closed")]
     Closed,
