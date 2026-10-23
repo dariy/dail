@@ -1207,7 +1207,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
-  `reader`, `composer` (read-only until A4), `settings` (the open section, a placeholder until A6, in place of the
+  `reader`, `composer` (below), `settings` (the open section, a placeholder until A6, in place of the
   list and the detail), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `back` and `wants_tick`. Later
@@ -1228,6 +1228,18 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
   `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
+- **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
+  buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
+  focus (`blur`), or before any other action (a tap, Back, a key) — never per keystroke. A change made elsewhere (an
+  agent's) reloads a field unless it has unsaved typing. Every text field is a `TextValue {text, version}`: Kotlin
+  keeps the IME's state and takes the frame's text only when the version changes, so a frame never overwrites a
+  composition. To, Cc and Bcc show their addresses as chips (a tap removes one) and take typed addresses
+  (`compose::add_recipients`) at a comma, a semicolon, a line break or a blur; invalid text stays typed. Up to three
+  contacts matching the typed text (`listing::contacts`, cached per revision) are suggestions; a tap adds one. With
+  two addresses or more, `from_choices` is a menu of `set_draft_from`. The quote of a reply or forward is read-only
+  and folded (a tap shows its header); the draft's text is scrubbed like the TUI's (unsafe characters become
+  U+FFFD, line breaks stay). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
+  composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
   tap in it also sends `focus_pane list`, which closes it. Back closes a modal drawer (`focus_pane list`), else is the

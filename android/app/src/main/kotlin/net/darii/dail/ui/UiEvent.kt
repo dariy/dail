@@ -1,18 +1,30 @@
 package net.darii.dail.ui
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 /** A text field of the composer (`app_mobile::Field`). */
+@Serializable
 enum class Field(
     val wire: String,
 ) {
+    @SerialName("to")
     To("to"),
+
+    @SerialName("cc")
     Cc("cc"),
+
+    @SerialName("bcc")
     Bcc("bcc"),
+
+    @SerialName("subject")
     Subject("subject"),
+
+    @SerialName("body")
     Body("body"),
 }
 

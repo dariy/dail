@@ -130,7 +130,7 @@ private fun FrameScaffold(
                             PaneKind.Drawer -> Unit
                             PaneKind.List -> frame.list?.let { ListPane(it, send) }
                             PaneKind.Reader -> frame.reader?.let { ReaderPane(it, send) }
-                            PaneKind.Composer -> frame.composer?.let { ComposerPane(it) }
+                            PaneKind.Composer -> frame.composer?.let { ComposerPane(it, send) }
                             PaneKind.Settings -> frame.settings?.let { Text(it.text, Modifier.padding(24.dp)) }
                         }
                     }
@@ -166,7 +166,7 @@ private fun BannerCard(
 }
 
 @Composable
-private fun ActionButton(
+internal fun ActionButton(
     button: Button,
     send: (UiEvent) -> Unit,
 ) {
@@ -239,16 +239,5 @@ private fun ReaderPane(
             }
             HorizontalDivider()
         }
-    }
-}
-
-@Composable
-private fun ComposerPane(composer: Composer) {
-    Column(Modifier.padding(16.dp)) {
-        Text("From: ${composer.from}")
-        Text("To: ${composer.to}")
-        if (composer.cc.isNotEmpty()) Text("Cc: ${composer.cc}")
-        Text(composer.subject, fontWeight = FontWeight.Bold)
-        Text(composer.body)
     }
 }

@@ -140,6 +140,51 @@
       ],
       "type": "object"
     },
+    "Chip": {
+      "description": "An address in a recipient field.",
+      "properties": {
+        "label": {
+          "description": "The address, in full (`Name <address>`).",
+          "type": "string"
+        },
+        "remove": {
+          "description": "Removes it from the field.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "label",
+        "remove"
+      ],
+      "type": "object"
+    },
+    "Choice": {
+      "description": "One of the addresses a draft can be sent from.",
+      "properties": {
+        "action": {
+          "description": "Chooses it (`set_draft_from`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "description": "The address.",
+          "type": "string"
+        },
+        "selected": {
+          "description": "Whether it is the draft's.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "selected",
+        "action"
+      ],
+      "type": "object"
+    },
     "Class": {
       "description": "Material's window size classes, by width.",
       "oneOf": [
@@ -161,40 +206,88 @@
       ]
     },
     "Composer": {
-      "description": "The open draft (read-only until the composer item of Wave 4 A4).",
+      "description": "The open draft, editable unless a send is scheduled or under way.",
       "properties": {
-        "body": {
-          "description": "The body.",
-          "type": "string"
+        "actions": {
+          "description": "*Discard*.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
         },
-        "cc": {
-          "description": "`Cc`, as typed.",
-          "type": "string"
+        "body": {
+          "$ref": "#/$defs/TextValue",
+          "description": "The body (the quote stays below it)."
         },
         "draft": {
           "$ref": "#/$defs/DraftId",
           "description": "The draft."
         },
+        "editable": {
+          "description": "Whether the fields take typing (not while a send is scheduled or leaving).",
+          "type": "boolean"
+        },
         "from": {
           "description": "The sending address.",
           "type": "string"
         },
-        "subject": {
-          "description": "The subject.",
+        "from_choices": {
+          "description": "The account's addresses, with two or more (a menu on `from`).",
+          "items": {
+            "$ref": "#/$defs/Choice"
+          },
+          "type": "array"
+        },
+        "problems": {
+          "description": "What went wrong: a failed send (with its hint), a failed save.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "quote": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuoteFold"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The original, for a reply or a forward."
+        },
+        "recipients": {
+          "description": "`To`, `Cc` and `Bcc`.",
+          "items": {
+            "$ref": "#/$defs/Recipients"
+          },
+          "type": "array"
+        },
+        "status": {
+          "description": "`saved`, `saving…`, `sending in 7 s`, …",
           "type": "string"
         },
-        "to": {
-          "description": "`To`, as typed.",
+        "subject": {
+          "$ref": "#/$defs/TextValue",
+          "description": "The subject."
+        },
+        "title": {
+          "description": "`New message`, `Reply` or `Forward`.",
           "type": "string"
         }
       },
       "required": [
         "draft",
+        "title",
+        "status",
+        "editable",
         "from",
-        "to",
-        "cc",
+        "from_choices",
+        "recipients",
         "subject",
-        "body"
+        "body",
+        "problems",
+        "actions"
       ],
       "type": "object"
     },
@@ -344,6 +437,36 @@
         "a11y"
       ],
       "type": "object"
+    },
+    "Field": {
+      "description": "A text field of the composer.",
+      "oneOf": [
+        {
+          "const": "to",
+          "description": "`To` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "cc",
+          "description": "`Cc` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "bcc",
+          "description": "`Bcc` recipients.",
+          "type": "string"
+        },
+        {
+          "const": "subject",
+          "description": "The subject.",
+          "type": "string"
+        },
+        {
+          "const": "body",
+          "description": "The body.",
+          "type": "string"
+        }
+      ]
     },
     "FrameTheme": {
       "description": "A theme, sent in the frame when it changes (the settings or the system's dark mode).",
@@ -545,6 +668,39 @@
         }
       ]
     },
+    "QuoteFold": {
+      "description": "The original below a reply or a forward: read-only, folded until tapped.",
+      "properties": {
+        "expanded": {
+          "description": "Whether it is expanded.",
+          "type": "boolean"
+        },
+        "header": {
+          "description": "The attribution or the forward header, line by line, while expanded.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "label": {
+          "description": "What the folded quote says (`Quoted message`, `Forwarded message`).",
+          "type": "string"
+        },
+        "toggle": {
+          "description": "Expands or folds it.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "label",
+        "header",
+        "expanded",
+        "toggle"
+      ],
+      "type": "object"
+    },
     "Reader": {
       "description": "The open thread.",
       "properties": {
@@ -654,6 +810,45 @@
         "snippet",
         "attachments",
         "links"
+      ],
+      "type": "object"
+    },
+    "Recipients": {
+      "description": "`To`, `Cc` or `Bcc`.",
+      "properties": {
+        "chips": {
+          "description": "Its addresses.",
+          "items": {
+            "$ref": "#/$defs/Chip"
+          },
+          "type": "array"
+        },
+        "field": {
+          "$ref": "#/$defs/Field",
+          "description": "Which field (`text` and `blur` events name it)."
+        },
+        "input": {
+          "$ref": "#/$defs/TextValue",
+          "description": "What is typed and not yet an address."
+        },
+        "label": {
+          "description": "`To`, `Cc` or `Bcc`.",
+          "type": "string"
+        },
+        "suggestions": {
+          "description": "Contacts matching the typed text; a tap adds one.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "field",
+        "label",
+        "chips",
+        "input",
+        "suggestions"
       ],
       "type": "object"
     },
@@ -842,6 +1037,26 @@
         "line_height",
         "weight",
         "tracking"
+      ],
+      "type": "object"
+    },
+    "TextValue": {
+      "description": "A text field's content. The host reloads its field only when `version` changes, so a frame\nnever overwrites what the IME is composing.",
+      "properties": {
+        "text": {
+          "description": "The text.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Changes whenever the presenter replaces the text (another draft, an edit from elsewhere,\naddresses taken from the typed text).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text",
+        "version"
       ],
       "type": "object"
     },

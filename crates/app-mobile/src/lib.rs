@@ -6,6 +6,7 @@
 //! toolkit, tokio or JNI: the Android host (`app-android`) submits its [`Request`]s and draws
 //! its [`Frame`]s in Compose. Tests drive it over a real `Engine`.
 
+pub mod composer;
 pub mod event;
 pub mod frame;
 pub mod mobile;

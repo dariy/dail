@@ -5,8 +5,8 @@
 //! (`app_front::panes`); it never dispatches a command.
 
 use app_core::{
-    AppState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane, SettingsSection,
-    ThreadId, ThreadSummary, listing,
+    Addr, AppState, BodyState, Command, CommandName, DraftId, MailboxRole, Pane, QuoteStyle,
+    SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -16,13 +16,14 @@ use app_front::notice::{self, LastAction};
 use app_front::panes::{self, Slot, Width};
 use app_front::status::{self, Fix};
 use app_front::text::{clean, clean_lines};
-use app_front::{a11y, body, fold, format, palette};
+use app_front::{a11y, body, compose, fold, format, palette};
 
-use crate::event::{External, UiEvent};
+use crate::composer::Buffers;
+use crate::event::{External, Field, UiEvent};
 use crate::frame::{
-    ActionId, Attachment, Banner, Bulk, Button, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Frame, Layout, List, PaneKind, Reader, ReaderMessage, Row, SettingsPage, Snackbar,
-    TopBar,
+    ActionId, Attachment, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer,
+    DrawerAccount, DrawerItem, Frame, Layout, List, PaneKind, QuoteFold, Reader, ReaderMessage,
+    Recipients, Row, SettingsPage, Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -48,6 +49,10 @@ enum Act {
     Compose,
     /// Open the About screen.
     About,
+    /// Add a suggested contact to a recipient field.
+    Suggest(Field, Addr),
+    /// Expand or fold the composer's quote.
+    ToggleQuote,
 }
 
 /// The window, as the host last configured it.
@@ -104,6 +109,8 @@ pub struct Mobile {
     theme_sent: Option<String>,
     /// Whether the About screen is open.
     about: bool,
+    /// The composer's typed text.
+    compose: Buffers,
 }
 
 impl Default for Mobile {
@@ -178,6 +185,7 @@ impl Mobile {
             dark: false,
             theme_sent: None,
             about: false,
+            compose: Buffers::default(),
         }
     }
 
@@ -216,6 +224,31 @@ impl Mobile {
 
     /// Turns one event into what to submit.
     pub fn event(&mut self, event: UiEvent, state: &AppState) -> Vec<Request> {
+        self.compose.sync(state);
+        let acts = matches!(
+            event,
+            UiEvent::Tap { .. }
+                | UiEvent::LongPress { .. }
+                | UiEvent::Swipe { .. }
+                | UiEvent::Back
+                | UiEvent::Refresh
+                | UiEvent::Key { .. }
+        );
+        // Typed text goes back before any command, so the command sees it.
+        let flushed: Vec<Request> = if acts {
+            self.compose.flush(state).into_iter().collect()
+        } else {
+            Vec::new()
+        };
+        let mut out = self.handle(event, state);
+        if !flushed.is_empty() {
+            out.splice(0..0, flushed);
+        }
+        out
+    }
+
+    fn handle(&mut self, event: UiEvent, state: &AppState) -> Vec<Request> {
+        let now = self.now_ms();
         match event {
             UiEvent::Configure {
                 width_dp,
@@ -254,8 +287,9 @@ impl Mobile {
                 Some(chord) => self.press(chord, state),
                 None => Vec::new(),
             },
-            // Text fields arrive with the composer (Wave 4 A4); the clock only redraws.
-            UiEvent::Text { .. } | UiEvent::Blur { .. } | UiEvent::Tick => Vec::new(),
+            UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
+            UiEvent::Blur { field } => self.compose.blur(field, state),
+            UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
         }
     }
 
@@ -304,6 +338,7 @@ impl Mobile {
             || state.drafts.values().any(|d| d.send_at.is_some())
             || self.notice.as_ref().is_some_and(|(_, until)| *until > now)
             || self.undo_until > now
+            || self.compose.is_dirty()
     }
 
     fn act(&mut self, action: ActionId, state: &AppState) -> Vec<Request> {
@@ -321,6 +356,11 @@ impl Mobile {
             Act::Back => self.back(state),
             Act::About => {
                 self.about = true;
+                Vec::new()
+            }
+            Act::Suggest(field, addr) => self.compose.suggest(field, addr, state),
+            Act::ToggleQuote => {
+                self.compose.quote_open = !self.compose.quote_open;
                 Vec::new()
             }
             Act::Compose => palette::current_account(state)
@@ -341,7 +381,8 @@ impl Mobile {
 
     fn press(&mut self, chord: Chord, state: &AppState) -> Vec<Request> {
         let now = self.now_ms();
-        match self.keys.press(chord, false, state, now) {
+        let typing = state.view.composer.is_some() && state.view.focus == Pane::Composer;
+        match self.keys.press(chord, typing, state, now) {
             Press::Done(Action::Run(cmd)) => vec![Request::user(cmd)],
             // The palette's steps, the wizard and the password form arrive with their items.
             Press::Done(_) | Press::Pending | Press::Unbound => Vec::new(),
@@ -405,6 +446,7 @@ impl Mobile {
 
     /// The next screen. The action IDs of earlier frames stop working.
     pub fn frame(&mut self, state: &AppState) -> Frame {
+        self.compose.sync(state);
         self.actions.clear();
         self.revision += 1;
         let class = self.class();
@@ -454,7 +496,7 @@ impl Mobile {
             None
         };
         let composer = if kinds.contains(&PaneKind::Composer) {
-            composer(state)
+            self.composer(state)
         } else {
             None
         };
@@ -942,6 +984,136 @@ impl Mobile {
         })
     }
 
+    /// The open draft, with the typed text of the buffers.
+    fn composer(&mut self, state: &AppState) -> Option<Composer> {
+        let draft = self.compose.draft(state)?.clone();
+        let now = self.now_ms();
+        let editable = !draft.is_outgoing();
+        let account = state.accounts.get(&draft.account);
+        let from = draft.from.as_ref().map_or_else(
+            || account.map_or_else(String::new, |a| a.email.clone()),
+            format::full,
+        );
+        let sending_from = draft
+            .from
+            .as_ref()
+            .map(|a| a.email.clone())
+            .or_else(|| account.map(|a| a.email.clone()))
+            .unwrap_or_default();
+        let aliases: Vec<String> = account
+            .map(|a| {
+                std::iter::once(a.email.clone())
+                    .chain(
+                        a.identities
+                            .iter()
+                            .map(|i| i.email.clone())
+                            .filter(|e| !e.eq_ignore_ascii_case(&a.email)),
+                    )
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut from_choices = Vec::new();
+        if aliases.len() > 1 && editable {
+            for email in aliases {
+                let selected = email.eq_ignore_ascii_case(&sending_from);
+                let action = self.add(Act::Run(Command::SetDraftFrom {
+                    id: draft.id,
+                    email: email.clone(),
+                }));
+                from_choices.push(Choice {
+                    label: clean(&email),
+                    selected,
+                    action,
+                });
+            }
+        }
+        let mut recipients = Vec::new();
+        for (field, target) in [
+            (Field::To, compose::Field::To),
+            (Field::Cc, compose::Field::Cc),
+            (Field::Bcc, compose::Field::Bcc),
+        ] {
+            let addrs = target.of(&draft);
+            let mut chips = Vec::new();
+            for (i, addr) in addrs.iter().enumerate() {
+                let mut rest = addrs.to_vec();
+                rest.remove(i);
+                let remove = self.add(Act::Run(target.update(&draft, rest)));
+                chips.push(Chip {
+                    label: clean(&format::full(addr)),
+                    remove,
+                });
+            }
+            let mut suggestions = Vec::new();
+            if editable {
+                for addr in self.compose.suggestions(state, &draft, field) {
+                    let label = clean(&format::full(&addr));
+                    suggestions.push(Button {
+                        icon: None,
+                        label,
+                        action: self.add(Act::Suggest(field, addr)),
+                    });
+                }
+            }
+            recipients.push(Recipients {
+                field,
+                label: target.label().to_owned(),
+                chips,
+                input: self.compose.value(field),
+                suggestions,
+            });
+        }
+        let quote = draft.quote.as_ref().map(|q| {
+            let expanded = self.compose.quote_open;
+            QuoteFold {
+                label: match q.style {
+                    QuoteStyle::Forward => "Forwarded message",
+                    QuoteStyle::Reply => "Quoted message",
+                }
+                .to_owned(),
+                header: if expanded {
+                    clean_lines(q.header.trim_end())
+                } else {
+                    Vec::new()
+                },
+                expanded,
+                toggle: self.add(Act::ToggleQuote),
+            }
+        });
+        let mut problems = Vec::new();
+        if let Some(error) = &draft.send_error {
+            problems.push(format!("Not sent: {}", clean(error)));
+            if let Some(hint) = status::send_hint(state, draft.account, error, self.lang) {
+                problems.push(clean(&hint));
+            }
+        }
+        if let Some(error) = &draft.save_error {
+            problems.push(format!("Draft save failed: {}", clean(error)));
+        }
+        let mut actions = Vec::new();
+        if editable {
+            actions.push(self.button(
+                "delete",
+                "Discard",
+                Act::Run(Command::DiscardDraft { id: draft.id }),
+            ));
+        }
+        Some(Composer {
+            draft: draft.id,
+            title: compose::title(&draft).to_owned(),
+            status: compose::draft_status(state, &draft, now),
+            editable,
+            from: clean(&from),
+            from_choices,
+            recipients,
+            subject: self.compose.value(Field::Subject),
+            body: self.compose.value(Field::Body),
+            quote,
+            problems,
+            actions,
+        })
+    }
+
     fn banner(&mut self, state: &AppState) -> Option<Banner> {
         let problem = status::problems(state, self.lang).into_iter().next()?;
         let action = problem.fix.and_then(|fix| {
@@ -1034,30 +1206,5 @@ fn settings_page(state: &AppState) -> Option<SettingsPage> {
         text: "Settings and account setup arrive in a later version. The desktop app and \
                `config.toml` change them meanwhile."
             .to_owned(),
-    })
-}
-
-fn composer(state: &AppState) -> Option<Composer> {
-    let draft = state.view.composer.and_then(|id| state.drafts.get(&id))?;
-    let list = |addrs: &[app_core::Addr]| {
-        addrs
-            .iter()
-            .map(|a| clean(&format::full(a)))
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
-    let from = draft
-        .from
-        .as_ref()
-        .map(format::full)
-        .or_else(|| state.accounts.get(&draft.account).map(|a| a.email.clone()))
-        .unwrap_or_default();
-    Some(Composer {
-        draft: draft.id,
-        from: clean(&from),
-        to: list(&draft.to),
-        cc: list(&draft.cc),
-        subject: clean(&draft.subject),
-        body: draft.body_text.clone(),
     })
 }

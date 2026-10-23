@@ -37,6 +37,17 @@ fn frames() -> Vec<(String, Frame)> {
         });
         out.push((format!("drawer_{w}x{h}"), phone.frame()));
     }
+    let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    let reply = phone.frame().reader.unwrap().actions;
+    let reply = reply.iter().find(|b| b.label == "Reply").unwrap().action;
+    phone.tap(reply);
+    phone.event(UiEvent::Text {
+        field: Field::Cc,
+        text: "car".to_owned(),
+    });
+    out.push(("composer_reply".to_owned(), phone.frame()));
     let mut phone = Phone::new(AppState::default(), 360, 800);
     out.push(("no_accounts".to_owned(), phone.frame()));
     let about = phone.frame().top_bar.actions[0].action;

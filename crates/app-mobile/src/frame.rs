@@ -5,6 +5,7 @@ use app_core::{DraftId, MessageId, ThreadId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::event::Field;
 use crate::theme::{About, FrameTheme};
 
 /// An entry of the frame's action table. IDs only grow, so an ID from an older frame is never
@@ -335,21 +336,93 @@ pub struct SettingsPage {
     pub text: String,
 }
 
-/// The open draft (read-only until the composer item of Wave 4 A4).
+/// A text field's content. The host reloads its field only when `version` changes, so a frame
+/// never overwrites what the IME is composing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct TextValue {
+    /// The text.
+    pub text: String,
+    /// Changes whenever the presenter replaces the text (another draft, an edit from elsewhere,
+    /// addresses taken from the typed text).
+    pub version: u64,
+}
+
+/// An address in a recipient field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Chip {
+    /// The address, in full (`Name <address>`).
+    pub label: String,
+    /// Removes it from the field.
+    pub remove: ActionId,
+}
+
+/// `To`, `Cc` or `Bcc`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Recipients {
+    /// Which field (`text` and `blur` events name it).
+    pub field: Field,
+    /// `To`, `Cc` or `Bcc`.
+    pub label: String,
+    /// Its addresses.
+    pub chips: Vec<Chip>,
+    /// What is typed and not yet an address.
+    pub input: TextValue,
+    /// Contacts matching the typed text; a tap adds one.
+    pub suggestions: Vec<Button>,
+}
+
+/// One of the addresses a draft can be sent from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Choice {
+    /// The address.
+    pub label: String,
+    /// Whether it is the draft's.
+    pub selected: bool,
+    /// Chooses it (`set_draft_from`).
+    pub action: ActionId,
+}
+
+/// The original below a reply or a forward: read-only, folded until tapped.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct QuoteFold {
+    /// What the folded quote says (`Quoted message`, `Forwarded message`).
+    pub label: String,
+    /// The attribution or the forward header, line by line, while expanded.
+    pub header: Vec<String>,
+    /// Whether it is expanded.
+    pub expanded: bool,
+    /// Expands or folds it.
+    pub toggle: ActionId,
+}
+
+/// The open draft, editable unless a send is scheduled or under way.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Composer {
     /// The draft.
     pub draft: DraftId,
+    /// `New message`, `Reply` or `Forward`.
+    pub title: String,
+    /// `saved`, `saving…`, `sending in 7 s`, …
+    pub status: String,
+    /// Whether the fields take typing (not while a send is scheduled or leaving).
+    pub editable: bool,
     /// The sending address.
     pub from: String,
-    /// `To`, as typed.
-    pub to: String,
-    /// `Cc`, as typed.
-    pub cc: String,
+    /// The account's addresses, with two or more (a menu on `from`).
+    pub from_choices: Vec<Choice>,
+    /// `To`, `Cc` and `Bcc`.
+    pub recipients: Vec<Recipients>,
     /// The subject.
-    pub subject: String,
-    /// The body.
-    pub body: String,
+    pub subject: TextValue,
+    /// The body (the quote stays below it).
+    pub body: TextValue,
+    /// The original, for a reply or a forward.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quote: Option<QuoteFold>,
+    /// What went wrong: a failed send (with its hint), a failed save.
+    pub problems: Vec<String>,
+    /// *Discard*.
+    pub actions: Vec<Button>,
 }
 
 /// A problem and the action that may fix it.

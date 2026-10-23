@@ -207,13 +207,55 @@ data class SettingsPage(
 )
 
 @Serializable
+data class TextValue(
+    val text: String,
+    val version: Long,
+)
+
+@Serializable
+data class Chip(
+    val label: String,
+    val remove: ActionId,
+)
+
+@Serializable
+data class Recipients(
+    val field: Field,
+    val label: String,
+    val chips: List<Chip>,
+    val input: TextValue,
+    val suggestions: List<Button>,
+)
+
+@Serializable
+data class Choice(
+    val label: String,
+    val selected: Boolean,
+    val action: ActionId,
+)
+
+@Serializable
+data class QuoteFold(
+    val label: String,
+    val header: List<String>,
+    val expanded: Boolean,
+    val toggle: ActionId,
+)
+
+@Serializable
 data class Composer(
     val draft: String,
+    val title: String,
+    val status: String,
+    val editable: Boolean,
     val from: String,
-    val to: String,
-    val cc: String,
-    val subject: String,
-    val body: String,
+    @SerialName("from_choices") val fromChoices: List<Choice>,
+    val recipients: List<Recipients>,
+    val subject: TextValue,
+    val body: TextValue,
+    val quote: QuoteFold? = null,
+    val problems: List<String>,
+    val actions: List<Button>,
 )
 
 @Serializable

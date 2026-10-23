@@ -475,7 +475,7 @@ encryption (SEC-1), 32-bit ARM.
   parity walk reaches every registry command by taps
 
 ### A4 — Compose & send
-- [ ] [mobile] [kt] Composer: From (identities), To/Cc/Bcc chips (`parse_addr`) with contact suggestions
+- [x] [mobile] [kt] Composer: From (identities), To/Cc/Bcc chips (`parse_addr`) with contact suggestions
   (`list_contacts`), subject, the body in a native text field (any IME), the quote read-only and folded; typing goes
   back as one `update_draft` per pause, field change or command; a change from elsewhere reloads a field unless it has
   unsaved typing; *Discard*

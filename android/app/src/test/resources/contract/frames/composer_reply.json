@@ -1,0 +1,110 @@
+{
+  "back": true,
+  "composer": {
+    "actions": [
+      {
+        "action": 16,
+        "icon": "delete",
+        "label": "Discard"
+      }
+    ],
+    "body": {
+      "text": "",
+      "version": 5
+    },
+    "draft": "00000000-0000-03ec-0000-000000000000",
+    "editable": true,
+    "from": "alice@example.com",
+    "from_choices": [],
+    "problems": [],
+    "quote": {
+      "expanded": false,
+      "header": [],
+      "label": "Quoted message",
+      "toggle": 15
+    },
+    "recipients": [
+      {
+        "chips": [
+          {
+            "label": "Carol <carol@example.org>",
+            "remove": 13
+          }
+        ],
+        "field": "to",
+        "input": {
+          "text": "",
+          "version": 1
+        },
+        "label": "To",
+        "suggestions": []
+      },
+      {
+        "chips": [],
+        "field": "cc",
+        "input": {
+          "text": "car",
+          "version": 2
+        },
+        "label": "Cc",
+        "suggestions": [
+          {
+            "action": 14,
+            "label": "Carol <carol@example.org>"
+          }
+        ]
+      },
+      {
+        "chips": [],
+        "field": "bcc",
+        "input": {
+          "text": "",
+          "version": 3
+        },
+        "label": "Bcc",
+        "suggestions": []
+      }
+    ],
+    "status": "draft",
+    "subject": {
+      "text": "Re: Lunch?",
+      "version": 4
+    },
+    "title": "Reply"
+  },
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "composer"
+    ]
+  },
+  "revision": 2,
+  "snackbar": {
+    "action": {
+      "action": 17,
+      "label": "Undo"
+    },
+    "text": "Reply"
+  },
+  "top_bar": {
+    "actions": [
+      {
+        "action": 11,
+        "icon": "search",
+        "label": "Search or run a command"
+      },
+      {
+        "action": 12,
+        "label": "About"
+      }
+    ],
+    "navigation": {
+      "action": 10,
+      "icon": "back",
+      "label": "Back"
+    },
+    "subtitle": "synced 9h ago",
+    "title": "Draft"
+  },
+  "wants_tick": true
+}

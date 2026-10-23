@@ -2,6 +2,7 @@
 
 mod support;
 
+mod composer;
 mod contract;
 mod drawer;
 mod events;

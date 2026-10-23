@@ -12,8 +12,33 @@ use app_testkit::Fixture;
 /// A fixed "now": 2023-11-15 08:00 UTC, the day after the fixture's mail.
 pub const NOW: i64 = 1_700_035_200_000;
 
+/// How far each test has moved its clock past [`NOW`], by thread (tests run on threads of
+/// their own).
+static LATER: std::sync::Mutex<Vec<(std::thread::ThreadId, i64)>> =
+    std::sync::Mutex::new(Vec::new());
+
+fn later() -> i64 {
+    let me = std::thread::current().id();
+    LATER
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(id, _)| *id == me)
+        .map_or(0, |(_, ms)| *ms)
+}
+
 fn fixed_now() -> i64 {
-    NOW
+    NOW + later()
+}
+
+/// Moves this test's presenter clock on by `ms`.
+pub fn advance(ms: i64) {
+    let me = std::thread::current().id();
+    let mut all = LATER.lock().unwrap();
+    match all.iter_mut().find(|(id, _)| *id == me) {
+        Some((_, later)) => *later += ms,
+        None => all.push((me, ms)),
+    }
 }
 
 /// The window sizes of the snapshots (dp): a phone, a small tablet, a large tablet.
