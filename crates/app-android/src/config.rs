@@ -104,6 +104,15 @@ pub enum ImportTask {
     },
 }
 
+/// `background`'s argument for a notification's button: `{"notification": {"act": …}}`, the
+/// button's `act` passed back verbatim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NotificationTask {
+    /// Do what the button says.
+    Notification(app_mobile::NoteAct),
+}
+
 /// `background`'s argument from the debug adb bridge (debug builds only; a release build refuses
 /// it): what an agent or an instrumented test asks of the session.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

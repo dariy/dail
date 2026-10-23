@@ -149,6 +149,8 @@ const APK_PERMISSIONS: &[&str] = &[
     // A5: the periodic check is kept across reboots; a network change syncs.
     "android.permission.RECEIVE_BOOT_COMPLETED",
     "android.permission.ACCESS_NETWORK_STATE",
+    // A5: notifications (asked for at run time from Android 13).
+    "android.permission.POST_NOTIFICATIONS",
     "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];
 

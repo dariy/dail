@@ -1,5 +1,6 @@
 package net.darii.dail
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -190,7 +191,10 @@ class MainActivity : ComponentActivity() {
             }
         }
         host.open()
-        if (savedInstanceState == null) shared(intent)?.let(host::send)
+        if (savedInstanceState == null) {
+            shared(intent)?.let(host::send)
+            Notifier.opened(intent)?.let { host.send(UiEvent.Notification(it)) }
+        }
         setContent {
             val configuration = LocalConfiguration.current
             val dark =
@@ -216,6 +220,8 @@ class MainActivity : ComponentActivity() {
             }
             val screen by host.frame.collectAsStateWithLifecycle()
             val ticking = (screen as? Screen.Ready)?.frame?.wantsTick == true
+            val hasAccount = (screen as? Screen.Ready)?.frame?.fab != null
+            LaunchedEffect(hasAccount) { if (hasAccount) askForNotifications() }
             LaunchedEffect(ticking) {
                 while (ticking) {
                     delay(TICK_MS)
@@ -242,6 +248,19 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         shared(intent)?.let(host::send)
+        Notifier.opened(intent)?.let { host.send(UiEvent.Notification(it)) }
+    }
+
+    /**
+     * `POST_NOTIFICATIONS` (Android 13+), asked once, when it is first needed: the first frame
+     * with an account (it offers *Compose*).
+     */
+    private fun askForNotifications() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || Notifier.allowed(this)) return
+        val prefs = getSharedPreferences("dail", MODE_PRIVATE)
+        if (prefs.getBoolean(ASKED_NOTIFICATIONS, false)) return
+        prefs.edit().putBoolean(ASKED_NOTIFICATIONS, true).apply()
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -290,6 +309,7 @@ class MainActivity : ComponentActivity() {
 
         const val TICK_MS = 1_000L
         const val PICKING = "picking"
+        const val ASKED_NOTIFICATIONS = "asked_notifications"
         const val HALF = 0.5f
         const val TRANSPARENT = android.graphics.Color.TRANSPARENT
     }

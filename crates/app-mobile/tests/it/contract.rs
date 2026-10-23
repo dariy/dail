@@ -122,6 +122,11 @@ fn events() -> Vec<UiEvent> {
         UiEvent::Back,
         UiEvent::Refresh,
         UiEvent::Online,
+        UiEvent::Notification {
+            act: app_mobile::NoteAct::OpenThread {
+                thread: serde_json::from_str("\"00000000-0000-0000-0000-000000000009\"").unwrap(),
+            },
+        },
         UiEvent::Text {
             field: Field::Subject,
             text: "Lunch?".to_owned(),
@@ -150,6 +155,7 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Back
             | UiEvent::Refresh
             | UiEvent::Online
+            | UiEvent::Notification { .. }
             | UiEvent::Text { .. }
             | UiEvent::Blur { .. }
             | UiEvent::Key { .. }
@@ -233,6 +239,16 @@ fn fixtures() -> BTreeMap<String, String> {
         let value = serde_json::to_value(external).unwrap();
         put(format!("externals/{}.json", tag(&value, "external")), value);
     }
+    for (name, note) in crate::background::samples() {
+        put(
+            format!("notifications/{name}.json"),
+            serde_json::to_value(note).unwrap(),
+        );
+    }
+    put(
+        "schema/notification.json".to_owned(),
+        serde_json::to_value(schemars::schema_for!(app_mobile::Notification)).unwrap(),
+    );
     put(
         "schema/frame.json".to_owned(),
         serde_json::to_value(schemars::schema_for!(Frame)).unwrap(),

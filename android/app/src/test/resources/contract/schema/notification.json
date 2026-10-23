@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "Channel": {
+      "description": "The notification channel.",
+      "oneOf": [
+        {
+          "const": "new_mail",
+          "description": "*New mail*.",
+          "type": "string"
+        },
+        {
+          "const": "not_sent",
+          "description": "*Not sent*: a send failed.",
+          "type": "string"
+        },
+        {
+          "const": "background",
+          "description": "*Background*: the push service's silent notification.",
+          "type": "string"
+        }
+      ]
+    },
+    "DraftId": {
+      "description": "A local draft.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "NoteAct": {
+      "description": "What a tap or a button of a notification does.",
+      "oneOf": [
+        {
+          "description": "Archive these threads.",
+          "properties": {
+            "act": {
+              "const": "archive",
+              "type": "string"
+            },
+            "threads": {
+              "description": "The threads.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "act",
+            "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Mark these threads read.",
+          "properties": {
+            "act": {
+              "const": "mark_read",
+              "type": "string"
+            },
+            "threads": {
+              "description": "The threads.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "act",
+            "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this thread in the reader.",
+          "properties": {
+            "act": {
+              "const": "open_thread",
+              "type": "string"
+            },
+            "thread": {
+              "$ref": "#/$defs/ThreadId",
+              "description": "The thread."
+            }
+          },
+          "required": [
+            "act",
+            "thread"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this draft in the composer.",
+          "properties": {
+            "act": {
+              "const": "open_draft",
+              "type": "string"
+            },
+            "draft": {
+              "$ref": "#/$defs/DraftId",
+              "description": "The draft."
+            }
+          },
+          "required": [
+            "act",
+            "draft"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "NoteAction": {
+      "description": "A button of a notification.",
+      "properties": {
+        "act": {
+          "$ref": "#/$defs/NoteAct",
+          "description": "What it does: Kotlin passes it back to `background` as `{\"notification\": …}`."
+        },
+        "label": {
+          "description": "Its label.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "act"
+      ],
+      "type": "object"
+    },
+    "ThreadId": {
+      "description": "A conversation that groups messages across mailboxes.",
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "One notification to post.",
+  "properties": {
+    "actions": {
+      "description": "The buttons.",
+      "items": {
+        "$ref": "#/$defs/NoteAction"
+      },
+      "type": "array"
+    },
+    "body": {
+      "description": "The text below it (cleaned; may hold the subject).",
+      "type": "string"
+    },
+    "channel": {
+      "$ref": "#/$defs/Channel",
+      "description": "The channel."
+    },
+    "open": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NoteAct"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "What a tap does (`None`: just open the app)."
+    },
+    "public_title": {
+      "description": "The lock screen's headline: no sender, no subject.",
+      "type": "string"
+    },
+    "tag": {
+      "description": "Posting again with the same tag replaces it.",
+      "type": "string"
+    },
+    "title": {
+      "description": "The headline (cleaned; may name the sender).",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tag",
+    "channel",
+    "title",
+    "body",
+    "public_title",
+    "actions"
+  ],
+  "title": "Notification",
+  "type": "object"
+}

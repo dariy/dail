@@ -1,0 +1,31 @@
+{
+  "actions": [
+    {
+      "act": {
+        "act": "archive",
+        "threads": [
+          "00000000-0000-0007-0000-000000000000"
+        ]
+      },
+      "label": "Archive"
+    },
+    {
+      "act": {
+        "act": "mark_read",
+        "threads": [
+          "00000000-0000-0007-0000-000000000000"
+        ]
+      },
+      "label": "Mark read"
+    }
+  ],
+  "body": "Lunch today?",
+  "channel": "new_mail",
+  "open": {
+    "act": "open_thread",
+    "thread": "00000000-0000-0007-0000-000000000000"
+  },
+  "public_title": "New mail",
+  "tag": "new_mail",
+  "title": "Bob"
+}

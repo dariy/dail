@@ -1256,6 +1256,18 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   syncing), scheduled unless `sync` is 0 (push keeps it as the fallback). While the activity is started, a default
   network callback (`ACCESS_NETWORK_STATE`) sends `UiEvent::Online` when a network comes back, which syncs if the app
   is visible and has an account.
+- **Notifications** (A5, `app_mobile::notify`). `app_front::alerts` now carry their threads (new mail) or draft
+  (a failed send, an approval). The host's alert watcher (`watch_alerts`, a runtime task) diffs each new state while
+  no activity is visible (the last `visible` event) and hands every `app_mobile::Notification` as JSON to
+  `Listener.alert` from that attached runtime thread: `tag`, `channel` (`new_mail`, `not_sent`; `background` is the
+  push service's), `title`, `body`, a lock-screen `public_title` without sender or subject, `open` (a `NoteAct`:
+  `open_thread`, `open_draft`) and `actions` (*Archive*, *Mark read* over the new threads). Approval requests are left
+  out (the phone has none). Kotlin's `Notifier` posts them (`VISIBILITY_PRIVATE` with the public version); a tap opens
+  `MainActivity`, which sends `UiEvent::Notification{act}`; a button's `NoteReceiver` calls `background` with
+  `{"notification": act}`, and the host submits `NoteAct::commands` as the user and flushes. Threads or drafts that are
+  gone submit nothing. `POST_NOTIFICATIONS` is asked once, on the first frame with an account. The `notifications`
+  setting turns them off as on the desktop. Sends a restart cancelled are told in the snackbar only: the restart
+  happens before the watcher's first state.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,

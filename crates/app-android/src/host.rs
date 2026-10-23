@@ -1,13 +1,14 @@
 //! `Host`: one session and its presenter, driven by Kotlin's calls (ADR 0009).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use app_core::{AppState, Command, DraftId, Origin};
 use app_io::{ProfileDirs, ProfileStore};
 use app_mobile::event::SaveFile;
-use app_mobile::{External, Frame, Mobile, Purpose, Reply, Request, UiEvent};
+use app_mobile::{External, Frame, Mobile, NoteAct, Purpose, Reply, Request, UiEvent};
 use app_sync::{
     AuditLog, Backend, Bridge, LiveBackend, NetImap, NetVerifier, ProfileLock, RandomSeeds,
     Session, SessionClient, SystemClock, Wake,
@@ -17,6 +18,10 @@ use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
 use crate::config::{BackendChoice, BlobRequest, Config, DebugTask, Task};
+
+/// Posts one notification (`app_mobile::Notification` as JSON): Kotlin's `Listener.alert`.
+/// Called from runtime threads.
+pub type Alert = Arc<dyn Fn(String) + Send + Sync>;
 use crate::error::HostError;
 
 /// The most a `background` task waits (a short service's 3 minutes).
@@ -39,6 +44,10 @@ pub struct Host {
     client: SessionClient,
     mobile: Mutex<Mobile>,
     task: Mutex<Option<JoinHandle<()>>>,
+    /// The alert watcher (`watch_alerts`).
+    alerts: JoinHandle<()>,
+    /// Whether an activity is visible (the last `visible` event); alerts only while it is not.
+    visible: Arc<AtomicBool>,
     wake: Wake,
     /// Where picked and shared files are copied (`outgoing`).
     outgoing: PathBuf,
@@ -66,8 +75,9 @@ fn runtime() -> Result<Runtime, HostError> {
 
 impl Host {
     /// Opens the profile (or the demo) and its session. `wake` is called from runtime threads
-    /// whenever a new frame is ready.
-    pub fn open(config: &Config, wake: Wake) -> Result<Self, HostError> {
+    /// whenever a new frame is ready, `alert` with each notification while no activity is
+    /// visible.
+    pub fn open(config: &Config, wake: Wake, alert: Alert) -> Result<Self, HostError> {
         let runtime = runtime()?;
         let (session, lock) = match &config.backend {
             BackendChoice::Live => {
@@ -88,13 +98,19 @@ impl Host {
         if removed > 0 {
             tracing::info!(removed, "removed outgoing copies no draft names");
         }
-        Ok(Self::start(runtime, session, lock, wake, outgoing))
+        Ok(Self::start(runtime, session, lock, wake, alert, outgoing))
     }
 
     /// Runs over an open `session` (opened on `runtime`), as the app with `Origin::Gui`; picked
     /// files are copied into `outgoing`.
-    pub fn with_session(runtime: Runtime, session: Session, wake: Wake, outgoing: PathBuf) -> Self {
-        Self::start(runtime, session, None, wake, outgoing)
+    pub fn with_session(
+        runtime: Runtime,
+        session: Session,
+        wake: Wake,
+        alert: Alert,
+        outgoing: PathBuf,
+    ) -> Self {
+        Self::start(runtime, session, None, wake, alert, outgoing)
     }
 
     fn start(
@@ -102,9 +118,16 @@ impl Host {
         session: Session,
         lock: Option<ProfileLock>,
         wake: Wake,
+        alert: Alert,
         outgoing: PathBuf,
     ) -> Self {
         let client = session.client();
+        let visible = Arc::new(AtomicBool::new(false));
+        let alerts = runtime.spawn(watch_alerts(
+            client.subscribe(),
+            Arc::clone(&visible),
+            alert,
+        ));
         let (bridge, task) = Bridge::own(runtime.handle(), session, Origin::Gui, Arc::clone(&wake));
         Self {
             runtime,
@@ -112,6 +135,8 @@ impl Host {
             client,
             mobile: Mutex::new(Mobile::default()),
             task: Mutex::new(Some(task)),
+            alerts,
+            visible,
             wake,
             outgoing,
             _lock: lock,
@@ -125,6 +150,9 @@ impl Host {
 
     /// One event from Kotlin: submits what it asks for and returns the next frame.
     pub fn event(&self, event: UiEvent) -> Output {
+        if let UiEvent::Visible { visible } = event {
+            self.visible.store(visible, Ordering::Relaxed);
+        }
         let bridge = lock(&self.bridge);
         let mut mobile = lock(&self.mobile);
         let requests = mobile.event(event, &bridge.state());
@@ -239,6 +267,27 @@ impl Host {
         })
     }
 
+    /// What a notification's button asks (`{"notification": …}`): submits its commands as the
+    /// user and waits until they reached the servers, at most `limit`; `Ok(true)` when done.
+    /// Blocks.
+    pub fn notification(&self, act: &NoteAct, limit: Duration) -> Result<bool, HostError> {
+        let commands = act.commands(&self.state());
+        let client = self.client.clone();
+        self.runtime.block_on(async move {
+            let work = async {
+                for command in commands {
+                    // A rejection (the thread went meanwhile) leaves nothing to wait for.
+                    let _ = client.submit(command, Origin::Gui).await?;
+                }
+                Ok::<(), HostError>(client.flush().await?)
+            };
+            match tokio::time::timeout(limit, work).await {
+                Ok(result) => result.map(|()| true),
+                Err(_) => Ok(false),
+            }
+        })
+    }
+
     /// A task of the debug adb bridge: `{"receipt": …}` or `{"rejected": …}` for `exec`, the
     /// state for `state`. Release builds refuse it, and `exec` takes only `cli` and `mcp`, so the
     /// bridge can never speak as the app (`gui`) or the runtime. Blocks.
@@ -271,6 +320,7 @@ impl Host {
     /// Shuts the session down after the queued requests (saving unsaved drafts) and waits.
     /// Later calls do nothing.
     pub fn close(&self) {
+        self.alerts.abort();
         lock(&self.bridge).close();
         let task = lock(&self.task).take();
         if let Some(task) = task
@@ -278,6 +328,28 @@ impl Host {
         {
             tracing::warn!(error = %err, "session task failed");
         }
+    }
+}
+
+/// Hands `alert` the notifications for each change of the state while no activity is visible
+/// (`app_mobile::notifications`), as JSON. Ends with the session.
+async fn watch_alerts(
+    mut state: tokio::sync::watch::Receiver<Arc<AppState>>,
+    visible: Arc<AtomicBool>,
+    alert: Alert,
+) {
+    let mut before = Arc::clone(&state.borrow_and_update());
+    while state.changed().await.is_ok() {
+        let after = Arc::clone(&state.borrow_and_update());
+        if !visible.load(Ordering::Relaxed) {
+            for note in app_mobile::notifications(&before, &after) {
+                match serde_json::to_string(&note) {
+                    Ok(json) => alert(json),
+                    Err(err) => tracing::warn!(error = %err, "notification not encoded"),
+                }
+            }
+        }
+        before = after;
     }
 }
 

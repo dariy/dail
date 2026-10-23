@@ -106,6 +106,13 @@ sealed interface UiEvent {
         override fun json() = event("online")
     }
 
+    /** A tap on a notification: its `open`, passed back verbatim. */
+    data class Notification(
+        val act: JsonObject,
+    ) : UiEvent {
+        override fun json() = event("notification") { put("act", act) }
+    }
+
     data class Text(
         val field: Field,
         val text: String,

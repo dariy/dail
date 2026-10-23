@@ -1,0 +1,9 @@
+{
+  "args": {
+    "act": {
+      "act": "open_thread",
+      "thread": "00000000-0000-0000-0000-000000000009"
+    }
+  },
+  "event": "notification"
+}

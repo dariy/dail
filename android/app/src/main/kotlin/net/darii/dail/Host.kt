@@ -47,7 +47,7 @@ class Host(
         object : Listener {
             override fun wake() = ui.execute { if (handle > 0) take(Native.frame(handle)) }
 
-            override fun alert(json: String) = Unit
+            override fun alert(json: String) = Notifier.post(context, json)
         }
 
     /** Opens the session on dail-ui, once. */

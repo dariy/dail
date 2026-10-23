@@ -1,6 +1,8 @@
 package net.darii.dail
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import net.darii.dail.ui.External
 import net.darii.dail.ui.Field
 import net.darii.dail.ui.Frame
@@ -40,6 +42,17 @@ class ContractTest {
         }
     }
 
+    @Test
+    fun everyNotificationDecodesStrictly() {
+        val notes = fixtures("notifications")
+        assertEquals(setOf("new_mail", "not_sent"), notes.keys)
+        notes.forEach { (name, json) ->
+            val note = strict.decodeFromString(Note.serializer(), json)
+            assertEquals(name, note.channel)
+            assertTrue(name, note.publicTitle.isNotEmpty())
+        }
+    }
+
     /** Kotlin's events, built as the app builds them, equal Rust's fixtures; a new one fails here. */
     @Test
     fun everyEventEncodesAsRustExpects() {
@@ -53,6 +66,13 @@ class ContractTest {
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
                 "online" to UiEvent.Online,
+                "notification" to
+                    UiEvent.Notification(
+                        buildJsonObject {
+                            put("act", "open_thread")
+                            put("thread", "00000000-0000-0000-0000-000000000009")
+                        },
+                    ),
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
                 "share" to
                     UiEvent.Share(

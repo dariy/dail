@@ -41,14 +41,35 @@ fn counter() -> (Arc<AtomicUsize>, app_sync::Wake) {
     )
 }
 
+/// The alerts a host handed out, as JSON.
+type Alerts = Arc<std::sync::Mutex<Vec<String>>>;
+
+/// Collects the alerts.
+fn alerts() -> (Alerts, dail::Alert) {
+    let got = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let inner = Arc::clone(&got);
+    (got, Arc::new(move |json| inner.lock().unwrap().push(json)))
+}
+
 /// The fixture synced, its inbox open, under a host.
 fn synced_host() -> (Host, Arc<AtomicUsize>) {
+    let (host, wakes, _, _) = synced_host_with_alerts();
+    (host, wakes)
+}
+
+/// [`synced_host`], with the fake server and the alerts.
+fn synced_host_with_alerts() -> (
+    Host,
+    Arc<AtomicUsize>,
+    Arc<app_testkit::MemoryBackend>,
+    Alerts,
+) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
         .unwrap();
-    let session = runtime.block_on(async {
+    let (session, backend) = runtime.block_on(async {
         let fixture = app_testkit::Fixture::builtin("basic").unwrap();
         let synced = app_testkit::synced_session(fixture).await.unwrap();
         let inbox = synced
@@ -64,11 +85,17 @@ fn synced_host() -> (Host, Arc<AtomicUsize>) {
             .submit(Command::OpenMailbox { id: inbox }, Origin::Cli)
             .await
             .unwrap();
-        synced.session
+        (synced.session, synced.backend)
     });
     let (wakes, wake) = counter();
+    let (got, alert) = alerts();
     let outgoing = temp_profile(&format!("outgoing-{wakes:p}"));
-    (Host::with_session(runtime, session, wake, outgoing), wakes)
+    (
+        Host::with_session(runtime, session, wake, alert, outgoing),
+        wakes,
+        backend,
+        got,
+    )
 }
 
 /// Frames until `done` holds (the session answers on its own threads).
@@ -99,13 +126,13 @@ fn configure(width_dp: u32) -> UiEvent {
 fn a_live_profile_opens_empty_and_is_locked_while_open() {
     let dir = temp_profile("live");
     let (_, wake) = counter();
-    let host = Host::open(&live(&dir), Arc::clone(&wake)).unwrap();
+    let host = Host::open(&live(&dir), Arc::clone(&wake), alerts().1).unwrap();
     assert!(host.state().accounts.is_empty());
     let out = host.event(configure(360));
     assert!(out.frame.list.is_none_or(|list| list.total == 0), "no mail");
     assert!(dir.join("state.redb").exists());
     assert!(matches!(
-        Host::open(&live(&dir), Arc::clone(&wake)),
+        Host::open(&live(&dir), Arc::clone(&wake), alerts().1),
         Err(HostError::Locked(_))
     ));
     // Nothing to wait for without accounts.
@@ -119,7 +146,7 @@ fn a_live_profile_opens_empty_and_is_locked_while_open() {
     );
     host.close();
     drop(host);
-    let host = Host::open(&live(&dir), wake).unwrap();
+    let host = Host::open(&live(&dir), wake, alerts().1).unwrap();
     host.close();
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -162,7 +189,7 @@ fn the_memory_backend_needs_the_demo_feature() {
     };
     let (_, wake) = counter();
     assert!(matches!(
-        Host::open(&config, wake),
+        Host::open(&config, wake, alerts().1),
         Err(HostError::NoBackend("memory"))
     ));
 }
@@ -238,7 +265,7 @@ fn the_demo_opens_the_fixture_synced() {
         ..live(&temp_profile("demo"))
     };
     let (_, wake) = counter();
-    let host = Host::open(&config, wake).unwrap();
+    let host = Host::open(&config, wake, alerts().1).unwrap();
     let out = host.event(configure(1280));
     assert!(out.frame.list.unwrap().total > 0);
     host.close();
@@ -421,6 +448,68 @@ fn the_sends_task_waits_until_no_send_is_scheduled() {
     assert!(
         host.background(Task::Sends, Duration::from_secs(5))
             .unwrap()
+    );
+    host.close();
+}
+
+/// A message for the fake server's INBOX.
+fn arrive(backend: &app_testkit::MemoryBackend, subject: &str) {
+    backend.edit_server(|server| {
+        let inbox = server.accounts[0]
+            .mailboxes
+            .iter_mut()
+            .find(|m| m.path == "INBOX")
+            .unwrap();
+        inbox.append(
+            Vec::new(),
+            format!(
+                "From: Dana <dana@example.org>\r\nTo: alice@example.com\r\nSubject: {subject}\r\n\
+                 Message-ID: <{subject}@example.org>\r\nDate: Tue, 14 Nov 2023 12:00:00 +0000\r\n\r\nHi\r\n"
+            ),
+        );
+    });
+}
+
+#[test]
+fn new_mail_alerts_only_while_no_activity_is_visible() {
+    let (host, _, backend, got) = synced_host_with_alerts();
+    host.event(UiEvent::Visible { visible: true });
+    arrive(&backend, "Seen");
+    assert!(
+        host.background(Task::Check, Duration::from_secs(10))
+            .unwrap()
+    );
+    std::thread::sleep(Duration::from_millis(100));
+    assert!(got.lock().unwrap().is_empty(), "on screen: no notification");
+    host.event(UiEvent::Visible { visible: false });
+    arrive(&backend, "Lunch");
+    assert!(
+        host.background(Task::Check, Duration::from_secs(10))
+            .unwrap()
+    );
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while got.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline, "no alert");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let note: serde_json::Value = serde_json::from_str(&got.lock().unwrap()[0]).unwrap();
+    assert_eq!(note["channel"], "new_mail");
+    assert_eq!(note["body"], "Lunch");
+    assert_eq!(note["public_title"], "New mail");
+    // Its *Mark read* button, passed back as `background` would get it.
+    let act: app_mobile::NoteAct =
+        serde_json::from_value(note["actions"][1]["act"].clone()).unwrap();
+    assert!(host.notification(&act, Duration::from_secs(10)).unwrap());
+    let thread = match &act {
+        app_mobile::NoteAct::MarkRead { threads } => threads[0],
+        other => panic!("{other:?}"),
+    };
+    let state = host.state();
+    assert!(
+        state.threads[&thread]
+            .messages
+            .iter()
+            .all(|m| state.messages[m].flags.seen)
     );
     host.close();
 }

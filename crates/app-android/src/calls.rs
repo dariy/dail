@@ -12,9 +12,9 @@ use serde_json::{Value, json};
 
 use serde::Deserialize;
 
-use crate::config::{BlobRequest, Config, DebugTask, ImportTask, Task};
+use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task};
 use crate::error::HostError;
-use crate::host::{BACKGROUND_LIMIT, Host};
+use crate::host::{Alert, BACKGROUND_LIMIT, Host};
 use crate::logging;
 
 /// The open hosts; handle `n` is slot `n - 1`.
@@ -61,11 +61,11 @@ fn host(handle: i32) -> Result<Arc<Host>, HostError> {
 }
 
 /// `open(config)`: `{"handle": n}`. Starts the logs on the first call.
-pub fn open(config: &str, wake: Wake) -> String {
+pub fn open(config: &str, wake: Wake, alert: Alert) -> String {
     answer(|| {
         let config: Config = serde_json::from_str(config)?;
         logging::init(&config.profile_dir);
-        let host = Arc::new(Host::open(&config, wake)?);
+        let host = Arc::new(Host::open(&config, wake, alert)?);
         let mut hosts = HOSTS.lock().unwrap_or_else(PoisonError::into_inner);
         let slot = match hosts.iter().position(Option::is_none) {
             Some(slot) => {
@@ -108,6 +108,7 @@ pub fn blob(handle: i32, request: &str) -> Option<Vec<u8>> {
 enum Background {
     Task(Task),
     Import(ImportTask),
+    Notification(NotificationTask),
     Debug(DebugTask),
 }
 
@@ -126,6 +127,10 @@ pub fn background(handle: i32, task: &str) -> String {
         }) => {
             let path = host(handle)?.import(draft, &name, &source)?;
             Ok(json!({ "attached": path }))
+        }
+        Background::Notification(NotificationTask::Notification(act)) => {
+            let done = host(handle)?.notification(&act, BACKGROUND_LIMIT)?;
+            Ok(json!({ "done": done }))
         }
         Background::Debug(task) => host(handle)?.debug(task),
     })

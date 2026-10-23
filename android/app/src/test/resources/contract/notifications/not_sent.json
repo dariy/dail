@@ -1,0 +1,12 @@
+{
+  "actions": [],
+  "body": "Plans: 550 mailbox full",
+  "channel": "not_sent",
+  "open": {
+    "act": "open_draft",
+    "draft": "00000000-0000-03e9-0000-000000000000"
+  },
+  "public_title": "A message was not sent",
+  "tag": "not_sent:00000000-0000-03e9-0000-000000000000",
+  "title": "Sending failed"
+}

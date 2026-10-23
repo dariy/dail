@@ -48,6 +48,6 @@ interface Listener {
     /** A new frame is ready: post `frame` to the dail-ui thread. */
     fun wake()
 
-    /** Post a notification (Wave 4 A5). */
+    /** Post a notification (`app_mobile::Notification`, while no activity is visible). */
     fun alert(json: String)
 }

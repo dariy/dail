@@ -62,6 +62,14 @@ fn new_unread_inbox_mail_is_news() {
     assert_eq!(alert.kind, AlertKind::NewMail);
     assert_eq!(alert.title, "Dana <b>", "escaping is the delivery's job");
     assert_eq!(alert.body, "Lunch today?", "controls and bidi overrides go");
+    let thread = after
+        .messages
+        .values()
+        .find(|m| m.uid == next)
+        .unwrap()
+        .thread;
+    assert_eq!(alert.threads, [thread], "a tap opens it");
+    assert_eq!(alert.draft, None);
     arrived(&mut after, 2, next + 1, "Eve", "Hello");
     arrived(&mut after, 3, next + 2, "Eve", "Again");
     let [alert] = &alerts(&before, &after)[..] else {
@@ -69,6 +77,7 @@ fn new_unread_inbox_mail_is_news() {
     };
     assert_eq!(alert.title, "3 new messages");
     assert_eq!(alert.body, "Dana <b>, Eve");
+    assert_eq!(alert.threads, [thread], "each thread once");
 }
 
 #[test]
@@ -146,6 +155,8 @@ fn failed_sends_and_agent_requests_are_news() {
     };
     assert_eq!(alert.kind, AlertKind::SendFailed);
     assert_eq!(alert.body, "Plans: 550 mailbox full");
+    assert_eq!(alert.draft, Some(draft));
+    assert!(alert.threads.is_empty());
     assert!(alerts(&after, &after).is_empty(), "only once");
 
     let asked = create(&mut engine, 3, Origin::Mcp);
@@ -159,4 +170,5 @@ fn failed_sends_and_agent_requests_are_news() {
     };
     assert_eq!(alert.kind, AlertKind::ApprovalNeeded);
     assert_eq!(alert.body, "To Bob: Plans");
+    assert_eq!(alert.draft, Some(asked));
 }

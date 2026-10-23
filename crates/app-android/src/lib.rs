@@ -14,6 +14,8 @@ pub mod logging;
 pub mod outgoing;
 pub mod secrets;
 
-pub use config::{BackendChoice, BlobRequest, Config, DebugTask, ImportTask, Task};
+pub use config::{
+    BackendChoice, BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task,
+};
 pub use error::HostError;
-pub use host::{Host, Output};
+pub use host::{Alert, Host, Output};

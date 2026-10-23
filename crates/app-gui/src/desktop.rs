@@ -213,6 +213,8 @@ mod tests {
                     kind: app_front::alerts::AlertKind::NewMail,
                     title: "dail test".into(),
                     body: body.into(),
+                    threads: Vec::new(),
+                    draft: None,
                 })
                 .unwrap();
             std::thread::sleep(std::time::Duration::from_secs(2));

@@ -495,7 +495,7 @@ encryption (SEC-1), 32-bit ARM.
 - [x] [android] [kt] Leaving the app: a one-off job flushes queued triage, draft saves and attachment saves (at most
   3 min); a periodic job (network required, kept across reboots) runs `sync_now` as `runtime` and waits for the
   accounts; a network change while the app is visible syncs
-- [ ] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or
+- [x] [kt] [front] Notifications from `app_front::alerts` while no activity is visible (alerts carry their thread or
   draft), through the host's alert watcher and `Listener.alert` (called from an attached runtime thread): channels *New mail*, *Not sent* and *Background*; `POST_NOTIFICATIONS` asked when first needed; lock-screen
   versions without sender or subject; *Archive* and *Mark read* actions; a tap opens the thread
 - [ ] [kt] [android] Push: a `specialUse` foreground service (`dataSync` before Android 14) while `background_sync` is

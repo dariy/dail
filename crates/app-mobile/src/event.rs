@@ -83,6 +83,12 @@ pub enum UiEvent {
     /// A network came back while the app is visible: syncs, as a pull would (nothing while the
     /// app is off screen or has no account).
     Online,
+    /// A tap on a notification: what its `open` said, passed back verbatim (opens the thread
+    /// or the draft, if it still exists).
+    Notification {
+        /// The notification's `open`.
+        act: crate::notify::NoteAct,
+    },
     /// A text field changed (the whole text, as the IME left it).
     Text {
         /// The field.

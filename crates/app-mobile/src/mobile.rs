@@ -296,6 +296,7 @@ impl Mobile {
                 | UiEvent::Swipe { .. }
                 | UiEvent::Back
                 | UiEvent::Refresh
+                | UiEvent::Notification { .. }
                 | UiEvent::Key { .. }
         );
         // Typed text goes back before any command, so the command sees it.
@@ -347,6 +348,9 @@ impl Mobile {
             }
             UiEvent::Back => self.back(state),
             UiEvent::Refresh => vec![Request::user(Command::SyncNow { account: None })],
+            UiEvent::Notification { act } => {
+                act.commands(state).into_iter().map(Request::user).collect()
+            }
             UiEvent::Online => {
                 if self.visible && !state.accounts.is_empty() {
                     vec![Request::user(Command::SyncNow { account: None })]

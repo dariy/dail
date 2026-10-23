@@ -8,6 +8,8 @@
     <!-- A5: the periodic check is kept across reboots, and a network change syncs. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- A5: notifications, asked for when an account first exists. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".DailApplication"
@@ -52,6 +54,9 @@
             android:name=".DailJobService"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver
+            android:name=".Notifier$NoteReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

@@ -10,11 +10,13 @@ pub mod composer;
 pub mod event;
 pub mod frame;
 pub mod mobile;
+pub mod notify;
 pub mod request;
 pub mod theme;
 
 pub use event::{External, UiEvent};
 pub use frame::{Class, Frame};
 pub use mobile::{Mobile, preview_text};
+pub use notify::{NoteAct, Notification, notifications};
 pub use request::{Purpose, Reply, Request};
 pub use theme::{About, FrameTheme};

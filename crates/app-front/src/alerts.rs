@@ -6,7 +6,7 @@
 //! Senders and subjects are untrusted: the texts are cleaned of control characters and cut short,
 //! and the delivery must still escape them for its format (markup, XML).
 
-use app_core::{AppState, MailboxRole};
+use app_core::{AppState, DraftId, MailboxRole, ThreadId};
 
 use crate::format;
 
@@ -35,6 +35,11 @@ pub struct Alert {
     pub title: String,
     /// The text below it (cleaned, short).
     pub body: String,
+    /// The threads it is about (new mail), oldest first, each once: a tap on a notification
+    /// for one thread opens it, and its actions (archive, mark read) act on them all.
+    pub threads: Vec<ThreadId>,
+    /// The draft it is about (a failed send, an approval request): the first one.
+    pub draft: Option<DraftId>,
 }
 
 /// The notifications for going from `before` to `after`, at most one of each kind. None when
@@ -72,6 +77,12 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
     if fresh.is_empty() {
         return None;
     }
+    let mut threads: Vec<ThreadId> = Vec::new();
+    for m in &fresh {
+        if !threads.contains(&m.thread) {
+            threads.push(m.thread);
+        }
+    }
     let sender = |m: &app_core::Envelope| {
         m.from.first().map_or_else(
             || "(unknown sender)".to_owned(),
@@ -87,6 +98,8 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
             } else {
                 &only.subject
             }),
+            threads,
+            draft: None,
         }
     } else {
         let mut senders: Vec<String> = Vec::new();
@@ -106,6 +119,8 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
             kind: AlertKind::NewMail,
             title: format!("{} new messages", fresh.len()),
             body: clean(&body),
+            threads,
+            draft: None,
         }
     })
 }
@@ -135,6 +150,8 @@ fn send_failed(before: &AppState, after: &AppState) -> Option<Alert> {
             format!("{} messages could not be sent", failed.len())
         },
         body: clean(&format!("{subject}: {error}")),
+        threads: Vec::new(),
+        draft: Some(first.id),
     })
 }
 
@@ -161,6 +178,8 @@ fn approvals(before: &AppState, after: &AppState) -> Option<Alert> {
             format!("Agents want to send {} messages", new.len())
         },
         body: clean(&body),
+        threads: Vec::new(),
+        draft: Some(first.draft),
     })
 }
 

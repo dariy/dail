@@ -25,7 +25,7 @@ use jni::objects::{JByteArray, JClass, JObject, JString};
 use jni::refs::Global;
 use jni::sys::{JNI_VERSION_1_6, jint};
 use jni::vm::JavaVM;
-use jni::{EnvUnowned, jni_sig, jni_str};
+use jni::{EnvUnowned, JValue, jni_sig, jni_str};
 
 use crate::calls;
 
@@ -82,6 +82,29 @@ fn waker(listener: Global<JObject<'static>>) -> app_sync::Wake {
     })
 }
 
+/// `Listener.alert(json)` from a runtime thread, attached like [`waker`]'s.
+fn alerter(listener: Global<JObject<'static>>) -> crate::host::Alert {
+    let listener = Arc::new(listener);
+    Arc::new(move |json: String| {
+        let Ok(vm) = JavaVM::singleton() else {
+            return;
+        };
+        let called = vm.attach_current_thread(|env| -> jni::errors::Result<()> {
+            let json = JString::from_str(env, json)?;
+            env.call_method(
+                listener.as_ref(),
+                jni_str!("alert"),
+                jni_sig!((json: JString) -> ()),
+                &[JValue::Object(&json)],
+            )?;
+            Ok(())
+        });
+        if let Err(err) = called {
+            tracing::warn!(error = %err, "Listener.alert failed");
+        }
+    })
+}
+
 #[unsafe(export_name = "Java_net_darii_dail_Native_open")]
 pub extern "system" fn open<'caller>(
     mut env: EnvUnowned<'caller>,
@@ -93,8 +116,9 @@ pub extern "system" fn open<'caller>(
     env.with_env(|env| -> jni::errors::Result<_> {
         let config = config.try_to_string(env)?;
         android_context(env, &context)?;
-        let listener = env.new_global_ref(&listener)?;
-        let answer = calls::open(&config, waker(listener));
+        let wake = waker(env.new_global_ref(&listener)?);
+        let alert = alerter(env.new_global_ref(&listener)?);
+        let answer = calls::open(&config, wake, alert);
         JString::from_str(env, answer)
     })
     .resolve::<ThrowRuntimeExAndDefault>()

@@ -1,5 +1,10 @@
 {
   "$defs": {
+    "DraftId": {
+      "description": "A local draft.",
+      "format": "uuid",
+      "type": "string"
+    },
     "Field": {
       "description": "A text field of the composer.",
       "oneOf": [
@@ -34,6 +39,94 @@
           "type": "string"
         }
       ]
+    },
+    "NoteAct": {
+      "description": "What a tap or a button of a notification does.",
+      "oneOf": [
+        {
+          "description": "Archive these threads.",
+          "properties": {
+            "act": {
+              "const": "archive",
+              "type": "string"
+            },
+            "threads": {
+              "description": "The threads.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "act",
+            "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Mark these threads read.",
+          "properties": {
+            "act": {
+              "const": "mark_read",
+              "type": "string"
+            },
+            "threads": {
+              "description": "The threads.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "act",
+            "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this thread in the reader.",
+          "properties": {
+            "act": {
+              "const": "open_thread",
+              "type": "string"
+            },
+            "thread": {
+              "$ref": "#/$defs/ThreadId",
+              "description": "The thread."
+            }
+          },
+          "required": [
+            "act",
+            "thread"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this draft in the composer.",
+          "properties": {
+            "act": {
+              "const": "open_draft",
+              "type": "string"
+            },
+            "draft": {
+              "$ref": "#/$defs/DraftId",
+              "description": "The draft."
+            }
+          },
+          "required": [
+            "act",
+            "draft"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadId": {
+      "description": "A conversation that groups messages across mailboxes.",
+      "format": "uuid",
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -279,6 +372,32 @@
       },
       "required": [
         "event"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A tap on a notification: what its `open` said, passed back verbatim (opens the thread\nor the draft, if it still exists).",
+      "properties": {
+        "args": {
+          "properties": {
+            "act": {
+              "$ref": "#/$defs/NoteAct",
+              "description": "The notification's `open`."
+            }
+          },
+          "required": [
+            "act"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "notification",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
       ],
       "type": "object"
     },
