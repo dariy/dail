@@ -20,6 +20,17 @@ val workspaceVersion: String =
         .substringAfter('"')
         .substringBefore('"')
 
+/**
+ * The release signing key, from the environment only (CI decodes it from repository secrets; it is
+ * never in the repository): `DAIL_SIGNING_STORE` (a keystore file), `DAIL_SIGNING_STORE_PASSWORD`,
+ * `DAIL_SIGNING_KEY_ALIAS` and `DAIL_SIGNING_KEY_PASSWORD`. Without them the release APKs are
+ * unsigned, which is enough for `apk-check`; `scripts/release-android.sh` requires them.
+ */
+val signingEnv: Map<String, String>? =
+    listOf("STORE", "STORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD")
+        .associateWith { System.getenv("DAIL_SIGNING_$it").orEmpty() }
+        .takeIf { env -> env.values.all(String::isNotEmpty) }
+
 android {
     namespace = "net.darii.dail"
     compileSdk = 36
@@ -47,8 +58,20 @@ android {
         }
     }
 
+    signingConfigs {
+        signingEnv?.let { env ->
+            create("release") {
+                storeFile = file(env.getValue("STORE"))
+                storePassword = env.getValue("STORE_PASSWORD")
+                keyAlias = env.getValue("KEY_ALIAS")
+                keyPassword = env.getValue("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

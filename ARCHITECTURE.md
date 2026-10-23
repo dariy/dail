@@ -1237,8 +1237,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
   carries the content and chrome colour roles as `#RRGGBBAA`, the tags, the type scale, the metrics and the icon
-  font's glyph per icon name. The top bar's *About* opens `about` (the bundled fonts' and icons' licences, from
-  `app_theme::fonts` and `icon`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
+  font's glyph per icon name. The top bar's *About* opens `about` (the version, the bundled fonts' and icons' licences, from
+  `app_theme::fonts` and `icon`, and the lists in `crates/app-mobile/licences/`: the Rust crates `libdail.so` links
+  and the Android libraries of the release APK, each `name version SPDX-licence`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
   `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
   and detail. The class never dispatches a command.
@@ -1470,6 +1471,19 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
   with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
   release APK is not debuggable and carries no debug bridge. Instrumented-test APKs are skipped.
+- **Licence lists** (`cargo xtask android licences`): `rust-crates.txt` from `cargo metadata` for both Android
+  targets (`app-android`'s normal dependencies without features, less the workspace's crates and proc macros) and
+  `android-libraries.txt` from Licensee's `androidLiveRelease` report. `android check` runs `--check`, which fails
+  when either is stale.
+- **Release** (`scripts/release-android.sh`; the `android` job of `release.yml`, on demand): `assembleLiveRelease`
+  signed with the key from `DAIL_SIGNING_STORE`, `DAIL_SIGNING_STORE_PASSWORD`, `DAIL_SIGNING_KEY_ALIAS` and
+  `DAIL_SIGNING_KEY_PASSWORD` (CI decodes the keystore from the `DAIL_ANDROID_KEYSTORE_BASE64` secret into the
+  runner's temp directory; without the variables the release APKs are unsigned and the script refuses), then
+  `apk-check`, `apksigner verify`, and `dist/dail-<version>-<abi>.apk` with a `.sha256` each. The version name is the
+  workspace version and the version code `major·10⁴ + minor·10² + patch`, the same for both ABIs. R8 minifies and
+  shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
+  the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
+  `libdail.so`.
 
 ## 8. Initial Command catalogue (MVP)
 

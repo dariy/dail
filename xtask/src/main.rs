@@ -11,6 +11,10 @@
 //! but `libdail.so` (or an allowlisted prebuilt) under `lib/`, 16 KB alignment, the permissions
 //! pinned, release builds not debuggable and without the debug bridge.
 //!
+//! `cargo xtask android licences [--check]` — writes [`LICENCE_LISTS`]: the Rust crates
+//! `libdail.so` links and the Android libraries the release APK carries, with their licences, which
+//! the About screen shows. `--check` (run by `check`) fails when a list is stale.
+//!
 //! `cargo xtask android all` — `check`, `apk` and `apk-check`: the `android` gate.
 //!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
@@ -118,7 +122,14 @@ const DEVICE_SKIPS: &[&str] = &["ipc::"];
 /// The directories of a crate the tests read at run time.
 const TEST_DATA_DIRS: &[&str] = &["tests", "testdata"];
 
-const ANDROID_USAGE: &str = "cargo xtask android check|apk|apk-check|all|test [ARGS…]";
+const ANDROID_USAGE: &str =
+    "cargo xtask android check|apk|apk-check|licences [--check]|all|test [ARGS…]";
+
+/// The licence lists of the About screen, under `crates/app-mobile` (included by `app_mobile::theme`).
+const LICENCE_LISTS: [&str; 2] = ["licences/rust-crates.txt", "licences/android-libraries.txt"];
+
+/// Licensee's report for the APK users get (`assembleLiveRelease`).
+const LICENSEE_REPORT: &str = "app/build/reports/licensee/androidLiveRelease/artifacts.json";
 
 /// The Gradle tasks of `android check`: the formatter, the licence allowlist, Lint (warnings are
 /// errors) and the JVM tests.
@@ -167,6 +178,7 @@ fn main() -> Result<()> {
             Some("all") => android_check()
                 .and_then(|()| android_apk())
                 .and_then(|()| apk_check()),
+            Some("licences") => licences(args.next().as_deref() == Some("--check")),
             Some("test") => android_test(&args.collect::<Vec<_>>()),
             _ => {
                 let mut err = std::io::stderr().lock();
@@ -276,7 +288,161 @@ fn android_check() -> Result<()> {
             bail!("android check for {target} failed with {status}");
         }
     }
-    gradle(&root, GRADLE_CHECKS)
+    gradle(&root, GRADLE_CHECKS)?;
+    licences(true)
+}
+
+/// Writes [`LICENCE_LISTS`], or with `check` fails when one differs from what it would write.
+fn licences(check: bool) -> Result<()> {
+    let root = workspace_root()?;
+    let report = root.join("android").join(LICENSEE_REPORT);
+    if !report.exists() {
+        gradle(&root, &["licensee"])?;
+    }
+    let lists = [rust_crates(&root)?, android_libraries(&report)?];
+    let mut err = std::io::stderr().lock();
+    let mut stale = Vec::new();
+    for (name, list) in LICENCE_LISTS.iter().zip(lists) {
+        let path = root.join("crates/app-mobile").join(name);
+        if check {
+            if std::fs::read_to_string(&path).ok().as_deref() != Some(list.as_str()) {
+                stale.push(*name);
+            }
+        } else {
+            std::fs::write(&path, list).with_context(|| format!("writing {}", path.display()))?;
+            writeln!(err, "android licences: wrote crates/app-mobile/{name}")?;
+        }
+    }
+    if !stale.is_empty() {
+        bail!(
+            "stale licence lists: {} (run `cargo xtask android licences`)",
+            stale.join(", ")
+        );
+    }
+    Ok(())
+}
+
+/// `name version licence` for every package `libdail.so` links on [`ANDROID_TARGETS`]: the normal
+/// dependencies of `app-android` without features, less the workspace's own crates and the proc
+/// macros (and what only they use), which run at build time.
+fn rust_crates(root: &Path) -> Result<String> {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let mut args = vec!["metadata", "--format-version", "1", "--locked"];
+    for target in ANDROID_TARGETS {
+        args.extend(["--filter-platform", target]);
+    }
+    let output = Command::new(&cargo)
+        .args(&args)
+        .current_dir(root)
+        .output()
+        .context("failed to spawn `cargo metadata`")?;
+    if !output.status.success() {
+        bail!("`cargo metadata` failed with {}", output.status);
+    }
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let packages: std::collections::HashMap<&str, &serde_json::Value> = metadata["packages"]
+        .as_array()
+        .context("no packages")?
+        .iter()
+        .filter_map(|package| Some((package["id"].as_str()?, package)))
+        .collect();
+    let members: Vec<&str> = metadata["workspace_members"]
+        .as_array()
+        .context("no workspace members")?
+        .iter()
+        .filter_map(serde_json::Value::as_str)
+        .collect();
+    let nodes: std::collections::HashMap<&str, &serde_json::Value> = metadata["resolve"]["nodes"]
+        .as_array()
+        .context("no resolve graph")?
+        .iter()
+        .filter_map(|node| Some((node["id"].as_str()?, node)))
+        .collect();
+    let proc_macro = |id: &str| {
+        packages.get(id).is_some_and(|package| {
+            package["targets"].as_array().is_some_and(|targets| {
+                targets.iter().any(|target| {
+                    target["kind"]
+                        .as_array()
+                        .is_some_and(|kinds| kinds.iter().any(|kind| kind == "proc-macro"))
+                })
+            })
+        })
+    };
+    let start = members
+        .iter()
+        .copied()
+        .find(|id| packages.get(id).is_some_and(|p| p["name"] == "app-android"))
+        .context("app-android is not a workspace member")?;
+    let mut seen = std::collections::BTreeSet::new();
+    let mut queue = vec![start];
+    while let Some(id) = queue.pop() {
+        if !seen.insert(id) {
+            continue;
+        }
+        let Some(deps) = nodes.get(id).and_then(|node| node["deps"].as_array()) else {
+            continue;
+        };
+        for dep in deps {
+            let normal = dep["dep_kinds"]
+                .as_array()
+                .is_some_and(|kinds| kinds.iter().any(|kind| kind["kind"].is_null()));
+            // `app-testkit` is a normal dependency only behind the `demo` feature.
+            let Some(dep_id) = dep["pkg"].as_str() else {
+                continue;
+            };
+            if normal && !proc_macro(dep_id) && dep["name"] != "app_testkit" {
+                queue.push(dep_id);
+            }
+        }
+    }
+    let mut lines: Vec<String> = seen
+        .into_iter()
+        .filter(|id| !members.contains(id))
+        .filter_map(|id| packages.get(id))
+        .map(|package| {
+            let licence = package["license"].as_str().unwrap_or("see its repository");
+            format!(
+                "{} {} {licence}",
+                package["name"].as_str().unwrap_or_default(),
+                package["version"].as_str().unwrap_or_default()
+            )
+        })
+        .collect();
+    lines.sort();
+    lines.dedup();
+    Ok(lines.join("\n") + "\n")
+}
+
+/// `group:artifact version licences` for every library in licensee's `report`.
+fn android_libraries(report: &Path) -> Result<String> {
+    let text =
+        std::fs::read_to_string(report).with_context(|| format!("reading {}", report.display()))?;
+    let artifacts: serde_json::Value = serde_json::from_str(&text)?;
+    let mut lines: Vec<String> = artifacts
+        .as_array()
+        .context("licensee's report is not a list")?
+        .iter()
+        .map(|artifact| {
+            let licences: Vec<&str> = artifact["spdxLicenses"]
+                .as_array()
+                .map(|list| {
+                    list.iter()
+                        .filter_map(|licence| licence["identifier"].as_str())
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!(
+                "{}:{} {} {}",
+                artifact["groupId"].as_str().unwrap_or_default(),
+                artifact["artifactId"].as_str().unwrap_or_default(),
+                artifact["version"].as_str().unwrap_or_default(),
+                licences.join(" OR ")
+            )
+        })
+        .collect();
+    lines.sort();
+    Ok(lines.join("\n") + "\n")
 }
 
 /// Assembles [`APK_TASKS`].

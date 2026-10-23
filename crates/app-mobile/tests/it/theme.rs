@@ -69,10 +69,36 @@ fn about_shows_the_licences_and_back_closes_it() {
     let frame = phone.frame();
     assert!(frame.back);
     assert!(frame.fab.is_none(), "nothing floats over the licences");
-    let licences = frame.about.unwrap().licences;
+    let about = frame.about.unwrap();
+    assert!(about.text.contains(env!("CARGO_PKG_VERSION")));
+    let licences = about.licences;
     let names: Vec<&str> = licences.iter().map(|l| l.name.as_str()).collect();
-    assert_eq!(names, ["Geist", "JetBrains Mono", "Material Symbols"]);
+    assert_eq!(
+        names,
+        [
+            "Geist",
+            "JetBrains Mono",
+            "Material Symbols",
+            "Rust crates",
+            "Android libraries"
+        ]
+    );
     assert!(licences[0].text.contains("SIL OPEN FONT LICENSE"));
+    // What `libdail.so` links, and nothing that only builds or tests it.
+    let crates = &licences[3].text;
+    assert!(crates.lines().any(|line| line.starts_with("jni ")));
+    assert!(crates.lines().any(|line| line.starts_with("rustls ")));
+    assert!(!crates.lines().any(|line| line.starts_with("insta ")));
+    assert!(!crates.lines().any(|line| line.starts_with("serde_derive ")));
+    assert!(
+        !crates.contains("app-"),
+        "the workspace's own crates are dail"
+    );
+    assert!(
+        licences[4]
+            .text
+            .contains("androidx.compose.material3:material3 ")
+    );
     phone.take();
     phone.event(UiEvent::Back);
     assert!(phone.take().is_empty());

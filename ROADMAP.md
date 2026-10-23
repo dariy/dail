@@ -510,7 +510,7 @@ encryption (SEC-1), 32-bit ARM.
   tablets and Chromebooks; a test that every bound command has a key Android delivers
 
 ### A7 — Release & devices
-- [ ] Release: a signed APK per ABI from `release.yml` with a `.sha256` each (the key from repository secrets, never in
+- [x] Release: a signed APK per ABI from `release.yml` with a `.sha256` each (the key from repository secrets, never in
   the repository); the version code from the workspace version; R8 keep rules for the JNI and serialization classes;
   the size measured; an About screen with the licences of the fonts, the Rust crates and the Android libraries
 - [ ] Device check: a Pixel, a Samsung (One UI's battery limits), a tablet or foldable, a Chromebook if at hand — Gboard

@@ -163,11 +163,24 @@ pub fn about() -> About {
         name: "Material Symbols".to_owned(),
         text: icon::ICON_LICENSE.to_owned(),
     });
+    // Written by `cargo xtask android licences`; `android check` fails when they are stale.
+    licences.push(Licence {
+        name: "Rust crates".to_owned(),
+        text: include_str!("../licences/rust-crates.txt").to_owned(),
+    });
+    licences.push(Licence {
+        name: "Android libraries".to_owned(),
+        text: include_str!("../licences/android-libraries.txt").to_owned(),
+    });
     About {
         title: "About dail".to_owned(),
-        text: "dail, a keyboard-driven, agent-controllable email client. The app bundles these \
-               typefaces and icons under their licences."
-            .to_owned(),
+        text: format!(
+            "dail {}, a keyboard-driven, agent-controllable email client ({}). The app bundles \
+             these typefaces, icons, Rust crates and Android libraries under their licences \
+             (SPDX identifiers: name, version, licence).",
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_LICENSE")
+        ),
         licences,
     }
 }
