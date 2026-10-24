@@ -87,6 +87,12 @@ jobs:
   android-emulator:
     runs-on: ubuntu-latest
     steps:
+      # The API 36 AVD's userdata partition needs ~7.4 GB, more than a runner has free after the SDK, the NDK and the
+      # build. Drop preinstalled toolchains this job never uses (.NET, GHC, CodeQL, Boost, Swift).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          df -h /
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - run: rustup show active-toolchain || rustup toolchain install
       - run: rustup target add x86_64-linux-android
