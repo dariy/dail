@@ -565,7 +565,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 - [x] `app-ios`: staticlib `libdail.a`, the six calls plus two frees in `src/ffi.rs` (the only unsafe module, pinned
   lints), `include/dail.h` with a test that matches it against the exports, the callback for alerts and wakes,
   `demo` feature, os_log or file logging. Tests on Linux
-- [ ] `cargo xtask ios check` (runs on Linux) and `ios xcframework` (macOS; otherwise "cannot run")
+- [x] `cargo xtask ios check` (runs on Linux) and `ios xcframework` (macOS; otherwise "cannot run")
 
 ### I2 — CI on macOS
 - [ ] `ios/project.yml` (XcodeGen), an empty SwiftUI app linking `DailCore.xcframework`, and `Native.swift` opening the

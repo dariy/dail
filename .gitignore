@@ -10,3 +10,7 @@
 
 # AGENTS.md is part of the repository (a global gitignore may exclude it)
 !AGENTS.md
+
+# The iOS project is generated from ios/project.yml, and the XCFrameworks are built by `cargo xtask ios`
+/ios/Dail.xcodeproj/
+/ios/Frameworks/

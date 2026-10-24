@@ -1521,6 +1521,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   in release builds, `info` in debug builds.
 - **The lint exception.** As app-android's, with `src/ffi.rs` the only module allowing unsafe code;
   `tests/it/lints.rs` pins both.
+- **Build** (`cargo xtask ios`, `xtask/src/ios.rs`). `check` runs clippy `-D warnings` for `aarch64-apple-ios` and
+  `aarch64-apple-ios-sim` over the crates the app links, with and without `demo`; it needs only the rustup targets, so
+  it runs on Linux. `xcframework [--demo]` (macOS with Xcode) builds `libdail.a` in release for both targets
+  (`target/ios-live` or `target/ios-demo`) and packs it with `include/` (`dail.h` and the `DailCore` module map) into
+  `ios/Frameworks/DailCore[-Demo].xcframework`, which is gitignored. Elsewhere it reports "cannot run".
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 

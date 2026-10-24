@@ -17,6 +17,8 @@
 //!
 //! `cargo xtask android all` — `check`, `apk` and `apk-check`: the `android` gate.
 //!
+//! `cargo xtask ios check|xcframework [--demo]` — see [`ios`] (ADR 0010).
+//!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
 //! `x86_64-linux-android` with cargo-ndk, pushes them and their test data to the device adb sees
 //! (an emulator) and runs them there; `ARGS` go to every test binary.
@@ -26,6 +28,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
+
+mod ios;
 
 /// One gate of the Verification Loop.
 struct Gate {
@@ -172,6 +176,7 @@ fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         Some("verify") => verify(&args.collect::<Vec<_>>()),
+        Some("ios") => ios::run(&args.collect::<Vec<_>>()),
         Some("android") => match args.next().as_deref() {
             Some("check") => android_check(),
             Some("apk") => android_apk(),
@@ -191,6 +196,7 @@ fn main() -> Result<()> {
             let mut err = std::io::stderr().lock();
             writeln!(err, "usage: cargo xtask verify [{}]…", gate_names("|"))?;
             writeln!(err, "       {ANDROID_USAGE}")?;
+            writeln!(err, "       {}", ios::USAGE)?;
             bail!("unknown or missing task")
         }
     }
@@ -204,7 +210,7 @@ fn gate_names(separator: &str) -> String {
         .join(separator)
 }
 
-fn workspace_root() -> Result<PathBuf> {
+pub(crate) fn workspace_root() -> Result<PathBuf> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest_dir
         .parent()
@@ -263,7 +269,7 @@ fn android_check() -> Result<()> {
     let root = workspace_root()?;
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let mut err = std::io::stderr().lock();
-    let missing = missing_targets(&root)?;
+    let missing = missing_targets(&root, ANDROID_TARGETS)?;
     if !missing.is_empty() {
         writeln!(
             err,
@@ -682,10 +688,10 @@ fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
 }
 
 /// The Android targets whose standard library is not installed for the active toolchain.
-fn missing_targets(root: &Path) -> Result<Vec<&'static str>> {
+pub(crate) fn missing_targets(root: &Path, targets: &[&'static str]) -> Result<Vec<&'static str>> {
     let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".to_owned());
     let mut missing = Vec::new();
-    for target in ANDROID_TARGETS {
+    for target in targets {
         let output = Command::new(&rustc)
             .args(["--print", "target-libdir", "--target", target])
             .current_dir(root)
@@ -848,7 +854,7 @@ fn android_test_blocker(cargo: &str, adb: &Path, root: &Path) -> Result<Option<S
             "cargo-ndk not installed (cargo install cargo-ndk)".to_owned(),
         ));
     }
-    if missing_targets(root)?.contains(&ANDROID_TEST_TARGET) {
+    if missing_targets(root, ANDROID_TARGETS)?.contains(&ANDROID_TEST_TARGET) {
         return Ok(Some(format!(
             "Rust target not installed: {ANDROID_TEST_TARGET} (rustup target add {ANDROID_TEST_TARGET})"
         )));
