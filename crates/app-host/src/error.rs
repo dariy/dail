@@ -1,6 +1,6 @@
 //! Why a host call failed.
 
-/// A failure of a host call; Kotlin receives it as `{"error": "<message>"}`.
+/// A failure of a host call; the front-end (Kotlin, Swift) receives it as `{"error": "<message>"}`.
 #[derive(Debug, thiserror::Error)]
 pub enum HostError {
     /// The JSON from Kotlin did not parse.

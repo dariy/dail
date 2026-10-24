@@ -294,17 +294,12 @@ version = "0.1.0"
 dependencies = [
  "android-native-keyring-store",
  "app-core",
+ "app-host",
  "app-io",
- "app-mobile",
  "app-sync",
- "app-testkit",
  "jni 0.22.4",
  "keyring-core",
  "ndk-context",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
  "toml",
  "tracing",
  "tracing-logcat",
@@ -377,6 +372,22 @@ dependencies = [
  "webbrowser",
  "windows",
  "zbus",
+]
+
+[[package]]
+name = "app-host"
+version = "0.1.0"
+dependencies = [
+ "app-core",
+ "app-io",
+ "app-mobile",
+ "app-sync",
+ "app-testkit",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

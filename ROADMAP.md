@@ -554,7 +554,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 ### I0 — Groundwork (no iOS code yet; desktop and Android unchanged)
 - [x] ADR 0010: an iOS host over `app-mobile` through a C ABI, `app-host` split out, the lint exception, no-Mac CI.
   Ask the user for the iPad's model and iPadOS version (deployment target: iOS 17 unless it is older; the user: 17+)
-- [ ] `app-host`: move `host.rs`, `calls.rs`, `config.rs`, `outgoing.rs` and `error.rs` out of `app-android` as they
+- [x] `app-host`: move `host.rs`, `calls.rs`, `config.rs`, `outgoing.rs` and `error.rs` out of `app-android` as they
   are, with their tests. app-android keeps only JNI, Keystore and logcat. `cargo xtask verify` and
   `verify android` stay green
 

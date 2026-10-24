@@ -100,6 +100,7 @@ const ANDROID_CRATES: &[&str] = &[
     "app-front",
     "app-theme",
     "app-mobile",
+    "app-host",
     "app-android",
 ];
 

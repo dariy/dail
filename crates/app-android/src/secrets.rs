@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use app_sync::SecretStore;
 
-use crate::error::HostError;
+use app_host::HostError;
 
 /// The credential store of this platform.
 pub fn store() -> Result<Arc<dyn SecretStore>, HostError> {
@@ -33,7 +33,7 @@ mod android {
     use app_sync::{SecretStore, SyncError};
     use keyring_core::{Entry, Error};
 
-    use crate::error::HostError;
+    use app_host::HostError;
 
     static INSTALLED: OnceLock<Result<(), String>> = OnceLock::new();
 

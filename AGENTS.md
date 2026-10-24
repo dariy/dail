@@ -45,7 +45,8 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
     ├── app-tls/          # rustls crypto provider for the TLS client, in safe Rust (ADR 0003). No I/O but the OS RNG.
     ├── app-theme/        # Design tokens: colour roles, type scale, metrics, built-in themes, contrast audit (ADR 0008).
     ├── app-mobile/       # Touch presenter: AppState → JSON frames, UI events → commands. No toolkit, tokio or JNI (ADR 0009).
-    └── app-android/      # Android host, cdylib `libdail.so`: session, six JNI calls, Keystore (ADR 0009).
+    ├── app-host/         # Mobile host without the platform: session, presenter, the six calls (ADR 0010).
+    └── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
 android/                  # Gradle project: the Kotlin/Compose app. Draws frames, holds no rules (ADR 0009).
 ```
 
@@ -62,8 +63,9 @@ app-gui    ← app-core, app-sync, app-front, app-theme
 app-tui    ← app-core, app-sync, app-front, app-theme (ADR 0004, UI-16; app-gui and app-tui never depend on each other)
 app-cli    ← app-core, app-io, app-sync, app-mcp, app-gui, app-tui, app-testkit (ADR 0001: `--backend memory`)
 app-mobile ← app-core, app-front, app-theme  (ADR 0009; no toolkit, no tokio, no JNI)
-app-android← app-core, app-io, app-sync, app-mobile (ADR 0009; app-testkit behind the `demo` feature, as ADR 0001)
-app-testkit← app-core, app-io, app-sync        (only as [dev-dependencies] elsewhere; exceptions: app-cli, ADR 0001; app-android `demo`, ADR 0009)
+app-host   ← app-core, app-io, app-sync, app-mobile (ADR 0010; app-testkit behind the `demo` feature, as ADR 0001)
+app-android← app-core, app-io, app-sync, app-host (ADR 0009, 0010; its `demo` feature turns on app-host's)
+app-testkit← app-core, app-io, app-sync        (only as [dev-dependencies] elsewhere; exceptions: app-cli, ADR 0001; app-host `demo`, ADR 0010)
 ```
 - `app-core` may ONLY depend on: `serde`, `serde_json`, `schemars`, `thiserror`, `uuid` (no RNG features), `indexmap`, `slotmap`.
 - Never use `Rc<RefCell<T>>` / `Arc<Mutex<T>>` in `app-core`. Use typed IDs and `IndexMap`/slotmaps so state stays `Clone + Serialize`.

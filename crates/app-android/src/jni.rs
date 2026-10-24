@@ -27,7 +27,7 @@ use jni::sys::{JNI_VERSION_1_6, jint};
 use jni::vm::JavaVM;
 use jni::{EnvUnowned, JValue, jni_sig, jni_str};
 
-use crate::calls;
+use app_host::calls;
 
 /// Called by the VM when `System.loadLibrary("dail")` loads the library: keeps the VM for the
 /// threads that call back.
@@ -83,7 +83,7 @@ fn waker(listener: Global<JObject<'static>>) -> app_sync::Wake {
 }
 
 /// `Listener.alert(json)` from a runtime thread, attached like [`waker`]'s.
-fn alerter(listener: Global<JObject<'static>>) -> crate::host::Alert {
+fn alerter(listener: Global<JObject<'static>>) -> app_host::Alert {
     let listener = Arc::new(listener);
     Arc::new(move |json: String| {
         let Ok(vm) = JavaVM::singleton() else {
@@ -118,7 +118,7 @@ pub extern "system" fn open<'caller>(
         android_context(env, &context)?;
         let wake = waker(env.new_global_ref(&listener)?);
         let alert = alerter(env.new_global_ref(&listener)?);
-        let answer = calls::open(&config, wake, alert);
+        let answer = calls::open(crate::PLATFORM, &config, wake, alert);
         JString::from_str(env, answer)
     })
     .resolve::<ThrowRuntimeExAndDefault>()
