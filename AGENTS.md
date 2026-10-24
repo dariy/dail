@@ -46,7 +46,8 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
     ├── app-theme/        # Design tokens: colour roles, type scale, metrics, built-in themes, contrast audit (ADR 0008).
     ├── app-mobile/       # Touch presenter: AppState → JSON frames, UI events → commands. No toolkit, tokio or JNI (ADR 0009).
     ├── app-host/         # Mobile host without the platform: session, presenter, the six calls (ADR 0010).
-    └── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
+    ├── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
+    └── app-ios/          # iOS host, staticlib `libdail.a`: C exports (`include/dail.h`), Keychain, log file over app-host (ADR 0010).
 android/                  # Gradle project: the Kotlin/Compose app. Draws frames, holds no rules (ADR 0009).
 ```
 
@@ -65,6 +66,7 @@ app-cli    ← app-core, app-io, app-sync, app-mcp, app-gui, app-tui, app-testki
 app-mobile ← app-core, app-front, app-theme  (ADR 0009; no toolkit, no tokio, no JNI)
 app-host   ← app-core, app-io, app-sync, app-mobile (ADR 0010; app-testkit behind the `demo` feature, as ADR 0001)
 app-android← app-core, app-io, app-sync, app-host (ADR 0009, 0010; its `demo` feature turns on app-host's)
+app-ios    ← app-core, app-io, app-sync, app-host (ADR 0010; its `demo` feature turns on app-host's)
 app-testkit← app-core, app-io, app-sync        (only as [dev-dependencies] elsewhere; exceptions: app-cli, ADR 0001; app-host `demo`, ADR 0010)
 ```
 - `app-core` may ONLY depend on: `serde`, `serde_json`, `schemars`, `thiserror`, `uuid` (no RNG features), `indexmap`, `slotmap`.
@@ -142,7 +144,7 @@ pub enum Command {
   - During rendering, push commands into a frame-local `Vec<Command>`.
   - At the end of the frame, drain the queue into `session.submit(cmd)`.
   - Runtime events wake the UI via `egui::Context::request_repaint()`.
-- **Lint exception (ADR 0009).** `app-android` is the only crate without `[lints] workspace = true`: its table is the workspace's with `unsafe_code = "deny"`, and only `src/jni.rs` allows unsafe code (with a `// reason:` line). A test pins the difference.
+- **Lint exception (ADR 0009, 0010).** `app-android` and `app-ios` are the only crates without `[lints] workspace = true`: their table is the workspace's with `unsafe_code = "deny"`, and only `src/jni.rs` (Android) or `src/ffi.rs` (iOS) allows unsafe code (with a `// reason:` line). A test in each pins the difference.
 - **Kotlin (`android/`).** No rules in Kotlin: it draws frames, returns events and performs host actions. Versions live in the Gradle version catalog, with dependency verification (checksums) and a licence allowlist. The APK carries no native code but `libdail.so`.
 - **Pure-Rust deps.** No C/C++ is compiled or linked at build time, without exception: rustls's crypto comes from `app-tls` (ADR 0003), and `ring` is banned. No `cc` (its remaining parents compile nothing), no `cmake`, `bindgen`, `openssl`, `native-tls`, `aws-lc-*` or `libsqlite3-sys`; `pkg-config` only for crates that load their library at run time (`wayland-sys` and `yeslogic-fontconfig-sys` with `dlopen`, `x11-dl`). `deny.toml` enforces this. A new dependency must be added to `[workspace.dependencies]` first.
 - **Serialization stability.** Command/Event JSON is a public API: agents and replay logs depend on it. Renaming a variant or field needs a `#[serde(alias = ...)]` or an ADR.

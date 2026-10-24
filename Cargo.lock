@@ -416,6 +416,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-ios"
+version = "0.1.0"
+dependencies = [
+ "app-core",
+ "app-host",
+ "app-io",
+ "app-sync",
+ "apple-native-keyring-store",
+ "keyring-core",
+ "serde_json",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "app-mcp"
 version = "0.1.0"
 dependencies = [

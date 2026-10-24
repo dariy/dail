@@ -45,6 +45,7 @@ graph LR
   mobile[app-mobile<br/>touch presenter]
   host[app-host<br/>mobile host · six calls]
   android[app-android<br/>Android host · JNI]
+  ios[app-ios<br/>iOS host · C ABI]
 
   io --> core
   sync --> core
@@ -76,6 +77,7 @@ graph LR
   host --> io
   host --> core
   android --> host
+  ios --> host
   android --> sync
   android --> io
   android --> core
@@ -120,7 +122,8 @@ app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen model
 commands, as `app-tui` turns it into a terminal buffer. `app-host` (← app-core, app-io, app-sync, app-mobile;
 ADR 0010) hosts the session behind six calls, JSON in and out, with no platform code; it is shared with the iOS host.
 `app-android` (← app-host, app-core, app-io, app-sync; cdylib `libdail.so`) adds the JNI exports, the Keystore store
-and logcat for the Kotlin/Compose app in `android/`, which draws the frames and holds no rules. None of these crates
+and logcat for the Kotlin/Compose app in `android/`, which draws the frames and holds no rules. `app-ios` (← app-host,
+app-core, app-io, app-sync; staticlib `libdail.a`, §7.6) does the same for the SwiftUI app through a C ABI. None of these crates
 is a dependency of app-gui, app-tui or app-cli.
 
 `app-theme` (ADR 0008) holds the design tokens without a toolkit: colour roles in two surface groups (content and
@@ -1493,6 +1496,33 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
   the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
   `libdail.so`.
+
+### 7.6 iOS/iPadOS (`app-ios`, ADR 0010)
+
+In progress (ROADMAP Wave 5). The SwiftUI app draws `app-mobile`'s frames, as the Kotlin app does (§7.5), over the
+same `app-host`. There is no Mac: Swift, linking and the simulator run on `macos-latest` CI runners only.
+
+**The host** (`app-ios`, `[lib] name = "dail"`, staticlib + rlib). `app_ios::PLATFORM` gives `app-host` the
+credential store and the logs. It builds and is tested on every host; the iOS-only parts sit behind
+`cfg(target_os = "ios")`.
+
+- **The C calls** (`src/ffi.rs`, declared in the hand-written `include/dail.h`). `dail_open(config, listener)`,
+  `dail_event`, `dail_frame`, `dail_blob` (a `DailBytes {ptr, len}`, null for none), `dail_background` and
+  `dail_close` are `app_host::calls` with C strings: NUL-terminated UTF-8 in, owned by Swift for the call; strings out
+  owned by Rust until `dail_string_free`, bytes until `dail_bytes_free`. A null or non-UTF-8 argument answers
+  `{"error": "…"}`. The `DailListener` is `{context, wake, alert}`, C function pointers called from runtime threads
+  (Swift hops to the main actor). `tests/it/header.rs` matches the header's functions and struct fields against
+  `ffi.rs`, so no `cbindgen` is needed.
+- **Secrets** (`dail::secrets`). On iOS, keyring 4's `apple-native-keyring-store` protected-data store (the
+  data-protection Keychain, not synced to iCloud) becomes keyring-core's default store, and `IosSecrets`
+  (keyring-core's `Entry`) is the session's `SecretStore`: keyring's `v1` `Entry` refuses iOS. app-sync turns the
+  store's `protected` feature on for iOS, without which keyring does not build there. Elsewhere `KeyringSecrets`.
+- **Logs** (`dail::logging`). `tracing` to `<profile>/logs/ios.log` (0600); `os_log` would need C. `warn` and above
+  in release builds, `info` in debug builds.
+- **The lint exception.** As app-android's, with `src/ffi.rs` the only module allowing unsafe code;
+  `tests/it/lints.rs` pins both.
+- **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
+  the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 
 ## 8. Initial Command catalogue (MVP)
 

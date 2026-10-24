@@ -562,7 +562,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 - [x] Portability: `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`; clippy over app-host's tree for both.
   `cargo tree -i cc` is empty, `cargo deny` passes, and the iOS keyring store is chosen (or the Swift Keychain
   fallback, plan §3)
-- [ ] `app-ios`: staticlib `libdail.a`, the six calls plus two frees in `src/ffi.rs` (the only unsafe module, pinned
+- [x] `app-ios`: staticlib `libdail.a`, the six calls plus two frees in `src/ffi.rs` (the only unsafe module, pinned
   lints), `include/dail.h` with a test that matches it against the exports, the callback for alerts and wakes,
   `demo` feature, os_log or file logging. Tests on Linux
 - [ ] `cargo xtask ios check` (runs on Linux) and `ios xcframework` (macOS; otherwise "cannot run")
