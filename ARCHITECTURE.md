@@ -22,7 +22,7 @@ built-in MCP server are four equal front-ends to one deterministic engine.
 
 | | Now | Later |
 |---|---|---|
-| Platforms | Ubuntu (X11/Wayland), Windows; Android 10+ in progress (Wave 4, ADR 0009) | macOS, iOS, Web/PWA |
+| Platforms | Ubuntu (X11/Wayland), Windows, Android 10+ (ADR 0009); iOS/iPadOS 17+ in progress (Wave 5, ADR 0010) | macOS, Web/PWA |
 | Protocols | IMAP4rev1 (+UIDPLUS, MOVE, SPECIAL-USE if offered), SMTP submission | IDLE/CONDSTORE/QRESYNC, JMAP, Gmail API |
 | Auth | Password / App Password (keyring-stored) | OAuth2 XOAUTH2 (Gmail, M365) |
 | Providers | Hostinger Mail, Gmail, generic custom with HTTPS autoconfig (ADR 0006) | DNS SRV discovery |

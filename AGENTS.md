@@ -6,8 +6,8 @@
 ## 0. Project Identity & Scope
 **dail** is a local-first, keyboard-driven, agent-controllable email client written in Rust.
 
-- **Current targets:** desktop-native **Ubuntu (X11/Wayland)** and **Windows**. GUI = `egui`/`eframe`. **Android 10+** (Wave 4, ADR 0009): Kotlin/Compose over the Rust presenter `app-mobile`.
-- **Deferred:** wasm/browser and iOS. Do not spend effort on wasm builds. Still keep `app-core` free of OS deps (§2), because that is what keeps it deterministic and easy to test.
+- **Current targets:** desktop-native **Ubuntu (X11/Wayland)** and **Windows**. GUI = `egui`/`eframe`. **Android 10+** (Wave 4, ADR 0009): Kotlin/Compose over the Rust presenter `app-mobile`. **iOS/iPadOS 17+** (Wave 5, ADR 0010): SwiftUI over the same presenter through a C ABI, built and tested on macOS CI runners only.
+- **Deferred:** wasm/browser. Do not spend effort on wasm builds. Still keep `app-core` free of OS deps (§2), because that is what keeps it deterministic and easy to test.
 - **Accounts (MVP):** generic IMAP + SMTP with password / app-password. Reference providers: **Hostinger Mail** and **Gmail** (App Password). OAuth2/JMAP are on the roadmap.
 - **Toolchain prerequisites:** Rust ≥ 1.92 with `rustfmt` and `clippy`, plus `cargo-deny`. `rust-toolchain.toml` pins the channel for rustup users. If you are on a distro toolchain without clippy/rustfmt, say so in your report. Do not silently skip a gate.
 
