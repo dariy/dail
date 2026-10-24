@@ -245,7 +245,7 @@ mod tests {
             .add(
                 id(1),
                 &mail(
-                    "Bob <bob@x.org>",
+                    "Bob <bob@x.example>",
                     "Q3",
                     "The invoice for the Zürich office.",
                 ),
@@ -255,7 +255,7 @@ mod tests {
             .add(
                 id(2),
                 &mail(
-                    "Carol <carol@x.org>",
+                    "Carol <carol@x.example>",
                     "Lunch",
                     "Invoice? No, lunch at noon.",
                 ),

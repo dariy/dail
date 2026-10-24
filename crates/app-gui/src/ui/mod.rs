@@ -879,7 +879,7 @@ mod tests {
     fn initials_of_names_and_addresses() {
         assert_eq!(initials("Alice Liddell"), "AL");
         assert_eq!(initials("bob@example.com"), "B");
-        assert_eq!(initials("jane.doe@x.org"), "JD");
+        assert_eq!(initials("jane.doe@x.example"), "JD");
         assert_eq!(initials(""), "?");
     }
 }

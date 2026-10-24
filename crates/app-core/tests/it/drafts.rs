@@ -124,7 +124,7 @@ fn create_draft_rejects_bad_input() {
         .unwrap_err();
     assert!(matches!(err, CoreError::InvalidArgument { ref field, .. } if field == "to"));
     let err = m
-        .run(base(Vec::new(), "Hi\r\nBcc: evil@x.org"))
+        .run(base(Vec::new(), "Hi\r\nBcc: evil@x.example"))
         .unwrap_err();
     assert!(matches!(err, CoreError::InvalidArgument { ref field, .. } if field == "subject"));
     let err = m
