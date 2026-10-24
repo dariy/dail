@@ -559,7 +559,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   `verify android` stay green
 
 ### I1 — The Rust side (no Swift yet)
-- [ ] Portability: `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`; clippy over app-host's tree for both.
+- [x] Portability: `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`; clippy over app-host's tree for both.
   `cargo tree -i cc` is empty, `cargo deny` passes, and the iOS keyring store is chosen (or the Swift Keychain
   fallback, plan §3)
 - [ ] `app-ios`: staticlib `libdail.a`, the six calls plus two frees in `src/ffi.rs` (the only unsafe module, pinned

@@ -454,6 +454,7 @@ dependencies = [
  "app-core",
  "app-io",
  "app-tls",
+ "apple-native-keyring-store",
  "async-imap",
  "futures-util",
  "interprocess",
