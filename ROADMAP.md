@@ -542,7 +542,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   account, triaged with undo, and reached every command from the palette.
 
 ### O — Open the repository (plan §1)
-- [ ] Secret scan of the whole history (gitleaks, trufflehog). Rotate and rewrite only if the user decides to
+- [x] Secret scan of the whole history (gitleaks, trufflehog). Rotate and rewrite only if the user decides to
 - [ ] Review what strangers will see: `docs/requests`, `docs/reviews`, fixtures (real addresses and hosts)
 - [ ] LICENSE (the user chooses), with `license.workspace = true` in every crate and `deny.toml` checked;
   README.md, SECURITY.md, CONTRIBUTING.md
