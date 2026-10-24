@@ -548,7 +548,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   README.md, SECURITY.md, CONTRIBUTING.md
 - [x] Workflow hardening: `permissions: contents: read`, actions pinned to SHAs, Dependabot for actions, release jobs
   on `workflow_dispatch` only
-- [ ] The user sets the repository settings (fork-PR approval, branch protection, secret scanning and push
+- [x] The user sets the repository settings (fork-PR approval, branch protection, secret scanning and push
   protection, a `release` environment) and makes the repository public. `ci.yml` is green on the public runners
 
 ### I0 — Groundwork (no iOS code yet; desktop and Android unchanged)
