@@ -37,7 +37,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95" # eframe/egui-winit 0.37 MSRV
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/dail"
+repository = "https://github.com/dariy/dail"
 
 # Every member crate MUST contain `[lints] workspace = true`.
 [workspace.lints.rust]
