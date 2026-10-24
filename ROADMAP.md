@@ -546,7 +546,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 - [x] Review what strangers will see: `docs/requests`, `docs/reviews`, fixtures (real addresses and hosts)
 - [x] LICENSE (the user chooses: MIT OR Apache-2.0), with `license.workspace = true` in every crate and `deny.toml` checked;
   README.md, SECURITY.md, CONTRIBUTING.md
-- [ ] Workflow hardening: `permissions: contents: read`, actions pinned to SHAs, Dependabot for actions, release jobs
+- [x] Workflow hardening: `permissions: contents: read`, actions pinned to SHAs, Dependabot for actions, release jobs
   on `workflow_dispatch` only
 - [ ] The user sets the repository settings (fork-PR approval, branch protection, secret scanning and push
   protection, a `release` environment) and makes the repository public. `ci.yml` is green on the public runners
