@@ -64,6 +64,10 @@ jobs:
         env:
           DAIL_ANDROID_KEYSTORE_BASE64: ${{ secrets.DAIL_ANDROID_KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$DAIL_ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::secret DAIL_ANDROID_KEYSTORE_BASE64 is not set; a release APK must be signed"
+            exit 1
+          fi
           echo "$DAIL_ANDROID_KEYSTORE_BASE64" | base64 -d >"$RUNNER_TEMP/dail-release.jks"
           echo "DAIL_SIGNING_STORE=$RUNNER_TEMP/dail-release.jks" >>"$GITHUB_ENV"
       - run: ./scripts/release-android.sh
