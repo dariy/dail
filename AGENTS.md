@@ -49,6 +49,7 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
     ├── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
     └── app-ios/          # iOS host, staticlib `libdail.a`: C exports (`include/dail.h`), Keychain, log file over app-host (ADR 0010).
 android/                  # Gradle project: the Kotlin/Compose app. Draws frames, holds no rules (ADR 0009).
+ios/                      # XcodeGen spec (`project.yml`) and the SwiftUI app. Draws frames, holds no rules (ADR 0010).
 ```
 
 ### Dependency Rules (allowed edges only)
@@ -151,7 +152,7 @@ pub enum Command {
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 
 ## 6. Verification Loop (Gatekeeper Protocol)
-Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu. Without `xtask`, run them by hand:
+Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `cargo xtask ios check` and `ios build` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
 
 1. `cargo fmt --all --check`
 2. `cargo deny check`

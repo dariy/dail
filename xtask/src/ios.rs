@@ -6,6 +6,8 @@
 //! - `xcframework [--demo]` (macOS with Xcode only): `libdail.a` for both targets in release, then
 //!   `xcodebuild -create-xcframework` with `crates/app-ios/include` as the headers, giving
 //!   `ios/Frameworks/DailCore.xcframework` (or `DailCore-Demo.xcframework`, with the `demo` feature).
+//! - `build` (macOS with Xcode and XcodeGen): both XCFrameworks, `xcodegen generate` over
+//!   `ios/project.yml`, then `xcodebuild build` of the [`SCHEMES`] for the simulator.
 //!
 //! A missing target, macOS or Xcode is reported as "cannot run", never as a pass (AGENTS.md §6).
 
@@ -17,7 +19,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{missing_targets, workspace_root};
 
-pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]";
+pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build";
 
 /// The device and the (arm64) simulator. Current runners and Macs are arm64, so there is no
 /// `x86_64-apple-ios`.
@@ -36,6 +38,9 @@ const CRATES: &[&str] = &[
     "app-ios",
 ];
 
+/// The app targets of `ios/project.yml`, one scheme each: live and demo.
+const SCHEMES: &[&str] = &["Dail", "DailDemo"];
+
 /// Where the XCFrameworks go; gitignored, and what `ios/project.yml` links.
 const FRAMEWORKS_DIR: &str = "ios/Frameworks";
 
@@ -49,6 +54,7 @@ pub fn run(args: &[String]) -> Result<()> {
         ["check"] => check(),
         ["xcframework"] => xcframework(false),
         ["xcframework", "--demo"] => xcframework(true),
+        ["build"] => build(),
         _ => {
             writeln!(std::io::stderr().lock(), "usage: {USAGE}")?;
             bail!("unknown or missing ios task")
@@ -106,17 +112,7 @@ fn check() -> Result<()> {
 
 fn xcframework(demo: bool) -> Result<()> {
     let root = workspace_root()?;
-    let mut err = std::io::stderr().lock();
-    if !cfg!(target_os = "macos") {
-        writeln!(err, "ios xcframework: cannot run: needs macOS with Xcode")?;
-        bail!("ios xcframework cannot run");
-    }
-    let xcodebuild = Command::new("xcodebuild").arg("-version").output();
-    if !xcodebuild.is_ok_and(|output| output.status.success()) {
-        writeln!(err, "ios xcframework: cannot run: `xcodebuild` not found")?;
-        bail!("ios xcframework cannot run");
-    }
-    drop(err);
+    require_xcode("ios xcframework", &[])?;
     require_targets(&root)?;
     // A target dir per flavour, so the two `libdail.a` builds never overwrite each other.
     let (target_dir, name) = if demo {
@@ -169,5 +165,78 @@ fn xcframework(demo: bool) -> Result<()> {
         bail!("xcodebuild -create-xcframework failed with {status}");
     }
     writeln!(std::io::stderr().lock(), "ios: wrote {}", output.display())?;
+    Ok(())
+}
+
+/// Reports "cannot run" unless this is macOS with `xcodebuild` and every tool in `tools` (run with
+/// `--version`).
+fn require_xcode(task: &str, tools: &[&str]) -> Result<()> {
+    let mut err = std::io::stderr().lock();
+    if !cfg!(target_os = "macos") {
+        writeln!(err, "{task}: cannot run: needs macOS with Xcode")?;
+        bail!("{task} cannot run");
+    }
+    let found = |tool: &str, flag: &str| {
+        Command::new(tool)
+            .arg(flag)
+            .output()
+            .is_ok_and(|output| output.status.success())
+    };
+    if !found("xcodebuild", "-version") {
+        writeln!(err, "{task}: cannot run: `xcodebuild` not found")?;
+        bail!("{task} cannot run");
+    }
+    if let Some(tool) = tools.iter().find(|tool| !found(tool, "--version")) {
+        writeln!(err, "{task}: cannot run: `{tool}` not found")?;
+        bail!("{task} cannot run");
+    }
+    Ok(())
+}
+
+/// Runs `program` in `dir`, failing on a non-zero exit.
+fn run_in(dir: &Path, program: &str, args: &[&str]) -> Result<()> {
+    writeln!(
+        std::io::stderr().lock(),
+        "ios: {program} {}",
+        args.join(" ")
+    )?;
+    let status = Command::new(program)
+        .args(args)
+        .current_dir(dir)
+        .status()
+        .with_context(|| format!("failed to spawn `{program}`"))?;
+    if !status.success() {
+        bail!("`{program} {}` failed with {status}", args.join(" "));
+    }
+    Ok(())
+}
+
+/// Both XCFrameworks, the generated Xcode project, and every scheme built for the simulator.
+fn build() -> Result<()> {
+    let root = workspace_root()?;
+    require_xcode("ios build", &["xcodegen"])?;
+    xcframework(false)?;
+    xcframework(true)?;
+    let ios = root.join("ios");
+    run_in(&ios, "xcodegen", &["generate", "--spec", "project.yml"])?;
+    for scheme in SCHEMES {
+        run_in(
+            &ios,
+            "xcodebuild",
+            &[
+                "build",
+                "-project",
+                "Dail.xcodeproj",
+                "-scheme",
+                scheme,
+                "-destination",
+                "generic/platform=iOS Simulator",
+                "-derivedDataPath",
+                "../target/ios-xcode",
+                "CODE_SIGNING_ALLOWED=NO",
+            ],
+        )?;
+    }
+    writeln!(std::io::stderr().lock(), "ios build passed")?;
     Ok(())
 }

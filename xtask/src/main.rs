@@ -17,7 +17,7 @@
 //!
 //! `cargo xtask android all` — `check`, `apk` and `apk-check`: the `android` gate.
 //!
-//! `cargo xtask ios check|xcframework [--demo]` — see [`ios`] (ADR 0010).
+//! `cargo xtask ios check|xcframework [--demo]|build` — see [`ios`] (ADR 0010).
 //!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
 //! `x86_64-linux-android` with cargo-ndk, pushes them and their test data to the device adb sees

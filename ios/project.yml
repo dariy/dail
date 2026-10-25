@@ -1,0 +1,63 @@
+# XcodeGen spec of the iOS app (ADR 0010). CI generates `Dail.xcodeproj` from it (`cargo xtask ios build`);
+# the project is never committed or edited by hand. The XCFrameworks come from `cargo xtask ios xcframework`.
+#
+# Two app targets over the same Swift sources, like Android's flavours: `Dail` (live: the profile's store, the
+# Keychain and the mail servers) and `DailDemo` (the memory backend over the `basic` fixture, `DEMO` set).
+name: Dail
+options:
+  bundleIdPrefix: net.darii
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # iPhone and iPad.
+    TARGETED_DEVICE_FAMILY: "1,2"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: >-
+      UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: >-
+      UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown
+      UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    # The artifacts are unsigned (plan §6); the user re-signs the IPA.
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGN_IDENTITY: ""
+targetTemplates:
+  App:
+    type: application
+    platform: iOS
+    sources:
+      - Dail
+    dependencies:
+      # libdail.a's system dependencies: the Keychain (security-framework) and getrandom's SecRandomCopyBytes.
+      - sdk: Security.framework
+      - sdk: CoreFoundation.framework
+    settings:
+      base:
+        INFOPLIST_KEY_CFBundleDisplayName: dail
+        PRODUCT_NAME: Dail
+targets:
+  Dail:
+    templates: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail
+    dependencies:
+      - framework: Frameworks/DailCore.xcframework
+        embed: false
+  DailDemo:
+    templates: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail.demo
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) DEMO
+    dependencies:
+      - framework: Frameworks/DailCore-Demo.xcframework
+        embed: false

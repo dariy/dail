@@ -1526,6 +1526,15 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   it runs on Linux. `xcframework [--demo]` (macOS with Xcode) builds `libdail.a` in release for both targets
   (`target/ios-live` or `target/ios-demo`) and packs it with `include/` (`dail.h` and the `DailCore` module map) into
   `ios/Frameworks/DailCore[-Demo].xcframework`, which is gitignored. Elsewhere it reports "cannot run".
+  `build` (macOS with Xcode and XcodeGen) makes both, generates `ios/Dail.xcodeproj` from `ios/project.yml` (never
+  committed) and builds the `Dail` (live) and `DailDemo` schemes for the simulator. `ci.yml`'s `ios` job runs `check`
+  and `build` on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
+  `git diff` in the `ios-changes` job), and always when started by hand.
+- **The app** (`ios/`). Two app targets over the same Swift sources, like Android's flavours: `Dail`
+  (`net.darii.dail`, links `DailCore.xcframework`) and `DailDemo` (`net.darii.dail.demo`, `DailCore-Demo`, the `DEMO`
+  condition: `{"memory": "basic"}`). iOS 17, iPhone and iPad, unsigned. `Native.swift` is the only file that calls
+  `dail.h`: it copies and frees the strings and bounces the listener (an unretained `Listener` as the context) to
+  the main actor. The profile is `Application Support/profiles/default`.
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 
