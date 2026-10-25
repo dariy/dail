@@ -1,6 +1,7 @@
 //! `cargo xtask verify [GATE…]` — runs the Verification Loop gates from `AGENTS.md §6` in order and
 //! stops at the first failure. Naming gates runs only those, still in gate order; CI runs its jobs
-//! this way. The `android` gate runs only when named (it needs the Android Rust targets).
+//! this way. The `android` and `ios` gates run only when named (they need the Android or iOS Rust
+//! targets, and `ios` beyond `check` needs macOS with Xcode).
 //!
 //! `cargo xtask android check` — clippy (`-D warnings`) for the Android targets over the crates the
 //! app links, then Gradle's formatter, licence allowlist, Android Lint and JVM tests (ADR 0009).
@@ -17,7 +18,7 @@
 //!
 //! `cargo xtask android all` — `check`, `apk` and `apk-check`: the `android` gate.
 //!
-//! `cargo xtask ios check|xcframework [--demo]|build` — see [`ios`] (ADR 0010).
+//! `cargo xtask ios check|xcframework [--demo]|build|test|app|all` — see [`ios`] (ADR 0010).
 //!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
 //! `x86_64-linux-android` with cargo-ndk, pushes them and their test data to the device adb sees
@@ -88,6 +89,11 @@ const GATES: &[Gate] = &[
     Gate {
         name: "android",
         args: &["xtask", "android", "all"],
+        default: false,
+    },
+    Gate {
+        name: "ios",
+        args: &["xtask", "ios", "all"],
         default: false,
     },
 ];

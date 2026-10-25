@@ -152,7 +152,7 @@ pub enum Command {
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 
 ## 6. Verification Loop (Gatekeeper Protocol)
-Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `cargo xtask ios check` and `ios build` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
+Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `ios` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
 
 1. `cargo fmt --all --check`
 2. `cargo deny check`
@@ -164,6 +164,8 @@ Run `cargo xtask verify`. It executes the gates below in order and stops at the 
 
 6. **Android** (not in the default run; `cargo xtask verify android`): `cargo xtask android all` = `check` (clippy `-D warnings` for `aarch64-linux-android` and `x86_64-linux-android` over the crates the app links, then Gradle's formatter, licence allowlist, Lint and JVM tests), `apk` (assembles the APKs; cargo-ndk builds `libdail.so`) and `apk-check`. It needs the rustup targets, `cargo-ndk`, NDK r28+, JDK 17 (`JAVA_HOME`) and the SDK with platform 36 and build-tools (`ANDROID_HOME` or `android/local.properties`); without one it reports "cannot run". CI runs it as the `android` job.
    `cargo xtask android test` runs the Rust tests of app-core, app-io, app-tls and app-sync on an x86_64 emulator through adb; it needs `cargo-ndk`, NDK r28+ (`ANDROID_NDK_HOME` or `ANDROID_HOME/ndk`), adb and a booted device, and reports "cannot run" without them. A test that reads its own files must find them through the run-time `CARGO_MANIFEST_DIR` (with `env!` as the fallback). CI runs it as the `android-emulator` job.
+
+7. **iOS** (not in the default run; `cargo xtask verify ios`, ADR 0010): `cargo xtask ios all` = `check` (clippy `-D warnings` for `aarch64-apple-ios` and `aarch64-apple-ios-sim` over the crates the app links, with and without `demo`; runs on Linux and is the local gate), `build` (both XCFrameworks, `xcodegen generate` from `ios/project.yml`, and the `Dail` and `DailDemo` schemes for the simulator), `test` (`DailTests` on an iPad simulator) and `app` (`dist/dail-<v>[-demo]-unsigned.ipa` with `.sha256`). Everything after `check` needs macOS with Xcode and XcodeGen; without them it reports "cannot run". There is no local Mac: CI's `ios` job is where it runs, and its result must be read (`gh run view`), never assumed.
 
 If a gate fails, read the diagnostic, fix the root cause (not the symptom), and restart from gate 1. When a gate *cannot* run (missing tool), report that explicitly. Never claim it passed.
 

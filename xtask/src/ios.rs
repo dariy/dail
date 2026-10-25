@@ -10,6 +10,9 @@
 //!   `ios/project.yml`, then `xcodebuild build` of the [`SCHEMES`] for the simulator.
 //! - `test` (as `build`): `DailTests` (the contract fixtures and the demo host) in the scheme
 //!   `DailDemo` on the newest available iPad simulator; the result bundle goes to [`RESULTS`].
+//! - `app` (as `build`): each scheme archived for devices in Release, unsigned, and packed as
+//!   `dist/dail-<version>[-demo]-unsigned.ipa` with a `.sha256` (plan §6: the user re-signs it).
+//! - `all`: `check`, `build`, `test` and `app`, the `ios` gate.
 //!
 //! A missing target, macOS or Xcode is reported as "cannot run", never as a pass (AGENTS.md §6).
 
@@ -21,7 +24,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{missing_targets, workspace_root};
 
-pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build|test";
+pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build|test|app|all";
 
 /// The device and the (arm64) simulator. Current runners and Macs are arm64, so there is no
 /// `x86_64-apple-ios`.
@@ -61,6 +64,11 @@ pub fn run(args: &[String]) -> Result<()> {
         ["xcframework", "--demo"] => xcframework(true),
         ["build"] => build(),
         ["test"] => test(),
+        ["app"] => app(),
+        ["all"] => check()
+            .and_then(|()| build())
+            .and_then(|()| test())
+            .and_then(|()| app()),
         _ => {
             writeln!(std::io::stderr().lock(), "usage: {USAGE}")?;
             bail!("unknown or missing ios task")
@@ -319,5 +327,87 @@ fn test() -> Result<()> {
         ],
     )?;
     writeln!(std::io::stderr().lock(), "ios test passed")?;
+    Ok(())
+}
+
+/// Every scheme archived unsigned for devices and packed as an IPA in `dist/`, with its `.sha256`.
+fn app() -> Result<()> {
+    let ios = generate("ios app")?;
+    let root = workspace_root()?;
+    let version = env!("CARGO_PKG_VERSION");
+    let dist = root.join("dist");
+    std::fs::create_dir_all(&dist)
+        .with_context(|| format!("failed to create {}", dist.display()))?;
+    let marketing = format!("MARKETING_VERSION={version}");
+    for (scheme, product, suffix) in [("Dail", "Dail", ""), ("DailDemo", "DailDemo", "-demo")] {
+        let archive = root.join(format!("target/ios-archive/{scheme}.xcarchive"));
+        if archive.exists() {
+            std::fs::remove_dir_all(&archive)
+                .with_context(|| format!("failed to remove {}", archive.display()))?;
+        }
+        let archive_path = archive.display().to_string();
+        run_in(
+            &ios,
+            "xcodebuild",
+            &[
+                "archive",
+                "-project",
+                "Dail.xcodeproj",
+                "-scheme",
+                scheme,
+                "-configuration",
+                "Release",
+                "-destination",
+                "generic/platform=iOS",
+                "-derivedDataPath",
+                "../target/ios-xcode",
+                "-archivePath",
+                &archive_path,
+                &marketing,
+                "CODE_SIGNING_ALLOWED=NO",
+            ],
+        )?;
+        // An IPA is a zip of `Payload/<App>.app`.
+        let staging = root.join(format!("target/ios-archive/{scheme}-ipa"));
+        if staging.exists() {
+            std::fs::remove_dir_all(&staging)
+                .with_context(|| format!("failed to remove {}", staging.display()))?;
+        }
+        let payload = staging.join("Payload");
+        std::fs::create_dir_all(&payload)
+            .with_context(|| format!("failed to create {}", payload.display()))?;
+        let app = archive.join(format!("Products/Applications/{product}.app"));
+        run_in(
+            &staging,
+            "ditto",
+            &[
+                &app.display().to_string(),
+                &payload.join(format!("{product}.app")).display().to_string(),
+            ],
+        )?;
+        let name = format!("dail-{version}{suffix}-unsigned.ipa");
+        let ipa = dist.join(&name);
+        if ipa.exists() {
+            std::fs::remove_file(&ipa)
+                .with_context(|| format!("failed to remove {}", ipa.display()))?;
+        }
+        run_in(
+            &staging,
+            "zip",
+            &["-qry", &ipa.display().to_string(), "Payload"],
+        )?;
+        let output = Command::new("shasum")
+            .args(["-a", "256", &name])
+            .current_dir(&dist)
+            .output()
+            .context("failed to spawn `shasum`")?;
+        if !output.status.success() {
+            bail!("`shasum -a 256 {name}` failed with {}", output.status);
+        }
+        let sha = dist.join(format!("{name}.sha256"));
+        std::fs::write(&sha, &output.stdout)
+            .with_context(|| format!("failed to write {}", sha.display()))?;
+        writeln!(std::io::stderr().lock(), "ios: wrote {}", ipa.display())?;
+    }
     Ok(())
 }

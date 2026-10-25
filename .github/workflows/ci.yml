@@ -151,8 +151,8 @@ jobs:
           fi
 
   # The iOS app (ADR 0010): clippy for the iOS targets, both XCFrameworks, the Xcode project from
-  # ios/project.yml (XcodeGen), both schemes built for the simulator, and DailTests (the contract fixtures and
-  # the demo host) on an iPad simulator. Only a macOS runner has Xcode.
+  # ios/project.yml (XcodeGen), both schemes built for the simulator, DailTests (the contract fixtures and
+  # the demo host) on an iPad simulator, and the unsigned archives. Only a macOS runner has Xcode.
   ios:
     needs: ios-changes
     if: needs.ios-changes.outputs.ios == 'true'
@@ -166,9 +166,8 @@ jobs:
           # Only main writes the cache, so a pull request cannot poison it for later runs.
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: brew install xcodegen
-      - run: cargo xtask ios check
-      - run: cargo xtask ios build
-      - run: cargo xtask ios test
+      # The `ios` gate: `ios check`, `build`, `test` and `app` (the unsigned IPAs, built here to keep them building).
+      - run: cargo xtask verify ios
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:

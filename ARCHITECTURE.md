@@ -1529,7 +1529,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `build` (macOS with Xcode and XcodeGen) makes both, generates `ios/Dail.xcodeproj` from `ios/project.yml` (never
   committed) and builds the `Dail` (live) and `DailDemo` schemes for the simulator. `test` runs `DailTests` in the
   `DailDemo` scheme on the newest available iPad simulator (result bundle `target/ios-tests.xcresult`, which CI uploads
-  on failure). `ci.yml`'s `ios` job runs `check`, `build` and `test` on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
+  on failure). `app` archives both schemes for devices in Release, unsigned, as
+  `dist/dail-<v>[-demo]-unsigned.ipa` (a zip of `Payload/<App>.app`) with `.sha256`; `release.yml`'s `ios` job uploads
+  them. `all` is the four, the non-default `ios` gate of `cargo xtask verify`. `ci.yml`'s `ios` job runs the gate on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
   `git diff` in the `ios-changes` job), and always when started by hand.
 - **The app** (`ios/`). Two app targets over the same Swift sources, like Android's flavours: `Dail`
   (`net.darii.dail`, links `DailCore.xcframework`) and `DailDemo` (`net.darii.dail.demo`, `DailCore-Demo`, the `DEMO`
