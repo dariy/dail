@@ -1,33 +1,23 @@
 import SwiftUI
 
-/// The app's entry: one window that shows the host's frames (ADR 0010). Rules stay in Rust; this
-/// file and the views only draw what `Native` hands them.
+/// The app's entry: one window that draws the host's frames (ADR 0010). Rules stay in Rust; the
+/// views only draw what `Host` publishes and send back what the user did.
 @main
 struct DailApp: App {
     @StateObject private var host = Host()
+    @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
         WindowGroup {
-            ContentView(host: host)
+            RootView(host: host)
+                .onAppear { host.open() }
         }
-    }
-}
-
-/// The first frame's title, for now (ROADMAP I2): the views that draw whole frames come in I3.
-struct ContentView: View {
-    @ObservedObject var host: Host
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if let error = host.error {
-                    Text(error).foregroundStyle(.red).padding()
-                } else {
-                    ProgressView()
-                }
+        .onChange(of: phase) { _, phase in
+            switch phase {
+            case .active: host.send(.visible(true))
+            case .background: host.send(.visible(false))
+            default: break
             }
-            .navigationTitle(host.title)
         }
-        .onAppear { host.open() }
     }
 }

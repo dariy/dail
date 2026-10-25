@@ -1545,6 +1545,17 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
   had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
   simulator, decodes its frame strictly and sends a `configure`.
+- **The views** (`ios/Dail/Views`, as Kotlin's `ui/`). `Host.swift` runs every call on one serial queue ("dail-ui"),
+  as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
+  `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
+  and the app `visible` on scene changes. `FrameView` draws the top or bulk bar, the banner, the layout's panes in a
+  row (drawer, list, reader), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
+  whose dismissal is Back. `ListPane` keeps Android's window (`total` rows, placeholders outside `offset…`), reports
+  `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
+  `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a
+  `dail-action:<id>` link the view turns into a tap (so the link sheet shows the target first), and inline images
+  are placeholders. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
+  `copy`, `open_url`, `haptic` and `system_settings`; the file ones wait for the compose wave.
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 
