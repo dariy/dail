@@ -12,6 +12,9 @@
 //!   `DailDemo` on the newest available iPad simulator; the result bundle goes to [`RESULTS`].
 //! - `app` (as `build`): each scheme archived for devices in Release, unsigned, and packed as
 //!   `dist/dail-<version>[-demo]-unsigned.ipa` with a `.sha256` (plan §6: the user re-signs it).
+//! - `measure` (macOS with Xcode): `app-io`'s `scale` measurements (redb and tantivy at 50k
+//!   messages), built in release for `aarch64-apple-ios-sim` and run in the iPad simulator
+//!   through `xcrun simctl spawn` (ROADMAP Wave 5 I3). `DailTests`' `ScaleTests` measure the app.
 //! - `all`: `check`, `build`, `test` and `app`, the `ios` gate.
 //!
 //! A missing target, macOS or Xcode is reported as "cannot run", never as a pass (AGENTS.md §6).
@@ -24,7 +27,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{missing_targets, workspace_root};
 
-pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build|test|app|all";
+pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build|test|app|measure|all";
 
 /// The device and the (arm64) simulator. Current runners and Macs are arm64, so there is no
 /// `x86_64-apple-ios`.
@@ -65,6 +68,7 @@ pub fn run(args: &[String]) -> Result<()> {
         ["build"] => build(),
         ["test"] => test(),
         ["app"] => app(),
+        ["measure"] => measure(),
         ["all"] => check()
             .and_then(|()| build())
             .and_then(|()| test())
@@ -407,5 +411,73 @@ fn app() -> Result<()> {
             .with_context(|| format!("failed to write {}", sha.display()))?;
         writeln!(std::io::stderr().lock(), "ios: wrote {}", ipa.display())?;
     }
+    Ok(())
+}
+
+/// `app-io`'s scale tests in the simulator: the test binary is built for the simulator target and
+/// spawned in a booted iPad simulator, which runs it as an iOS process (mmap, file locks and the
+/// sandbox's temporary directory as on the iPad).
+fn measure() -> Result<()> {
+    let root = workspace_root()?;
+    require_xcode("ios measure", &[])?;
+    require_targets(&root)?;
+    let target = "aarch64-apple-ios-sim";
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let args = [
+        "test",
+        "--release",
+        "--locked",
+        "-p",
+        "app-io",
+        "--test",
+        "it",
+        "--target",
+        target,
+        "--no-run",
+        "--message-format=json",
+    ];
+    writeln!(std::io::stderr().lock(), "ios: cargo {}", args.join(" "))?;
+    let output = Command::new(&cargo)
+        .args(args)
+        .current_dir(&root)
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .context("failed to spawn cargo")?;
+    if !output.status.success() {
+        bail!(
+            "building the app-io tests for {target} failed with {}",
+            output.status
+        );
+    }
+    let binary = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(|message| {
+            message["reason"] == "compiler-artifact" && message["profile"]["test"] == true
+        })
+        .find_map(|message| message["executable"].as_str().map(str::to_owned))
+        .context("cargo built no test executable")?;
+    let device = ipad_simulator()?;
+    // Booting a booted device fails; that is fine.
+    let _ = Command::new("xcrun")
+        .args(["simctl", "boot", &device])
+        .status();
+    run_in(&root, "xcrun", &["simctl", "bootstatus", &device, "-b"])?;
+    run_in(
+        &root,
+        "xcrun",
+        &[
+            "simctl",
+            "spawn",
+            &device,
+            &binary,
+            "scale",
+            "--ignored",
+            "--nocapture",
+            "--test-threads",
+            "1",
+        ],
+    )?;
+    writeln!(std::io::stderr().lock(), "ios measure passed")?;
     Ok(())
 }

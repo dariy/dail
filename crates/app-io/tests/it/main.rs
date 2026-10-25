@@ -5,4 +5,5 @@ mod compose;
 mod config;
 mod mime;
 mod original;
+mod scale;
 mod store;

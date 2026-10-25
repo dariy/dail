@@ -168,6 +168,8 @@ jobs:
       - run: brew install xcodegen
       # The `ios` gate: `ios check`, `build`, `test` and `app` (the unsigned IPAs, built here to keep them building).
       - run: cargo xtask verify ios
+      # redb and tantivy at 50k messages in the iPad simulator (a measurement with generous budgets; ROADMAP I3).
+      - run: cargo xtask ios measure
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
