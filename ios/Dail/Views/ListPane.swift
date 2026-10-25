@@ -45,12 +45,12 @@ struct ListPane: View {
                 .onLongPressGesture { send(.longPress(row.longPress)) }
                 .swipeActions(edge: .leading) {
                     SwiftUI.Button { send(.swipe(row.swipeStart)) } label: {
-                        Image(systemName: row.unread ? "envelope.open" : "envelope.badge")
+                        Image(systemName: "archivebox")
                     }
                 }
                 .swipeActions(edge: .trailing) {
-                    SwiftUI.Button { send(.swipe(row.swipeEnd)) } label: { Image(systemName: "archivebox") }
-                        .tint(.green)
+                    SwiftUI.Button(role: .destructive) { send(.swipe(row.swipeEnd)) } label: { Image(systemName: "trash") }
+                        .accessibilityLabel("Trash")
                 }
                 .listRowBackground(
                     row.checked

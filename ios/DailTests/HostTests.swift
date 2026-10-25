@@ -41,26 +41,26 @@ final class HostTests: XCTestCase {
         let demo = try DemoHost()
         defer { demo.close() }
         var frame = try demo.send(.configure(
-            widthPt: 1180, heightPt: 820, dark: false, fontScale: 1, locale: "en-US", keyboard: false))
+            widthPt: 1180, heightPt: 820, dark: false, fontScale: 1, locale: "en-US", keyboard: false)) { $0.list?.rows.isEmpty == false }
         let list = try XCTUnwrap(frame.list)
         let total = list.total
         XCTAssertGreaterThan(total, 0)
         let first = try XCTUnwrap(list.rows.first)
 
-        frame = try demo.send(.tap(first.action))
+        frame = try demo.send(.tap(first.action)) { $0.reader != nil }
         let reader = try XCTUnwrap(frame.reader, "a tap on a row opens the thread")
         XCTAssertEqual(reader.thread, first.thread)
 
         let star = try XCTUnwrap(reader.actions.first { $0.icon == "star" })
-        frame = try demo.send(.tap(star.action))
+        frame = try demo.send(.tap(star.action)) { $0.list?.rows.first { $0.thread == first.thread }?.starred != first.starred }
         XCTAssertEqual(frame.list?.rows.first { $0.thread == first.thread }?.starred, !first.starred)
 
         let archive = try XCTUnwrap(frame.reader?.actions.first { $0.icon == "archive" })
-        frame = try demo.send(.tap(archive.action))
+        frame = try demo.send(.tap(archive.action)) { $0.list?.total == total - 1 }
         XCTAssertEqual(frame.list?.total, total - 1, "archived threads leave the inbox")
         let undo = try XCTUnwrap(frame.snackbar?.action, "the snackbar offers undo")
 
-        frame = try demo.send(.tap(undo.action))
+        frame = try demo.send(.tap(undo.action)) { $0.list?.total == total }
         XCTAssertEqual(frame.list?.total, total, "undo brings the thread back")
         XCTAssertTrue(frame.list?.rows.contains { $0.thread == first.thread } ?? false)
     }
@@ -72,13 +72,13 @@ final class DemoHost {
     let profile: URL
     let listener = Listener(onWake: {}, onAlert: { _ in })
 
-    init() throws {
+    init(backend: JSON = .object(["memory": .string("basic")])) throws {
         profile = FileManager.default.temporaryDirectory
             .appendingPathComponent("dail-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
         let config: JSON = .object([
             "profile_dir": .string(profile.path),
-            "backend": .object(["memory": .string("basic")]),
+            "backend": backend,
             "lang": .string("en"),
         ])
         let opened = try JSONDecoder().decode(
@@ -89,10 +89,19 @@ final class DemoHost {
         handle = Int32(number)
     }
 
-    /// Sends `event` and decodes the answer strictly.
-    func send(_ event: UiEvent) throws -> Frame {
+    /// Sends `event` and decodes the answer strictly. Commands run on the session's runtime, so the
+    /// answer may come before their effect: `until` waits (up to 5 s) for the frame that shows it,
+    /// taking frames as the app does after a wake.
+    func send(_ event: UiEvent, until done: (Frame) -> Bool = { _ in true }) throws -> Frame {
         let answer: Answer = try strictly("\(event)", Data(Native.event(handle: handle, event: event.json.text).utf8))
-        return answer.frame
+        var frame = answer.frame
+        let deadline = Date().addingTimeInterval(5)
+        while !done(frame), Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.02)
+            let next: Answer = try strictly("frame", Data(Native.frame(handle: handle).utf8))
+            frame = next.frame
+        }
+        return frame
     }
 
     func close() {
