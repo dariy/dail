@@ -1567,6 +1567,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 - **Signing.** Device archives are unsigned (the user re-signs them). Simulator builds are signed ad hoc
   (`CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = -`): without the entitlements that signing embeds, the
   data-protection Keychain refuses every item.
+- **Installing on a device** (free Apple ID, ROADMAP I4). What worked for the live IPA on the user's iPad: download
+  `dail-<v>-unsigned.ipa` from the release (check its `.sha256`), re-sign and install it with iloader under a free
+  Apple ID, turn on Developer Mode (Settings → Privacy & Security, then restart), and trust the developer profile
+  (Settings → General → VPN & Device Management). A free-account signature expires after 7 days; re-sign to renew.
+  The demo IPA (`net.darii.dail.demo`) should take the same steps under its own bundle ID (not yet tried).
 - **Scale** (plan §9). `app-testkit`'s generated `large` fixture is `basic` plus 20 000 inbox messages in threads of
   4. `ScaleTests` opens it in the simulator, keeps the whole inbox offline through the palette, and logs the open,
   backfill and scroll times and the app's footprint (`phys_footprint`). `cargo xtask ios measure` builds `app-io`'s
