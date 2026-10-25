@@ -17,54 +17,52 @@ final class PaletteTests: XCTestCase {
         return try XCTUnwrap(try demo.send(.tap(search.action)) { $0.palette != nil }.palette, "the search button opens the palette")
     }
 
+    /// What the user sees of the palette: a different value means the presenter answered.
+    private struct Seen: Equatable {
+        let prompt: String?
+        let hint: String
+        let rows: [String]
+
+        init(_ sheet: PaletteSheet) {
+            prompt = sheet.prompt
+            hint = sheet.hint
+            rows = sheet.sections.flatMap { $0.rows.map(\.title) }
+        }
+    }
+
+    /// Every command row, found by its title and tapped, closes the palette, opens the setup or
+    /// moves the palette to a step. What each step then builds is `app_front`'s, walked in Rust
+    /// (`crates/app-mobile/tests/it/palette.rs`).
     func testEveryCommandIsReachableFromThePalette() throws {
         let titles = try {
             let demo = try DemoHost()
             defer { demo.close() }
-            return try openPalette(demo).sections.filter { !Self.notCommands.contains($0.title) }
+            return try openPalette(demo).sections.filter { !Self.notCommands.contains($0.title) && $0.title != "Recent" }
                 .flatMap { $0.rows.map(\.title) }
         }()
-        XCTAssertGreaterThan(titles.count, 30, "the palette lists the commands")
+        XCTAssertGreaterThan(titles.count, 40, "the palette lists the commands")
         var unreached: [String] = []
         for title in titles {
             let demo = try DemoHost()
             defer { demo.close() }
             _ = try openPalette(demo)
-            var frame = try demo.send(.text(.query, title)) { $0.palette?.query.text == title }
-            let row = frame.palette?.sections.filter { !Self.notCommands.contains($0.title) }
-                .flatMap(\.rows).first { $0.title == title }
-            guard let row else {
+            let typed = try demo.send(.text(.query, title)) { $0.palette?.query.text == title }
+            guard let sheet = typed.palette,
+                  let row = sheet.sections.filter({ !Self.notCommands.contains($0.title) }).flatMap(\.rows)
+                      .first(where: { $0.title == title })
+            else {
                 unreached.append("\(title): not found by its title")
                 continue
             }
-            // Each tap either closes the palette or moves it to a step (a new question or rows).
-            func moved(from sheet: PaletteSheet?) -> (Frame) -> Bool {
-                { $0.palette == nil || $0.palette?.prompt != sheet?.prompt || $0.palette?.query.version != sheet?.query.version }
+            let before = Seen(sheet)
+            let frame = try demo.send(.tap(row.action)) { frame in
+                frame.setup != nil || frame.palette.map { Seen($0) != before } ?? true
             }
-            frame = try demo.send(.tap(row.action), until: moved(from: frame.palette))
-            for _ in 0..<6 {
-                guard let sheet = frame.palette else { break }
-                if sheet.prompt != nil, sheet.hint != "Filter…" {
-                    // A free-text step: a number suits every one of them (`300` as in Rust's walk).
-                    frame = try demo.send(.text(.query, "300")) { $0.palette?.query.text == "300" }
-                }
-                guard let first = frame.palette?.sections.first?.rows.first else { break }
-                frame = try demo.send(.tap(first.action), until: moved(from: frame.palette))
+            if frame.setup == nil, let after = frame.palette, Seen(after) == before {
+                unreached.append("\(title): the tap changed nothing")
             }
-            if frame.palette != nil { unreached.append("\(title): the palette stayed open") }
         }
-        XCTAssertEqual(unreached, [], "commands Swift could not run from the palette")
-    }
-
-    func testAddAnAccountOpensTheSetupFromThePalette() throws {
-        let demo = try DemoHost()
-        defer { demo.close() }
-        _ = try openPalette(demo)
-        var frame = try demo.send(.text(.query, "Add account")) { $0.palette?.query.text == "Add account" }
-        let row = try XCTUnwrap(frame.palette?.sections.flatMap(\.rows).first { $0.title.hasPrefix("Add") && $0.title.contains("account") })
-        frame = try demo.send(.tap(row.action)) { $0.setup != nil }
-        XCTAssertNil(frame.palette)
-        XCTAssertEqual(frame.setup?.title, "Add an account")
+        XCTAssertEqual(unreached, [], "commands Swift could not reach from the palette")
     }
 }
 
@@ -127,7 +125,7 @@ final class KeychainTests: XCTestCase {
                 ] as CFDictionary)
             }
         }
-        XCTAssertEqual(added.count, 1, "one new Keychain item")
+        XCTAssertEqual(added.count, 1, "one new Keychain item; the setup says: \(frame.setup?.error ?? frame.banner?.text ?? "nothing")")
         XCTAssertTrue(added.keys.first?.hasPrefix("account/") ?? false)
         XCTAssertEqual(added.values.first.map { String(decoding: $0, as: UTF8.self) }, password)
     }

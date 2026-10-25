@@ -253,7 +253,6 @@ fn build() -> Result<()> {
                 "generic/platform=iOS Simulator",
                 "-derivedDataPath",
                 "../target/ios-xcode",
-                "CODE_SIGNING_ALLOWED=NO",
             ],
         )?;
     }
@@ -323,7 +322,6 @@ fn test() -> Result<()> {
             "../target/ios-xcode",
             "-resultBundlePath",
             &results,
-            "CODE_SIGNING_ALLOWED=NO",
         ],
     )?;
     writeln!(std::io::stderr().lock(), "ios test passed")?;
