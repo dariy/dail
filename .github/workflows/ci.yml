@@ -151,7 +151,8 @@ jobs:
           fi
 
   # The iOS app (ADR 0010): clippy for the iOS targets, both XCFrameworks, the Xcode project from
-  # ios/project.yml (XcodeGen) and both schemes built for the simulator. Only a macOS runner has Xcode.
+  # ios/project.yml (XcodeGen), both schemes built for the simulator, and DailTests (the contract fixtures and
+  # the demo host) on an iPad simulator. Only a macOS runner has Xcode.
   ios:
     needs: ios-changes
     if: needs.ios-changes.outputs.ios == 'true'
@@ -167,3 +168,10 @@ jobs:
       - run: brew install xcodegen
       - run: cargo xtask ios check
       - run: cargo xtask ios build
+      - run: cargo xtask ios test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: ios-tests.xcresult
+          path: target/ios-tests.xcresult
+          if-no-files-found: ignore

@@ -108,18 +108,13 @@ final class Host: ObservableObject {
     /// Takes the current frame and shows its top bar's title.
     func refresh() {
         guard let handle else { return }
+        let json = Native.frame(handle: handle)
         do {
-            let answer = try Self.object(Native.frame(handle: handle))
-            guard let frame = answer["frame"] as? [String: Any],
-                  let topBar = frame["top_bar"] as? [String: Any],
-                  let title = topBar["title"] as? String
-            else {
-                throw HostError(message: answer["error"] as? String ?? "no frame")
-            }
-            self.title = title
+            let answer = try JSONDecoder().decode(Answer.self, from: Data(json.utf8))
+            self.title = answer.frame.topBar.title
             self.error = nil
         } catch {
-            self.error = "\(error)"
+            self.error = (try? Self.object(json))?["error"] as? String ?? "\(error)"
         }
     }
 

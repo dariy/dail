@@ -1527,14 +1527,22 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   (`target/ios-live` or `target/ios-demo`) and packs it with `include/` (`dail.h` and the `DailCore` module map) into
   `ios/Frameworks/DailCore[-Demo].xcframework`, which is gitignored. Elsewhere it reports "cannot run".
   `build` (macOS with Xcode and XcodeGen) makes both, generates `ios/Dail.xcodeproj` from `ios/project.yml` (never
-  committed) and builds the `Dail` (live) and `DailDemo` schemes for the simulator. `ci.yml`'s `ios` job runs `check`
-  and `build` on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
+  committed) and builds the `Dail` (live) and `DailDemo` schemes for the simulator. `test` runs `DailTests` in the
+  `DailDemo` scheme on the newest available iPad simulator (result bundle `target/ios-tests.xcresult`, which CI uploads
+  on failure). `ci.yml`'s `ios` job runs `check`, `build` and `test` on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
   `git diff` in the `ios-changes` job), and always when started by hand.
 - **The app** (`ios/`). Two app targets over the same Swift sources, like Android's flavours: `Dail`
   (`net.darii.dail`, links `DailCore.xcframework`) and `DailDemo` (`net.darii.dail.demo`, `DailCore-Demo`, the `DEMO`
   condition: `{"memory": "basic"}`). iOS 17, iPhone and iPad, unsigned. `Native.swift` is the only file that calls
   `dail.h`: it copies and frees the strings and bounces the listener (an unretained `Listener` as the context) to
   the main actor. The profile is `Application Support/profiles/default`.
+- **The contract in Swift** (`ios/Dail/Frame.swift`, `UiEvent.swift`): Codable mirrors of `app_mobile`'s frame,
+  externals, notifications and events, by hand, as Kotlin's. `Button`, `Layout` and `Preview` are `ActionButton`,
+  `FrameLayout` and `AttachmentPreview`, so as not to shadow SwiftUI. `DailTests` reads the same fixtures as Kotlin's
+  `ContractTest` (`android/app/src/test/resources/contract`, a folder resource of the test bundle). Codable ignores
+  unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
+  had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
+  simulator, decodes its frame strictly and sends a `configure`.
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 

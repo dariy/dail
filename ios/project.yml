@@ -14,6 +14,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # libdail.a is arm64 only (devices and Apple-silicon simulators; xtask/src/ios.rs TARGETS).
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
     # iPhone and iPad.
     TARGETED_DEVICE_FAMILY: "1,2"
     GENERATE_INFOPLIST_FILE: YES
@@ -42,22 +44,46 @@ targetTemplates:
     settings:
       base:
         INFOPLIST_KEY_CFBundleDisplayName: dail
-        PRODUCT_NAME: Dail
+        # One Swift module name for both, so the tests `@testable import Dail` whichever they run over.
+        PRODUCT_MODULE_NAME: Dail
 targets:
   Dail:
     templates: [App]
+    scheme: {}
     settings:
       base:
+        PRODUCT_NAME: Dail
         PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail
     dependencies:
       - framework: Frameworks/DailCore.xcframework
         embed: false
   DailDemo:
     templates: [App]
+    scheme:
+      testTargets: [DailTests]
     settings:
       base:
+        PRODUCT_NAME: DailDemo
         PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail.demo
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) DEMO
     dependencies:
       - framework: Frameworks/DailCore-Demo.xcframework
         embed: false
+  # XCTest over the demo app: every contract fixture decoded strictly, and the demo host's first frame.
+  DailTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DailTests
+      # The fixtures app-mobile writes for both apps (crates/app-mobile/tests/it/contract.rs).
+      - path: ../android/app/src/test/resources/contract
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: DailDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/DailDemo.app/DailDemo
+        BUNDLE_LOADER: $(TEST_HOST)

@@ -8,6 +8,8 @@
 //!   `ios/Frameworks/DailCore.xcframework` (or `DailCore-Demo.xcframework`, with the `demo` feature).
 //! - `build` (macOS with Xcode and XcodeGen): both XCFrameworks, `xcodegen generate` over
 //!   `ios/project.yml`, then `xcodebuild build` of the [`SCHEMES`] for the simulator.
+//! - `test` (as `build`): `DailTests` (the contract fixtures and the demo host) in the scheme
+//!   `DailDemo` on the newest available iPad simulator; the result bundle goes to [`RESULTS`].
 //!
 //! A missing target, macOS or Xcode is reported as "cannot run", never as a pass (AGENTS.md §6).
 
@@ -19,7 +21,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::{missing_targets, workspace_root};
 
-pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build";
+pub const USAGE: &str = "cargo xtask ios check|xcframework [--demo]|build|test";
 
 /// The device and the (arm64) simulator. Current runners and Macs are arm64, so there is no
 /// `x86_64-apple-ios`.
@@ -41,6 +43,9 @@ const CRATES: &[&str] = &[
 /// The app targets of `ios/project.yml`, one scheme each: live and demo.
 const SCHEMES: &[&str] = &["Dail", "DailDemo"];
 
+/// `xcodebuild test`'s result bundle, which CI uploads when the tests fail.
+const RESULTS: &str = "target/ios-tests.xcresult";
+
 /// Where the XCFrameworks go; gitignored, and what `ios/project.yml` links.
 const FRAMEWORKS_DIR: &str = "ios/Frameworks";
 
@@ -55,6 +60,7 @@ pub fn run(args: &[String]) -> Result<()> {
         ["xcframework"] => xcframework(false),
         ["xcframework", "--demo"] => xcframework(true),
         ["build"] => build(),
+        ["test"] => test(),
         _ => {
             writeln!(std::io::stderr().lock(), "usage: {USAGE}")?;
             bail!("unknown or missing ios task")
@@ -211,14 +217,20 @@ fn run_in(dir: &Path, program: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// Both XCFrameworks, the generated Xcode project, and every scheme built for the simulator.
-fn build() -> Result<()> {
+/// Both XCFrameworks and the Xcode project generated from `ios/project.yml`.
+fn generate(task: &str) -> Result<std::path::PathBuf> {
     let root = workspace_root()?;
-    require_xcode("ios build", &["xcodegen"])?;
+    require_xcode(task, &["xcodegen"])?;
     xcframework(false)?;
     xcframework(true)?;
     let ios = root.join("ios");
     run_in(&ios, "xcodegen", &["generate", "--spec", "project.yml"])?;
+    Ok(ios)
+}
+
+/// Both XCFrameworks, the generated Xcode project, and every scheme built for the simulator.
+fn build() -> Result<()> {
+    let ios = generate("ios build")?;
     for scheme in SCHEMES {
         run_in(
             &ios,
@@ -238,5 +250,74 @@ fn build() -> Result<()> {
         )?;
     }
     writeln!(std::io::stderr().lock(), "ios build passed")?;
+    Ok(())
+}
+
+/// The UDID of the newest available iPad simulator (`xcrun simctl list -j devices available`).
+fn ipad_simulator() -> Result<String> {
+    let output = Command::new("xcrun")
+        .args(["simctl", "list", "-j", "devices", "available"])
+        .output()
+        .context("failed to spawn `xcrun simctl`")?;
+    if !output.status.success() {
+        bail!("`xcrun simctl list` failed with {}", output.status);
+    }
+    let list: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("`xcrun simctl list` gave no JSON")?;
+    // Runtimes are keyed `com.apple.CoreSimulator.SimRuntime.iOS-18-2`; the newest has the highest
+    // version.
+    let mut best: Option<(Vec<u32>, String)> = None;
+    for (runtime, devices) in list["devices"].as_object().into_iter().flatten() {
+        let Some(version) = runtime.rsplit_once(".iOS-").map(|(_, v)| v) else {
+            continue;
+        };
+        let version: Vec<u32> = version.split('-').filter_map(|p| p.parse().ok()).collect();
+        let ipad = devices.as_array().into_iter().flatten().find(|device| {
+            device["name"]
+                .as_str()
+                .is_some_and(|name| name.starts_with("iPad"))
+        });
+        if let Some(udid) = ipad.and_then(|device| device["udid"].as_str())
+            && best.as_ref().is_none_or(|(newest, _)| version > *newest)
+        {
+            best = Some((version, udid.to_owned()));
+        }
+    }
+    best.map(|(_, udid)| udid)
+        .context("no available iPad simulator (`xcrun simctl list devices available`)")
+}
+
+/// `DailTests` in the `DailDemo` scheme on an iPad simulator.
+fn test() -> Result<()> {
+    let ios = generate("ios test")?;
+    let root = workspace_root()?;
+    let device = ipad_simulator()?;
+    let results = root.join(RESULTS);
+    // xcodebuild refuses to overwrite a result bundle.
+    if results.exists() {
+        std::fs::remove_dir_all(&results)
+            .with_context(|| format!("failed to remove {}", results.display()))?;
+    }
+    let destination = format!("platform=iOS Simulator,id={device}");
+    let results = results.display().to_string();
+    run_in(
+        &ios,
+        "xcodebuild",
+        &[
+            "test",
+            "-project",
+            "Dail.xcodeproj",
+            "-scheme",
+            "DailDemo",
+            "-destination",
+            &destination,
+            "-derivedDataPath",
+            "../target/ios-xcode",
+            "-resultBundlePath",
+            &results,
+            "CODE_SIGNING_ALLOWED=NO",
+        ],
+    )?;
+    writeln!(std::io::stderr().lock(), "ios test passed")?;
     Ok(())
 }
