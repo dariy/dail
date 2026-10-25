@@ -23,6 +23,7 @@ use crate::config::{BackendChoice, BlobRequest, Config, DebugTask, Task};
 /// Called from runtime threads.
 pub type Alert = Arc<dyn Fn(String) + Send + Sync>;
 use crate::error::HostError;
+use crate::platform::Platform;
 
 /// The most a `background` task waits (a short service's 3 minutes).
 pub const BACKGROUND_LIMIT: Duration = Duration::from_secs(180);
@@ -79,7 +80,12 @@ impl Host {
     /// Opens the profile (or the demo) and its session. `wake` is called from runtime threads
     /// whenever a new frame is ready, `alert` with each notification while no activity is
     /// visible.
-    pub fn open(config: &Config, wake: Wake, alert: Alert) -> Result<Self, HostError> {
+    pub fn open(
+        config: &Config,
+        platform: Platform,
+        wake: Wake,
+        alert: Alert,
+    ) -> Result<Self, HostError> {
         let runtime = runtime()?;
         let (session, lock) = match &config.backend {
             BackendChoice::Live => {
@@ -87,7 +93,7 @@ impl Host {
                 dirs.ensure()?;
                 let lock = ProfileLock::try_acquire(&dirs.lock_file())?
                     .ok_or_else(|| HostError::Locked(config.profile_dir.display().to_string()))?;
-                let session = runtime.block_on(open_live(&dirs))?;
+                let session = runtime.block_on(open_live(&dirs, platform))?;
                 (session, Some(lock))
             }
             BackendChoice::Memory(fixture) => (runtime.block_on(open_demo(fixture))?, None),
@@ -423,11 +429,11 @@ fn safe_names(external: External) -> External {
 
 /// The profile's session, as `app-cli` opens it: store, keyring, servers, the full-text index
 /// and the audit log.
-async fn open_live(dirs: &ProfileDirs) -> Result<Session, HostError> {
+async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, HostError> {
     let store = ProfileStore::open(dirs)?;
     let backend = LiveBackend::new(
         Arc::new(store),
-        crate::secrets::store()?,
+        (platform.secrets)()?,
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
     );

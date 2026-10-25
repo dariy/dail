@@ -31,5 +31,10 @@ tracing.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 webpki-roots.workspace = true
 
+# keyring's `v1` set turns on the Apple store's `keychain` feature, which does not build for iOS without
+# `protected` (ADR 0010). Only this feature is wanted here; the iOS host uses the store itself.
+[target.'cfg(target_os = "ios")'.dependencies]
+apple-native-keyring-store.workspace = true
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

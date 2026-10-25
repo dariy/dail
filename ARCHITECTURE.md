@@ -22,7 +22,7 @@ built-in MCP server are four equal front-ends to one deterministic engine.
 
 | | Now | Later |
 |---|---|---|
-| Platforms | Ubuntu (X11/Wayland), Windows; Android 10+ in progress (Wave 4, ADR 0009) | macOS, iOS, Web/PWA |
+| Platforms | Ubuntu (X11/Wayland), Windows, Android 10+ (ADR 0009); iOS/iPadOS 17+ in progress (Wave 5, ADR 0010) | macOS, Web/PWA |
 | Protocols | IMAP4rev1 (+UIDPLUS, MOVE, SPECIAL-USE if offered), SMTP submission | IDLE/CONDSTORE/QRESYNC, JMAP, Gmail API |
 | Auth | Password / App Password (keyring-stored) | OAuth2 XOAUTH2 (Gmail, M365) |
 | Providers | Hostinger Mail, Gmail, generic custom with HTTPS autoconfig (ADR 0006) | DNS SRV discovery |
@@ -43,7 +43,9 @@ graph LR
   tls[app-tls<br/>TLS crypto provider]
   theme[app-theme<br/>design tokens]
   mobile[app-mobile<br/>touch presenter]
+  host[app-host<br/>mobile host · six calls]
   android[app-android<br/>Android host · JNI]
+  ios[app-ios<br/>iOS host · C ABI]
 
   io --> core
   sync --> core
@@ -70,7 +72,12 @@ graph LR
   mobile --> core
   mobile --> front
   mobile --> theme
-  android --> mobile
+  host --> mobile
+  host --> sync
+  host --> io
+  host --> core
+  android --> host
+  ios --> host
   android --> sync
   android --> io
   android --> core
@@ -112,9 +119,12 @@ side, 96 MiB) into RGBA; `app-sync` re-exports it as `app_sync::images` for the 
 
 `app-mobile` and `app-android` (ADR 0009, Wave 4) are the Android front-end. `app-mobile` (← app-core, app-front,
 app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen models ("frames") and touch events into
-commands, as `app-tui` turns it into a terminal buffer. `app-android` (← app-core, app-io, app-sync, app-mobile;
-cdylib `libdail.so`) hosts the session and exposes six JNI calls to the Kotlin/Compose app in `android/`, which draws
-the frames and holds no rules. Neither crate is a dependency of app-gui, app-tui or app-cli.
+commands, as `app-tui` turns it into a terminal buffer. `app-host` (← app-core, app-io, app-sync, app-mobile;
+ADR 0010) hosts the session behind six calls, JSON in and out, with no platform code; it is shared with the iOS host.
+`app-android` (← app-host, app-core, app-io, app-sync; cdylib `libdail.so`) adds the JNI exports, the Keystore store
+and logcat for the Kotlin/Compose app in `android/`, which draws the frames and holds no rules. `app-ios` (← app-host,
+app-core, app-io, app-sync; staticlib `libdail.a`, §7.6) does the same for the SwiftUI app through a C ABI. None of these crates
+is a dependency of app-gui, app-tui or app-cli.
 
 `app-theme` (ADR 0008) holds the design tokens without a toolkit: colour roles in two surface groups (content and
 chrome), the type scale, the metrics, the built-in themes (`dail-dark`, `dail-light`, `dail-dark-hc`,
@@ -1375,12 +1385,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
 
-**The host** (`app-android`, `[lib] name = "dail"`, cdylib + rlib). `dail::Host` is the JNI-free core that Kotlin's calls
-map onto; it builds and is tested on the desktop.
+**The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail"`, cdylib + rlib, over it). `app_host::Host`
+is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
+`app_host::Platform` (the credential store and the logs, two plain functions): `app_android::PLATFORM` on Android,
+`app_host::DESKTOP` (the OS keyring, no logs) in tests.
 
-- **`open(&Config, wake)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
+- **`open(&Config, Platform, wake, alert)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
-  `app-cli` opens it (`ProfileStore`, `KeyringSecrets`, `NetVerifier`, `NetImap`, the full-text index, the audit log),
+  `app-cli` opens it (`ProfileStore`, the platform's secret store, `NetVerifier`, `NetImap`, the full-text index, the audit log),
   without an IPC socket. Memory (the `demo` feature only, app-testkit as ADR 0001): the fixture's first account added
   and synced, the inbox open, like the GUI's demo. A tokio runtime of two workers; `Bridge::own` with `Origin::Gui`.
 - **`event(UiEvent)` / `frame()`** return `Output{frame, externals}`: the presenter's requests are submitted through
@@ -1391,7 +1403,7 @@ map onto; it builds and is tested on the desktop.
   `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
   if it cannot be read or decoded.
 - **`import(draft, name, source)`** (IO threads, blocks while it copies): a picked or shared file. Kotlin opens the
-  content URI and passes `/proc/self/fd/<n>`, so Rust reads it without a new JNI call; `dail::outgoing` copies it into
+  content URI and passes `/proc/self/fd/<n>`, so Rust reads it without a new JNI call; `app_host::outgoing` copies it into
   `<outgoing_dir>/<32 hex digits>/` under `safe_file_name(name)`, at most 25 MiB (`MAX_ATTACHMENT_BYTES`; a larger file
   is not kept and the snackbar says so), and submits `attach_file` with the copy's path as the user. A content URI's
   permission ends with the activity; the copy outlives it. `open` removes the folders no draft names
@@ -1405,24 +1417,24 @@ map onto; it builds and is tested on the desktop.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
   `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
   work; `sends` waits until no draft is scheduled or leaving (`Draft::is_outgoing`). `close()` shuts the session down after the queued requests.
-- **JNI.** `dail::calls` holds Kotlin's six calls in safe Rust, JSON in and out: `open(config, wake) -> {handle}` (Kotlin also passes the application context),
+- **JNI.** `app_host::calls` holds the six calls in safe Rust, JSON in and out: `open(platform, config, wake, alert) -> {handle}` (Kotlin also passes the application context),
   `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
   table, never a pointer (arm64 tags heap pointers). Every call answers `{"error": "…"}` on failure, and a panic is
   caught there and becomes such an error. `src/jni.rs` only converts arguments: `JNI_OnLoad` keeps the `JavaVM`, the
   exports are `Java_net_darii_dail_Native_*` (Kotlin's `object Native` with `@JvmStatic external fun`), and
   `Listener.wake()` is called from runtime threads, each attached once (`jni` 0.22's `attach_current_thread`).
   `Listener.alert(json)` joins with the notifications (A5).
-- **Secrets** (`dail::secrets`). On Android, keyring 4's `android-native-keyring-store` (an AES key in the Keystore,
+- **Secrets** (`app-android`'s `dail::secrets`). On Android, keyring 4's `android-native-keyring-store` (an AES key in the Keystore,
   the ciphertext in `SharedPreferences`) becomes keyring-core's default store, and `AndroidSecrets` (keyring-core's
   `Entry`) is the session's `SecretStore`: keyring's `v1` `Entry`, which `KeyringSecrets` uses, refuses Android.
   `Native.open` takes the application context and hands it to ndk-context with the `JavaVM`, once. Elsewhere the host
   uses `KeyringSecrets`. The round trip on a device is an ignored test (`DAIL_IT_ANDROID_KEYSTORE=1`, inside the app's
   process).
-- **Logs.** `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
+- **Logs** (`app-android`'s `dail::logging`). `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
   (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds.
 - **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
   allows unsafe code. `tests/it/lints.rs` pins both.
-- **Tests** (`app-android/tests/it`): a live profile with no accounts (the lock, the background tasks), a synced
+- **Tests** (`app-host/tests/it`; `app-android/tests/it` keeps the lints and the Keystore round trip): a live profile with no accounts (the lock, the background tasks), a synced
   memory session driven by events (a tap opens a thread and wakes the app, a swipe archives with `haptic`, bad JSON is
   an error), and the calls over JSON (handles, errors, the log file).
 
@@ -1484,6 +1496,38 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
   shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
   the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
   `libdail.so`.
+
+### 7.6 iOS/iPadOS (`app-ios`, ADR 0010)
+
+In progress (ROADMAP Wave 5). The SwiftUI app draws `app-mobile`'s frames, as the Kotlin app does (§7.5), over the
+same `app-host`. There is no Mac: Swift, linking and the simulator run on `macos-latest` CI runners only.
+
+**The host** (`app-ios`, `[lib] name = "dail"`, staticlib + rlib). `app_ios::PLATFORM` gives `app-host` the
+credential store and the logs. It builds and is tested on every host; the iOS-only parts sit behind
+`cfg(target_os = "ios")`.
+
+- **The C calls** (`src/ffi.rs`, declared in the hand-written `include/dail.h`). `dail_open(config, listener)`,
+  `dail_event`, `dail_frame`, `dail_blob` (a `DailBytes {ptr, len}`, null for none), `dail_background` and
+  `dail_close` are `app_host::calls` with C strings: NUL-terminated UTF-8 in, owned by Swift for the call; strings out
+  owned by Rust until `dail_string_free`, bytes until `dail_bytes_free`. A null or non-UTF-8 argument answers
+  `{"error": "…"}`. The `DailListener` is `{context, wake, alert}`, C function pointers called from runtime threads
+  (Swift hops to the main actor). `tests/it/header.rs` matches the header's functions and struct fields against
+  `ffi.rs`, so no `cbindgen` is needed.
+- **Secrets** (`dail::secrets`). On iOS, keyring 4's `apple-native-keyring-store` protected-data store (the
+  data-protection Keychain, not synced to iCloud) becomes keyring-core's default store, and `IosSecrets`
+  (keyring-core's `Entry`) is the session's `SecretStore`: keyring's `v1` `Entry` refuses iOS. app-sync turns the
+  store's `protected` feature on for iOS, without which keyring does not build there. Elsewhere `KeyringSecrets`.
+- **Logs** (`dail::logging`). `tracing` to `<profile>/logs/ios.log` (0600); `os_log` would need C. `warn` and above
+  in release builds, `info` in debug builds.
+- **The lint exception.** As app-android's, with `src/ffi.rs` the only module allowing unsafe code;
+  `tests/it/lints.rs` pins both.
+- **Build** (`cargo xtask ios`, `xtask/src/ios.rs`). `check` runs clippy `-D warnings` for `aarch64-apple-ios` and
+  `aarch64-apple-ios-sim` over the crates the app links, with and without `demo`; it needs only the rustup targets, so
+  it runs on Linux. `xcframework [--demo]` (macOS with Xcode) builds `libdail.a` in release for both targets
+  (`target/ios-live` or `target/ios-demo`) and packs it with `include/` (`dail.h` and the `DailCore` module map) into
+  `ios/Frameworks/DailCore[-Demo].xcframework`, which is gitignored. Elsewhere it reports "cannot run".
+- **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
+  the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 
 ## 8. Initial Command catalogue (MVP)
 

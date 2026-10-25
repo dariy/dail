@@ -1,0 +1,5 @@
+// Swift imports the C calls as `import DailCore` (ADR 0010).
+module DailCore {
+    header "dail.h"
+    export *
+}

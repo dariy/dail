@@ -1,4 +1,5 @@
-//! Kotlin's six calls in safe Rust, JSON in and out: `jni.rs` only converts their arguments.
+//! The six native calls in safe Rust, JSON in and out: the platform crates' bindings (Android's
+//! `jni.rs`) only convert their arguments.
 //!
 //! A host is named by a handle, a small integer into a table (never a pointer: arm64 tags heap
 //! pointers). Every call answers, `{"error": "…"}` on failure; a panic is caught here and
@@ -15,7 +16,7 @@ use serde::Deserialize;
 use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task};
 use crate::error::HostError;
 use crate::host::{Alert, BACKGROUND_LIMIT, Host};
-use crate::logging;
+use crate::platform::Platform;
 
 /// The open hosts; handle `n` is slot `n - 1`.
 static HOSTS: Mutex<Vec<Option<Arc<Host>>>> = Mutex::new(Vec::new());
@@ -60,12 +61,12 @@ fn host(handle: i32) -> Result<Arc<Host>, HostError> {
         .ok_or(HostError::NoHost(handle))
 }
 
-/// `open(config)`: `{"handle": n}`. Starts the logs on the first call.
-pub fn open(config: &str, wake: Wake, alert: Alert) -> String {
+/// `open(config)`: `{"handle": n}`. Starts the platform's logs on the first call.
+pub fn open(platform: Platform, config: &str, wake: Wake, alert: Alert) -> String {
     answer(|| {
         let config: Config = serde_json::from_str(config)?;
-        logging::init(&config.profile_dir);
-        let host = Arc::new(Host::open(&config, wake, alert)?);
+        (platform.logging)(&config.profile_dir);
+        let host = Arc::new(Host::open(&config, platform, wake, alert)?);
         let mut hosts = HOSTS.lock().unwrap_or_else(PoisonError::into_inner);
         let slot = match hosts.iter().position(Option::is_none) {
             Some(slot) => {

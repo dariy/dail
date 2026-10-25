@@ -29,18 +29,26 @@ fn people_you_wrote_to_come_first_and_you_are_left_out() {
     m.fetch(
         "INBOX",
         vec![
-            from(1, "Carol", "carol@x.org", &["me@example.com"]),
-            from(2, "Carol C.", "CAROL@x.org", &["me@example.com"]),
-            from(3, "Bob", "bob@x.org", &["me@example.com", "dave@x.org"]),
+            from(1, "Carol", "carol@x.example", &["me@example.com"]),
+            from(2, "Carol C.", "CAROL@x.example", &["me@example.com"]),
+            from(
+                3,
+                "Bob",
+                "bob@x.example",
+                &["me@example.com", "dave@x.example"],
+            ),
         ],
     );
     m.fetch(
         "Sent",
-        vec![from(4, "Me", "me@example.com", &["dave@x.org"])],
+        vec![from(4, "Me", "me@example.com", &["dave@x.example"])],
     );
     let all = listing::contacts(m.engine.state(), "", 10);
     let emails: Vec<&str> = all.iter().map(|c| c.email.as_str()).collect();
-    assert_eq!(emails, ["dave@x.org", "carol@x.org", "bob@x.org"]);
+    assert_eq!(
+        emails,
+        ["dave@x.example", "carol@x.example", "bob@x.example"]
+    );
     assert!(all[0].written_to);
     assert_eq!(all[1].count, 2, "addresses compare without case");
     assert_eq!(all[1].name.as_deref(), Some("Carol C."), "the newest name");
@@ -53,7 +61,7 @@ fn people_you_wrote_to_come_first_and_you_are_left_out() {
         .unwrap();
     let contacts = found.receipt.data["contacts"].as_array().unwrap().clone();
     assert_eq!(contacts.len(), 1);
-    assert_eq!(contacts[0]["untrusted_content"]["email"], "carol@x.org");
+    assert_eq!(contacts[0]["untrusted_content"]["email"], "carol@x.example");
     assert_eq!(contacts[0]["count"], 2);
     assert!(matches!(
         m.run(Command::ListContacts {

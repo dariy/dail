@@ -525,6 +525,72 @@ encryption (SEC-1), 32-bit ARM.
 
 ---
 
+## Wave 5 — Open repository and iOS: "dail on the user's iPad, built without a Mac"
+
+Make the repository public, so that GitHub's macOS runners are free. Then run dail on iOS/iPadOS as a SwiftUI app that
+draws `app-mobile`'s frames through a C ABI. This is Android's pattern (ADR 0009) with Swift instead of Kotlin. There
+is no local Mac: Xcode, Swift, linking, the simulator and the IPA all run on `macos-latest` runners, and the Rust side
+is checked on Linux with clippy for `aarch64-apple-ios`. The plan, the options, the crate split and the signing routes
+are in [`docs/plans/2026-10-24-ios.md`](docs/plans/2026-10-24-ios.md). ADR 0010 (item I0.1) records them. Every item
+updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
+
+**Exit criteria**
+- The repository is public, with a licence, a README and hardened workflows, and no secret anywhere in its history.
+- `ci.yml` runs an `ios` job (XCFramework, simulator build, XCTest over the contract fixtures), and it is green.
+- `release.yml` makes an unsigned IPA (demo and live) with a `.sha256`.
+- The user has re-signed and installed it with a free Apple ID, and on their iPad has read the demo mailbox and a live
+  account, triaged with undo, and reached every command from the palette.
+
+### O — Open the repository (plan §1)
+- [x] Secret scan of the whole history (gitleaks, trufflehog). Rotate and rewrite only if the user decides to
+- [x] Review what strangers will see: `docs/requests`, `docs/reviews`, fixtures (real addresses and hosts)
+- [x] LICENSE (the user chooses: MIT OR Apache-2.0), with `license.workspace = true` in every crate and `deny.toml` checked;
+  README.md, SECURITY.md, CONTRIBUTING.md
+- [x] Workflow hardening: `permissions: contents: read`, actions pinned to SHAs, Dependabot for actions, release jobs
+  on `workflow_dispatch` only
+- [x] The user sets the repository settings (fork-PR approval, branch protection, secret scanning and push
+  protection, a `release` environment) and makes the repository public. `ci.yml` is green on the public runners
+
+### I0 — Groundwork (no iOS code yet; desktop and Android unchanged)
+- [x] ADR 0010: an iOS host over `app-mobile` through a C ABI, `app-host` split out, the lint exception, no-Mac CI.
+  Ask the user for the iPad's model and iPadOS version (deployment target: iOS 17 unless it is older; the user: 17+)
+- [x] `app-host`: move `host.rs`, `calls.rs`, `config.rs`, `outgoing.rs` and `error.rs` out of `app-android` as they
+  are, with their tests. app-android keeps only JNI, Keystore and logcat. `cargo xtask verify` and
+  `verify android` stay green
+
+### I1 — The Rust side (no Swift yet)
+- [x] Portability: `rustup target add aarch64-apple-ios aarch64-apple-ios-sim`; clippy over app-host's tree for both.
+  `cargo tree -i cc` is empty, `cargo deny` passes, and the iOS keyring store is chosen (or the Swift Keychain
+  fallback, plan §3)
+- [x] `app-ios`: staticlib `libdail.a`, the six calls plus two frees in `src/ffi.rs` (the only unsafe module, pinned
+  lints), `include/dail.h` with a test that matches it against the exports, the callback for alerts and wakes,
+  `demo` feature, os_log or file logging. Tests on Linux
+- [x] `cargo xtask ios check` (runs on Linux) and `ios xcframework` (macOS; otherwise "cannot run")
+
+### I2 — CI on macOS
+- [ ] `ios/project.yml` (XcodeGen), an empty SwiftUI app linking `DailCore.xcframework`, and `Native.swift` opening the
+  demo host and showing the first frame's title. The `ios` job in `ci.yml` (path-filtered, `macos-latest`) builds it
+  for the simulator
+- [ ] `DailTests`: decode every contract fixture strictly; open the demo host in the simulator and take a frame
+- [ ] `cargo xtask ios app`: the unsigned archive packed as `dail-<v>[-demo]-unsigned.ipa`. A `release.yml` `ios` job
+  uploads both with `.sha256`. AGENTS.md §6 gains the `ios` gate
+
+### I3 — The app
+- [ ] Mailbox list, thread list, message view (text, remote images off), mark read/star/archive with undo, through
+  frames and `UiEvent`s only
+- [ ] The palette, with a parity test that walks every command, and account setup and settings through the palette
+  flows; Keychain secrets in a live session
+- [ ] Measure memory, redb and tantivy in the simulator on a large demo cache (plan §9)
+
+### I4 — On the device
+- [ ] The user installs the demo IPA, then the live one, on their iPad (free Apple ID re-signing, Developer Mode).
+  The steps that worked go into ARCHITECTURE §7.6
+- [ ] Device check: VoiceOver, Dynamic Type, dark mode, rotation, a hardware keyboard, being killed in the background
+- [ ] (Optional, paid account) A signed ad-hoc or TestFlight build from `release.yml`: the certificate and profile from
+  repository secrets in a temporary keychain (plan §6)
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
@@ -566,7 +632,8 @@ encryption (SEC-1), 32-bit ARM.
 
 **Platforms**
 - macOS build (Keychain via `keyring`)
-- iOS: a SwiftUI host over `app-mobile`'s frames (Wave 4), through a C ABI instead of JNI
+- iOS parity after Wave 5: compose with attachments, background refresh, notifications, iPad multi-column, keyboard
+  shortcuts, Share sheet and Files, the App Store
 - Android releases on Google Play (an AAB, the `specialUse` declaration, the data safety form) and F-Droid (a build
   recipe with Rust and the NDK, reproducible builds)
 - Android agent channel: AppFunctions for the system assistant once Gemini's integration opens; MCP on the phone only

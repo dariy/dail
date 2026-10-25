@@ -54,12 +54,12 @@ fn words_and_phrases_are_text() {
 fn every_field_parses() {
     assert_eq!(
         parse(
-            "from:alice to:bob@x.org cc:carol subject:Q3 is:unread is:read is:starred \
+            "from:alice to:bob@x.example cc:carol subject:Q3 is:unread is:read is:starred \
              has:attachment in:inbox before:2024-02-29 after:2023/1/5"
         ),
         vec![
             term(Condition::From("alice".into())),
-            term(Condition::To("bob@x.org".into())),
+            term(Condition::To("bob@x.example".into())),
             term(Condition::Cc("carol".into())),
             term(Condition::Subject("Q3".into())),
             term(Condition::Is(Status::Unread)),

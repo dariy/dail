@@ -294,17 +294,12 @@ version = "0.1.0"
 dependencies = [
  "android-native-keyring-store",
  "app-core",
+ "app-host",
  "app-io",
- "app-mobile",
  "app-sync",
- "app-testkit",
  "jni 0.22.4",
  "keyring-core",
  "ndk-context",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
  "toml",
  "tracing",
  "tracing-logcat",
@@ -380,6 +375,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "app-host"
+version = "0.1.0"
+dependencies = [
+ "app-core",
+ "app-io",
+ "app-mobile",
+ "app-sync",
+ "app-testkit",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "app-io"
 version = "0.1.0"
 dependencies = [
@@ -402,6 +413,22 @@ dependencies = [
  "toml",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "app-ios"
+version = "0.1.0"
+dependencies = [
+ "app-core",
+ "app-host",
+ "app-io",
+ "app-sync",
+ "apple-native-keyring-store",
+ "keyring-core",
+ "serde_json",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -443,6 +470,7 @@ dependencies = [
  "app-core",
  "app-io",
  "app-tls",
+ "apple-native-keyring-store",
  "async-imap",
  "futures-util",
  "interprocess",
@@ -1480,9 +1508,9 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "crypto-bigint"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a52aa3fcda4e6302a9f48734f234d35d4721b96f8fe07d073f07ce9df4f0271"
+checksum = "6bb08299a6046833a879ace115697f12fd2bd6c8d3e93c909ffc9e0738e7cae0"
 dependencies = [
  "cpubits",
  "ctutils",

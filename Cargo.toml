@@ -13,7 +13,9 @@ members = [
     "crates/app-tls",
     "crates/app-theme",
     "crates/app-mobile",
+    "crates/app-host",
     "crates/app-android",
+    "crates/app-ios",
     "xtask",
 ]
 default-members = [
@@ -29,7 +31,9 @@ default-members = [
     "crates/app-tls",
     "crates/app-theme",
     "crates/app-mobile",
+    "crates/app-host",
     "crates/app-android",
+    "crates/app-ios",
 ]
 
 [workspace.package]
@@ -37,7 +41,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95" # eframe/egui-winit 0.37 MSRV
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/dail"
+repository = "https://github.com/dariy/dail"
 
 # Every member crate MUST contain `[lints] workspace = true`.
 [workspace.lints.rust]
@@ -69,6 +73,8 @@ app-testkit = { path = "crates/app-testkit" }
 app-tls = { path = "crates/app-tls" }
 app-theme = { path = "crates/app-theme" }
 app-mobile = { path = "crates/app-mobile" }
+app-host = { path = "crates/app-host" }
+app-ios = { path = "crates/app-ios" }
 app-android = { path = "crates/app-android" }
 
 # --- Core: pure data crates only (allowed in app-core) ---
@@ -152,6 +158,9 @@ tracing-logcat = "0.1"
 # default store; ndk-context hands it the VM and the application context. keyring's `v1` Entry refuses Android.
 keyring-core = "1"
 android-native-keyring-store = "1"
+# iOS secrets (ADR 0010): keyring 4's Apple "protected data" store (the data-protection Keychain through
+# security-framework, which links Security.framework and compiles no C). keyring's `v1` Entry refuses iOS too.
+apple-native-keyring-store = { version = "1", features = ["protected"] }
 ndk-context = "0.1"
 anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 

@@ -1,0 +1,49 @@
+[package]
+name = "app-ios"
+description = "dail's iOS host, libdail.a: the C calls Swift makes over app-host, Keychain and logs (ADR 0010)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "dail"
+crate-type = ["staticlib", "rlib"]
+
+# The workspace's lints with `unsafe_code = "deny"` instead of `forbid`, so that `src/ffi.rs` alone may allow it
+# (ADR 0010, as app-android's in ADR 0009). `tests/it/lints.rs` pins this table to the workspace's.
+[lints.rust]
+unsafe_code = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+dbg_macro = "deny"
+todo = "warn"
+unimplemented = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[features]
+# The memory backend over a built-in fixture (the `Demo` scheme).
+demo = ["app-host/demo"]
+
+[dependencies]
+app-host.workspace = true
+app-io.workspace = true
+app-sync.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "ios")'.dependencies]
+app-core.workspace = true
+apple-native-keyring-store.workspace = true
+keyring-core.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+toml.workspace = true

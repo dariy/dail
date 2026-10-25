@@ -10,11 +10,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use app_core::{Command, MailboxRole, Origin};
+use app_host::{BackendChoice, BlobRequest, Config, DESKTOP, Host, HostError, Output, Task};
 use app_mobile::UiEvent;
-use dail::{BackendChoice, BlobRequest, Config, Host, HostError, Output, Task};
 
 fn temp_profile(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("dail-android-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("dail-host-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     dir
 }
@@ -45,7 +45,7 @@ fn counter() -> (Arc<AtomicUsize>, app_sync::Wake) {
 type Alerts = Arc<std::sync::Mutex<Vec<String>>>;
 
 /// Collects the alerts.
-fn alerts() -> (Alerts, dail::Alert) {
+fn alerts() -> (Alerts, app_host::Alert) {
     let got = Arc::new(std::sync::Mutex::new(Vec::new()));
     let inner = Arc::clone(&got);
     (got, Arc::new(move |json| inner.lock().unwrap().push(json)))
@@ -126,13 +126,13 @@ fn configure(width_dp: u32) -> UiEvent {
 fn a_live_profile_opens_empty_and_is_locked_while_open() {
     let dir = temp_profile("live");
     let (_, wake) = counter();
-    let host = Host::open(&live(&dir), Arc::clone(&wake), alerts().1).unwrap();
+    let host = Host::open(&live(&dir), DESKTOP, Arc::clone(&wake), alerts().1).unwrap();
     assert!(host.state().accounts.is_empty());
     let out = host.event(configure(360));
     assert!(out.frame.list.is_none_or(|list| list.total == 0), "no mail");
     assert!(dir.join("state.redb").exists());
     assert!(matches!(
-        Host::open(&live(&dir), Arc::clone(&wake), alerts().1),
+        Host::open(&live(&dir), DESKTOP, Arc::clone(&wake), alerts().1),
         Err(HostError::Locked(_))
     ));
     // Nothing to wait for without accounts.
@@ -146,7 +146,7 @@ fn a_live_profile_opens_empty_and_is_locked_while_open() {
     );
     host.close();
     drop(host);
-    let host = Host::open(&live(&dir), wake, alerts().1).unwrap();
+    let host = Host::open(&live(&dir), DESKTOP, wake, alerts().1).unwrap();
     host.close();
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -189,7 +189,7 @@ fn the_memory_backend_needs_the_demo_feature() {
     };
     let (_, wake) = counter();
     assert!(matches!(
-        Host::open(&config, wake, alerts().1),
+        Host::open(&config, DESKTOP, wake, alerts().1),
         Err(HostError::NoBackend("memory"))
     ));
 }
@@ -265,7 +265,7 @@ fn the_demo_opens_the_fixture_synced() {
         ..live(&temp_profile("demo"))
     };
     let (_, wake) = counter();
-    let host = Host::open(&config, wake, alerts().1).unwrap();
+    let host = Host::open(&config, DESKTOP, wake, alerts().1).unwrap();
     let out = host.event(configure(1280));
     assert!(out.frame.list.unwrap().total > 0);
     host.close();
@@ -295,7 +295,7 @@ fn the_debug_bridge_submits_as_cli_or_mcp_only() {
         let err = exec(origin, serde_json::json!({ "cmd": "list_mailboxes" })).unwrap_err();
         assert!(matches!(err, HostError::Debug(_)), "{origin}: {err}");
     }
-    let state = host.debug(dail::DebugTask::State).unwrap();
+    let state = host.debug(app_host::DebugTask::State).unwrap();
     assert!(state["mailboxes"].is_object(), "{state}");
     host.close();
 }
@@ -415,7 +415,7 @@ fn copies_no_draft_names_are_swept() {
             &ctx,
         )
         .unwrap();
-    assert_eq!(dail::outgoing::sweep(&dir, engine.state()), 1);
+    assert_eq!(app_host::outgoing::sweep(&dir, engine.state()), 1);
     assert!(named.exists() && !orphan.exists());
 }
 
@@ -428,7 +428,7 @@ fn the_sends_task_waits_until_no_send_is_scheduled() {
     );
     let draft = composing(&host);
     let exec = |command: serde_json::Value| {
-        host.debug(dail::DebugTask::Exec {
+        host.debug(app_host::DebugTask::Exec {
             origin: Origin::Cli,
             command,
         })
@@ -522,7 +522,7 @@ fn push_shows_its_notification_again_when_the_service_asks() {
     host.event(UiEvent::Visible { visible: true });
     let client_state = host.state();
     assert_eq!(client_state.settings.background_sync, 1);
-    let out = host.debug(dail::DebugTask::Exec {
+    let out = host.debug(app_host::DebugTask::Exec {
         origin: Origin::Cli,
         command: serde_json::json!({"cmd": "set_setting", "args": {"key": "background_sync", "value": 2}}),
     });

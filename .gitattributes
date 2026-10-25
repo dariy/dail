@@ -1,0 +1,4 @@
+# The About frame embeds these licence texts with include_str!, so a CRLF checkout (Windows) would change
+# the frame and fail app-mobile's contract test. Keep them LF everywhere.
+crates/app-mobile/licences/*.txt text eol=lf
+crates/app-theme/assets/fonts/*.txt text eol=lf

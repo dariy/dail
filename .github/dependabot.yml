@@ -1,0 +1,11 @@
+# Keeps the SHA-pinned actions in .github/workflows fresh (Wave 5 O). Cargo and Gradle updates stay manual:
+# cargo-deny and Gradle's dependency verification review them.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
