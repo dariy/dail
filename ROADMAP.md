@@ -572,7 +572,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   demo host and showing the first frame's title. The `ios` job in `ci.yml` (path-filtered, `macos-latest`) builds it
   for the simulator
 - [x] `DailTests`: decode every contract fixture strictly; open the demo host in the simulator and take a frame
-- [ ] `cargo xtask ios app`: the unsigned archive packed as `dail-<v>[-demo]-unsigned.ipa`. A `release.yml` `ios` job
+- [x] `cargo xtask ios app`: the unsigned archive packed as `dail-<v>[-demo]-unsigned.ipa`. A `release.yml` `ios` job
   uploads both with `.sha256`. AGENTS.md §6 gains the `ios` gate
 
 ### I3 — The app
