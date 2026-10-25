@@ -90,14 +90,14 @@ final class DemoHost {
     }
 
     /// Sends `event` and decodes the answer strictly. Commands run on the session's runtime, so the
-    /// answer may come before their effect: `until` waits (up to 5 s) for the frame that shows it,
+    /// answer may come before their effect: `until` waits (up to `timeout`) for the frame that shows it,
     /// taking frames as the app does after a wake.
-    func send(_ event: UiEvent, until done: (Frame) -> Bool = { _ in true }) throws -> Frame {
+    func send(_ event: UiEvent, timeout: TimeInterval = 5, until done: (Frame) -> Bool = { _ in true }) throws -> Frame {
         let answer: Answer = try strictly("\(event)", Data(Native.event(handle: handle, event: event.json.text).utf8))
         var frame = answer.frame
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(timeout)
         while !done(frame), Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
+            Thread.sleep(forTimeInterval: timeout > 5 ? 0.25 : 0.02)
             let next: Answer = try strictly("frame", Data(Native.frame(handle: handle).utf8))
             frame = next.frame
         }
