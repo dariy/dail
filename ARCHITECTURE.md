@@ -1556,6 +1556,22 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `dail-action:<id>` link the view turns into a tap (so the link sheet shows the target first), and inline images
   are placeholders. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
   `copy`, `open_url`, `haptic` and `system_settings`; the file ones wait for the compose wave.
+- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
+  (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
+  moves; leaving a field sends `blur`. Setup fields take their keyboard, autofill and capitalisation from `InputKind`,
+  and the password is a `SecureField` that never comes back in a frame. Tests over the demo host: the parity walk
+  (`PaletteTests`) finds every command row of the empty palette by its title in a fresh host and taps it, and the
+  palette must close, open the setup or move to a step; what each step builds is `app_front`'s, walked in Rust.
+  `KeychainTests` runs the setup of a live session (Gmail preset, a throwaway password) and finds the password in the
+  Keychain (`dail` / `account/<id>`), then deletes it.
+- **Signing.** Device archives are unsigned (the user re-signs them). Simulator builds are signed ad hoc
+  (`CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = -`): without the entitlements that signing embeds, the
+  data-protection Keychain refuses every item.
+- **Scale** (plan §9). `app-testkit`'s generated `large` fixture is `basic` plus 20 000 inbox messages in threads of
+  4. `ScaleTests` opens it in the simulator, keeps the whole inbox offline through the palette, and logs the open,
+  backfill and scroll times and the app's footprint (`phys_footprint`). `cargo xtask ios measure` builds `app-io`'s
+  `scale` tests (redb and tantivy at 50k messages, `--ignored`) for `aarch64-apple-ios-sim` and runs them in the
+  booted iPad simulator with `xcrun simctl spawn`; CI's `ios` job runs it after the gate. The results are in plan §9.
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 

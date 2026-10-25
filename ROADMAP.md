@@ -576,11 +576,11 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   uploads both with `.sha256`. AGENTS.md §6 gains the `ios` gate
 
 ### I3 — The app
-- [ ] Mailbox list, thread list, message view (text, remote images off), mark read/star/archive with undo, through
+- [x] Mailbox list, thread list, message view (text, remote images off), mark read/star/archive with undo, through
   frames and `UiEvent`s only
-- [ ] The palette, with a parity test that walks every command, and account setup and settings through the palette
+- [x] The palette, with a parity test that walks every command, and account setup and settings through the palette
   flows; Keychain secrets in a live session
-- [ ] Measure memory, redb and tantivy in the simulator on a large demo cache (plan §9)
+- [x] Measure memory, redb and tantivy in the simulator on a large demo cache (plan §9)
 
 ### I4 — On the device
 - [ ] The user installs the demo IPA, then the live one, on their iPad (free Apple ID re-signing, Developer Mode).
