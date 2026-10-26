@@ -617,6 +617,27 @@ impl LiveBackend {
                 path,
                 imap,
             } => Ok(vec![self.watch(account, mailbox, &path, &imap).await]),
+            Effect::ManageFolder {
+                account,
+                imap,
+                action,
+            } => {
+                let wanted = action.clone();
+                let done = self
+                    .with_imap(account, &imap, move |session| {
+                        let action = wanted.clone();
+                        Box::pin(async move { imap::manage_folder(session, &action).await })
+                    })
+                    .await;
+                Ok(vec![match done {
+                    Ok(()) => Event::FolderManaged { account, action },
+                    Err(error) => Event::FolderFailed {
+                        account,
+                        action,
+                        error,
+                    },
+                }])
+            }
             Effect::SearchIndex {
                 search,
                 words,

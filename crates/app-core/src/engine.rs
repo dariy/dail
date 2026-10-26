@@ -5,6 +5,7 @@ mod approvals;
 mod backfill;
 mod draft_saves;
 mod drafts;
+mod folders;
 mod identities;
 mod images;
 mod keys;
@@ -309,6 +310,12 @@ impl Engine {
             }
             Event::DraftSaveFailed { draft, error } => {
                 Ok(self.ingest_draft_saved(draft, Err(error), ctx, receipt))
+            }
+            Event::FolderManaged { account, .. } => {
+                Ok(self.ingest_folder(account, None, ctx, receipt))
+            }
+            Event::FolderFailed { account, error, .. } => {
+                Ok(self.ingest_folder(account, Some(error), ctx, receipt))
             }
             Event::DraftDeleted { draft } => {
                 Ok(Outcome::new(receipt.affecting(EntityRef::Draft(draft))))
@@ -857,6 +864,13 @@ impl Engine {
                 attachments,
                 receipt,
             ))),
+            Command::CreateFolder { account, path } => self
+                .create_folder(account, &path, ctx, receipt)
+                .map(Applied::plain),
+            Command::RenameFolder { id, path } => self.rename_folder(id, &path, receipt),
+            Command::DeleteFolder { id, confirm } => {
+                self.delete_folder(id, confirm, receipt).map(Applied::plain)
+            }
             Command::MarkMailboxRead { id } => self.mark_mailbox_read(id, ctx, receipt),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),

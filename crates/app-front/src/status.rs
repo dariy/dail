@@ -296,7 +296,7 @@ pub fn account_state(state: &AppState, account: AccountId) -> AccountState {
         return AccountState::Failed(crate::text::clean(error));
     }
     let sync = state.status.sync.get(&account);
-    if let Some(issue) = sync.and_then(|s| s.last_error.as_ref()) {
+    if let Some(issue) = sync.and_then(|s| s.last_error.as_ref().or(s.folder_error.as_ref())) {
         return AccountState::Failed(crate::text::clean(&issue.error));
     }
     if sync.is_some_and(app_core::SyncStatus::is_syncing) {

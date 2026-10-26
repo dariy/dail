@@ -6,7 +6,10 @@ dail · Inbox · alice@example.com
 ┌ Inbox ─────────────────────────┐┌ Message ───────────────────────────────────┐
 │›● ┌ Palette ─────────────────────────────────────────────────────────────┐   │
 │   │> Type a command or search…                                           │   │
-│   │› Sync now                                                Mail  Ctrl+R│   │
+│   │› New folder                                                      Mail│   │
+│   │  Rename folder                                                   Mail│   │
+│   │  Delete folder                                                   Mail│   │
+│   │  Sync now                                                Mail  Ctrl+R│   │
 │   │  List mailboxes                                                  Mail│   │
 │   │  List threads                                                    Mail│   │
 │   │  Show thread                                                     Mail│   │
@@ -18,10 +21,7 @@ dail · Inbox · alice@example.com
 │   │  Mark as unread                                               Mail  u│   │
 │   │  Star                                                         Mail  s│   │
 │   │  Remove star                                                     Mail│   │
-│   │  Archive                                                      Mail  e│   │
-│   │  Move to Trash                                                Mail  #│   │
-│   │  Move to…                                                     Mail  v│   │
-│   │Sync now: list the mailboxes of one account (or of all accounts) and …│   │
+│   │Create a folder on the server (IMAP `CREATE`), e.g.                   │   │
 │   │↑↓ move · Enter choose · Esc back                                     │   │
 │   └──────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────┘└────────────────────────────────────────────┘

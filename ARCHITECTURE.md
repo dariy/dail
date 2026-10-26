@@ -252,7 +252,9 @@ the top level (servers such as Dovecot put every folder below `INBOX.`); the oth
 `unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
 each account caption shows its sync state (`app_front::status::account_state`, UX-9: a busy dot while it syncs, a
 failed dot with the cleaned error on hover, `offline` while changes wait after failed attempts; the TUI writes `⟳`, `⚠`,
-`offline`); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+`offline`); a folder row's context menu offers *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
+folder*, *Focus this mailbox*, *Mark all as read* and *Delete…* (the steps that ask go through the palette:
+`palette::new_subfolder`, `rename_folder`, `delete_folder`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
 it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
 `list_mailboxes`.
 
@@ -312,7 +314,8 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `IndexSearchFailed{search, error}`, `ServersDiscovered{email, imap, smtp, source}`, `DiscoveryFailed{email, error}`, `Closing`,
   `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
   `SearchResults{account, mailbox, uid_validity, search, started_ms, mailboxes, envelopes}`, `SearchFailed{account, mailbox, search, started_ms, mailboxes, error}`,
-  `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
+  `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
+  failure stays in `SyncStatus.folder_error` until a folder change succeeds — listings don't clear it), `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
 - **`Effect`** — a request to the world: `VerifyAccount{account, login, imap, smtp, secret}`, `ListMailboxes{account, imap: ImapLogin}`, `FetchEnvelopes{account, mailbox, path, imap, uid_validity?, since_uid?, limit}`,
   `ResyncFlags{account, mailbox, path, imap, uid_validity, from_uid, to_uid, changed_since?}`,
   `FetchBody{account, message, path, imap, uid_validity, uid}`, `RunRemoteOp{op, account, imap, steps: Vec<RemoteStep>}`, `InspectAttachment{draft, path}`, `SaveAttachments{message, blob, parts, dir}`, `SaveDraft{draft, account, imap, path, revision, message: OutgoingMessage}`,
@@ -320,7 +323,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `SmtpSend{draft, account, smtp: SmtpLogin, message: OutgoingMessage,
   sent_copy?: SentCopy{imap, path}}`, `StoreSecret{account, secret, value: Secret}`,
   `DeleteSecret{account, secret}`, `PersistState{delta}`, `ScheduleTick{at_ms}`, `WatchMailbox{account, mailbox, path, imap}`,
-  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`. JSON form: `{"effect": "<name>", "args": {…}}`.
+  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`. JSON form: `{"effect": "<name>", "args": {…}}`.
   `Effect::failure_event` maps a failed effect to the `Event` that records the failure in state.
 - **`CommandReceipt`** — `{ ok, name, kind: Option<CommandKind>, affected: Vec<EntityRef>, data: serde_json::Value, undo_label: Option<String> }`.
   Query results travel in `data`. `kind` is `null` for receipts of ingested events. Rejected inputs return a
@@ -1641,6 +1644,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
 | `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
 | `save_attachments` | Mutation (no history; user only, §9) | `message, parts? (MIME part numbers; none: all), dir` (absolute; the body must be downloaded) → emits `SaveAttachments`; progress in `status.saves` (one per message, at most 16) | Wave 2 |
+| `create_folder` | Mutation (no history) | `account, path` (trimmed; no control characters, `*`, `%` or empty segments; not an existing path, compared without case) → `{mailbox, path, undoable: false}`; the mailbox is cached at once (the account's delimiter, never fetched) and `ManageFolder{account, imap, action: create{path}}` runs IMAP `CREATE`; agents allowed | UX-14 |
+| `rename_folder` | Mutation | `id, path` (the new full path; not the inbox, not into itself, not an existing path) → `{mailbox, from, to}`; the folder and its subfolders get their new paths in the cache, and pins, hidden folders and collapsed parents follow; `ManageFolder{rename{from, to}}` (IMAP `RENAME`); undo renames it back; agents allowed | UX-14 |
+| `delete_folder` | Destructive | `id, confirm` (not the inbox, not a folder with subfolders) → `{deleted, path, undoable: false}`; drops the mailbox and its cached mail, `ManageFolder{delete{path}}` (IMAP `DELETE`); agents allowed with `confirm` | UX-14 |
 | `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |

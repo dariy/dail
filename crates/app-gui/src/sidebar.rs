@@ -20,6 +20,36 @@ pub struct SidebarActions {
     pub add_account: bool,
     /// Open the settings page.
     pub settings: bool,
+    /// A folder's context-menu entry that asks in the palette (UX-14).
+    pub folder: Option<FolderMenu>,
+}
+
+/// A folder context-menu entry that continues in the palette.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FolderMenu {
+    /// *New subfolder…*: asks for the name.
+    NewSubfolder(app_core::MailboxId),
+    /// *Rename…*: asks for the new path.
+    Rename(app_core::MailboxId),
+    /// *Delete…*: asks for the confirmation.
+    Delete(app_core::MailboxId),
+}
+
+impl FolderMenu {
+    /// The palette step.
+    pub fn flow(self, state: &AppState) -> app_front::palette::Flow {
+        match self {
+            Self::NewSubfolder(id) => app_front::palette::new_subfolder(state, id),
+            Self::Rename(id) => app_front::palette::rename_folder(state, id),
+            Self::Delete(id) => app_front::palette::delete_folder(state, id),
+        }
+    }
+}
+
+/// What a mailbox row asked for.
+enum RowOut {
+    Run(Command),
+    Menu(FolderMenu),
 }
 
 /// The account the sidebar's shortcuts act on: the open mailbox's, else the first.
@@ -274,10 +304,10 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                                 let keys = (Some(account.id) == current)
                                     .then(|| role_keys(state, mailbox.role))
                                     .flatten();
-                                if let Some(cmd) =
-                                    mailbox_row(ui, t, state, mailbox, node, keys, focused)
-                                {
-                                    queue.push(Request::user(cmd));
+                                match mailbox_row(ui, t, state, mailbox, node, keys, focused) {
+                                    Some(RowOut::Run(cmd)) => queue.push(Request::user(cmd)),
+                                    Some(RowOut::Menu(menu)) => actions.folder = Some(menu),
+                                    None => {}
                                 }
                             }
                             // A parent folder that can't be opened: a click folds it.
@@ -470,7 +500,7 @@ fn mailbox_row(
     node: &FolderNode,
     keys: Option<String>,
     focused: bool,
-) -> Option<Command> {
+) -> Option<RowOut> {
     let hidden = if state.view.collapsed.contains(&node.key) {
         node.unread_below
     } else {
@@ -499,15 +529,74 @@ fn mailbox_row(
     }
     let mut out = response
         .clicked()
-        .then_some(Command::OpenMailbox { id: mailbox.id });
+        .then_some(RowOut::Run(Command::OpenMailbox { id: mailbox.id }));
+    // UX-8, UX-4, UX-14: the folder's context menu.
+    response.context_menu(|ui| {
+        let id = mailbox.id;
+        let pinned = state.settings.pinned_mailboxes.contains(&node.key);
+        let hidden = state.settings.hidden_mailboxes.contains(&node.key);
+        let not_inbox = mailbox.role != Some(MailboxRole::Inbox);
+        let entries: [(&str, Option<RowOut>); 7] = [
+            (
+                "New subfolder…",
+                Some(RowOut::Menu(FolderMenu::NewSubfolder(id))),
+            ),
+            (
+                "Rename…",
+                not_inbox.then_some(RowOut::Menu(FolderMenu::Rename(id))),
+            ),
+            (
+                if pinned {
+                    "Unpin from Favourites"
+                } else {
+                    "Pin to Favourites"
+                },
+                Some(RowOut::Run(if pinned {
+                    Command::UnpinMailbox { id }
+                } else {
+                    Command::PinMailbox { id }
+                })),
+            ),
+            (
+                if hidden { "Show folder" } else { "Hide folder" },
+                Some(RowOut::Run(if hidden {
+                    Command::ShowMailbox { id }
+                } else {
+                    Command::HideMailbox { id }
+                })),
+            ),
+            (
+                "Focus this mailbox",
+                Some(RowOut::Run(Command::FocusMailbox {
+                    id: Some(id),
+                    account: None,
+                })),
+            ),
+            (
+                "Mark all as read",
+                Some(RowOut::Run(Command::MarkMailboxRead { id })),
+            ),
+            (
+                "Delete…",
+                not_inbox.then_some(RowOut::Menu(FolderMenu::Delete(id))),
+            ),
+        ];
+        for (label, entry) in entries {
+            let Some(entry) = entry else { continue };
+            if ui.button(label).clicked() {
+                out = Some(entry);
+                ui.close();
+            }
+        }
+    });
     if let Some(dragged) = response.dnd_release_payload::<crate::list::Dragged>()
         && dragged.account == mailbox.account
     {
-        out = Some(Command::MoveThreads {
+        out = Some(RowOut::Run(Command::MoveThreads {
             ids: dragged.ids.clone(),
             messages: Vec::new(),
             to: mailbox.id,
-        });
+        }));
     }
     let backfilling = state.status.backfilling.contains(&mailbox.id);
     if backfilling && let Some(history) = listing::history(state, mailbox.id) {

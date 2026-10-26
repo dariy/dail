@@ -17,3 +17,10 @@
 {"t": 1700000015000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
 {"t": 1700000016000, "origin": "gui", "input": {"command": {"cmd": "unpin_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000002"}}}}
 {"t": 1700000017000, "origin": "gui", "input": {"command": {"cmd": "show_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000009"}}}}
+{"t": 1700000018000, "seed": 350000000000000000000, "origin": "mcp", "input": {"command": {"cmd": "create_folder", "args": {"account": "00000000-0000-0001-0000-000000000000", "path": "Work/New"}}}}
+{"t": 1700000019000, "origin": "mcp", "input": {"command": {"cmd": "rename_folder", "args": {"id": "00000000-0000-0002-0000-000000000001", "path": "Jobs"}}}}
+{"t": 1700000020000, "origin": "runtime", "input": {"event": {"event": "folder_failed", "args": {"account": "00000000-0000-0001-0000-000000000000", "action": {"action": "rename", "from": "Work", "to": "Jobs"}, "error": "IMAP RENAME Work -> Jobs failed: NO"}}}}
+{"t": 1700000021000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000022000, "origin": "mcp", "input": {"command": {"cmd": "delete_folder", "args": {"id": "00000000-0000-0002-0000-000000000002"}}}}
+{"t": 1700000023000, "origin": "mcp", "input": {"command": {"cmd": "delete_folder", "args": {"id": "00000000-0000-0002-0000-000000000002", "confirm": true}}}}
+{"t": 1700000024000, "origin": "runtime", "input": {"event": {"event": "folder_managed", "args": {"account": "00000000-0000-0001-0000-000000000000", "action": {"action": "delete", "path": "Work/Acme"}}}}}

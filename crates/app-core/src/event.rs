@@ -169,6 +169,23 @@ pub enum Event {
         /// The draft.
         draft: DraftId,
     },
+    /// An [`Effect::ManageFolder`] succeeded: the account's folders are listed again.
+    FolderManaged {
+        /// The account.
+        account: AccountId,
+        /// What was done.
+        action: FolderAction,
+    },
+    /// An [`Effect::ManageFolder`] failed: the error lands in the account's sync status and
+    /// the folders are listed again, which undoes the local change.
+    FolderFailed {
+        /// The account.
+        account: AccountId,
+        /// What was tried.
+        action: FolderAction,
+        /// Diagnostic.
+        error: String,
+    },
     /// An [`Effect::DeleteDraft`] failed; the server copy stays in the Drafts mailbox.
     DraftDeleteFailed {
         /// The account.
@@ -389,6 +406,8 @@ impl Event {
             Self::DraftSaveFailed { .. } => "draft_save_failed",
             Self::DraftDeleted { .. } => "draft_deleted",
             Self::DraftDeleteFailed { .. } => "draft_delete_failed",
+            Self::FolderManaged { .. } => "folder_managed",
+            Self::FolderFailed { .. } => "folder_failed",
             Self::MessageSent { .. } => "message_sent",
             Self::SendFailed { .. } => "send_failed",
             Self::AttachmentInspected { .. } => "attachment_inspected",
@@ -570,6 +589,16 @@ pub enum Effect {
         /// The draft's `Message-ID`, without angle brackets.
         message_id: String,
     },
+    /// Create, rename or delete a folder on the server (IMAP `CREATE` / `RENAME` / `DELETE`;
+    /// UX-14). Reports `FolderManaged` or `FolderFailed`.
+    ManageFolder {
+        /// The account.
+        account: AccountId,
+        /// How to reach the IMAP server.
+        imap: ImapLogin,
+        /// What to do.
+        action: FolderAction,
+    },
     /// Check a local file attached to a draft: that it is a readable regular file, its size and
     /// MIME type. Reports `AttachmentInspected` or `AttachmentFailed`.
     InspectAttachment {
@@ -710,6 +739,7 @@ impl Effect {
             Self::SaveDraft { .. } => "save_draft",
             Self::SmtpSend { .. } => "smtp_send",
             Self::DeleteDraft { .. } => "delete_draft",
+            Self::ManageFolder { .. } => "manage_folder",
             Self::SearchMailbox { .. } => "search_mailbox",
         }
     }
@@ -801,6 +831,13 @@ impl Effect {
                 draft: *draft,
                 error,
             },
+            Self::ManageFolder {
+                account, action, ..
+            } => Event::FolderFailed {
+                account: *account,
+                action: action.clone(),
+                error,
+            },
             Self::SearchMailbox {
                 account,
                 mailbox,
@@ -827,6 +864,29 @@ pub struct SentCopy {
     pub imap: ImapLogin,
     /// IMAP path of the Sent mailbox.
     pub path: String,
+}
+
+/// A folder change on the server (`Effect::ManageFolder`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum FolderAction {
+    /// `CREATE path`.
+    Create {
+        /// The new folder's full path.
+        path: String,
+    },
+    /// `RENAME from to` (subfolders move with it).
+    Rename {
+        /// The current path.
+        from: String,
+        /// The new path.
+        to: String,
+    },
+    /// `DELETE path`.
+    Delete {
+        /// The folder's path.
+        path: String,
+    },
 }
 
 /// A change to durable state. Variants grow with the entities that the store persists.

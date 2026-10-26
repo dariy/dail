@@ -300,6 +300,16 @@ impl Shell {
         if sidebar.settings {
             queue.push(Request::user(Command::OpenSettings { section: None }));
         }
+        if let Some(menu) = sidebar.folder {
+            match menu.flow(state) {
+                app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                app_front::palette::Flow::Ask(step) => {
+                    self.palette.open_at(step);
+                    queue.push(Request::user(Command::OpenPalette {}));
+                }
+                _ => {}
+            }
+        }
         let top = Panel::top("top-bar")
             .exact_size(t.m.frame.top_bar)
             .frame(bar.stroke(egui::Stroke::new(t.m.stroke.hairline, chrome.border_subtle)))

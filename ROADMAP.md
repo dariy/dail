@@ -618,7 +618,7 @@ its own wave and ADR.
 - [x] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)
 - [x] UX-12 [front]: auto-advance after triage (setting)
 - [x] UX-13 [front][gui]: date group headers and row density
-- [ ] UX-14 [core][io][sync][tk][front][gui][tui]: folder management — `create_folder`, `rename_folder`, `delete_folder`
+- [x] UX-14 [core][io][sync][tk][front][gui][tui]: folder management — `create_folder`, `rename_folder`, `delete_folder`
 
 ### M — Mobile and misc (`docs/requests/misc.md`)
 - [ ] MISC-1 [kt][mobile]: Android list swipes do nothing on release — left archives, right trashes, with undo

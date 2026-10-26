@@ -396,7 +396,7 @@ impl Engine {
     }
 
     /// The `ListMailboxes` effect for `account`, counted as in flight.
-    fn start_listing(&mut self, account: AccountId) -> Option<Effect> {
+    pub(super) fn start_listing(&mut self, account: AccountId) -> Option<Effect> {
         let imap = self.state.accounts.get(&account)?.imap_login();
         self.state.status.sync.entry(account).or_default().pending += 1;
         Some(Effect::ListMailboxes { account, imap })
@@ -971,7 +971,7 @@ impl Engine {
     }
 
     /// Removes a mailbox and its messages.
-    fn drop_mailbox(&mut self, id: MailboxId, changes: &mut CacheChanges) {
+    pub(super) fn drop_mailbox(&mut self, id: MailboxId, changes: &mut CacheChanges) {
         let messages: Vec<MessageId> = self
             .state
             .messages

@@ -285,3 +285,114 @@ fn pin_and_hide_are_undoable_settings_kept_by_path() {
     let err = m.run(Command::HideMailbox { id: gone }).unwrap_err();
     assert!(matches!(err, CoreError::NotFound { .. }));
 }
+
+#[test]
+fn folder_management_validates_and_changes_the_cache_first() {
+    let mut m = nested();
+    let account = m.account;
+    for bad in ["", "  ", "a//b", "x*", "x%", "/lead"] {
+        let err = m
+            .run(Command::CreateFolder {
+                account,
+                path: bad.into(),
+            })
+            .unwrap_err();
+        assert!(matches!(err, CoreError::InvalidArgument { .. }), "{bad:?}");
+    }
+    let err = m
+        .run(Command::CreateFolder {
+            account,
+            path: "work".into(),
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("exists"), "{err}");
+    let created = m
+        .run(Command::CreateFolder {
+            account,
+            path: "Work/New".into(),
+        })
+        .unwrap();
+    assert!(created.receipt.undo_label.is_none());
+    assert!(created.effects.iter().any(|e| matches!(
+        e,
+        Effect::ManageFolder { action: app_core::FolderAction::Create { path }, .. } if path == "Work/New"
+    )));
+    let work = m.mailbox("Work");
+    m.run(Command::PinMailbox {
+        id: m.mailbox("Work/Clients"),
+    })
+    .unwrap();
+    m.run(Command::CollapseFolders {
+        keys: vec![key(&m, "Work/Clients")],
+    })
+    .unwrap();
+    let renamed = m
+        .run(Command::RenameFolder {
+            id: work,
+            path: "Jobs".into(),
+        })
+        .unwrap();
+    assert_eq!(renamed.receipt.undo_label.as_deref(), Some("Rename Work"));
+    let paths: Vec<String> = m
+        .engine
+        .state()
+        .mailboxes
+        .values()
+        .map(|mb| mb.path.clone())
+        .collect();
+    assert!(paths.contains(&"Jobs/Clients/Acme".to_owned()), "{paths:?}");
+    assert_eq!(
+        m.engine.state().settings.pinned_mailboxes[0].path,
+        "Jobs/Clients"
+    );
+    assert!(
+        m.engine
+            .state()
+            .view
+            .collapsed
+            .contains(&key(&m, "Jobs/Clients"))
+    );
+    for (path, why) in [("Jobs/Clients/X", "into itself"), ("Sent", "exists")] {
+        let err = m
+            .run(Command::RenameFolder {
+                id: work,
+                path: path.into(),
+            })
+            .unwrap_err();
+        assert!(err.to_string().contains(why), "{err}");
+    }
+    let inbox = m.mailbox("INBOX");
+    let err = m
+        .run(Command::RenameFolder {
+            id: inbox,
+            path: "Box".into(),
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("inbox"), "{err}");
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(m.engine.state().mailboxes[&work].path, "Work");
+
+    let err = m
+        .run(Command::DeleteFolder {
+            id: work,
+            confirm: false,
+        })
+        .unwrap_err();
+    assert!(matches!(err, CoreError::ConfirmationRequired { .. }));
+    let err = m
+        .run(Command::DeleteFolder {
+            id: work,
+            confirm: true,
+        })
+        .unwrap_err();
+    assert!(err.to_string().contains("subfolders"), "{err}");
+    let acme = m.mailbox("Work/Clients/Acme");
+    let deleted = m
+        .run(Command::DeleteFolder {
+            id: acme,
+            confirm: true,
+        })
+        .unwrap();
+    assert_eq!(deleted.receipt.data["undoable"], false);
+    assert!(!m.engine.state().mailboxes.contains_key(&acme));
+}

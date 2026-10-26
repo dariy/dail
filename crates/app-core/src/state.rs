@@ -630,6 +630,10 @@ pub struct SyncStatus {
     /// `min(poll_secs × 2^(failures − 1), 15 min)` after the last failure (UX-6).
     #[serde(default, skip_serializing_if = "is_zero")]
     pub failures: u32,
+    /// The last failed folder change (`create_folder`, `rename_folder`, `delete_folder`;
+    /// UX-14), until one succeeds. Listings don't clear it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder_error: Option<SyncIssue>,
 }
 
 const fn is_zero(n: &u32) -> bool {

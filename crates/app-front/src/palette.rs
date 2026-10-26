@@ -285,6 +285,62 @@ pub fn move_to(state: &AppState, ids: Vec<ThreadId>) -> Flow {
     })
 }
 
+/// "New subfolder…" of `parent` (the sidebar's context menu, UX-14): asks for the name.
+pub fn new_subfolder(state: &AppState, parent: MailboxId) -> Flow {
+    let Some(mailbox) = state.mailboxes.get(&parent) else {
+        return Flow::Hidden;
+    };
+    let (account, prefix) = (
+        mailbox.account,
+        format!("{}{}", mailbox.path, mailbox.separator()),
+    );
+    ask(
+        format!("New folder in {}", mailbox.path),
+        AskKind::Text("its name".into()),
+        move |_, choice| match choice {
+            Choice::Text(name) if !name.trim().is_empty() => Flow::Run(Command::CreateFolder {
+                account,
+                path: format!("{prefix}{}", name.trim()),
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// "Rename…" of folder `id`: asks for the new full path.
+pub fn rename_folder(state: &AppState, id: MailboxId) -> Flow {
+    let now = state
+        .mailboxes
+        .get(&id)
+        .map_or_else(String::new, |m| m.path.clone());
+    ask(
+        "New name (full path)?",
+        AskKind::Text(format!("now {now}")),
+        move |_, choice| match choice {
+            Choice::Text(path) if !path.trim().is_empty() => {
+                Flow::Run(Command::RenameFolder { id, path })
+            }
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// "Delete…" of folder `id`: the confirmation step.
+pub fn delete_folder(state: &AppState, id: MailboxId) -> Flow {
+    let path = state
+        .mailboxes
+        .get(&id)
+        .map_or_else(String::new, |m| m.path.clone());
+    ask(
+        "Delete this folder and all mail in it? This cannot be undone.",
+        AskKind::Confirm(format!("Delete {path}")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::DeleteFolder { id, confirm: true }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// `make` for the open mailbox, else for one the user picks.
 fn on_mailbox(
     state: &AppState,
@@ -865,6 +921,46 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             }),
         },
         CommandName::ClearFocus => Flow::Run(Command::ClearFocus {}),
+        CommandName::CreateFolder => {
+            let named = |account| {
+                ask(
+                    "Name of the new folder?",
+                    AskKind::Text("a path like Work/Clients".into()),
+                    move |_, choice| match choice {
+                        Choice::Text(path) if !path.trim().is_empty() => {
+                            Flow::Run(Command::CreateFolder { account, path })
+                        }
+                        _ => Flow::Hidden,
+                    },
+                )
+            };
+            match current_account(state) {
+                Some(account) if state.accounts.len() == 1 => named(account),
+                _ => pick_account(move |_, account| named(account)),
+            }
+        }
+        CommandName::RenameFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => rename_folder(state, id),
+            None => ask(
+                "Rename which folder?",
+                AskKind::Mailboxes(None),
+                |state, choice| match choice {
+                    Choice::Mailbox(id) => rename_folder(state, id),
+                    _ => Flow::Hidden,
+                },
+            ),
+        },
+        CommandName::DeleteFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => delete_folder(state, id),
+            None => ask(
+                "Delete which folder?",
+                AskKind::Mailboxes(None),
+                |state, choice| match choice {
+                    Choice::Mailbox(id) => delete_folder(state, id),
+                    _ => Flow::Hidden,
+                },
+            ),
+        },
         CommandName::PinMailbox => {
             on_mailbox(state, "Pin which mailbox?", |id| Command::PinMailbox { id })
         }

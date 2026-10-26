@@ -54,11 +54,11 @@ expression: first
         "uid_validity": null,
         "unread": 0
       },
-      "00000000-0000-0002-0000-000000000002": {
+      "00000000-0000-0012-f939-c99edab80000": {
         "account": "00000000-0000-0001-0000-000000000000",
         "delimiter": "/",
-        "id": "00000000-0000-0002-0000-000000000002",
-        "path": "Work/Acme",
+        "id": "00000000-0000-0012-f939-c99edab80000",
+        "path": "Work/New",
         "role": null,
         "total": 0,
         "uid_next": null,
@@ -101,7 +101,7 @@ expression: first
         "00000000-0000-0001-0000-000000000000": {
           "last_error": null,
           "last_sync_ms": null,
-          "pending": 2
+          "pending": 4
         }
       }
     },
@@ -953,6 +953,451 @@ expression: first
           "entity": "mailbox",
           "error": "not_found",
           "id": "00000000-0000-0002-0000-000000000009"
+        }
+      }
+    },
+    {
+      "line": 20,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0012-f939-c99edab80000",
+                        "path": "Work/New",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "action": {
+                  "action": "create",
+                  "path": "Work/New"
+                },
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "manage_folder"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0012-f939-c99edab80000"
+              }
+            ],
+            "data": {
+              "mailbox": "00000000-0000-0012-f939-c99edab80000",
+              "path": "Work/New",
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "create_folder",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 21,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000001",
+                        "path": "Jobs",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000002",
+                        "path": "Jobs/Acme",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0012-f939-c99edab80000",
+                        "path": "Jobs/New",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "action": {
+                  "action": "rename",
+                  "from": "Work",
+                  "to": "Jobs"
+                },
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "manage_folder"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0012-f939-c99edab80000"
+              }
+            ],
+            "data": {
+              "from": "Work",
+              "mailbox": "00000000-0000-0002-0000-000000000001",
+              "to": "Jobs"
+            },
+            "kind": "mutation",
+            "name": "rename_folder",
+            "ok": true,
+            "undo_label": "Rename Work"
+          }
+        }
+      }
+    },
+    {
+      "line": 22,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "list_mailboxes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "folder_failed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 23,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000001",
+                        "path": "Work",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000002",
+                        "path": "Work/Acme",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0012-f939-c99edab80000",
+                        "path": "Work/New",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "action": {
+                  "action": "rename",
+                  "from": "Jobs",
+                  "to": "Work"
+                },
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "manage_folder"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0012-f939-c99edab80000"
+              }
+            ],
+            "data": {
+              "undone": "Rename Work"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 24,
+      "result": {
+        "err": {
+          "command": "delete_folder",
+          "error": "confirmation_required"
+        }
+      }
+    },
+    {
+      "line": 25,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "removed_mailboxes": [
+                      "00000000-0000-0002-0000-000000000002"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "action": {
+                  "action": "delete",
+                  "path": "Work/Acme"
+                },
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "manage_folder"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              }
+            ],
+            "data": {
+              "deleted": "00000000-0000-0002-0000-000000000002",
+              "path": "Work/Acme",
+              "undoable": false
+            },
+            "kind": "destructive",
+            "name": "delete_folder",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 26,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                }
+              },
+              "effect": "list_mailboxes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "folder_managed",
+            "ok": true,
+            "undo_label": null
+          }
         }
       }
     }

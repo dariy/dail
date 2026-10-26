@@ -38,7 +38,7 @@ pub use draft::{
 };
 pub use engine::{Change, Diff, Engine, Preview};
 pub use error::CoreError;
-pub use event::{Effect, Event, MailDelta, PersistDelta, SentCopy};
+pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
 pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
 pub use listing::ThreadSummary;

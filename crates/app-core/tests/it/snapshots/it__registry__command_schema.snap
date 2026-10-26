@@ -1139,6 +1139,99 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Create a folder on the server (IMAP `CREATE`), e.g. `Work/Clients` (with the account's\nhierarchy delimiter). It shows at once; the next listing confirms it. Not undoable\n(`delete_folder` removes it).",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (from `list_mailboxes`)."
+            },
+            "path": {
+              "description": "The full path of the new folder.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "account",
+            "path"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "create_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Rename or move a folder on the server (IMAP `RENAME`); its subfolders move with it.\nUndo renames it back. The inbox can't be renamed.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            },
+            "path": {
+              "description": "The new full path, e.g. `Work/Clients/Acme`, with the account's hierarchy delimiter.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "path"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "rename_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Delete a folder on the server (IMAP `DELETE`) with every message in it. Needs\n`confirm: true`; not undoable. The inbox and folders with subfolders can't be deleted\n(delete the subfolders first).",
+      "properties": {
+        "args": {
+          "properties": {
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the folder and its mail are gone for good.",
+              "type": "boolean"
+            },
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "delete_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Choose the address a draft is sent from: one of its account's identities. Undoable.",
       "properties": {
         "args": {

@@ -119,6 +119,12 @@ pub enum CommandName {
     RemoveIdentity,
     /// See [`Command::SetMailboxIdentity`].
     SetMailboxIdentity,
+    /// See [`Command::CreateFolder`].
+    CreateFolder,
+    /// See [`Command::RenameFolder`].
+    RenameFolder,
+    /// See [`Command::DeleteFolder`].
+    DeleteFolder,
     /// See [`Command::SetDraftFrom`].
     SetDraftFrom,
     /// See [`Command::RemoveAccount`].
@@ -342,6 +348,9 @@ impl CommandName {
         Self::SetIdentity,
         Self::RemoveIdentity,
         Self::SetMailboxIdentity,
+        Self::CreateFolder,
+        Self::RenameFolder,
+        Self::DeleteFolder,
         Self::SetDraftFrom,
         Self::RemoveAccount,
         Self::SyncNow,
@@ -430,6 +439,9 @@ impl CommandName {
             Self::SetIdentity => "set_identity",
             Self::RemoveIdentity => "remove_identity",
             Self::SetMailboxIdentity => "set_mailbox_identity",
+            Self::CreateFolder => "create_folder",
+            Self::RenameFolder => "rename_folder",
+            Self::DeleteFolder => "delete_folder",
             Self::SetDraftFrom => "set_draft_from",
             Self::RemoveAccount => "remove_account",
             Self::SyncNow => "sync_now",
@@ -531,6 +543,8 @@ impl CommandName {
             | Self::SetIdentity
             | Self::RemoveIdentity
             | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::SetSyncWindow
@@ -589,7 +603,7 @@ impl CommandName {
             | Self::CollapseFolders
             | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
-            Self::RemoveAccount => CommandKind::Destructive,
+            Self::RemoveAccount | Self::DeleteFolder => CommandKind::Destructive,
         }
     }
 
@@ -623,6 +637,9 @@ impl CommandName {
             | Self::DiscoverServers
             | Self::RemoveAccount
             | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
+            | Self::DeleteFolder
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::ListMailboxes
@@ -751,6 +768,18 @@ impl CommandName {
             Self::RemoveIdentity => CommandSpec {
                 available: |state| state.accounts.values().any(|a| !a.identities.is_empty()),
                 ..base("Remove a sending address", Category::Account, &[])
+            },
+            Self::DeleteFolder => CommandSpec {
+                available: has_mailboxes,
+                ..base("Delete folder", Category::Mail, &[])
+            },
+            Self::RenameFolder => CommandSpec {
+                available: has_mailboxes,
+                ..base("Rename folder", Category::Mail, &[])
+            },
+            Self::CreateFolder => CommandSpec {
+                available: |state| !state.accounts.is_empty(),
+                ..base("New folder", Category::Mail, &[])
             },
             Self::SetMailboxIdentity => CommandSpec {
                 available: |state| !state.mailboxes.is_empty(),
@@ -1087,6 +1116,18 @@ impl CommandName {
             Self::RemoveIdentity => Command::RemoveIdentity {
                 account: EXAMPLE_ACCOUNT,
                 email: "sales@example.org".to_owned(),
+            },
+            Self::DeleteFolder => Command::DeleteFolder {
+                id: EXAMPLE_MAILBOX,
+                confirm: true,
+            },
+            Self::RenameFolder => Command::RenameFolder {
+                id: EXAMPLE_MAILBOX,
+                path: "Work/Clients".to_owned(),
+            },
+            Self::CreateFolder => Command::CreateFolder {
+                account: EXAMPLE_ACCOUNT,
+                path: "Work/Clients".to_owned(),
             },
             Self::SetMailboxIdentity => Command::SetMailboxIdentity {
                 mailbox: EXAMPLE_MAILBOX,

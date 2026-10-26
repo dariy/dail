@@ -2,6 +2,7 @@
 //! instead of one per file.
 
 mod compose;
+mod folders;
 mod offline;
 mod original;
 mod search;

@@ -955,6 +955,27 @@ pub async fn append_message(
         .map_err(|err| format!("IMAP APPEND to {path} failed: {err}"))
 }
 
+/// `CREATE`, `RENAME` or `DELETE` a folder (UX-14).
+pub async fn manage_folder(
+    session: &mut ImapSession,
+    action: &app_core::FolderAction,
+) -> Result<(), String> {
+    use app_core::FolderAction;
+    let (what, result) = match action {
+        FolderAction::Create { path } => {
+            (format!("IMAP CREATE {path}"), session.create(path).await)
+        }
+        FolderAction::Rename { from, to } => (
+            format!("IMAP RENAME {from} -> {to}"),
+            session.rename(from, to).await,
+        ),
+        FolderAction::Delete { path } => {
+            (format!("IMAP DELETE {path}"), session.delete(path).await)
+        }
+    };
+    result.map_err(|err| format!("{what} failed: {err}"))
+}
+
 /// Deletes every copy of a draft (by `Message-ID`) from `path`.
 pub async fn delete_draft(
     session: &mut ImapSession,

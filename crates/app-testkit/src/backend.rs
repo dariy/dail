@@ -5,8 +5,9 @@ use std::collections::{BTreeMap, VecDeque};
 
 use app_core::search::{Condition, Query};
 use app_core::{
-    AppState, Effect, Endpoint, Event, IdGen, ImapLogin, MailboxRole, OutgoingMessage,
-    RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security, SmtpLogin, UidFlags,
+    AppState, Effect, Endpoint, Event, FolderAction, IdGen, ImapLogin, MailboxRole,
+    OutgoingMessage, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security,
+    SmtpLogin, UidFlags,
 };
 use app_io::Store;
 use app_io::compose::Bcc;
@@ -337,6 +338,18 @@ impl MemoryBackend {
             {
                 Ok(()) => Event::DraftSaved { draft, revision },
                 Err(error) => Event::DraftSaveFailed { draft, error },
+            }]),
+            Effect::ManageFolder {
+                account,
+                imap,
+                action,
+            } => Ok(vec![match self.manage_folder(&imap, &action) {
+                Ok(()) => Event::FolderManaged { account, action },
+                Err(error) => Event::FolderFailed {
+                    account,
+                    action,
+                    error,
+                },
             }]),
             Effect::DeleteDraft {
                 draft,
@@ -724,6 +737,48 @@ impl MemoryBackend {
                 .retain(|m| !has_message_id(&m.raw, message_id));
             Ok(())
         })
+    }
+
+    /// Fake `CREATE` / `RENAME` / `DELETE`: a new folder gets a fresh UIDVALIDITY, a renamed
+    /// one keeps its messages and takes its subfolders along (`/` delimiter), `DELETE` refuses
+    /// `INBOX` and unknown folders.
+    fn manage_folder(&self, imap: &ImapLogin, action: &FolderAction) -> Result<(), String> {
+        self.verify(&imap.login, &imap.secret)?;
+        let mut server = self.server.lock();
+        let account = server
+            .accounts
+            .iter_mut()
+            .find(|account| account.email.eq_ignore_ascii_case(&imap.login))
+            .ok_or_else(|| "IMAP LOGIN failed: unknown user".to_owned())?;
+        let exists = |path: &str| account.mailboxes.iter().any(|m| m.path == path);
+        match action {
+            FolderAction::Create { path } => {
+                if exists(path) {
+                    return Err(format!("IMAP CREATE {path} failed: [ALREADYEXISTS]"));
+                }
+                account.mailboxes.push(FakeMailbox::new(path.clone()));
+            }
+            FolderAction::Rename { from, to } => {
+                if !exists(from) || exists(to) || from.eq_ignore_ascii_case("INBOX") {
+                    return Err(format!("IMAP RENAME {from} -> {to} failed: [CANNOT]"));
+                }
+                let below = format!("{from}/");
+                for mailbox in &mut account.mailboxes {
+                    if mailbox.path == *from {
+                        mailbox.path.clone_from(to);
+                    } else if let Some(rest) = mailbox.path.strip_prefix(&below) {
+                        mailbox.path = format!("{to}/{rest}");
+                    }
+                }
+            }
+            FolderAction::Delete { path } => {
+                if !exists(path) || path.eq_ignore_ascii_case("INBOX") {
+                    return Err(format!("IMAP DELETE {path} failed: [NONEXISTENT]"));
+                }
+                account.mailboxes.retain(|m| m.path != *path);
+            }
+        }
+        Ok(())
     }
 
     /// Runs `change` on the mailbox at `path` of the account `imap` logs in to.

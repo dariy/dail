@@ -172,6 +172,33 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         email: Option<String>,
     },
+    /// Create a folder on the server (IMAP `CREATE`), e.g. `Work/Clients` (with the account's
+    /// hierarchy delimiter). It shows at once; the next listing confirms it. Not undoable
+    /// (`delete_folder` removes it).
+    CreateFolder {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// The full path of the new folder.
+        path: String,
+    },
+    /// Rename or move a folder on the server (IMAP `RENAME`); its subfolders move with it.
+    /// Undo renames it back. The inbox can't be renamed.
+    RenameFolder {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+        /// The new full path, e.g. `Work/Clients/Acme`, with the account's hierarchy delimiter.
+        path: String,
+    },
+    /// Delete a folder on the server (IMAP `DELETE`) with every message in it. Needs
+    /// `confirm: true`; not undoable. The inbox and folders with subfolders can't be deleted
+    /// (delete the subfolders first).
+    DeleteFolder {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+        /// Must be `true`: the folder and its mail are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
     /// Choose the address a draft is sent from: one of its account's identities. Undoable.
     SetDraftFrom {
         /// The draft.
@@ -1013,6 +1040,9 @@ impl Command {
             | Self::SetIdentity { .. }
             | Self::RemoveIdentity { .. }
             | Self::SetMailboxIdentity { .. }
+            | Self::CreateFolder { .. }
+            | Self::RenameFolder { .. }
+            | Self::DeleteFolder { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
             | Self::ListMailboxes { .. }
@@ -1093,6 +1123,9 @@ impl Command {
             Self::SetIdentity { .. } => CommandName::SetIdentity,
             Self::RemoveIdentity { .. } => CommandName::RemoveIdentity,
             Self::SetMailboxIdentity { .. } => CommandName::SetMailboxIdentity,
+            Self::CreateFolder { .. } => CommandName::CreateFolder,
+            Self::RenameFolder { .. } => CommandName::RenameFolder,
+            Self::DeleteFolder { .. } => CommandName::DeleteFolder,
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,
