@@ -4,7 +4,7 @@ Each checkbox is roughly one agent-sized change. A box is ticked only when all g
 Command names refer to the catalogue in [`ARCHITECTURE.md §8`](ARCHITECTURE.md#8-initial-command-catalogue-mvp).
 
 Legend: **[core]** app-core · **[io]** app-io · **[sync]** app-sync · **[mcp]** · **[cli]** · **[gui]** · **[tk]** app-testkit · **[front]** app-front · **[tui]** app-tui
-· **[mobile]** app-mobile · **[android]** app-android · **[kt]** the Kotlin app (`android/`)
+· **[mobile]** app-mobile · **[android]** app-android · **[kt]** the Kotlin app (`android/`) · **[ios]** the SwiftUI app (`ios/`)
 
 ---
 
@@ -588,6 +588,48 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 - [ ] Device check: VoiceOver, Dynamic Type, dark mode, rotation, a hardware keyboard, being killed in the background
 - [ ] (Optional, paid account) A signed ad-hoc or TestFlight build from `release.yml`: the certificate and profile from
   repository secrets in a temporary keychain (plan §6)
+
+---
+
+## Wave 6 — UX refinements: "the requests from daily use"
+
+The UX requests of 2026-10-21 and the small requests in `docs/requests/misc.md`. Each item keeps its request ID; the
+details, decisions and open questions are in [`docs/requests/2026-10-21.md`](docs/requests/2026-10-21.md) (UX) and
+[`docs/requests/misc.md`](docs/requests/misc.md) (MISC). SEC-1 (at-rest encryption) is not scheduled here: it needs
+its own wave and ADR.
+
+**Exit criteria**
+- Every item below is ticked, with all gates green; mobile items also pass `verify android` and CI's `ios` job.
+- View preferences survive a restart, and every new command is in the registry, reachable from every surface.
+
+### U — Desktop and shared UX (build order of the request file)
+- [ ] UX-1 [core][io]: persisted view preferences — `[view]` table in `config.toml`, `PersistDelta::View` emitted by
+  View commands
+- [ ] UX-2 [front][gui][tui]: folder tree in the sidebar instead of a flat list
+- [ ] UX-3 [core][front][gui][tui]: collapsible folders and accounts — `collapse_folders`, `expand_folders`; persisted via UX-1
+- [ ] UX-4 [core][front][gui][tui]: focus mode on one mailbox — `focus_mailbox`, `clear_focus`; persisted via UX-1
+- [ ] UX-5 [front]: mark as read after a delay (setting `mark_read_after_ms`)
+- [ ] UX-6 [core][sync]: automatic periodic sync of all folders, refresh on open (settings)
+- [ ] UX-7 [core][gui][tui]: list toolbar — select all, mark all read, refresh, filters; `mark_mailbox_read`,
+  `set_list_filter`
+- [ ] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses
+- [ ] UX-9 [gui][tui]: sync state per account in the sidebar
+- [ ] UX-10 [gui]: row hover actions and context menu
+- [ ] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)
+- [ ] UX-12 [front]: auto-advance after triage (setting)
+- [ ] UX-13 [front][gui]: date group headers and row density
+- [ ] UX-14 [core][io][sync][tk][front][gui][tui]: folder management — `create_folder`, `rename_folder`, `delete_folder`
+
+### M — Mobile and misc (`docs/requests/misc.md`)
+- [ ] MISC-1 [kt][mobile]: Android list swipes do nothing on release — left archives, right trashes, with undo
+- [ ] MISC-2 [kt][mobile]: Android *Mailboxes* button as a menu icon button (accessible name kept)
+- [ ] MISC-3 [mobile][kt][ios]: About as a sidebar entry after *Settings*, with a close button in its top bar
+- [ ] MISC-4 [core][io][sync][tk][front][gui][tui][mobile][kt][ios]: pin threads to the top of the list —
+  `pin_threads`, `unpin_threads` (Mutation, agents `any`); IMAP keyword `$Pinned`, device-only without `\*`
+- [ ] MISC-5 [mobile][kt][ios]: swipe the message body for the previous/next thread; drop the pager bar
+- [ ] MISC-6 [mobile][kt][ios]: pinch steps the pane layout; landscape sidebar as an icon rail; fix Android landscape
+  alignment (and check iOS landscape in CI)
+- [ ] MISC-7 [mobile][kt][ios]: close (×) button on the open message
 
 ---
 

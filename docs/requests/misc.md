@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. No item here is scheduled yet. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
