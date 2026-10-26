@@ -134,6 +134,10 @@ pub fn show(
                         .rev()
                         .filter_map(|m| state.messages.get(m))
                         .find_map(|m| m.snippet.as_deref()),
+                    mailbox: state
+                        .view
+                        .mailbox
+                        .filter(|_| state.view.search.is_none() && !state.view.unified),
                 };
                 match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
@@ -147,6 +151,14 @@ pub fn show(
                     Some(Click::Range) => {
                         let ids = span_of(rows, cursor, *id);
                         queue.push(Request::user(Command::CheckThreads { ids }));
+                    }
+                    Some(Click::Run(cmd)) => queue.push(Request::user(cmd)),
+                    Some(Click::Move) => {
+                        if let app_front::palette::Flow::Ask(step) =
+                            app_front::palette::move_to(state, vec![*id])
+                        {
+                            local.ask = Some(step);
+                        }
                     }
                     None => {}
                 }
@@ -386,6 +398,110 @@ enum Click {
     Open,
     Toggle,
     Range,
+    /// A hover action or a context-menu entry (UX-10).
+    Run(Command),
+    /// *Move to…* from the context menu.
+    Move,
+}
+
+/// The actions a row offers on hover and in its context menu: archive, trash, star or unstar,
+/// read or unread (by its current state).
+fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 4] {
+    let ids = || vec![summary.thread.id];
+    let star = if summary.flagged {
+        (
+            Icon::Star,
+            "Unstar",
+            Command::Unstar {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    } else {
+        (
+            Icon::Star,
+            "Star",
+            Command::Star {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    };
+    let read = if summary.unread > 0 {
+        (
+            Icon::MarkEmailRead,
+            "Mark read",
+            Command::MarkRead {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    } else {
+        (
+            Icon::MarkEmailUnread,
+            "Mark unread",
+            Command::MarkUnread {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    };
+    [
+        (
+            Icon::Archive,
+            "Archive",
+            Command::ArchiveThreads {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        ),
+        (
+            Icon::Delete,
+            "Trash",
+            Command::TrashThreads {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        ),
+        star,
+        read,
+    ]
+}
+
+/// The hover actions, as icon buttons over the right end of the row (on the row's fill, so
+/// the date under them does not show through). Each is named for screen readers.
+fn hover_actions(
+    ui: &mut Ui,
+    t: &Tokens,
+    rect: egui::Rect,
+    summary: &ThreadSummary<'_>,
+) -> Option<Click> {
+    let actions = row_actions(summary);
+    let side = t.m.controls.icon_button;
+    let width = side * actions.len() as f32 + t.m.space.sm;
+    let area = egui::Rect::from_min_max(
+        egui::pos2(rect.right() - width - t.m.space.sm, rect.top()),
+        egui::pos2(
+            rect.right() - t.m.space.sm,
+            rect.top() + side.min(rect.height()),
+        ),
+    );
+    ui.painter()
+        .rect_filled(area, ui::radius(t.m.radius.md), t.hover);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(area)
+            .layout(Layout::left_to_right(Align::Center)),
+    );
+    child.spacing_mut().item_spacing.x = 0.0;
+    let mut picked = None;
+    for (icon, label, cmd) in actions {
+        let name = format!("{label} conversation");
+        if ui::icon_button(&mut child, t, t.text_secondary, icon, &name).clicked() {
+            picked = Some(Click::Run(cmd));
+        }
+    }
+    picked
 }
 
 /// The rows from `cursor` (or the first row) to `to`, either way round.
@@ -408,6 +524,8 @@ struct RowLook<'a> {
     marks: &'a [String],
     /// The newest message's snippet. Untrusted.
     snippet: Option<&'a str>,
+    /// The mailbox the list shows, for *Focus this mailbox*.
+    mailbox: Option<app_core::MailboxId>,
 }
 
 fn row(
@@ -595,6 +713,36 @@ fn row(
                 },
             );
         }
+    }
+    // UX-10: the row's actions on the right while it is hovered (or has the keyboard cursor),
+    // and the same in its context menu.
+    let mut action = None;
+    if response.hovered() || cursor {
+        action = hover_actions(ui, t, rect, summary);
+    }
+    response.context_menu(|ui| {
+        for (_, label, cmd) in row_actions(summary) {
+            if ui.button(label).clicked() {
+                action = Some(Click::Run(cmd));
+                ui.close();
+            }
+        }
+        if ui.button("Move to…").clicked() {
+            action = Some(Click::Move);
+            ui.close();
+        }
+        if let Some(mailbox) = look.mailbox
+            && ui.button("Focus this mailbox").clicked()
+        {
+            action = Some(Click::Run(Command::FocusMailbox {
+                id: Some(mailbox),
+                account: None,
+            }));
+            ui.close();
+        }
+    });
+    if action.is_some() {
+        return action;
     }
     if !response.clicked() {
         return None;

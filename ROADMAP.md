@@ -614,7 +614,7 @@ its own wave and ADR.
   `set_list_filter`
 - [x] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses
 - [x] UX-9 [gui][tui]: sync state per account in the sidebar
-- [ ] UX-10 [gui]: row hover actions and context menu
+- [x] UX-10 [gui]: row hover actions and context menu
 - [ ] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)
 - [ ] UX-12 [front]: auto-advance after triage (setting)
 - [ ] UX-13 [front][gui]: date group headers and row density

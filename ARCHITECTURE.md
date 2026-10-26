@@ -978,7 +978,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar), the toolbar under it (UX-7: tri-state *Select all*
+  unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
+  `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
+  palette's target step, `palette::move_to` — and *Focus this mailbox*), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
   *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,

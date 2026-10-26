@@ -6,10 +6,9 @@ use app_gui::{Background, Purpose};
 use egui::accesskit::Role;
 use egui_kittest::kittest::{By, Queryable};
 
-/// An action button: its label followed by its key hint (`ArchiveE`), unlike the mailbox row
-/// of the same name.
-/// A button named `label` followed by its key hint (`Star s`), not one that only starts with
-/// the same letters (`Starred`, the list filter).
+/// An action button: its label followed by its key hint (`Archive (E)`), unlike the mailbox
+/// row of the same name, a button that only starts with the same letters (`Starred`, the list
+/// filter) or a list row's hover action (`Star conversation`).
 fn action(label: &str) -> By<'_> {
     By::new().role(Role::Button).predicate(move |node| {
         node.label().is_some_and(|l| {
@@ -17,6 +16,7 @@ fn action(label: &str) -> By<'_> {
                 .is_some_and(|at| l[at + label.len()..].starts_with(|c: char| !c.is_alphanumeric()))
                 && l != label
                 && !l.contains(", ")
+                && !l.ends_with(" conversation")
         })
     })
 }
@@ -284,4 +284,36 @@ fn the_list_shows_all_inboxes_once_opened() {
     h.get_by_label("All inboxes");
     h.get_by_label("Lunch?");
     h.get_by_label("Q3 numbers");
+}
+
+#[test]
+fn the_cursor_row_offers_its_actions_by_name() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::SelectThreads {
+            ids: vec![threads[0]],
+        },
+    );
+    apply(
+        &mut h,
+        Command::FocusPane {
+            pane: app_core::Pane::List,
+        },
+    );
+    h.state_mut().out.clear();
+    h.get(By::new().role(Role::Button).label("Archive conversation"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::ArchiveThreads {
+            ids: vec![threads[0]],
+            messages: Vec::new()
+        }]
+    );
+    h.get(By::new().role(Role::Button).label("Trash conversation"));
 }

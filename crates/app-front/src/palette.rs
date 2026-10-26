@@ -272,6 +272,19 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// "Move to…" for `ids`: asks for the target among their account's mailboxes.
+pub fn move_to(state: &AppState, ids: Vec<ThreadId>) -> Flow {
+    let account = ids
+        .first()
+        .and_then(|t| state.threads.get(t))
+        .map(|t| t.account);
+    pick_mailbox("Move to…", account, move |to| Command::MoveThreads {
+        ids: ids.clone(),
+        messages: Vec::new(),
+        to,
+    })
+}
+
 /// `make` for the open mailbox, else for one the user picks.
 fn on_mailbox(
     state: &AppState,
@@ -695,17 +708,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             messages: Vec::new(),
         }),
         CommandName::MoveThreads => {
-            let then = |state: &AppState, ids: Vec<ThreadId>| {
-                let account = ids
-                    .first()
-                    .and_then(|t| state.threads.get(t))
-                    .map(|t| t.account);
-                pick_mailbox("Move to…", account, move |to| Command::MoveThreads {
-                    ids: ids.clone(),
-                    messages: Vec::new(),
-                    to,
-                })
-            };
+            let then = move_to;
             let ids = targets(state);
             if ids.is_empty() {
                 ask(
