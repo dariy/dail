@@ -680,7 +680,8 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `ProfileDirs` (app-io) resolves the layout above: `ProfileDirs::named("default")` uses `ProjectDirs::from("", "", "dail")`,
   `ProfileDirs::at(dir)` takes an explicit root; `ensure()` creates it with mode 0700 on Unix.
 - `config.toml` (`app_io::Config`): `[settings]` (missing keys take defaults, values range-checked; `images_from` lists the
-  senders whose inline images show) and one `[[account]]`
+  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`; only
+  written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
   and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
   disk, rename it over, flush the directory on Unix); blobs are written the same way, and redb commits are durable.
@@ -700,7 +701,8 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
-  `AccountRemoved` or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,

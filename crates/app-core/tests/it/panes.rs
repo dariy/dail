@@ -5,7 +5,10 @@
 #![allow(clippy::unwrap_used)]
 
 use crate::support::{Mail, mail};
-use app_core::{Command, CommandKind, CoreError, DraftId, EntityRef, Pane, SettingKey};
+use app_core::{
+    Command, CommandKind, CoreError, DraftId, Effect, EntityRef, Pane, PersistDelta, SettingKey,
+    ViewPrefs,
+};
 use serde_json::json;
 
 fn with_thread() -> Mail {
@@ -150,6 +153,48 @@ fn toggle_sidebar_collapses_and_focusing_the_sidebar_expands_it() {
     m.run(Command::ToggleSidebar {}).unwrap();
     m.run(Command::ToggleSidebar {}).unwrap();
     assert!(!m.engine.state().view.sidebar_collapsed);
+}
+
+#[test]
+fn view_commands_that_change_preferences_save_them() {
+    let mut m = with_thread();
+    let undo_len = m.engine.history().undo_len();
+    let saved = |outcome: &app_core::Outcome| {
+        outcome
+            .effects
+            .iter()
+            .filter_map(|effect| match effect {
+                Effect::PersistState {
+                    delta: PersistDelta::View(prefs),
+                } => Some(prefs.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let outcome = m.run(Command::ToggleSidebar {}).unwrap();
+    assert_eq!(
+        saved(&outcome),
+        [ViewPrefs {
+            sidebar_collapsed: true
+        }]
+    );
+    let outcome = m
+        .run(Command::FocusPane {
+            pane: Pane::Sidebar,
+        })
+        .unwrap();
+    assert_eq!(
+        saved(&outcome),
+        [ViewPrefs::default()],
+        "focusing expands it"
+    );
+    let outcome = m.run(Command::FocusPane { pane: Pane::List }).unwrap();
+    assert!(saved(&outcome).is_empty(), "nothing saved changed");
+    assert_eq!(
+        m.engine.history().undo_len(),
+        undo_len,
+        "view changes are not undoable"
+    );
 }
 
 #[test]

@@ -11,6 +11,7 @@ use crate::mailbox::{Mailbox, RemoteMailbox};
 use crate::message::{Envelope, RemoteEnvelope, Thread, UidFlags};
 use crate::ops::{PendingOp, RemoteStep};
 use crate::search::Query;
+use crate::state::ViewPrefs;
 use crate::state::{AppState, Settings};
 
 /// A fact reported by the runtime, usually the result of an [`Effect`]. Events are never recorded
@@ -840,6 +841,8 @@ pub enum PersistDelta {
     AccountRemoved(AccountId),
     /// A change to the local mail cache.
     Mail(MailDelta),
+    /// The saved view preferences (`[view]` in `config.toml`, UX-1).
+    View(ViewPrefs),
 }
 
 /// Upserts and removals in the local mail cache. Removals are applied before upserts.
@@ -953,6 +956,7 @@ impl PersistDelta {
                 state.accounts.shift_remove(id);
             }
             Self::Mail(delta) => delta.apply_to(state),
+            Self::View(prefs) => state.view.apply_prefs(prefs),
         }
     }
 }

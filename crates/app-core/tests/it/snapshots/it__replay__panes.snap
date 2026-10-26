@@ -585,7 +585,19 @@ expression: first
       "line": 11,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "sidebar_collapsed": true
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -607,7 +619,17 @@ expression: first
       "line": 12,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {}
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {

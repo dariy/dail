@@ -167,6 +167,38 @@ impl Pane {
     }
 }
 
+/// The part of [`ViewState`] that survives a restart: the `[view]` table of `config.toml`
+/// (UX-1). View commands that change it emit `PersistState { delta: view }`; it is never part
+/// of undo history.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ViewPrefs {
+    /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub sidebar_collapsed: bool,
+}
+
+impl ViewPrefs {
+    /// Whether every preference has its default (nothing to write).
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+impl ViewState {
+    /// The preferences to save.
+    pub fn prefs(&self) -> ViewPrefs {
+        ViewPrefs {
+            sidebar_collapsed: self.sidebar_collapsed,
+        }
+    }
+
+    /// Restores saved preferences.
+    pub fn apply_prefs(&mut self, prefs: &ViewPrefs) {
+        self.sidebar_collapsed = prefs.sidebar_collapsed;
+    }
+}
+
 impl ViewState {
     /// Drops references to mailboxes and threads that no longer exist. Returns whether anything
     /// changed.

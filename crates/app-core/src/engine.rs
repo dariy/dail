@@ -36,7 +36,7 @@ use crate::message::BodyState;
 use crate::ops::{FlagKind, OpState};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::registry::AgentAccess;
-use crate::state::{AppState, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME};
+use crate::state::{AppState, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME, ViewPrefs};
 use crate::threading::Threader;
 
 /// The deterministic state machine. State changes enter only through [`Engine::dispatch`] and
@@ -142,9 +142,21 @@ impl Engine {
     /// rejected command leaves the state and the history untouched.
     pub fn dispatch(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
-        let outcome = self.dispatch_unsettled(cmd, ctx)?;
+        let prefs = self.state.view.prefs();
+        let mut outcome = self.dispatch_unsettled(cmd, ctx)?;
         self.settle_view();
+        self.persist_view_prefs(&prefs, &mut outcome);
         Ok(outcome)
+    }
+
+    /// Saves the view preferences if the input changed them (`[view]`, UX-1).
+    fn persist_view_prefs(&self, before: &ViewPrefs, outcome: &mut Outcome) {
+        let prefs = self.state.view.prefs();
+        if prefs != *before {
+            outcome.effects.push(Effect::PersistState {
+                delta: PersistDelta::View(prefs),
+            });
+        }
     }
 
     /// Keeps `ViewState` consistent after every change: a composer whose draft is gone closes,
@@ -182,8 +194,10 @@ impl Engine {
     /// Fact from the outside world (the result of an `Effect`). Never recorded in history.
     pub fn ingest(&mut self, event: Event, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
-        let outcome = self.ingest_unsettled(event, ctx)?;
+        let prefs = self.state.view.prefs();
+        let mut outcome = self.ingest_unsettled(event, ctx)?;
         self.settle_view();
+        self.persist_view_prefs(&prefs, &mut outcome);
         Ok(outcome)
     }
 

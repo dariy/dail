@@ -54,5 +54,5 @@ pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, IndexSearch, KeyPreset,
     Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection, StatusState, SyncIssue,
-    SyncStatus, ViewState, WatchState,
+    SyncStatus, ViewPrefs, ViewState, WatchState,
 };

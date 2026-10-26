@@ -603,7 +603,7 @@ its own wave and ADR.
 - View preferences survive a restart, and every new command is in the registry, reachable from every surface.
 
 ### U — Desktop and shared UX (build order of the request file)
-- [ ] UX-1 [core][io]: persisted view preferences — `[view]` table in `config.toml`, `PersistDelta::View` emitted by
+- [x] UX-1 [core][io]: persisted view preferences — `[view]` table in `config.toml`, `PersistDelta::View` emitted by
   View commands
 - [ ] UX-2 [front][gui][tui]: folder tree in the sidebar instead of a flat list
 - [ ] UX-3 [core][front][gui][tui]: collapsible folders and accounts — `collapse_folders`, `expand_folders`; persisted via UX-1

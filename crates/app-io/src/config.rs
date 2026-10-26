@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use app_core::{
     Account, AccountId, AccountStatus, AppState, Endpoint, PersistDelta, ProviderPreset, SecretRef,
-    SettingKey, Settings,
+    SettingKey, Settings, ViewPrefs,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,9 @@ pub struct Config {
     /// User preferences. Missing keys take their defaults.
     #[serde(default)]
     pub settings: Settings,
+    /// View preferences: collapsed sidebar, folders, focus, list filter (`[view]`, UX-1).
+    #[serde(default, skip_serializing_if = "ViewPrefs::is_default")]
+    pub view: ViewPrefs,
     /// Accounts, in display order.
     #[serde(default, rename = "account")]
     pub accounts: Vec<AccountConfig>,
@@ -86,13 +89,15 @@ impl Config {
     pub fn from_state(state: &AppState) -> Self {
         Self {
             settings: state.settings.clone(),
+            view: state.view.prefs(),
             accounts: state.accounts.values().map(AccountConfig::from).collect(),
         }
     }
 
-    /// Replaces settings and accounts of `state` with this config.
+    /// Replaces settings, accounts and view preferences of `state` with this config.
     pub fn apply_to(&self, state: &mut AppState) {
         state.settings = self.settings.clone();
+        state.view.apply_prefs(&self.view);
         state.accounts = self
             .accounts
             .iter()
@@ -112,6 +117,7 @@ impl Config {
                 }
             }
             PersistDelta::AccountRemoved(id) => self.accounts.retain(|a| a.id != *id),
+            PersistDelta::View(prefs) => self.view = prefs.clone(),
             // The mail cache lives in `state.redb`, not in the config file.
             PersistDelta::Mail(_) => {}
         }
