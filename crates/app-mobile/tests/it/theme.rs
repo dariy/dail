@@ -104,3 +104,18 @@ fn about_shows_the_licences_and_back_closes_it() {
     assert!(phone.take().is_empty());
     assert!(phone.frame().about.is_none());
 }
+
+#[test]
+fn the_mailboxes_button_is_a_menu_icon_named_mailboxes() {
+    // MISC-2: a phone shows the list alone; its navigation button opens the drawer.
+    let mut phone = Phone::inbox(360, 800);
+    let frame = phone.frame();
+    let navigation = frame.top_bar.navigation.unwrap();
+    assert_eq!(navigation.icon.as_deref(), Some("menu"));
+    assert_eq!(navigation.label, "Mailboxes", "TalkBack's name");
+    let icons = frame.theme.unwrap().icons;
+    assert!(
+        icons.contains_key("menu"),
+        "Android draws it from the theme's glyphs"
+    );
+}

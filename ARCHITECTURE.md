@@ -1290,7 +1290,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
   carries the content and chrome colour roles as `#RRGGBBAA`, the tags, the type scale, the metrics and the icon
-  font's glyph per icon name. The top bar's *About* opens `about` (the version, the bundled fonts' and icons' licences, from
+  font's glyph per icon name (Kotlin draws a button with an icon from it, and its label only where the font has no
+  glyph: the list's *Mailboxes* button is the `menu` glyph, named *Mailboxes* for TalkBack, MISC-2). The top bar's *About* opens `about` (the version, the bundled fonts' and icons' licences, from
   `app_theme::fonts` and `icon`, and the lists in `crates/app-mobile/licences/`: the Rust crates `libdail.so` links
   and the Android libraries of the release APK, each `name version SPDX-licence`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto

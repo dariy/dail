@@ -76,11 +76,13 @@ pub enum Icon {
     ChevronLeft,
     /// A check mark (✓).
     Check,
+    /// The drawer (three lines; the phone's *Mailboxes* button, MISC-2).
+    Menu,
 }
 
 impl Icon {
     /// Every icon.
-    pub const ALL: [Self; 54] = [
+    pub const ALL: [Self; 55] = [
         Self::Mail,
         Self::Edit,
         Self::Inbox,
@@ -135,6 +137,7 @@ impl Icon {
         Self::ChevronRight,
         Self::ChevronLeft,
         Self::Check,
+        Self::Menu,
     ];
 
     /// The code point in the icon font.
@@ -194,6 +197,7 @@ impl Icon {
             Self::ChevronRight => '\u{e5cc}',
             Self::ChevronLeft => '\u{e5cb}',
             Self::Check => '\u{e668}',
+            Self::Menu => '\u{e5d2}',
         }
     }
 
@@ -254,6 +258,7 @@ impl Icon {
             Self::ChevronRight => "chevron_right",
             Self::ChevronLeft => "chevron_left",
             Self::Check => "check",
+            Self::Menu => "menu",
         }
     }
 }

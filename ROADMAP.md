@@ -622,7 +622,7 @@ its own wave and ADR.
 
 ### M — Mobile and misc (`docs/requests/misc.md`)
 - [x] MISC-1 [kt][mobile]: Android list swipes do nothing on release — left archives, right trashes, with undo
-- [ ] MISC-2 [kt][mobile]: Android *Mailboxes* button as a menu icon button (accessible name kept)
+- [x] MISC-2 [kt][mobile]: Android *Mailboxes* button as a menu icon button (accessible name kept)
 - [ ] MISC-3 [mobile][kt][ios]: About as a sidebar entry after *Settings*, with a close button in its top bar
 - [ ] MISC-4 [core][io][sync][tk][front][gui][tui][mobile][kt][ios]: pin threads to the top of the list —
   `pin_threads`, `unpin_threads` (Mutation, agents `any`); IMAP keyword `$Pinned`, device-only without `\*`
