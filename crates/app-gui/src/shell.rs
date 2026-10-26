@@ -67,6 +67,8 @@ pub struct Shell {
     /// The last query result the user asked for (command name, pretty JSON).
     result: Option<(CommandName, String)>,
     clock: fn() -> i64,
+    /// The mark-as-read timer (UX-5).
+    autoread: app_front::autoread::AutoRead,
     /// The language of the shared texts (`app_front::i18n`).
     lang: app_front::i18n::Lang,
 }
@@ -92,6 +94,7 @@ impl Default for Shell {
             settings: crate::settings::SettingsState::default(),
             result: None,
             clock: system_now_ms,
+            autoread: app_front::autoread::AutoRead::default(),
             lang: app_front::i18n::Lang::default(),
         }
     }
@@ -170,6 +173,30 @@ impl Shell {
 
     /// Renders one frame and returns the commands the user issued in it, in order.
     pub fn frame(
+        &mut self,
+        ui: &mut egui::Ui,
+        state: &AppState,
+        replies: Vec<Reply>,
+    ) -> Vec<Request> {
+        let mut queue = self.frame_body(ui, state, replies);
+        // Mark as read after a delay (UX-5): the user's own, undoable `mark_read`.
+        for request in &queue {
+            if request.purpose == Purpose::User {
+                self.autoread.note(&request.cmd);
+            }
+        }
+        let focused = ui.ctx().input(|i| i.viewport().focused) != Some(false);
+        match self.autoread.poll(state, (self.clock)(), focused) {
+            app_front::autoread::Poll::Fire(cmd) => queue.push(Request::user(cmd)),
+            app_front::autoread::Poll::Wait(ms) => ui
+                .ctx()
+                .request_repaint_after(std::time::Duration::from_millis(ms)),
+            app_front::autoread::Poll::Idle => {}
+        }
+        queue
+    }
+
+    fn frame_body(
         &mut self,
         ui: &mut egui::Ui,
         state: &AppState,

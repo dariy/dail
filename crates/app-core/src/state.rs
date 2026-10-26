@@ -339,6 +339,8 @@ pub struct Settings {
     pub background_sync: u64,
     /// Android: minutes between periodic background checks (`background_sync` = 1).
     pub background_interval_mins: u64,
+    /// Mark the open conversation read after this many milliseconds (0 = never; UX-5).
+    pub mark_read_after_ms: u64,
     /// Senders (lower-case addresses) whose messages show their inline images, the `cid:` parts
     /// of the message itself (`show_images_from`). Remote images are never loaded.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -394,6 +396,7 @@ impl Default for Settings {
             notifications: 1,
             background_sync: 1,
             background_interval_mins: 30,
+            mark_read_after_ms: 2_000,
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),

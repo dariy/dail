@@ -524,6 +524,11 @@ expression: command_schema()
           "const": "background_interval_mins",
           "description": "Android: minutes between periodic background checks (15–720).",
           "type": "string"
+        },
+        {
+          "const": "mark_read_after_ms",
+          "description": "Mark the open conversation's unread messages read once it has been open this long, in\nmilliseconds: 0 = never (only `mark_read` does), else 250–60000 (default 2000). The\nGUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents\nopening threads never mark anything read.",
+          "type": "string"
         }
       ]
     },

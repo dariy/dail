@@ -7,6 +7,7 @@
 pub mod a11y;
 pub mod alerts;
 pub mod approvals;
+pub mod autoread;
 pub mod body;
 pub mod compose;
 pub mod fold;

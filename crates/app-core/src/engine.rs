@@ -968,17 +968,16 @@ fn flag_change(
 }
 
 fn validate_setting(key: SettingKey, value: &serde_json::Value) -> Result<u64, CoreError> {
-    let (min, max) = key.range();
     let number = value.as_u64().ok_or_else(|| {
         invalid(
             "value",
             format!("{} expects a non-negative integer", key.as_str()),
         )
     })?;
-    if number < min || number > max {
+    if !key.accepts(number) {
         return Err(invalid(
             "value",
-            format!("{} must be between {min} and {max}", key.as_str()),
+            format!("{} must be {}", key.as_str(), key.allowed()),
         ));
     }
     Ok(number)

@@ -555,6 +555,27 @@ fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) 
     row(
         ui,
         t,
+        "Mark as read",
+        "When an open conversation is marked read (other values: set_setting in the palette)",
+        |ui| {
+            choices(
+                ui,
+                t,
+                state,
+                SettingKey::MarkReadAfterMs,
+                &[
+                    (0, "Never"),
+                    (250, "Immediately"),
+                    (2_000, "After 2 s"),
+                    (5_000, "After 5 s"),
+                ],
+                queue,
+            );
+        },
+    );
+    row(
+        ui,
+        t,
         "Notifications",
         "New mail, failed sends and agent requests while dail is in the background",
         |ui| {

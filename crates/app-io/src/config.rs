@@ -162,12 +162,12 @@ impl Config {
     /// Checks setting ranges and that account IDs and emails are unique.
     pub fn validate(&self) -> Result<(), String> {
         for &key in SettingKey::ALL {
-            let (min, max) = key.range();
             let value = key.get(&self.settings);
-            if value < min || value > max {
+            if !key.accepts(value) {
                 return Err(format!(
-                    "settings.{} = {value} is outside {min}..={max}",
-                    key.as_str()
+                    "settings.{} = {value} is not {}",
+                    key.as_str(),
+                    key.allowed()
                 ));
             }
         }

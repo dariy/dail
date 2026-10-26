@@ -3,6 +3,7 @@
 mod support;
 
 mod alerts;
+mod autoread;
 mod body;
 mod keys;
 mod palette;

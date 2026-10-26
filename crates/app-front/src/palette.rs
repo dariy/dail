@@ -385,11 +385,11 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             let Choice::Setting(key) = choice else {
                 return Flow::Hidden;
             };
-            let (min, max) = key.range();
+            let allowed = key.allowed();
             let current = key.get(&state.settings);
             ask(
                 format!("New value for {}", key.as_str()),
-                AskKind::Text(format!("{min}–{max}, now {current}")),
+                AskKind::Text(format!("{allowed}, now {current}")),
                 move |_, choice| match choice {
                     Choice::Text(text) => {
                         text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
@@ -1124,11 +1124,10 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
         AskKind::Settings => SettingKey::ALL
             .iter()
             .map(|key| {
-                let (min, max) = key.range();
                 row(
                     Choice::Setting(*key),
                     key.as_str().to_owned(),
-                    format!("{} (range {min}–{max})", key.get(&state.settings)),
+                    format!("{} (range {})", key.get(&state.settings), key.allowed()),
                 )
             })
             .collect(),

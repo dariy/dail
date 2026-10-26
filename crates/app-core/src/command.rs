@@ -727,6 +727,11 @@ pub enum SettingKey {
     BackgroundSync,
     /// Android: minutes between periodic background checks (15–720).
     BackgroundIntervalMins,
+    /// Mark the open conversation's unread messages read once it has been open this long, in
+    /// milliseconds: 0 = never (only `mark_read` does), else 250–60000 (default 2000). The
+    /// GUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents
+    /// opening threads never mark anything read.
+    MarkReadAfterMs,
 }
 
 impl SettingKey {
@@ -743,6 +748,7 @@ impl SettingKey {
         Self::TuiColors,
         Self::BackgroundSync,
         Self::BackgroundIntervalMins,
+        Self::MarkReadAfterMs,
     ];
 
     /// The key's `snake_case` name.
@@ -759,10 +765,33 @@ impl SettingKey {
             Self::TuiColors => "tui_colors",
             Self::BackgroundSync => "background_sync",
             Self::BackgroundIntervalMins => "background_interval_mins",
+            Self::MarkReadAfterMs => "mark_read_after_ms",
         }
     }
 
     /// Allowed values, inclusive.
+    /// Whether `value` is allowed: within [`Self::range`], and for `mark_read_after_ms` not
+    /// between 1 and 249.
+    pub const fn accepts(self, value: u64) -> bool {
+        let (min, max) = self.range();
+        if value < min || value > max {
+            return false;
+        }
+        !matches!(self, Self::MarkReadAfterMs) || value == 0 || value >= 250
+    }
+
+    /// The allowed values in words, for messages and prompts.
+    pub fn allowed(self) -> String {
+        match self {
+            Self::MarkReadAfterMs => "0 or between 250 and 60000".to_owned(),
+            _ => {
+                let (min, max) = self.range();
+                format!("between {min} and {max}")
+            }
+        }
+    }
+
+    /// The allowed range (see [`Self::accepts`] for the gaps).
     pub const fn range(self) -> (u64, u64) {
         match self {
             Self::UndoSendMs => (0, 60_000),
@@ -776,6 +805,7 @@ impl SettingKey {
             Self::TuiColors => (0, 1),
             Self::BackgroundSync => (0, 2),
             Self::BackgroundIntervalMins => (15, 720),
+            Self::MarkReadAfterMs => (0, 60_000),
         }
     }
 
@@ -793,6 +823,7 @@ impl SettingKey {
             Self::TuiColors => settings.tui_colors,
             Self::BackgroundSync => settings.background_sync,
             Self::BackgroundIntervalMins => settings.background_interval_mins,
+            Self::MarkReadAfterMs => settings.mark_read_after_ms,
         }
     }
 
@@ -810,6 +841,7 @@ impl SettingKey {
             Self::TuiColors => settings.tui_colors = value,
             Self::BackgroundSync => settings.background_sync = value,
             Self::BackgroundIntervalMins => settings.background_interval_mins = value,
+            Self::MarkReadAfterMs => settings.mark_read_after_ms = value,
         }
     }
 }

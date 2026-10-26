@@ -123,6 +123,7 @@ expression: first
       "history_cap": 200,
       "initial_window": 500,
       "list_density": 0,
+      "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 120,
       "text_scale": 100,

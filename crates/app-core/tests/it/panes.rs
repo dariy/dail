@@ -240,3 +240,29 @@ fn get_view_reports_the_view_without_changing_it() {
         before.view
     );
 }
+
+#[test]
+fn mark_read_after_ms_is_zero_or_at_least_a_quarter_second() {
+    let mut m = with_thread();
+    assert_eq!(m.engine.state().settings.mark_read_after_ms, 2_000);
+    for bad in [1_u64, 249, 60_001] {
+        let err = m
+            .run(Command::SetSetting {
+                key: SettingKey::MarkReadAfterMs,
+                value: bad.into(),
+            })
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("0 or between 250 and 60000"),
+            "{err}"
+        );
+    }
+    for good in [0_u64, 250, 60_000] {
+        m.run(Command::SetSetting {
+            key: SettingKey::MarkReadAfterMs,
+            value: good.into(),
+        })
+        .unwrap();
+        assert_eq!(m.engine.state().settings.mark_read_after_ms, good);
+    }
+}
