@@ -1,6 +1,6 @@
-//! The contract with the Kotlin app: every snapshot frame, one of every event and the JSON Schema
-//! of `Frame` and `UiEvent` as fixtures under `android/app/src/test/resources/contract/`, which
-//! the Kotlin types decode strictly. A stale, missing or extra fixture fails;
+//! The contract with the Kotlin and Swift apps: every snapshot frame, one of every event and the
+//! JSON Schema of `Frame` and `UiEvent` as fixtures under `android/app/src/test/resources/contract/`,
+//! which the Kotlin types (`ContractTest`) and the Swift types (`ios/DailTests`) decode strictly. A stale, missing or extra fixture fails;
 //! `DAIL_UPDATE_CONTRACT=1` rewrites them.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.

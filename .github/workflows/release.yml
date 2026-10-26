@@ -1,5 +1,5 @@
 # Builds the release packages on demand (Actions → release → Run workflow): a zip with `dail.exe` on Windows, and a
-# tar.gz and a .deb on Ubuntu, and a signed APK per ABI for Android, each with a .sha256. They run the same scripts as a local release build (scripts/) and
+# tar.gz and a .deb on Ubuntu, a signed APK per ABI for Android, and the unsigned IPAs (live and demo) for iOS, each with a .sha256. They run the same scripts as a local release build (scripts/) and
 # are uploaded as the run's artifacts.
 name: release
 
@@ -64,6 +64,10 @@ jobs:
         env:
           DAIL_ANDROID_KEYSTORE_BASE64: ${{ secrets.DAIL_ANDROID_KEYSTORE_BASE64 }}
         run: |
+          if [ -z "$DAIL_ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::error::secret DAIL_ANDROID_KEYSTORE_BASE64 is not set; a release APK must be signed"
+            exit 1
+          fi
           echo "$DAIL_ANDROID_KEYSTORE_BASE64" | base64 -d >"$RUNNER_TEMP/dail-release.jks"
           echo "DAIL_SIGNING_STORE=$RUNNER_TEMP/dail-release.jks" >>"$GITHUB_ENV"
       - run: ./scripts/release-android.sh
@@ -76,5 +80,21 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: dail-android
+          path: dist/*
+          if-no-files-found: error
+
+  # The unsigned IPAs, live and demo, with their .sha256 (ADR 0010, plan §6): the user re-signs them with their own
+  # Apple ID. No signing secret is involved.
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+      - run: brew install xcodegen
+      - run: cargo xtask ios app
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dail-ios
           path: dist/*
           if-no-files-found: error

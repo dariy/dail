@@ -556,3 +556,37 @@ async fn sync_prefetches_unread_bodies_and_resyncs_flags() {
     assert_eq!(pending, 0);
     session.shutdown().await.unwrap();
 }
+
+#[test]
+fn the_large_fixture_is_basic_with_a_big_dated_inbox() {
+    let large = app_testkit::Fixture::builtin("large").unwrap();
+    let basic = app_testkit::Fixture::builtin("basic").unwrap();
+    assert!(app_testkit::Fixture::builtin_names().contains(&"large"));
+    let inbox = |f: &app_testkit::Fixture| {
+        f.accounts[0]
+            .mailboxes
+            .iter()
+            .find(|m| m.path == "INBOX")
+            .unwrap()
+            .messages
+            .clone()
+    };
+    let (large, basic) = (inbox(&large), inbox(&basic));
+    assert_eq!(
+        large.len(),
+        basic.len() + app_testkit::LARGE_MESSAGES as usize
+    );
+    // basic's own messages come last, with the highest UIDs.
+    assert_eq!(large[large.len() - basic.len()..][0].raw, basic[0].raw);
+    let first = &large[0].raw;
+    assert!(
+        first.contains("Date: Wed, 18 Oct 2023 02:40:00 +0000"),
+        "{first}"
+    );
+    let last = &large[app_testkit::LARGE_MESSAGES as usize - 1].raw;
+    assert!(
+        last.contains("Date: Tue, 31 Oct 2023 23:59:00 +0000"),
+        "{last}"
+    );
+    assert!(last.contains("In-Reply-To: <m19998@large.example>"));
+}

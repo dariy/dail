@@ -8,6 +8,6 @@ pub mod store;
 pub mod synced;
 
 pub use backend::{MemoryBackend, SentMail};
-pub use fixture::{FakeAccount, FakeMailbox, FakeMessage, Fixture, TestkitError};
+pub use fixture::{FakeAccount, FakeMailbox, FakeMessage, Fixture, LARGE_MESSAGES, TestkitError};
 pub use store::MemoryStore;
 pub use synced::{Synced, synced_session, synced_state};

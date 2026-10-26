@@ -8,6 +8,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Re-run by hand (the iOS job always runs then).
+  workflow_dispatch:
 
 # Read-only token for every job (Wave 5 O). Never add `pull_request_target`: fork code must not meet secrets.
 permissions:
@@ -124,3 +126,53 @@ jobs:
           script: |
             cargo xtask android test
             cd android && ./gradlew connectedDemoDebugAndroidTest -Pdail.abis=x86_64
+
+  # Whether a push or pull request touches what the iOS app is built from, so the slow macOS job runs only then.
+  # A `git diff` instead of a paths-filter action: no third-party code for a one-line question.
+  ios-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.diff.outputs.ios }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # A new branch or an unknown base has nothing to compare with: build.
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only "$BASE" HEAD | grep -qE '^(crates/|ios/|xtask/|Cargo\.|rust-toolchain\.toml$|\.github/workflows/ci\.yml$)'; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The iOS app (ADR 0010): clippy for the iOS targets, both XCFrameworks, the Xcode project from
+  # ios/project.yml (XcodeGen), both schemes built for the simulator, DailTests (the contract fixtures and
+  # the demo host) on an iPad simulator, and the unsigned archives. Only a macOS runner has Xcode.
+  ios:
+    needs: ios-changes
+    if: needs.ios-changes.outputs.ios == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          # Only main writes the cache, so a pull request cannot poison it for later runs.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - run: brew install xcodegen
+      # The `ios` gate: `ios check`, `build`, `test` and `app` (the unsigned IPAs, built here to keep them building).
+      - run: cargo xtask verify ios
+      # redb and tantivy at 50k messages in the iPad simulator (a measurement with generous budgets; ROADMAP I3).
+      - run: cargo xtask ios measure
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: ios-tests.xcresult
+          path: target/ios-tests.xcresult
+          if-no-files-found: ignore

@@ -132,14 +132,25 @@ const fn selectable_default() -> bool {
 
 const BUILTIN: &[(&str, &str)] = &[("basic", include_str!("../fixtures/basic.json"))];
 
+/// The generated built-in: `basic` with [`LARGE_MESSAGES`] more messages in its inbox.
+const LARGE: &str = "large";
+
+/// The size of the `large` fixture's inbox, for scale measurements (ROADMAP Wave 5 I3).
+pub const LARGE_MESSAGES: u32 = 20_000;
+
 impl Fixture {
     /// Names of the built-in fixtures.
     pub fn builtin_names() -> Vec<&'static str> {
-        BUILTIN.iter().map(|(name, _)| *name).collect()
+        let mut names: Vec<_> = BUILTIN.iter().map(|(name, _)| *name).collect();
+        names.push(LARGE);
+        names
     }
 
     /// Loads a built-in fixture by name.
     pub fn builtin(name: &str) -> Result<Self, TestkitError> {
+        if name == LARGE {
+            return Self::large(LARGE_MESSAGES);
+        }
         let (_, json) = BUILTIN
             .iter()
             .find(|(builtin, _)| *builtin == name)
@@ -148,6 +159,52 @@ impl Fixture {
                 known: Self::builtin_names().join(", "),
             })?;
         Self::from_json(json)
+    }
+
+    /// `basic` with `extra` generated messages in its first account's inbox: one sender in 50, a
+    /// thread every 4 messages, a few lines of text each, one in 3 read, dated a minute apart
+    /// before `basic`'s own. Deterministic, so that measurements compare.
+    pub fn large(extra: u32) -> Result<Self, TestkitError> {
+        let mut fixture = Self::builtin("basic")?;
+        let inbox = fixture
+            .accounts
+            .first_mut()
+            .and_then(|account| account.mailboxes.iter_mut().find(|m| m.path == "INBOX"))
+            .ok_or_else(|| TestkitError::Invalid("basic has no INBOX".to_owned()))?;
+        let own = std::mem::take(&mut inbox.messages);
+        // 2023-11-01 00:00 UTC, before basic's messages of 14 Nov.
+        const START: i64 = 1_698_796_800;
+        for n in 0..extra {
+            let thread = n / 4;
+            let reply = n % 4 != 0;
+            let date = START - i64::from(extra - n) * 60;
+            let raw = format!(
+                "Message-ID: <m{n}@large.example>\r\n{refs}From: Sender {sender} <s{sender}@large.example>\r\n\
+                 To: alice@example.com\r\nSubject: {re}Report {thread}\r\nDate: {date}\r\n\r\n\
+                 Line one of message {n} about project {project}.\r\nLine two with words to index: \
+                 budget, schedule, review, {project}.\r\nRegards,\r\nSender {sender}\r\n",
+                refs = if reply {
+                    format!("In-Reply-To: <m{}@large.example>\r\n", n - 1)
+                } else {
+                    String::new()
+                },
+                sender = n % 50,
+                re = if reply { "Re: " } else { "" },
+                project = n % 97,
+                date = rfc2822(date),
+            );
+            let flags = if n % 3 == 0 {
+                vec!["\\Seen".to_owned()]
+            } else {
+                Vec::new()
+            };
+            inbox.append(flags, raw);
+        }
+        for message in own {
+            inbox.append(message.flags, message.raw);
+        }
+        fixture.validate()?;
+        Ok(fixture)
     }
 
     /// Loads a fixture from a JSON file.
@@ -215,4 +272,36 @@ impl Fixture {
             .iter()
             .find(|mailbox| mailbox.path == path)
     }
+}
+
+/// `Tue, 14 Nov 2023 09:41:00 +0000` for `secs` since the epoch (UTC).
+fn rfc2822(secs: i64) -> String {
+    const DAYS: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+    const MONTHS: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    // Howard Hinnant's civil_from_days.
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    let weekday = DAYS
+        .get(usize::try_from(days.rem_euclid(7)).unwrap_or(0))
+        .unwrap_or(&"Mon");
+    let month_name = MONTHS
+        .get(usize::try_from(month - 1).unwrap_or(0))
+        .unwrap_or(&"Jan");
+    format!(
+        "{weekday}, {day:02} {month_name} {year} {:02}:{:02}:{:02} +0000",
+        rem / 3600,
+        rem / 60 % 60,
+        rem % 60
+    )
 }

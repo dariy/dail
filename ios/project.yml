@@ -1,0 +1,92 @@
+# XcodeGen spec of the iOS app (ADR 0010). CI generates `Dail.xcodeproj` from it (`cargo xtask ios build`);
+# the project is never committed or edited by hand. The XCFrameworks come from `cargo xtask ios xcframework`.
+#
+# Two app targets over the same Swift sources, like Android's flavours: `Dail` (live: the profile's store, the
+# Keychain and the mail servers) and `DailDemo` (the memory backend over the `basic` fixture, `DEMO` set).
+name: Dail
+options:
+  bundleIdPrefix: net.darii
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # libdail.a is arm64 only (devices and Apple-silicon simulators; xtask/src/ios.rs TARGETS).
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+    # iPhone and iPad.
+    TARGETED_DEVICE_FAMILY: "1,2"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+    INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: >-
+      UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: >-
+      UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown
+      UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+    # The device artifacts are unsigned (plan §6); the user re-signs the IPA. Simulator builds are signed ad hoc
+    # ("Sign to Run Locally"), which embeds the entitlements the data-protection Keychain needs.
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGN_IDENTITY: ""
+    "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": YES
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+targetTemplates:
+  App:
+    type: application
+    platform: iOS
+    sources:
+      - Dail
+    dependencies:
+      # libdail.a's system dependencies: the Keychain (security-framework) and getrandom's SecRandomCopyBytes.
+      - sdk: Security.framework
+      - sdk: CoreFoundation.framework
+    settings:
+      base:
+        INFOPLIST_KEY_CFBundleDisplayName: dail
+        # One Swift module name for both, so the tests `@testable import Dail` whichever they run over.
+        PRODUCT_MODULE_NAME: Dail
+targets:
+  Dail:
+    templates: [App]
+    scheme: {}
+    settings:
+      base:
+        PRODUCT_NAME: Dail
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail
+    dependencies:
+      - framework: Frameworks/DailCore.xcframework
+        embed: false
+  DailDemo:
+    templates: [App]
+    scheme:
+      testTargets: [DailTests]
+    settings:
+      base:
+        PRODUCT_NAME: DailDemo
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail.demo
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) DEMO
+    dependencies:
+      - framework: Frameworks/DailCore-Demo.xcframework
+        embed: false
+  # XCTest over the demo app: every contract fixture decoded strictly, and the demo host's first frame.
+  DailTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DailTests
+      # The fixtures app-mobile writes for both apps (crates/app-mobile/tests/it/contract.rs).
+      - path: ../android/app/src/test/resources/contract
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: DailDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.darii.dail.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/DailDemo.app/DailDemo
+        BUNDLE_LOADER: $(TEST_HOST)

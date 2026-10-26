@@ -1526,6 +1526,52 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   it runs on Linux. `xcframework [--demo]` (macOS with Xcode) builds `libdail.a` in release for both targets
   (`target/ios-live` or `target/ios-demo`) and packs it with `include/` (`dail.h` and the `DailCore` module map) into
   `ios/Frameworks/DailCore[-Demo].xcframework`, which is gitignored. Elsewhere it reports "cannot run".
+  `build` (macOS with Xcode and XcodeGen) makes both, generates `ios/Dail.xcodeproj` from `ios/project.yml` (never
+  committed) and builds the `Dail` (live) and `DailDemo` schemes for the simulator. `test` runs `DailTests` in the
+  `DailDemo` scheme on the newest available iPad simulator (result bundle `target/ios-tests.xcresult`, which CI uploads
+  on failure). `app` archives both schemes for devices in Release, unsigned, as
+  `dist/dail-<v>[-demo]-unsigned.ipa` (a zip of `Payload/<App>.app`) with `.sha256`; `release.yml`'s `ios` job uploads
+  them. `all` is the four, the non-default `ios` gate of `cargo xtask verify`. `ci.yml`'s `ios` job runs the gate on `macos-latest` when a change touches `crates/`, `ios/`, `xtask/`, `Cargo.*` or the workflow (a
+  `git diff` in the `ios-changes` job), and always when started by hand.
+- **The app** (`ios/`). Two app targets over the same Swift sources, like Android's flavours: `Dail`
+  (`net.darii.dail`, links `DailCore.xcframework`) and `DailDemo` (`net.darii.dail.demo`, `DailCore-Demo`, the `DEMO`
+  condition: `{"memory": "basic"}`). iOS 17, iPhone and iPad, unsigned. `Native.swift` is the only file that calls
+  `dail.h`: it copies and frees the strings and bounces the listener (an unretained `Listener` as the context) to
+  the main actor. The profile is `Application Support/profiles/default`.
+- **The contract in Swift** (`ios/Dail/Frame.swift`, `UiEvent.swift`): Codable mirrors of `app_mobile`'s frame,
+  externals, notifications and events, by hand, as Kotlin's. `Button`, `Layout` and `Preview` are `ActionButton`,
+  `FrameLayout` and `AttachmentPreview`, so as not to shadow SwiftUI. `DailTests` reads the same fixtures as Kotlin's
+  `ContractTest` (`android/app/src/test/resources/contract`, a folder resource of the test bundle). Codable ignores
+  unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
+  had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
+  simulator, decodes its frame strictly and sends a `configure`.
+- **The views** (`ios/Dail/Views`, as Kotlin's `ui/`). `Host.swift` runs every call on one serial queue ("dail-ui"),
+  as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
+  `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
+  and the app `visible` on scene changes. `FrameView` draws the top or bulk bar, the banner, the layout's panes in a
+  row (drawer, list, reader), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
+  whose dismissal is Back. `ListPane` keeps Android's window (`total` rows, placeholders outside `offset…`), reports
+  `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
+  `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a
+  `dail-action:<id>` link the view turns into a tap (so the link sheet shows the target first), and inline images
+  are placeholders. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
+  `copy`, `open_url`, `haptic` and `system_settings`; the file ones wait for the compose wave.
+- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
+  (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
+  moves; leaving a field sends `blur`. Setup fields take their keyboard, autofill and capitalisation from `InputKind`,
+  and the password is a `SecureField` that never comes back in a frame. Tests over the demo host: the parity walk
+  (`PaletteTests`) finds every command row of the empty palette by its title in a fresh host and taps it, and the
+  palette must close, open the setup or move to a step; what each step builds is `app_front`'s, walked in Rust.
+  `KeychainTests` runs the setup of a live session (Gmail preset, a throwaway password) and finds the password in the
+  Keychain (`dail` / `account/<id>`), then deletes it.
+- **Signing.** Device archives are unsigned (the user re-signs them). Simulator builds are signed ad hoc
+  (`CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = -`): without the entitlements that signing embeds, the
+  data-protection Keychain refuses every item.
+- **Scale** (plan §9). `app-testkit`'s generated `large` fixture is `basic` plus 20 000 inbox messages in threads of
+  4. `ScaleTests` opens it in the simulator, keeps the whole inbox offline through the palette, and logs the open,
+  backfill and scroll times and the app's footprint (`phys_footprint`). `cargo xtask ios measure` builds `app-io`'s
+  `scale` tests (redb and tantivy at 50k messages, `--ignored`) for `aarch64-apple-ios-sim` and runs them in the
+  booted iPad simulator with `xcrun simctl spawn`; CI's `ios` job runs it after the gate. The results are in plan §9.
 - **Tests** (`app-ios/tests/it`): the C calls over a live profile with no accounts (handles, the lock, the listener,
   the log file, freeing), bad input (null, non-UTF-8, unknown handles), and the header.
 

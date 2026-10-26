@@ -568,19 +568,19 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
 - [x] `cargo xtask ios check` (runs on Linux) and `ios xcframework` (macOS; otherwise "cannot run")
 
 ### I2 — CI on macOS
-- [ ] `ios/project.yml` (XcodeGen), an empty SwiftUI app linking `DailCore.xcframework`, and `Native.swift` opening the
+- [x] `ios/project.yml` (XcodeGen), an empty SwiftUI app linking `DailCore.xcframework`, and `Native.swift` opening the
   demo host and showing the first frame's title. The `ios` job in `ci.yml` (path-filtered, `macos-latest`) builds it
   for the simulator
-- [ ] `DailTests`: decode every contract fixture strictly; open the demo host in the simulator and take a frame
-- [ ] `cargo xtask ios app`: the unsigned archive packed as `dail-<v>[-demo]-unsigned.ipa`. A `release.yml` `ios` job
+- [x] `DailTests`: decode every contract fixture strictly; open the demo host in the simulator and take a frame
+- [x] `cargo xtask ios app`: the unsigned archive packed as `dail-<v>[-demo]-unsigned.ipa`. A `release.yml` `ios` job
   uploads both with `.sha256`. AGENTS.md §6 gains the `ios` gate
 
 ### I3 — The app
-- [ ] Mailbox list, thread list, message view (text, remote images off), mark read/star/archive with undo, through
+- [x] Mailbox list, thread list, message view (text, remote images off), mark read/star/archive with undo, through
   frames and `UiEvent`s only
-- [ ] The palette, with a parity test that walks every command, and account setup and settings through the palette
+- [x] The palette, with a parity test that walks every command, and account setup and settings through the palette
   flows; Keychain secrets in a live session
-- [ ] Measure memory, redb and tantivy in the simulator on a large demo cache (plan §9)
+- [x] Measure memory, redb and tantivy in the simulator on a large demo cache (plan §9)
 
 ### I4 — On the device
 - [ ] The user installs the demo IPA, then the live one, on their iPad (free Apple ID re-signing, Developer Mode).
