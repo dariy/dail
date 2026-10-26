@@ -1,7 +1,7 @@
 //! Problems: what a failure probably means, its hint, and the fix offered next to it.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::panic)]
 
 use app_core::{AccountStatus, ProviderPreset};
 use app_front::i18n::Lang;
@@ -113,4 +113,61 @@ fn the_pseudo_locale_reaches_the_status_texts() {
     assert!(problem.text.contains("@example.com"), "the address is kept");
     assert!(problem.hint.as_deref().unwrap().starts_with('['));
     assert!(Fix::Password(id).label(Lang::Pseudo).starts_with("[ré-"));
+}
+
+#[test]
+fn account_state_reports_failures_then_syncing_then_waiting_changes() {
+    use app_front::status::{AccountState, account_state};
+    let mut state = synced_state();
+    let account = *state.accounts.keys().next().unwrap();
+    assert_eq!(account_state(&state, account), AccountState::Idle);
+    state.status.sync.get_mut(&account).unwrap().pending = 1;
+    assert_eq!(account_state(&state, account), AccountState::Syncing);
+    state.status.sync.get_mut(&account).unwrap().last_error = Some(app_core::SyncIssue {
+        error: "IMAP imap.example.com:993: connection refused\u{7}".into(),
+        mailbox: None,
+        at_ms: 1,
+    });
+    let AccountState::Failed(error) = account_state(&state, account) else {
+        panic!("not failed")
+    };
+    assert!(error.starts_with("IMAP imap.example.com:993: connection refused"));
+    assert!(!error.contains('\u{7}'), "control characters are cleaned");
+    let sync = state.status.sync.get_mut(&account).unwrap();
+    sync.last_error = None;
+    sync.pending = 0;
+    let (_, threads) = crate::support::inbox_of(&state);
+    let mut engine = app_core::Engine::new(state);
+    let ctx = app_core::Ctx {
+        now_ms: crate::support::NOW,
+        id_seed: 9 << 64,
+        origin: app_core::Origin::Cli,
+    };
+    let outcome = engine
+        .dispatch(
+            app_core::Command::Star {
+                ids: vec![threads[0]],
+                messages: Vec::new(),
+            },
+            &ctx,
+        )
+        .unwrap();
+    let op = outcome.receipt.affected.iter().find_map(|e| match e {
+        app_core::EntityRef::Op(id) => Some(*id),
+        _ => None,
+    });
+    engine
+        .ingest(
+            app_core::Event::RemoteOpFailed {
+                op: op.unwrap(),
+                error: "network unreachable".into(),
+                permanent: false,
+            },
+            &ctx,
+        )
+        .unwrap();
+    assert_eq!(
+        account_state(engine.state(), account),
+        AccountState::Offline { waiting: 1 }
+    );
 }

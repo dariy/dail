@@ -250,7 +250,9 @@ case-insensitively. A parent that is not cached (`\Noselect`, never listed) is a
 opened); since role folders never become such parents, Gmail's `[Gmail]` vanishes by itself. The inbox's children go to
 the top level (servers such as Dovecot put every folder below `INBOX.`); the other role folders keep theirs.
 `unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
-the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+each account caption shows its sync state (`app_front::status::account_state`, UX-9: a busy dot while it syncs, a
+failed dot with the cleaned error on hover, `offline` while changes wait after failed attempts; the TUI writes `⟳`, `⚠`,
+`offline`); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
 it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
 `list_mailboxes`.
 

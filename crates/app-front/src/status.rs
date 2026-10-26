@@ -271,3 +271,45 @@ pub fn searching(state: &AppState) -> bool {
 pub fn can_sync(state: &AppState) -> bool {
     !state.accounts.is_empty() && state.status.sync.values().all(|s| !s.is_syncing())
 }
+
+/// One account's sync state as the sidebar shows it next to the account's name (UX-9).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AccountState {
+    /// Nothing to report.
+    Idle,
+    /// A listing or fetch is in flight.
+    Syncing,
+    /// The login or the last sync failed: the diagnostic, cleaned, for the hover text.
+    Failed(String),
+    /// Changes wait for the server after failed attempts (the server can't be reached).
+    Offline {
+        /// Ops waiting.
+        waiting: usize,
+    },
+}
+
+/// The sync state of `account`: a failure first, then syncing, then waiting changes.
+pub fn account_state(state: &AppState, account: AccountId) -> AccountState {
+    if let Some(AccountStatus::Failed { error, .. }) =
+        state.accounts.get(&account).map(|a| &a.status)
+    {
+        return AccountState::Failed(crate::text::clean(error));
+    }
+    let sync = state.status.sync.get(&account);
+    if let Some(issue) = sync.and_then(|s| s.last_error.as_ref()) {
+        return AccountState::Failed(crate::text::clean(&issue.error));
+    }
+    if sync.is_some_and(app_core::SyncStatus::is_syncing) {
+        return AccountState::Syncing;
+    }
+    let waiting = state
+        .outbox
+        .values()
+        .filter(|op| op.account == account && op.state == OpState::Queued && op.attempts > 0)
+        .count();
+    if waiting > 0 {
+        AccountState::Offline { waiting }
+    } else {
+        AccountState::Idle
+    }
+}

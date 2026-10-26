@@ -221,6 +221,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                             .rect_filled(rect, ui::radius(t.m.radius.sm), tag);
                     }
                     let caption = ui::caption(ui, t, &account.display_name);
+                    account_state(ui, t, state, account.id);
                     let name = format!("{} folders", account.display_name);
                     if chevron(ui, t, !account_folded, &name, caption.rect.height()).clicked() {
                         queue.push(Request::user(fold(account_key.clone(), !account_folded)));
@@ -347,6 +348,25 @@ fn favourite_label(state: &AppState, mailbox: &Mailbox) -> String {
     match state.accounts.get(&mailbox.account) {
         Some(account) if state.accounts.len() > 1 => format!("{name} · {}", account.display_name),
         _ => name,
+    }
+}
+
+/// The account's sync state next to its name (UX-9): a busy dot while it syncs, a failed dot
+/// with the error on hover, `offline` while changes wait for the server.
+fn account_state(ui: &mut Ui, t: &Tokens, state: &AppState, account: AccountId) {
+    use app_front::status::AccountState;
+    match app_front::status::account_state(state, account) {
+        AccountState::Idle => {}
+        AccountState::Syncing => {
+            ui::status_dot(ui, t, ui::Dot::Busy).on_hover_text("Syncing");
+        }
+        AccountState::Failed(error) => {
+            ui::status_dot(ui, t, ui::Dot::Failed).on_hover_text(error);
+        }
+        AccountState::Offline { waiting } => {
+            ui.label(ui::text(&t.type_scale.label_sm, "offline", t.text_muted))
+                .on_hover_text(format!("{waiting} change(s) wait for the server"));
+        }
     }
 }
 

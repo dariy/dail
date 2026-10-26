@@ -144,10 +144,20 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
         }
         let folded = app_front::mailbox::account_collapsed(state, account.id);
         let marker = if folded { "▸ " } else { "" };
-        let name = Line::from(vec![
+        let mut name = vec![
             Span::raw(marker),
             Span::styled(clean(&account.display_name), bold()),
-        ]);
+        ];
+        // UX-9: the account's sync state.
+        match app_front::status::account_state(state, account.id) {
+            app_front::status::AccountState::Idle => {}
+            app_front::status::AccountState::Syncing => name.push(Span::raw(" ⟳")),
+            app_front::status::AccountState::Failed(_) => name.push(Span::styled(" ⚠", bold())),
+            app_front::status::AccountState::Offline { .. } => {
+                name.push(Span::styled(" offline", dim()));
+            }
+        }
+        let name = Line::from(name);
         lines.push((name, None));
         let nodes = app_front::mailbox::sidebar_tree(state, account.id);
         let shown = app_front::mailbox::visible_rows(state, account.id, &nodes);
