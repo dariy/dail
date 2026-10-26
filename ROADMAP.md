@@ -609,7 +609,7 @@ its own wave and ADR.
 - [x] UX-3 [core][front][gui][tui]: collapsible folders and accounts — `collapse_folders`, `expand_folders`; persisted via UX-1
 - [x] UX-4 [core][front][gui][tui]: focus mode on one mailbox — `focus_mailbox`, `clear_focus`; persisted via UX-1
 - [x] UX-5 [front]: mark as read after a delay (setting `mark_read_after_ms`)
-- [ ] UX-6 [core][sync]: automatic periodic sync of all folders, refresh on open (settings)
+- [x] UX-6 [core][sync]: automatic periodic sync of all folders, refresh on open (settings)
 - [ ] UX-7 [core][gui][tui]: list toolbar — select all, mark all read, refresh, filters; `mark_mailbox_read`,
   `set_list_filter`
 - [ ] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses

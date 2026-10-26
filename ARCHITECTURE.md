@@ -598,6 +598,19 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    (case-insensitive, on character boundaries) in the list's subjects and in the reader, in plain text and in document
    spans (`ui::marked`, on `emphasis`).
 
+**Periodic sync (UX-6).** Everything runs in the engine's `Tick` → `poll()` path, so it is replayable
+(`tests/replay/periodic_sync.jsonl`):
+- *Refresh on open*: `open_mailbox` (and `focus_mailbox`) emits `FetchEnvelopes` when the mailbox's `last_fetch_ms`
+  (set by `EnvelopesFetched`) is older than `stale_secs` and `status.fetching` (fetches in flight, cleared by
+  `EnvelopesFetched`/`SyncFailed{mailbox}` and on restart) does not hold it; the receipt says `fetching`.
+- Each due poll, per idle account: a *full round* (`ListMailboxes` → a fetch of each mailbox) when `full_sync_secs` is
+  not 0 and `SyncStatus.last_full_ms` (also set by `sync_now`) is that old; else INBOX (unless IDLE watches it) and the
+  open mailbox (`view.mailbox`, if not in flight).
+- *Back-off*: `SyncStatus.failures` counts failed sync steps since the last success (`EnvelopesFetched` or
+  `MailboxesListed` reset it); from two on, the account's polls wait `min(poll_secs × 2^(failures − 1), 15 min)` after
+  the last failure.
+- The status line reads `synced 2m ago · next in 1m` (`app_front::format::until`, `status.next_poll_ms`).
+
 ### 5.3 Provider presets
 
 | Preset | IMAP | SMTP | Archive | Sent copy | Notes |
@@ -1601,7 +1614,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |

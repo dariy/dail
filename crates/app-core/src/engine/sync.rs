@@ -157,6 +157,7 @@ impl Engine {
                     highest_modseq: None,
                     sync_window: None,
                     history_complete: false,
+                    last_fetch_ms: None,
                     identity: None,
                 },
             };
@@ -190,11 +191,12 @@ impl Engine {
             receipt = receipt.affecting(EntityRef::Mailbox(id));
         }
 
-        if let Some(status) = self.state.status.sync.get_mut(&account)
-            && status.last_error.is_some()
-        {
-            status.last_error = None;
-            receipt = receipt.affecting(EntityRef::Status);
+        if let Some(status) = self.state.status.sync.get_mut(&account) {
+            status.failures = 0;
+            if status.last_error.is_some() {
+                status.last_error = None;
+                receipt = receipt.affecting(EntityRef::Status);
+            }
         }
 
         self.retry_now(account, &mut changes);
@@ -255,6 +257,7 @@ impl Engine {
             } else if let Some(listing) = self.start_listing(id) {
                 effects.push(listing);
                 started.push(id);
+                self.state.status.sync.entry(id).or_default().last_full_ms = Some(ctx.now_ms);
             }
         }
         if let Some(tick) = self.start_polling(ctx.now_ms) {
@@ -305,15 +308,38 @@ impl Engine {
         }
         let mut effects = Vec::new();
         let accounts: Vec<AccountId> = self.state.accounts.keys().copied().collect();
+        let poll_ms = i64::try_from(self.state.settings.poll_secs)
+            .unwrap_or(i64::MAX)
+            .saturating_mul(1000);
+        let full_ms = i64::try_from(self.state.settings.full_sync_secs)
+            .unwrap_or(i64::MAX)
+            .saturating_mul(1000);
         for account in accounts {
-            if self.is_watched(account)
-                || self
-                    .state
+            let status = self
+                .state
+                .status
+                .sync
+                .get(&account)
+                .cloned()
+                .unwrap_or_default();
+            if status.is_syncing() || backing_off(&status, poll_ms, now_ms) {
+                continue;
+            }
+            // A full round now and then (UX-6): new folders, Sent, Archive stay fresh.
+            if full_ms > 0
+                && status
+                    .last_full_ms
+                    .is_none_or(|at| now_ms.saturating_sub(at) >= full_ms)
+                && let Some(listing) = self.start_listing(account)
+            {
+                self.state
                     .status
                     .sync
-                    .get(&account)
-                    .is_some_and(|s| s.is_syncing())
-            {
+                    .entry(account)
+                    .or_default()
+                    .last_full_ms = Some(now_ms);
+                receipt = receipt.affecting(EntityRef::Account(account));
+                effects.push(listing);
                 continue;
             }
             let inbox = self
@@ -322,13 +348,31 @@ impl Engine {
                 .values()
                 .find(|m| m.account == account && m.role == Some(MailboxRole::Inbox))
                 .map(|m| m.id);
-            let effect = match inbox {
-                Some(inbox) => self.start_fetch(inbox),
-                None => self.start_listing(account),
-            };
-            if let Some(effect) = effect {
+            let mut fetch = Vec::new();
+            if !self.is_watched(account) {
+                match inbox {
+                    Some(inbox) => fetch.extend(self.start_fetch(inbox)),
+                    None => fetch.extend(self.start_listing(account)),
+                }
+            }
+            // The open mailbox is polled too.
+            let open = self
+                .state
+                .view
+                .mailbox
+                .filter(|id| Some(*id) != inbox)
+                .filter(|id| {
+                    self.state
+                        .mailboxes
+                        .get(id)
+                        .is_some_and(|m| m.account == account)
+                });
+            if let Some(open) = open {
+                fetch.extend(self.refresh(open));
+            }
+            if !fetch.is_empty() {
                 receipt = receipt.affecting(EntityRef::Account(account));
-                effects.push(effect);
+                effects.extend(fetch);
             }
         }
         self.state.status.next_poll_ms = None;
@@ -361,10 +405,19 @@ impl Engine {
     /// The `FetchEnvelopes` effect for `mailbox`, counted as in flight.
     pub(super) fn start_fetch(&mut self, mailbox: MailboxId) -> Option<Effect> {
         let effect = self.fetch_envelopes_effect(mailbox)?;
+        self.state.status.fetching.insert(mailbox);
         if let Effect::FetchEnvelopes { account, .. } = &effect {
             self.state.status.sync.entry(*account).or_default().pending += 1;
         }
         Some(effect)
+    }
+
+    /// `start_fetch` unless a fetch of `mailbox` is in flight already (UX-6's refreshes).
+    pub(super) fn refresh(&mut self, mailbox: MailboxId) -> Option<Effect> {
+        if self.state.status.fetching.contains(&mailbox) {
+            return None;
+        }
+        self.start_fetch(mailbox)
     }
 
     /// One sync effect of `account` completed (or failed). When none are left, the round is
@@ -405,6 +458,10 @@ impl Engine {
         receipt: CommandReceipt,
     ) -> Outcome {
         self.end_sync_effect(fetched.account, ctx.now_ms);
+        self.state.status.fetching.remove(&fetched.mailbox);
+        if let Some(status) = self.state.status.sync.get_mut(&fetched.account) {
+            status.failures = 0;
+        }
         let Some(mut mailbox) = self.state.mailboxes.get(&fetched.mailbox).cloned() else {
             return Outcome::new(receipt);
         };
@@ -480,6 +537,7 @@ impl Engine {
         mailbox.uid_next = uid_next;
         mailbox.total = fetched.total;
         mailbox.unread = fetched.unread;
+        mailbox.last_fetch_ms = Some(ctx.now_ms);
         if mailbox != before {
             self.state.mailboxes.insert(mailbox.id, mailbox.clone());
             changes.mailboxes.insert(mailbox.id);
@@ -835,7 +893,11 @@ impl Engine {
             return Outcome::new(receipt);
         }
         self.end_sync_effect(account, ctx.now_ms);
+        if let Some(mailbox) = mailbox {
+            self.state.status.fetching.remove(&mailbox);
+        }
         let status = self.state.status.sync.entry(account).or_default();
+        status.failures = status.failures.saturating_add(1);
         status.last_error = Some(SyncIssue {
             error,
             mailbox,
@@ -1086,4 +1148,21 @@ impl Engine {
             }
         }
     }
+}
+
+/// Whether a poll of the account waits after failures: `min(poll × 2^(failures − 1), 15 min)`
+/// after the last one, so the regular poll after one failure still runs and the wait doubles
+/// from there (UX-6). Any success resets the count.
+fn backing_off(status: &crate::state::SyncStatus, poll_ms: i64, now_ms: i64) -> bool {
+    const MAX_BACKOFF_MS: i64 = 15 * 60 * 1000;
+    // After one failure the regular poll runs as usual.
+    if status.failures < 2 {
+        return false;
+    }
+    let Some(issue) = &status.last_error else {
+        return false;
+    };
+    let factor = 1_i64 << (status.failures - 1).min(16);
+    let wait = poll_ms.saturating_mul(factor).min(MAX_BACKOFF_MS);
+    now_ms < issue.at_ms.saturating_add(wait)
 }

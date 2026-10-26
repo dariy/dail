@@ -13,6 +13,7 @@ expression: first
     "settings": {
       "background_interval_mins": 30,
       "background_sync": 1,
+      "full_sync_secs": 900,
       "history_cap": 200,
       "images_from": [
         "shop@example.net"
@@ -22,6 +23,7 @@ expression: first
       "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 120,
+      "stale_secs": 60,
       "text_scale": 100,
       "theme": 0,
       "theme_dark": "dail-dark",
@@ -60,6 +62,7 @@ expression: first
                   "value": {
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "images_from": [
                       "news@example.org"
@@ -69,6 +72,7 @@ expression: first
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -136,6 +140,7 @@ expression: first
                   "value": {
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "images_from": [
                       "news@example.org",
@@ -146,6 +151,7 @@ expression: first
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -189,6 +195,7 @@ expression: first
                   "value": {
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "images_from": [
                       "shop@example.net"
@@ -198,6 +205,7 @@ expression: first
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -241,6 +249,7 @@ expression: first
                   "value": {
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "images_from": [
                       "news@example.org",
@@ -251,6 +260,7 @@ expression: first
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -292,6 +302,7 @@ expression: first
                   "value": {
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "images_from": [
                       "shop@example.net"
@@ -301,6 +312,7 @@ expression: first
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -354,6 +366,7 @@ expression: first
             "data": {
               "background_interval_mins": 30,
               "background_sync": 1,
+              "full_sync_secs": 900,
               "history_cap": 200,
               "images_from": [
                 "shop@example.net"
@@ -363,6 +376,7 @@ expression: first
               "mark_read_after_ms": 2000,
               "notifications": 1,
               "poll_secs": 120,
+              "stale_secs": 60,
               "text_scale": 100,
               "theme": 0,
               "theme_dark": "dail-dark",

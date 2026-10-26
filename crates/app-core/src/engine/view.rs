@@ -17,6 +17,7 @@ impl Engine {
     pub(super) fn open_mailbox(
         &mut self,
         id: MailboxId,
+        now_ms: i64,
         receipt: CommandReceipt,
     ) -> Result<Outcome, CoreError> {
         let Some(mailbox) = self.state.mailboxes.get(&id) else {
@@ -46,12 +47,26 @@ impl Engine {
         view.selected.clear();
         view.checked.clear();
         view.thread = None;
-        Ok(Outcome::new(
-            receipt
-                .affecting(EntityRef::View)
-                .affecting(EntityRef::Mailbox(id))
-                .with_data(serde_json::json!({ "mailbox": id })),
-        ))
+        // Refresh on open (UX-6): fetch what is new when the last fetch is stale.
+        let stale_ms = i64::try_from(self.state.settings.stale_secs)
+            .unwrap_or(i64::MAX)
+            .saturating_mul(1000);
+        let stale = self.state.mailboxes.get(&id).is_some_and(|m| {
+            m.last_fetch_ms
+                .is_none_or(|at| now_ms.saturating_sub(at) >= stale_ms)
+        });
+        let fetch = if stale { self.refresh(id) } else { None };
+        let mut receipt = receipt
+            .affecting(EntityRef::View)
+            .affecting(EntityRef::Mailbox(id));
+        if fetch.is_some() {
+            receipt = receipt.affecting(EntityRef::Status);
+        }
+        Ok(Outcome {
+            receipt: receipt
+                .with_data(serde_json::json!({ "mailbox": id, "fetching": fetch.is_some() })),
+            effects: fetch.into_iter().collect(),
+        })
     }
 
     pub(super) fn select_threads(
@@ -348,6 +363,7 @@ impl Engine {
         &mut self,
         id: Option<MailboxId>,
         account: Option<AccountId>,
+        now_ms: i64,
         receipt: CommandReceipt,
     ) -> Result<Outcome, CoreError> {
         let (target, open) = match (id, account) {
@@ -381,16 +397,22 @@ impl Engine {
             _ => return Err(invalid("id", "give either id or account")),
         };
         let mut receipt = receipt;
+        let mut effects = Vec::new();
         if let Some(open) = open
             && (self.state.view.mailbox != Some(open) || self.state.view.unified)
         {
-            receipt = self.open_mailbox(open, receipt)?.receipt;
+            let opened = self.open_mailbox(open, now_ms, receipt)?;
+            receipt = opened.receipt;
+            effects = opened.effects;
         }
         self.state.view.focused = Some(target);
         self.state.view.search = None;
-        Ok(Outcome::new(receipt.affecting(EntityRef::View).with_data(
-            serde_json::json!({ "focused": target, "mailbox": self.state.view.mailbox }),
-        )))
+        Ok(Outcome {
+            receipt: receipt.affecting(EntityRef::View).with_data(
+                serde_json::json!({ "focused": target, "mailbox": self.state.view.mailbox }),
+            ),
+            effects,
+        })
     }
 
     /// `clear_focus`.

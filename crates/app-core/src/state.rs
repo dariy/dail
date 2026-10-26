@@ -341,6 +341,12 @@ pub struct Settings {
     pub background_interval_mins: u64,
     /// Mark the open conversation read after this many milliseconds (0 = never; UX-5).
     pub mark_read_after_ms: u64,
+    /// `open_mailbox` fetches the mailbox when its last fetch is older than this many seconds
+    /// (0 = every time; UX-6).
+    pub stale_secs: u64,
+    /// Seconds between full rounds (every mailbox listed and fetched) of the poll; 0 = off
+    /// (only INBOX and the open mailbox are polled; UX-6).
+    pub full_sync_secs: u64,
     /// Senders (lower-case addresses) whose messages show their inline images, the `cid:` parts
     /// of the message itself (`show_images_from`). Remote images are never loaded.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -397,6 +403,8 @@ impl Default for Settings {
             background_sync: 1,
             background_interval_mins: 30,
             mark_read_after_ms: 2_000,
+            stale_secs: 60,
+            full_sync_secs: 900,
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),
@@ -428,6 +436,9 @@ pub struct StatusState {
     /// Mailboxes whose older messages are being fetched (history backfill, one batch at a time).
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub backfilling: BTreeSet<MailboxId>,
+    /// Mailboxes whose new envelopes are being fetched (`FetchEnvelopes` in flight).
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub fetching: BTreeSet<MailboxId>,
     /// Recent searches of the local full-text index, oldest first (at most
     /// `MAX_SERVER_SEARCHES`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -568,6 +579,18 @@ pub struct SyncStatus {
     /// Push for the INBOX (IMAP IDLE): whether the server is being watched.
     #[serde(default, skip_serializing_if = "WatchState::is_off")]
     pub watch: WatchState,
+    /// When the last full round (list every mailbox, fetch each) started, in Unix ms
+    /// (`sync_now`, or the poll every `full_sync_secs`; UX-6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_full_ms: Option<i64>,
+    /// Failed sync steps since the last success: the poll backs off,
+    /// `min(poll_secs × 2^(failures − 1), 15 min)` after the last failure (UX-6).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub failures: u32,
+}
+
+const fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// Whether an account's INBOX is watched for new mail (IMAP IDLE). Polling continues for

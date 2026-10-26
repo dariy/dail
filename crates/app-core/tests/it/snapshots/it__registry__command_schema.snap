@@ -529,6 +529,16 @@ expression: command_schema()
           "const": "mark_read_after_ms",
           "description": "Mark the open conversation's unread messages read once it has been open this long, in\nmilliseconds: 0 = never (only `mark_read` does), else 250–60000 (default 2000). The\nGUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents\nopening threads never mark anything read.",
           "type": "string"
+        },
+        {
+          "const": "stale_secs",
+          "description": "Opening a mailbox fetches what is new in it when its last fetch is older than this many\nseconds (0–86400, default 60; 0 = every time).",
+          "type": "string"
+        },
+        {
+          "const": "full_sync_secs",
+          "description": "Seconds between full sync rounds of the poll, which list every mailbox and fetch each\n(0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are\npolled.",
+          "type": "string"
         }
       ]
     },

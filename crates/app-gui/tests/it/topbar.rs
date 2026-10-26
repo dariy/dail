@@ -19,7 +19,7 @@ fn sync_state_and_the_poll_hint_are_shown() {
     h.run();
     // In the search pill (and in the reader's empty state).
     assert!(h.get_all_by_label("Ctrl+K").next().is_some());
-    h.get(By::new().role(Role::Button).label("synced 2m ago"))
+    h.get(By::new().role(Role::Button).label_contains("synced 2m ago"))
         .click();
     h.run();
     assert_eq!(h.state_mut().pump(), [Command::SyncNow { account: None }]);

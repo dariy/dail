@@ -69,6 +69,8 @@ pub enum Key {
     NoAccounts,
     /// Never synced.
     NotSynced,
+    /// The next poll is due `{when}` (`in 2m`).
+    NextPoll,
     /// `{pending}` changes wait for the server.
     Pending,
     /// `{pending}` wait, `{failed}` of them failed.
@@ -96,6 +98,7 @@ impl Key {
         Self::Synced,
         Self::NoAccounts,
         Self::NotSynced,
+        Self::NextPoll,
         Self::Pending,
         Self::PendingFailed,
     ];
@@ -142,6 +145,7 @@ pub const fn english(key: Key) -> &'static str {
         Key::Synced => "synced {age}",
         Key::NoAccounts => "no accounts",
         Key::NotSynced => "not synced",
+        Key::NextPoll => "next {when}",
         Key::Pending => "{pending} pending",
         Key::PendingFailed => "{pending} pending · {failed} failed",
     }

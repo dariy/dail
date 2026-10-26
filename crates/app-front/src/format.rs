@@ -44,6 +44,17 @@ pub fn long_date(ms: i64) -> String {
     format!("{year}-{month:02}-{d:02} {h:02}:{m:02} UTC")
 }
 
+/// How long until `at_ms`: `in 45s`, `in 2m`, `in 3h`; `now` when it is due.
+pub fn until(at_ms: i64, now_ms: i64) -> String {
+    let secs = (at_ms - now_ms).max(0) / 1000;
+    match secs {
+        0 => "now".to_owned(),
+        1..60 => format!("in {secs}s"),
+        60..3600 => format!("in {}m", secs / 60),
+        _ => format!("in {}h", secs / 3600),
+    }
+}
+
 /// Relative age: `just now`, `5m ago`, `3h ago`, `2d ago`.
 pub fn age(ms: i64, now_ms: i64) -> String {
     let secs = (now_ms - ms).max(0) / 1000;

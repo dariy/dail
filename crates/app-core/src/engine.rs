@@ -91,6 +91,8 @@ impl Engine {
             .retain(|_, approval| drafts.contains_key(&approval.draft));
         // Server searches in flight never report; their hits are in the cache anyway.
         state.status.searches.clear();
+        // Nor do fetches.
+        state.status.fetching.clear();
         // A send is never made behind the user's back after a restart: scheduled sends lost
         // their undo window, and an interrupted one may or may not have left.
         for draft in state.drafts.values_mut() {
@@ -634,7 +636,9 @@ impl Engine {
             Command::SetSyncWindow { mailbox, window } => {
                 self.set_sync_window(mailbox, window, receipt)
             }
-            Command::OpenMailbox { id } => self.open_mailbox(id, receipt).map(Applied::plain),
+            Command::OpenMailbox { id } => self
+                .open_mailbox(id, ctx.now_ms, receipt)
+                .map(Applied::plain),
             Command::OpenUnifiedInbox {} => Ok(Applied::plain(self.open_unified_inbox(receipt))),
             Command::SelectThreads { ids } => self.select_threads(ids, receipt).map(Applied::plain),
             Command::CheckThreads { ids } => {
@@ -833,9 +837,9 @@ impl Engine {
             Command::ExpandFolders { keys } => {
                 Ok(Applied::plain(self.set_collapsed(keys, false, receipt)?))
             }
-            Command::FocusMailbox { id, account } => {
-                Ok(Applied::plain(self.focus_mailbox(id, account, receipt)?))
-            }
+            Command::FocusMailbox { id, account } => Ok(Applied::plain(
+                self.focus_mailbox(id, account, ctx.now_ms, receipt)?,
+            )),
             Command::ClearFocus {} => Ok(Applied::plain(self.clear_focus(receipt))),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),

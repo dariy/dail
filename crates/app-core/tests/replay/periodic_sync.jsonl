@@ -1,0 +1,15 @@
+# Periodic sync (UX-6). Account seed 1 (..0001-..0); INBOX ..0002-..0, Archive ..0002-..1.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "cli", "input": {"command": {"cmd": "sync_now", "args": {}}}}
+{"t": 1700000002000, "seed": 55340232221128654848, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0003-0000-000000000000", "uid_validity": 1, "uid_next": 1, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0003-0000-000000000001", "uid_validity": 1, "uid_next": 1, "total": 0, "unread": 0, "envelopes": []}}}}
+# Fresh: no fetch. Stale (60 s later): one fetch; while it is in flight, none.
+{"t": 1700000030000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0003-0000-000000000001"}}}}
+{"t": 1700000070000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0003-0000-000000000001"}}}}
+{"t": 1700000071000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0003-0000-000000000001"}}}}
+{"t": 1700000072000, "origin": "runtime", "input": {"event": {"event": "sync_failed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0003-0000-000000000001", "error": "network unreachable"}}}}
+{"t": 1700000073000, "origin": "runtime", "input": {"event": {"event": "sync_failed", "args": {"account": "00000000-0000-0001-0000-000000000000", "error": "network unreachable"}}}}
+# The poll at 121 s backs off (two failures: 240 s after the last); at 313 s it polls the open Archive (INBOX is watched by IDLE).
+{"t": 1700000121000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000121000}}}}
+{"t": 1700000313000, "origin": "runtime", "input": {"event": {"event": "tick", "args": {"now_ms": 1700000313000}}}}

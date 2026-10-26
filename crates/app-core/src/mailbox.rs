@@ -47,6 +47,10 @@ pub struct Mailbox {
     /// the account's own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub identity: Option<String>,
+    /// When its envelopes were last fetched, in Unix ms (`open_mailbox` fetches again when
+    /// this is older than `stale_secs`; UX-6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_fetch_ms: Option<i64>,
 }
 
 impl Mailbox {

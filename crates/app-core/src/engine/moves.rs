@@ -148,6 +148,7 @@ impl Engine {
                             highest_modseq: None,
                             sync_window: None,
                             history_complete: false,
+                            last_fetch_ms: None,
                             identity: None,
                         },
                     );

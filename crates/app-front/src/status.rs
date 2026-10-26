@@ -194,7 +194,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     out
 }
 
-/// The sync summary: `syncing…`, `synced 2m ago` or `not synced`.
+/// The sync summary: `syncing…`, `synced 2m ago · next in 1m` or `not synced`.
 pub fn sync_text(state: &AppState, now_ms: i64, lang: Lang) -> String {
     if state
         .status
@@ -211,7 +211,16 @@ pub fn sync_text(state: &AppState, now_ms: i64, lang: Lang) -> String {
         .collect::<Option<Vec<i64>>>()
         .and_then(|times| times.into_iter().min());
     match last {
-        Some(at) => tr(lang, Key::Synced, &[("age", &format::age(at, now_ms))]),
+        Some(at) => {
+            let synced = tr(lang, Key::Synced, &[("age", &format::age(at, now_ms))]);
+            match state.status.next_poll_ms {
+                Some(next) if next > now_ms => {
+                    let when = format::until(next, now_ms);
+                    format!("{synced} · {}", tr(lang, Key::NextPoll, &[("when", &when)]))
+                }
+                _ => synced,
+            }
+        }
         None if state.accounts.is_empty() => tr(lang, Key::NoAccounts, &[]),
         None => tr(lang, Key::NotSynced, &[]),
     }

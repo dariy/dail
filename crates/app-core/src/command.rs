@@ -732,6 +732,13 @@ pub enum SettingKey {
     /// GUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents
     /// opening threads never mark anything read.
     MarkReadAfterMs,
+    /// Opening a mailbox fetches what is new in it when its last fetch is older than this many
+    /// seconds (0–86400, default 60; 0 = every time).
+    StaleSecs,
+    /// Seconds between full sync rounds of the poll, which list every mailbox and fetch each
+    /// (0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are
+    /// polled.
+    FullSyncSecs,
 }
 
 impl SettingKey {
@@ -749,6 +756,8 @@ impl SettingKey {
         Self::BackgroundSync,
         Self::BackgroundIntervalMins,
         Self::MarkReadAfterMs,
+        Self::StaleSecs,
+        Self::FullSyncSecs,
     ];
 
     /// The key's `snake_case` name.
@@ -766,24 +775,31 @@ impl SettingKey {
             Self::BackgroundSync => "background_sync",
             Self::BackgroundIntervalMins => "background_interval_mins",
             Self::MarkReadAfterMs => "mark_read_after_ms",
+            Self::StaleSecs => "stale_secs",
+            Self::FullSyncSecs => "full_sync_secs",
         }
     }
 
     /// Allowed values, inclusive.
-    /// Whether `value` is allowed: within [`Self::range`], and for `mark_read_after_ms` not
-    /// between 1 and 249.
+    /// Whether `value` is allowed: within [`Self::range`], and for `mark_read_after_ms` and
+    /// `full_sync_secs` not in the gap above 0.
     pub const fn accepts(self, value: u64) -> bool {
         let (min, max) = self.range();
         if value < min || value > max {
             return false;
         }
-        !matches!(self, Self::MarkReadAfterMs) || value == 0 || value >= 250
+        match self {
+            Self::MarkReadAfterMs => value == 0 || value >= 250,
+            Self::FullSyncSecs => value == 0 || value >= 60,
+            _ => true,
+        }
     }
 
     /// The allowed values in words, for messages and prompts.
     pub fn allowed(self) -> String {
         match self {
             Self::MarkReadAfterMs => "0 or between 250 and 60000".to_owned(),
+            Self::FullSyncSecs => "0 or between 60 and 86400".to_owned(),
             _ => {
                 let (min, max) = self.range();
                 format!("between {min} and {max}")
@@ -806,6 +822,7 @@ impl SettingKey {
             Self::BackgroundSync => (0, 2),
             Self::BackgroundIntervalMins => (15, 720),
             Self::MarkReadAfterMs => (0, 60_000),
+            Self::StaleSecs | Self::FullSyncSecs => (0, 86_400),
         }
     }
 
@@ -824,6 +841,8 @@ impl SettingKey {
             Self::BackgroundSync => settings.background_sync,
             Self::BackgroundIntervalMins => settings.background_interval_mins,
             Self::MarkReadAfterMs => settings.mark_read_after_ms,
+            Self::StaleSecs => settings.stale_secs,
+            Self::FullSyncSecs => settings.full_sync_secs,
         }
     }
 
@@ -842,6 +861,8 @@ impl SettingKey {
             Self::BackgroundSync => settings.background_sync = value,
             Self::BackgroundIntervalMins => settings.background_interval_mins = value,
             Self::MarkReadAfterMs => settings.mark_read_after_ms = value,
+            Self::StaleSecs => settings.stale_secs = value,
+            Self::FullSyncSecs => settings.full_sync_secs = value,
         }
     }
 }

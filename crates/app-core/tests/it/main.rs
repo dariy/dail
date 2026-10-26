@@ -28,6 +28,7 @@ mod mailboxes;
 mod moves;
 mod panes;
 mod pending;
+mod periodic;
 mod preview;
 mod registry;
 mod replay;

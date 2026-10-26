@@ -64,6 +64,7 @@ fn cache(account: u128, n: u128) -> MailDelta {
             highest_modseq: None,
             sync_window: None,
             history_complete: false,
+            last_fetch_ms: None,
             identity: None,
         }],
         messages: vec![Envelope {

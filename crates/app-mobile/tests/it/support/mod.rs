@@ -100,7 +100,9 @@ impl Phone {
 
     /// The synced fixture with its inbox open.
     pub fn inbox(width_dp: u32, height_dp: u32) -> Self {
-        let state = synced_state();
+        let mut state = synced_state();
+        // Effects are dropped here: a refresh-on-open fetch (UX-6) would never finish.
+        state.settings.stale_secs = 86_400;
         let (inbox, _) = inbox_of(&state);
         let mut phone = Self::new(state, width_dp, height_dp);
         phone.dispatch(Command::OpenMailbox { id: inbox });
