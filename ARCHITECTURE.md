@@ -1298,7 +1298,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and detail. The class never dispatches a command.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
   grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
-  Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
+  So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
+  row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
   threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
   `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
