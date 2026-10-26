@@ -49,6 +49,54 @@ pub struct Mailbox {
     pub identity: Option<String>,
 }
 
+impl Mailbox {
+    /// The hierarchy delimiter, `/` when the server named none.
+    pub fn separator(&self) -> &str {
+        self.delimiter
+            .as_deref()
+            .filter(|d| !d.is_empty())
+            .unwrap_or("/")
+    }
+
+    /// The path of the folder above this one (`Work/Clients` for `Work/Clients/Acme`), if any.
+    pub fn parent_path(&self) -> Option<&str> {
+        self.path
+            .rsplit_once(self.separator())
+            .map(|(parent, _)| parent)
+            .filter(|parent| !parent.is_empty())
+    }
+
+    /// How many folders are above this one (`0` for a top-level folder).
+    pub fn depth(&self) -> usize {
+        self.path
+            .split(self.separator())
+            .filter(|segment| !segment.is_empty())
+            .count()
+            .saturating_sub(1)
+    }
+
+    /// The key of this folder in the folder tree.
+    pub fn key(&self) -> FolderKey {
+        FolderKey {
+            account: self.account,
+            path: self.path.clone(),
+        }
+    }
+}
+
+/// A node of an account's folder tree: a mailbox, or a parent folder that is not cached
+/// (`\Noselect`). An empty `path` stands for the whole account.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+pub struct FolderKey {
+    /// The account.
+    pub account: AccountId,
+    /// The folder's full path; empty for the account itself.
+    #[serde(default)]
+    pub path: String,
+}
+
 /// The purpose of a mailbox.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,

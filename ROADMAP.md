@@ -605,7 +605,7 @@ its own wave and ADR.
 ### U — Desktop and shared UX (build order of the request file)
 - [x] UX-1 [core][io]: persisted view preferences — `[view]` table in `config.toml`, `PersistDelta::View` emitted by
   View commands
-- [ ] UX-2 [front][gui][tui]: folder tree in the sidebar instead of a flat list
+- [x] UX-2 [front][gui][tui]: folder tree in the sidebar instead of a flat list
 - [ ] UX-3 [core][front][gui][tui]: collapsible folders and accounts — `collapse_folders`, `expand_folders`; persisted via UX-1
 - [ ] UX-4 [core][front][gui][tui]: focus mode on one mailbox — `focus_mailbox`, `clear_focus`; persisted via UX-1
 - [ ] UX-5 [front]: mark as read after a delay (setting `mark_read_after_ms`)

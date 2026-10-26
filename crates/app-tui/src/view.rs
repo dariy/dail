@@ -2,7 +2,7 @@
 //! Only the terminal's own colours: default foreground and background, bold, dim and reverse.
 //! Email text goes through [`text::clean`](crate::text::clean).
 
-use app_core::{AppState, ThreadSummary, listing};
+use app_core::{AppState, ThreadSummary};
 use app_front::{format, mailbox::mailbox_name};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
@@ -89,25 +89,33 @@ pub fn header(state: &AppState, one_pane: Option<Slot>) -> Line<'static> {
     Line::from(spans)
 }
 
-/// The accounts and their mailboxes, each line with the mailbox it shows (for taps); the open
-/// one is marked.
+/// The accounts and their folder trees (UX-2), each line with the mailbox it shows (for taps):
+/// two spaces per level, `▾` on a parent, the open one marked `›` and reversed.
 pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::MailboxId>)> {
     let mut lines = Vec::new();
     for account in state.accounts.values() {
         let name = Line::from(Span::styled(clean(&account.display_name), bold()));
         lines.push((name, None));
-        for mailbox in listing::mailboxes(state, Some(account.id)) {
-            let open = state.view.mailbox == Some(mailbox.id) && state.view.search.is_none();
+        let nodes = app_front::mailbox::tree(state, account.id);
+        for node in app_front::mailbox::rows(&nodes, &|_| false) {
+            let open = node.mailbox.is_some()
+                && state.view.mailbox == node.mailbox
+                && state.view.search.is_none();
             let mut spans = vec![
-                Span::raw(if open { "▸ " } else { "  " }),
-                Span::raw(clean(&mailbox_name(mailbox))),
+                Span::raw(if open { "› " } else { "  " }),
+                Span::raw("  ".repeat(node.depth)),
+                Span::raw(if node.is_parent() { "▾ " } else { "" }),
+                Span::raw(clean(&node.label)),
             ];
-            if mailbox.unread > 0 {
-                spans.push(Span::styled(format!(" {}", mailbox.unread), bold()));
+            if node.mailbox.is_none() {
+                spans[3] = Span::styled(clean(&node.label), dim());
+            }
+            if node.unread > 0 {
+                spans.push(Span::styled(format!(" {}", node.unread), bold()));
             }
             let line = Line::from(spans);
             let line = if open { line.style(reverse()) } else { line };
-            lines.push((line, Some(mailbox.id)));
+            lines.push((line, node.mailbox));
         }
         lines.push((Line::from(""), None));
     }

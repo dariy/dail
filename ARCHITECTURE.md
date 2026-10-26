@@ -241,6 +241,15 @@ pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // re
                       Move { path, uid_validity, uids, to: String, create }, Copy { … same … } }
 ```
 
+Folder tree (UX-2): `app_front::mailbox::tree(state, account) -> Vec<FolderNode { key: FolderKey { account, path },
+label, depth, mailbox: Option<MailboxId>, role, children, unread, unread_below }>` is shared by the GUI, the TUI and the
+sidebar keys. Role folders come first, flat, in role order; the others nest by `path.split(delimiter)`, sorted
+case-insensitively. A parent that is not cached (`\Noselect`, never listed) is a node without a mailbox (it can't be
+opened); since role folders never become such parents, Gmail's `[Gmail]` vanishes by itself. The inbox's children go to
+the top level (servers such as Dovecot put every folder below `INBOX.`); the other role folders keep theirs.
+`unread_below` sums the folders below. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
+`list_mailboxes`.
+
 Mailbox roles come from `mailbox::assign_roles`: `INBOX` is always the inbox, then the SPECIAL-USE attribute, then the
 preset's folder names (`ProviderPreset::folder_roles`, e.g. `[Gmail]/Sent Mail`, `INBOX.Sent`), then name heuristics on
 the last path segment (`Sent Items`, `Deleted Messages`, `Spam`, …). Each role goes to at most one mailbox. `\Noselect`
@@ -945,7 +954,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   the session, so tests drive it headlessly (`app-gui/tests`, `egui_kittest`: widgets are found by their AccessKit
   label and clicked; a real `Engine` stands in for the session). vsync is off (`DAIL_VSYNC=1` turns it on): egui
   repaints only on demand, and on some Wayland compositors eglSwapBuffers blocks the UI thread otherwise.
-- Layout: a resizable sidebar (accounts and their mailboxes from `app_core::listing::mailboxes`, unread counts; collapsed
+- Layout: a resizable sidebar (accounts and their folder trees from `app_front::mailbox::tree`, indented per level,
+  unread counts; collapsed
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
@@ -1081,8 +1091,9 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   for bold, `text_muted` for dim, the `selected` fill for reversed cells, `border` for box drawing, the chrome's
   `base` on the header and status lines. Light mode (`theme` 1) takes `theme_light`, anything else `theme_dark`.
   `NO_COLOR` (set and not empty) still wins.
-- **Mailboxes and list.** The mailboxes pane lists each account (bold) and its mailboxes (`listing::mailboxes`: role
-  names, unread counts), the open one marked `▸` and reversed. The thread list is `listing::visible_threads` with rows
+- **Mailboxes and list.** The mailboxes pane lists each account (bold) and its folder tree (`app_front::mailbox::tree`:
+  role names, two spaces per level, `▾` on a parent, parents that can't be opened dimmed, unread counts), the open one
+  marked `›` and reversed. The thread list is `listing::visible_threads` with rows
   from `ThreadSummary`: a cursor gutter `›`, unread `●`, starred `★`, attachment `@`, sender, subject and date
   (`app_front::format::short_date`); unread rows bold. The cursor is `view.selected` (else the open thread), as in the
   GUI, shown reversed and with `›` (so `tmux capture-pane` sees it too); the list scrolls as little as possible to
@@ -1599,7 +1610,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
-| `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
+| `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
 | `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
 | `save_attachments` | Mutation (no history; user only, §9) | `message, parts? (MIME part numbers; none: all), dir` (absolute; the body must be downloaded) → emits `SaveAttachments`; progress in `status.saves` (one per message, at most 16) | Wave 2 |

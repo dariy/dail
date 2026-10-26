@@ -408,8 +408,13 @@ fn next_mailbox(state: &AppState, step: isize) -> Option<app_core::MailboxId> {
     let rows: Vec<app_core::MailboxId> = state
         .accounts
         .keys()
-        .flat_map(|account| listing::mailboxes(state, Some(*account)))
-        .map(|m| m.id)
+        .flat_map(|account| {
+            let nodes = crate::mailbox::tree(state, *account);
+            crate::mailbox::rows(&nodes, &|_| false)
+                .iter()
+                .filter_map(|node| node.mailbox)
+                .collect::<Vec<_>>()
+        })
         .collect();
     let Some(at) = state
         .view

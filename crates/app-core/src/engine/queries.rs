@@ -41,6 +41,8 @@ impl Engine {
                     "id": m.id,
                     "account": m.account,
                     "path": m.path,
+                    "parent": m.parent_path(),
+                    "depth": m.depth(),
                     "role": m.role,
                     "unread": m.unread,
                     "total": m.total,

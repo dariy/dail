@@ -174,13 +174,37 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     ui::caption(ui, t, &account.display_name);
                 });
                 ui.add_space(t.m.space.xs / 2.0);
-                for mailbox in listing::mailboxes(state, Some(account.id)) {
-                    let keys = (Some(account.id) == current)
-                        .then(|| role_keys(state, mailbox.role))
-                        .flatten();
-                    if mailbox_row(ui, t, state, mailbox, keys, focused) {
-                        queue.push(Request::user(Command::OpenMailbox { id: mailbox.id }));
-                    }
+                let nodes = app_front::mailbox::tree(state, account.id);
+                for node in app_front::mailbox::rows(&nodes, &|_| false) {
+                    let indent = t.m.space.md * node.depth as f32;
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.add_space(indent);
+                        let mailbox = node.mailbox.and_then(|id| state.mailboxes.get(&id));
+                        match mailbox {
+                            Some(mailbox) => {
+                                let keys = (Some(account.id) == current)
+                                    .then(|| role_keys(state, mailbox.role))
+                                    .flatten();
+                                if mailbox_row(ui, t, state, mailbox, &node.label, keys, focused) {
+                                    queue.push(Request::user(Command::OpenMailbox {
+                                        id: mailbox.id,
+                                    }));
+                                }
+                            }
+                            // A parent folder that can't be opened.
+                            None => {
+                                Row {
+                                    icon: Icon::Folder,
+                                    label: &node.label,
+                                    unread: 0,
+                                    keys: None,
+                                    open: false,
+                                }
+                                .show(ui, t, focused);
+                            }
+                        }
+                    });
                 }
                 ui.add_space(t.m.space.md);
             }
@@ -247,13 +271,13 @@ fn mailbox_row(
     t: &Tokens,
     state: &AppState,
     mailbox: &Mailbox,
+    label: &str,
     keys: Option<String>,
     focused: bool,
 ) -> bool {
-    let label = mailbox_name(mailbox);
     let row = Row {
         icon: crate::theme::role_icon(mailbox.role),
-        label: &label,
+        label,
         unread: mailbox.unread,
         keys,
         open: state.view.mailbox == Some(mailbox.id)

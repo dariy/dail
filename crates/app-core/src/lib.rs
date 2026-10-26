@@ -42,7 +42,7 @@ pub use event::{Effect, Event, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
 pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
 pub use listing::ThreadSummary;
-pub use mailbox::{Mailbox, MailboxRole, RemoteMailbox};
+pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{
     Addr, BodyState, Envelope, Flags, RemoteEnvelope, SNIPPET_CHARS, Thread, UidFlags, snippet,
 };
