@@ -55,11 +55,16 @@ pub fn list_title(state: &AppState) -> String {
     if state.view.unified {
         return "All inboxes".to_owned();
     }
-    state
+    let title = state
         .view
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
-        .map_or_else(|| "Conversations".to_owned(), mailbox_name)
+        .map_or_else(|| "Conversations".to_owned(), mailbox_name);
+    if state.view.focused.is_some() {
+        format!("{title} · Focus")
+    } else {
+        title
+    }
 }
 
 /// A pane's frame: a border with its title from 80 columns (bold when focused), nothing below.
@@ -94,7 +99,17 @@ pub fn header(state: &AppState, one_pane: Option<Slot>) -> Line<'static> {
 /// unread mail it hides, `+n`), the open one marked `›` and reversed.
 pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::MailboxId>)> {
     let mut lines = Vec::new();
+    if state.view.focused.is_some() {
+        // Focus mode (UX-4): `Exit focus` in the palette shows every folder again.
+        lines.push((
+            Line::from(Span::styled("Focus · palette: Exit focus", dim())),
+            None,
+        ));
+    }
     for account in state.accounts.values() {
+        if !app_front::mailbox::shows_account(state, account.id) {
+            continue;
+        }
         let folded = app_front::mailbox::account_collapsed(state, account.id);
         let marker = if folded { "▸ " } else { "" };
         let name = Line::from(vec![
@@ -102,7 +117,7 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
             Span::styled(clean(&account.display_name), bold()),
         ]);
         lines.push((name, None));
-        let nodes = app_front::mailbox::tree(state, account.id);
+        let nodes = app_front::mailbox::sidebar_tree(state, account.id);
         let shown = app_front::mailbox::visible_rows(state, account.id, &nodes);
         let open_hidden = folded
             .then(|| {

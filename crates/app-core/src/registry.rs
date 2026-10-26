@@ -215,6 +215,10 @@ pub enum CommandName {
     CloseComposer,
     /// See [`Command::FocusPane`].
     FocusPane,
+    /// See [`Command::FocusMailbox`].
+    FocusMailbox,
+    /// See [`Command::ClearFocus`].
+    ClearFocus,
     /// See [`Command::CollapseFolders`].
     CollapseFolders,
     /// See [`Command::ExpandFolders`].
@@ -374,6 +378,8 @@ impl CommandName {
         Self::OpenComposer,
         Self::CloseComposer,
         Self::FocusPane,
+        Self::FocusMailbox,
+        Self::ClearFocus,
         Self::CollapseFolders,
         Self::ExpandFolders,
         Self::ToggleSidebar,
@@ -454,6 +460,8 @@ impl CommandName {
             Self::OpenComposer => "open_composer",
             Self::CloseComposer => "close_composer",
             Self::FocusPane => "focus_pane",
+            Self::FocusMailbox => "focus_mailbox",
+            Self::ClearFocus => "clear_focus",
             Self::CollapseFolders => "collapse_folders",
             Self::ExpandFolders => "expand_folders",
             Self::ToggleSidebar => "toggle_sidebar",
@@ -546,6 +554,8 @@ impl CommandName {
             | Self::OpenComposer
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::FocusMailbox
+            | Self::ClearFocus
             | Self::CollapseFolders
             | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
@@ -629,6 +639,8 @@ impl CommandName {
             | Self::CloseSettings
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::FocusMailbox
+            | Self::ClearFocus
             | Self::CollapseFolders
             | Self::ExpandFolders
             | Self::ToggleSidebar
@@ -926,6 +938,18 @@ impl CommandName {
                 available: has_mailboxes,
                 ..base("Collapse folders", Category::Navigation, &["ArrowLeft"])
             },
+            Self::ClearFocus => CommandSpec {
+                available: |state| state.view.focused.is_some(),
+                ..base("Exit focus", Category::Navigation, &[])
+            },
+            Self::FocusMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base(
+                    "Focus this mailbox",
+                    Category::Navigation,
+                    &["Ctrl+Shift+F", "g f"],
+                )
+            },
             Self::FocusPane => base("Focus pane", Category::Navigation, &["Tab", "Shift+Tab"]),
             Self::ToggleSidebar => base("Toggle sidebar", Category::Navigation, &["Ctrl+B", "["]),
             Self::GetView => base("Show view state", Category::Navigation, &[]),
@@ -1162,6 +1186,11 @@ impl CommandName {
                     account: EXAMPLE_ACCOUNT,
                     path: "Work".to_owned(),
                 }],
+            },
+            Self::ClearFocus => Command::ClearFocus {},
+            Self::FocusMailbox => Command::FocusMailbox {
+                id: Some(EXAMPLE_MAILBOX),
+                account: None,
             },
             Self::FocusPane => Command::FocusPane { pane: Pane::Reader },
             Self::ToggleSidebar => Command::ToggleSidebar {},

@@ -100,7 +100,7 @@ expression: first
     "view": {
       "composer": null,
       "focus": "list",
-      "mailbox": null,
+      "mailbox": "00000000-0000-0002-0000-000000000000",
       "palette_open": false,
       "selected": [],
       "sidebar_collapsed": false,
@@ -491,6 +491,195 @@ expression: first
             },
             "kind": "view",
             "name": "expand_folders",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "focused": {
+                      "mailbox": "00000000-0000-0002-0000-000000000001"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              },
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "focused": {
+                "mailbox": "00000000-0000-0002-0000-000000000001"
+              },
+              "mailbox": "00000000-0000-0002-0000-000000000001"
+            },
+            "kind": "view",
+            "name": "focus_mailbox",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              }
+            ],
+            "data": {
+              "mailbox": "00000000-0000-0002-0000-000000000002"
+            },
+            "kind": "view",
+            "name": "open_mailbox",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {}
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000000"
+              }
+            ],
+            "data": {
+              "mailbox": "00000000-0000-0002-0000-000000000000"
+            },
+            "kind": "view",
+            "name": "open_mailbox",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "focused": {
+                      "account": "00000000-0000-0001-0000-000000000000"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "focused": {
+                "account": "00000000-0000-0001-0000-000000000000"
+              },
+              "mailbox": "00000000-0000-0002-0000-000000000000"
+            },
+            "kind": "view",
+            "name": "focus_mailbox",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "id",
+          "reason": "give either id or account"
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {}
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "cleared": true
+            },
+            "kind": "view",
+            "name": "clear_focus",
             "ok": true,
             "undo_label": null
           }

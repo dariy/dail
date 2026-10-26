@@ -1,6 +1,8 @@
 //! Mailbox labels and the folder tree (UX-2).
 
-use app_core::{AccountId, AppState, FolderKey, Mailbox, MailboxId, MailboxRole, listing};
+use app_core::{
+    AccountId, AppState, FocusTarget, FolderKey, Mailbox, MailboxId, MailboxRole, listing,
+};
 
 /// A mailbox's label: its role's name, else the last path segment.
 pub fn mailbox_name(mailbox: &Mailbox) -> String {
@@ -235,5 +237,37 @@ pub fn account_collapsed(state: &AppState, account: AccountId) -> bool {
     state.view.collapsed.contains(&FolderKey {
         account,
         path: String::new(),
+    })
+}
+
+/// Whether the sidebar shows `account` (focus mode hides the others, UX-4).
+pub fn shows_account(state: &AppState, account: AccountId) -> bool {
+    match state.view.focused {
+        None => true,
+        Some(FocusTarget::Account(id)) => id == account,
+        Some(FocusTarget::Mailbox(id)) => state
+            .mailboxes
+            .get(&id)
+            .is_some_and(|m| m.account == account),
+    }
+}
+
+/// The folder tree the sidebar shows for `account`: [`tree`], or in focus mode on a mailbox,
+/// only that mailbox with the folders below it (at the top level).
+pub fn sidebar_tree(state: &AppState, account: AccountId) -> Vec<FolderNode> {
+    if !shows_account(state, account) {
+        return Vec::new();
+    }
+    let nodes = tree(state, account);
+    let Some(FocusTarget::Mailbox(id)) = state.view.focused else {
+        return nodes;
+    };
+    let found = rows(&nodes, &|_| false)
+        .into_iter()
+        .find(|n| n.mailbox == Some(id))
+        .cloned();
+    found.map_or_else(Vec::new, |mut node| {
+        node.finish(0);
+        vec![node]
     })
 }

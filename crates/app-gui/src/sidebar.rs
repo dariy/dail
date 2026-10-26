@@ -143,7 +143,26 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let focused = state.view.focus == Pane::Sidebar;
-            if state.accounts.len() > 1 {
+            if state.view.focused.is_some() {
+                // Focus mode (UX-4): the way back to every folder.
+                let response = ui::ghost(
+                    ui,
+                    t,
+                    ui::icon_text(
+                        Icon::ChevronLeft,
+                        "Show all folders",
+                        ui::font(&t.type_scale.body_md),
+                        t.text_secondary,
+                    ),
+                );
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::Role::Button, true, "Show all folders")
+                });
+                if response.clicked() {
+                    queue.push(Request::user(Command::ClearFocus {}));
+                }
+                ui.add_space(t.m.space.sm);
+            } else if state.accounts.len() > 1 {
                 let unread: u32 = state
                     .mailboxes
                     .values()
@@ -186,7 +205,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     }
                 });
                 ui.add_space(t.m.space.xs / 2.0);
-                let nodes = app_front::mailbox::tree(state, account.id);
+                let nodes = app_front::mailbox::sidebar_tree(state, account.id);
                 if account_folded {
                     // The open mailbox is never hidden: the account stands in for it.
                     let open = nodes_open(state, &nodes);

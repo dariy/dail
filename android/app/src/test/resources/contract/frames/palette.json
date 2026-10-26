@@ -59,7 +59,7 @@
   },
   "palette": {
     "close": {
-      "action": 69,
+      "action": 70,
       "icon": "close",
       "label": "Close"
     },
@@ -243,23 +243,29 @@
           {
             "action": 41,
             "detail": "Navigation",
+            "keys": "Ctrl+Shift+F",
+            "title": "Focus this mailbox"
+          },
+          {
+            "action": 42,
+            "detail": "Navigation",
             "keys": "ArrowLeft",
             "title": "Collapse folders"
           },
           {
-            "action": 42,
+            "action": 43,
             "detail": "Navigation",
             "keys": "ArrowRight",
             "title": "Expand folders"
           },
           {
-            "action": 43,
+            "action": 44,
             "detail": "Navigation",
             "keys": "Ctrl+B",
             "title": "Toggle sidebar"
           },
           {
-            "action": 44,
+            "action": 45,
             "detail": "Navigation",
             "title": "Show view state"
           }
@@ -269,47 +275,47 @@
       {
         "rows": [
           {
-            "action": 45,
+            "action": 46,
             "detail": "Account",
             "title": "Add account"
           },
           {
-            "action": 46,
+            "action": 47,
             "detail": "Account",
             "title": "Test account connection"
           },
           {
-            "action": 47,
+            "action": 48,
             "detail": "Account",
             "title": "Find the mail servers of an address"
           },
           {
-            "action": 48,
+            "action": 49,
             "detail": "Account",
             "title": "Edit account"
           },
           {
-            "action": 49,
+            "action": 50,
             "detail": "Account",
             "title": "Change account password"
           },
           {
-            "action": 50,
+            "action": 51,
             "detail": "Account",
             "title": "Add or edit a sending address"
           },
           {
-            "action": 51,
+            "action": 52,
             "detail": "Account",
             "title": "Send from an address for this mailbox"
           },
           {
-            "action": 52,
+            "action": 53,
             "detail": "Account",
             "title": "Remove account"
           },
           {
-            "action": 53,
+            "action": 54,
             "detail": "Account",
             "title": "Set how much mail to keep offline"
           }
@@ -319,50 +325,50 @@
       {
         "rows": [
           {
-            "action": 54,
+            "action": 55,
             "detail": "App",
             "title": "Show settings"
           },
           {
-            "action": 55,
+            "action": 56,
             "detail": "App",
             "title": "Change setting"
           },
           {
-            "action": 56,
+            "action": 57,
             "detail": "App",
             "title": "Change a command's keys"
           },
           {
-            "action": 57,
+            "action": 58,
             "detail": "App",
             "title": "Choose the key bindings (Gmail, Vim)"
           },
           {
-            "action": 58,
+            "action": 59,
             "detail": "App",
             "title": "Choose the theme"
           },
           {
-            "action": 59,
+            "action": 60,
             "detail": "App",
             "keys": "Ctrl+,",
             "title": "Settings"
           },
           {
-            "action": 60,
+            "action": 61,
             "detail": "App",
             "keys": "z",
             "title": "Undo"
           },
           {
-            "action": 61,
+            "action": 62,
             "detail": "App",
             "keys": "Ctrl+Shift+Z",
             "title": "Redo"
           },
           {
-            "action": 62,
+            "action": 63,
             "detail": "App",
             "title": "Compact the local store"
           }
@@ -372,25 +378,25 @@
       {
         "rows": [
           {
-            "action": 63,
+            "action": 64,
             "detail": "alice@example.com",
             "keys": "g i",
             "title": "Go to Inbox"
           },
           {
-            "action": 64,
+            "action": 65,
             "detail": "alice@example.com",
             "keys": "g s",
             "title": "Go to Sent"
           },
           {
-            "action": 65,
+            "action": 66,
             "detail": "alice@example.com",
             "keys": "g d",
             "title": "Go to Drafts"
           },
           {
-            "action": 66,
+            "action": 67,
             "detail": "alice@example.com",
             "keys": "g a",
             "title": "Go to Archive"
@@ -401,12 +407,12 @@
       {
         "rows": [
           {
-            "action": 67,
+            "action": 68,
             "detail": "Carol",
             "title": "Lunch?"
           },
           {
-            "action": 68,
+            "action": 69,
             "detail": "Bob",
             "title": "Q3 numbers"
           }

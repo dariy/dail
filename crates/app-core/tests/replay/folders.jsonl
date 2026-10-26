@@ -6,3 +6,9 @@
 {"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "collapse_folders", "args": {}}}}
 {"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "expand_folders", "args": {"keys": [{"account": "00000000-0000-0001-0000-000000000000"}]}}}}
 {"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "expand_folders", "args": {}}}}
+{"t": 1700000007000, "origin": "mcp", "input": {"command": {"cmd": "focus_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000001"}}}}
+{"t": 1700000008000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000002"}}}}
+{"t": 1700000009000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000000"}}}}
+{"t": 1700000010000, "origin": "mcp", "input": {"command": {"cmd": "focus_mailbox", "args": {"account": "00000000-0000-0001-0000-000000000000"}}}}
+{"t": 1700000011000, "origin": "mcp", "input": {"command": {"cmd": "focus_mailbox", "args": {}}}}
+{"t": 1700000012000, "origin": "gui", "input": {"command": {"cmd": "clear_focus", "args": {}}}}

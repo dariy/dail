@@ -115,6 +115,9 @@ pub struct ViewState {
     /// whose folders are (`collapse_folders`, `expand_folders`).
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub collapsed: BTreeSet<FolderKey>,
+    /// The mailbox or account the sidebar is narrowed to (`focus_mailbox`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused: Option<FocusTarget>,
     /// The settings page and its open section (`open_settings`), shown in place of the list
     /// and the reader.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -183,6 +186,19 @@ pub struct ViewPrefs {
     /// Collapsed folders and accounts (`collapse_folders`).
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub collapsed: BTreeSet<FolderKey>,
+    /// Focus mode (`focus_mailbox`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused: Option<FocusTarget>,
+}
+
+/// What focus mode narrows the sidebar to (`focus_mailbox`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FocusTarget {
+    /// One mailbox and the folders below it.
+    Mailbox(MailboxId),
+    /// One account.
+    Account(AccountId),
 }
 
 impl ViewPrefs {
@@ -198,6 +214,7 @@ impl ViewState {
         ViewPrefs {
             sidebar_collapsed: self.sidebar_collapsed,
             collapsed: self.collapsed.clone(),
+            focused: self.focused,
         }
     }
 
@@ -205,6 +222,7 @@ impl ViewState {
     pub fn apply_prefs(&mut self, prefs: &ViewPrefs) {
         self.sidebar_collapsed = prefs.sidebar_collapsed;
         self.collapsed = prefs.collapsed.clone();
+        self.focused = prefs.focused;
     }
 }
 

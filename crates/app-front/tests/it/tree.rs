@@ -143,3 +143,31 @@ fn collapsed_nodes_hide_their_children() {
         .collect();
     assert_eq!(shown, ["a", "c"]);
 }
+
+#[test]
+fn focus_mode_shows_only_the_focused_subtree_or_account() {
+    let (mut state, account) = state(
+        "/",
+        &[
+            ("INBOX", Some(MailboxRole::Inbox), 0),
+            ("Work", None, 1),
+            ("Work/Acme", None, 2),
+            ("Home", None, 0),
+        ],
+    );
+    let work = state
+        .mailboxes
+        .values()
+        .find(|m| m.path == "Work")
+        .unwrap()
+        .id;
+    state.view.focused = Some(app_core::FocusTarget::Mailbox(work));
+    let nodes = app_front::mailbox::sidebar_tree(&state, account);
+    assert_eq!(outline(&nodes), ["Work@0", "Acme@1"]);
+    assert!(app_front::mailbox::shows_account(&state, account));
+    let other: AccountId = app_core::IdGen::new(77).next_id();
+    assert!(!app_front::mailbox::shows_account(&state, other));
+    assert!(app_front::mailbox::sidebar_tree(&state, other).is_empty());
+    state.view.focused = Some(app_core::FocusTarget::Account(account));
+    assert_eq!(app_front::mailbox::sidebar_tree(&state, account).len(), 3);
+}

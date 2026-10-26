@@ -626,6 +626,20 @@ pub enum Command {
         /// The pane to focus.
         pane: Pane,
     },
+    /// Focus on one mailbox (and the folders below it) or one account: the sidebar shows only
+    /// it, the unified inbox is hidden and new-mail notifications come only from it. Opens the
+    /// mailbox (for an account: its inbox, unless a mailbox of it is open). Opening a mailbox
+    /// outside the focus leaves focus mode (`clear_focus`). Saved across restarts.
+    FocusMailbox {
+        /// The mailbox to focus on (from `list_mailboxes`). Give it or `account`, not both.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<MailboxId>,
+        /// The account to focus on.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        account: Option<AccountId>,
+    },
+    /// Leave focus mode (`focus_mailbox`): the sidebar shows every account and folder again.
+    ClearFocus {},
     /// Collapse folders in the sidebar's folder tree, so that the folders below them are
     /// hidden; a collapsed account hides all its folders. Idempotent, unlike a toggle: repeating
     /// it changes nothing. Saved across restarts.
@@ -934,6 +948,8 @@ impl Command {
             | Self::OpenSettings { .. }
             | Self::CloseSettings {}
             | Self::FocusPane { .. }
+            | Self::FocusMailbox { .. }
+            | Self::ClearFocus { .. }
             | Self::CollapseFolders { .. }
             | Self::ExpandFolders { .. }
             | Self::ToggleSidebar {}
@@ -1015,6 +1031,8 @@ impl Command {
             Self::OpenSettings { .. } => CommandName::OpenSettings,
             Self::CloseSettings {} => CommandName::CloseSettings,
             Self::FocusPane { .. } => CommandName::FocusPane,
+            Self::FocusMailbox { .. } => CommandName::FocusMailbox,
+            Self::ClearFocus { .. } => CommandName::ClearFocus,
             Self::CollapseFolders { .. } => CommandName::CollapseFolders,
             Self::ExpandFolders { .. } => CommandName::ExpandFolders,
             Self::ToggleSidebar {} => CommandName::ToggleSidebar,

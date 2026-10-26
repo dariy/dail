@@ -436,7 +436,7 @@ fn next_mailbox(state: &AppState, step: isize) -> Option<app_core::MailboxId> {
         .accounts
         .keys()
         .flat_map(|account| {
-            let nodes = crate::mailbox::tree(state, *account);
+            let nodes = crate::mailbox::sidebar_tree(state, *account);
             crate::mailbox::visible_rows(state, *account, &nodes)
                 .iter()
                 .filter_map(|node| node.mailbox)

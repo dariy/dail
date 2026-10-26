@@ -5,11 +5,11 @@
 //! `status.bodies_in_flight`).
 
 use crate::error::CoreError;
-use crate::ids::{DraftId, MailboxId, MessageId, ThreadId};
-use crate::mailbox::FolderKey;
+use crate::ids::{AccountId, DraftId, MailboxId, MessageId, ThreadId};
+use crate::mailbox::{FolderKey, MailboxRole};
 use crate::message::BodyState;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
-use crate::state::Pane;
+use crate::state::{FocusTarget, Pane};
 
 use super::{Engine, invalid, not_found};
 
@@ -19,10 +19,28 @@ impl Engine {
         id: MailboxId,
         receipt: CommandReceipt,
     ) -> Result<Outcome, CoreError> {
-        if !self.state.mailboxes.contains_key(&id) {
+        let Some(mailbox) = self.state.mailboxes.get(&id) else {
             return Err(not_found("mailbox", id));
-        }
+        };
+        // Explicit navigation out of the focus ends it.
+        let inside = match self.state.view.focused {
+            Some(FocusTarget::Mailbox(focus)) => {
+                self.state.mailboxes.get(&focus).is_some_and(|f| {
+                    f.id == id
+                        || (f.account == mailbox.account
+                            && mailbox
+                                .path
+                                .strip_prefix(f.path.as_str())
+                                .is_some_and(|rest| rest.starts_with(f.separator())))
+                })
+            }
+            Some(FocusTarget::Account(account)) => mailbox.account == account,
+            None => true,
+        };
         let view = &mut self.state.view;
+        if !inside {
+            view.focused = None;
+        }
         view.mailbox = Some(id);
         view.unified = false;
         view.selected.clear();
@@ -61,6 +79,7 @@ impl Engine {
 
     pub(super) fn open_unified_inbox(&mut self, receipt: CommandReceipt) -> Outcome {
         let view = &mut self.state.view;
+        view.focused = None;
         view.unified = true;
         view.mailbox = None;
         view.selected.clear();
@@ -322,6 +341,66 @@ impl Engine {
         Ok(Outcome::new(receipt.affecting(EntityRef::View).with_data(
             serde_json::json!({ "changed": changed, "collapsed": collapsed.len() }),
         )))
+    }
+
+    /// `focus_mailbox`: narrows the sidebar to a mailbox or an account and opens it.
+    pub(super) fn focus_mailbox(
+        &mut self,
+        id: Option<MailboxId>,
+        account: Option<AccountId>,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        let (target, open) = match (id, account) {
+            (Some(id), None) => {
+                if !self.state.mailboxes.contains_key(&id) {
+                    return Err(not_found("mailbox", id));
+                }
+                (FocusTarget::Mailbox(id), Some(id))
+            }
+            (None, Some(account)) => {
+                if !self.state.accounts.contains_key(&account) {
+                    return Err(not_found("account", account));
+                }
+                let current = self
+                    .state
+                    .view
+                    .mailbox
+                    .and_then(|m| self.state.mailboxes.get(&m))
+                    .filter(|m| m.account == account && !self.state.view.unified);
+                let open = match current {
+                    Some(_) => None,
+                    None => self
+                        .state
+                        .mailboxes
+                        .values()
+                        .find(|m| m.account == account && m.role == Some(MailboxRole::Inbox))
+                        .map(|m| m.id),
+                };
+                (FocusTarget::Account(account), open)
+            }
+            _ => return Err(invalid("id", "give either id or account")),
+        };
+        let mut receipt = receipt;
+        if let Some(open) = open
+            && (self.state.view.mailbox != Some(open) || self.state.view.unified)
+        {
+            receipt = self.open_mailbox(open, receipt)?.receipt;
+        }
+        self.state.view.focused = Some(target);
+        self.state.view.search = None;
+        Ok(Outcome::new(receipt.affecting(EntityRef::View).with_data(
+            serde_json::json!({ "focused": target, "mailbox": self.state.view.mailbox }),
+        )))
+    }
+
+    /// `clear_focus`.
+    pub(super) fn clear_focus(&mut self, receipt: CommandReceipt) -> Outcome {
+        let cleared = self.state.view.focused.take().is_some();
+        Outcome::new(
+            receipt
+                .affecting(EntityRef::View)
+                .with_data(serde_json::json!({ "cleared": cleared })),
+        )
     }
 
     pub(super) fn toggle_sidebar(&mut self, receipt: CommandReceipt) -> Outcome {

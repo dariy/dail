@@ -5,7 +5,8 @@
 
 use crate::support::Mail;
 use app_core::{
-    AccountId, Command, CoreError, Effect, FolderKey, MailboxRole, PersistDelta, ProviderPreset,
+    AccountId, Command, CoreError, Effect, FocusTarget, FolderKey, MailboxRole, PersistDelta,
+    ProviderPreset,
 };
 use serde_json::json;
 
@@ -132,4 +133,103 @@ fn list_mailboxes_reports_parent_and_depth() {
         .clone();
     assert_eq!(acme["parent"], "Work/Clients");
     assert_eq!(acme["depth"], 2);
+}
+
+#[test]
+fn focus_mailbox_opens_it_and_navigation_outside_ends_it() {
+    let mut m = nested();
+    let work = m.mailbox("Work");
+    let acme = m.mailbox("Work/Clients/Acme");
+    let inbox = m.mailbox("INBOX");
+    let outcome = m
+        .run(Command::FocusMailbox {
+            id: Some(work),
+            account: None,
+        })
+        .unwrap();
+    assert_eq!(outcome.receipt.data["focused"], json!({ "mailbox": work }));
+    assert!(outcome.effects.iter().any(|e| matches!(
+        e,
+        Effect::PersistState { delta: PersistDelta::View(prefs) }
+            if prefs.focused == Some(FocusTarget::Mailbox(work))
+    )));
+    let view = &m.engine.state().view;
+    assert_eq!(view.mailbox, Some(work));
+    // A folder below stays in focus; another one ends it.
+    m.run(Command::OpenMailbox { id: acme }).unwrap();
+    assert_eq!(
+        m.engine.state().view.focused,
+        Some(FocusTarget::Mailbox(work))
+    );
+    m.run(Command::OpenMailbox { id: inbox }).unwrap();
+    assert_eq!(m.engine.state().view.focused, None);
+}
+
+#[test]
+fn focus_on_an_account_opens_its_inbox_and_clear_focus_ends_it() {
+    let mut m = nested();
+    let account = m.account;
+    let outcome = m
+        .run(Command::FocusMailbox {
+            id: None,
+            account: Some(account),
+        })
+        .unwrap();
+    assert_eq!(
+        outcome.receipt.data["focused"],
+        json!({ "account": account })
+    );
+    assert_eq!(m.engine.state().view.mailbox, Some(m.mailbox("INBOX")));
+    m.run(Command::OpenMailbox {
+        id: m.mailbox("Sent"),
+    })
+    .unwrap();
+    assert!(m.engine.state().view.focused.is_some(), "same account");
+    let outcome = m.run(Command::ClearFocus {}).unwrap();
+    assert_eq!(outcome.receipt.data, json!({ "cleared": true }));
+    let outcome = m.run(Command::ClearFocus {}).unwrap();
+    assert_eq!(outcome.receipt.data, json!({ "cleared": false }));
+}
+
+#[test]
+fn focus_needs_exactly_one_existing_target_and_ends_with_it() {
+    let mut m = nested();
+    for (id, account) in [(None, None), (Some(m.mailbox("Work")), Some(m.account))] {
+        let err = m.run(Command::FocusMailbox { id, account }).unwrap_err();
+        assert!(matches!(err, CoreError::InvalidArgument { .. }), "{err:?}");
+    }
+    let err = m
+        .run(Command::FocusMailbox {
+            id: None,
+            account: Some(AccountId::from_uuid(uuid::Uuid::from_u128(9))),
+        })
+        .unwrap_err();
+    assert!(matches!(err, CoreError::NotFound { .. }), "{err:?}");
+    m.run(Command::FocusMailbox {
+        id: Some(m.mailbox("Work")),
+        account: None,
+    })
+    .unwrap();
+    m.run(Command::OpenUnifiedInbox {}).unwrap();
+    assert_eq!(
+        m.engine.state().view.focused,
+        None,
+        "the unified inbox leaves focus"
+    );
+    m.run(Command::FocusMailbox {
+        id: Some(m.mailbox("Lists/rust")),
+        account: None,
+    })
+    .unwrap();
+    // The server no longer lists it.
+    m.feed(app_core::Event::MailboxesListed {
+        account: m.account,
+        mailboxes: vec![app_core::RemoteMailbox {
+            path: "INBOX".into(),
+            delimiter: Some("/".into()),
+            special_use: None,
+            selectable: true,
+        }],
+    });
+    assert_eq!(m.engine.state().view.focused, None);
 }

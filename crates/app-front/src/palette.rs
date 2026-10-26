@@ -818,6 +818,19 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::ToggleSidebar => Flow::Run(Command::ToggleSidebar {}),
+        CommandName::FocusMailbox => match state.view.mailbox {
+            Some(id) if !state.view.unified => Flow::Run(Command::FocusMailbox {
+                id: Some(id),
+                account: None,
+            }),
+            _ => pick_mailbox("Focus on which mailbox?", None, |id| {
+                Command::FocusMailbox {
+                    id: Some(id),
+                    account: None,
+                }
+            }),
+        },
+        CommandName::ClearFocus => Flow::Run(Command::ClearFocus {}),
         CommandName::CollapseFolders => Flow::Run(Command::CollapseFolders { keys: Vec::new() }),
         CommandName::ExpandFolders => Flow::Run(Command::ExpandFolders { keys: Vec::new() }),
         CommandName::GetView => Flow::Run(Command::GetView {}),

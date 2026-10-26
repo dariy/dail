@@ -36,7 +36,9 @@ use crate::message::BodyState;
 use crate::ops::{FlagKind, OpState};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::registry::AgentAccess;
-use crate::state::{AppState, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME, ViewPrefs};
+use crate::state::{
+    AppState, FocusTarget, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME, ViewPrefs,
+};
 use crate::threading::Threader;
 
 /// The deterministic state machine. State changes enter only through [`Engine::dispatch`] and
@@ -162,8 +164,23 @@ impl Engine {
     /// Keeps `ViewState` consistent after every change: a composer whose draft is gone closes,
     /// and the focus leaves a pane that is no longer shown.
     fn settle_view(&mut self) {
-        let AppState { view, drafts, .. } = &mut self.state;
+        let AppState {
+            view,
+            drafts,
+            mailboxes,
+            accounts,
+            ..
+        } = &mut self.state;
         view.settle(|id| drafts.contains_key(id));
+        // Focus mode ends with its mailbox or account.
+        let gone = match view.focused {
+            Some(FocusTarget::Mailbox(id)) => !mailboxes.contains_key(&id),
+            Some(FocusTarget::Account(id)) => !accounts.contains_key(&id),
+            None => false,
+        };
+        if gone {
+            view.focused = None;
+        }
     }
 
     fn dispatch_unsettled(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
@@ -816,6 +833,10 @@ impl Engine {
             Command::ExpandFolders { keys } => {
                 Ok(Applied::plain(self.set_collapsed(keys, false, receipt)?))
             }
+            Command::FocusMailbox { id, account } => {
+                Ok(Applied::plain(self.focus_mailbox(id, account, receipt)?))
+            }
+            Command::ClearFocus {} => Ok(Applied::plain(self.clear_focus(receipt))),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),
             Command::DiscoverServers { email } => {

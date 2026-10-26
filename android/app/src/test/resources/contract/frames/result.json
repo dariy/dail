@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 125,
+    "action": 126,
     "icon": "edit",
     "label": "Compose"
   },
@@ -14,32 +14,32 @@
   "reader": {
     "actions": [
       {
-        "action": 117,
+        "action": 118,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 118,
+        "action": 119,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 119,
+        "action": 120,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 120,
+        "action": 121,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 121,
+        "action": 122,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 122,
+        "action": 123,
         "icon": "reply",
         "label": "Reply"
       }
@@ -55,11 +55,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 124
+        "toggle": 125
       }
     ],
     "next": {
-      "action": 123,
+      "action": 124,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -69,7 +69,7 @@
   },
   "result": {
     "close": {
-      "action": 126,
+      "action": 127,
       "icon": "close",
       "label": "Close"
     },
@@ -138,17 +138,17 @@
   "top_bar": {
     "actions": [
       {
-        "action": 115,
+        "action": 116,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 116,
+        "action": 117,
         "label": "About"
       }
     ],
     "navigation": {
-      "action": 114,
+      "action": 115,
       "icon": "back",
       "label": "Back"
     },

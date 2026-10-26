@@ -52,7 +52,7 @@ pub use registry::{AgentAccess, Category, CommandName, CommandSpec};
 pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
 pub use search::{Query, SearchOrder};
 pub use state::{
-    AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, IndexSearch, KeyPreset,
-    Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection, StatusState, SyncIssue,
-    SyncStatus, ViewPrefs, ViewState, WatchState,
+    AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
+    KeyPreset, Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection, StatusState,
+    SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
 };

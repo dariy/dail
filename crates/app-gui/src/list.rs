@@ -174,6 +174,9 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
                     if unread > 0 {
                         ui::count(ui, t, format!("{unread} unread"), true);
                     }
+                    if state.view.focused.is_some() {
+                        ui::count(ui, t, "Focus".to_owned(), false);
+                    }
                     // The right side: *Clear* during a search (room for the list toolbar later).
                     if state.view.search.is_some() {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
