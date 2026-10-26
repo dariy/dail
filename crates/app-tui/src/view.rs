@@ -119,6 +119,25 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
             None,
         ));
     }
+    let favourites = app_front::mailbox::favourites(state);
+    if !favourites.is_empty() {
+        // UX-8: pinned folders first.
+        lines.push((Line::from(Span::styled("Favourites", bold())), None));
+        for mailbox in favourites {
+            let open = state.view.mailbox == Some(mailbox.id) && state.view.search.is_none();
+            let mut spans = vec![
+                Span::raw(if open { "› " } else { "  " }),
+                Span::raw(clean(&mailbox_name(mailbox))),
+            ];
+            if mailbox.unread > 0 {
+                spans.push(Span::styled(format!(" {}", mailbox.unread), bold()));
+            }
+            let line = Line::from(spans);
+            let line = if open { line.style(reverse()) } else { line };
+            lines.push((line, Some(mailbox.id)));
+        }
+        lines.push((Line::from(""), None));
+    }
     for account in state.accounts.values() {
         if !app_front::mailbox::shows_account(state, account.id) {
             continue;

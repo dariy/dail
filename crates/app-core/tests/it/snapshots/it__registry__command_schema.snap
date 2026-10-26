@@ -1668,6 +1668,110 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Pin a mailbox to the *Favourites* section at the top of the sidebar, after the ones pinned\nbefore. Undoable; saved with the settings.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "pin_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Take a mailbox out of the sidebar's *Favourites* (see `pin_mailbox`). Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "unpin_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Hide a mailbox from the sidebar's folder tree. It stays in search, in \"Move to…\" and behind\nthe sidebar's *Show hidden* toggle. Undoable; saved with the settings.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "hide_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Show the mailbox again in the sidebar's folder tree (see `hide_mailbox`). Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "show_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Save attachments of a downloaded message into a folder of this computer, under their file\nnames (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).\nProgress and the written paths appear in `status.saves`. Only the user can do this (GUI,\nTUI or CLI); agents (MCP) get `origin_not_allowed`.",
       "properties": {
         "args": {

@@ -695,6 +695,261 @@ expression: first
           }
         }
       }
+    },
+    {
+      "line": 15,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "pinned_mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work/Acme"
+                      }
+                    ],
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "hidden": false,
+              "mailbox": "00000000-0000-0002-0000-000000000002",
+              "pinned": true
+            },
+            "kind": "mutation",
+            "name": "pin_mailbox",
+            "ok": true,
+            "undo_label": "Pin Work/Acme"
+          }
+        }
+      }
+    },
+    {
+      "line": 16,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "hidden_mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work"
+                      }
+                    ],
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "pinned_mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work/Acme"
+                      }
+                    ],
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "hidden": true,
+              "mailbox": "00000000-0000-0002-0000-000000000001",
+              "pinned": false
+            },
+            "kind": "mutation",
+            "name": "hide_mailbox",
+            "ok": true,
+            "undo_label": "Hide Work"
+          }
+        }
+      }
+    },
+    {
+      "line": 17,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "pinned_mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work/Acme"
+                      }
+                    ],
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              }
+            ],
+            "data": {
+              "undone": "Hide Work"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 18,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "settings"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              }
+            ],
+            "data": {
+              "changed": true,
+              "hidden": false,
+              "mailbox": "00000000-0000-0002-0000-000000000002",
+              "pinned": false
+            },
+            "kind": "mutation",
+            "name": "unpin_mailbox",
+            "ok": true,
+            "undo_label": "Unpin Work/Acme"
+          }
+        }
+      }
+    },
+    {
+      "line": 19,
+      "result": {
+        "err": {
+          "entity": "mailbox",
+          "error": "not_found",
+          "id": "00000000-0000-0002-0000-000000000009"
+        }
+      }
     }
   ]
 }

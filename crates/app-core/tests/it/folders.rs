@@ -233,3 +233,55 @@ fn focus_needs_exactly_one_existing_target_and_ends_with_it() {
     });
     assert_eq!(m.engine.state().view.focused, None);
 }
+
+#[test]
+fn pin_and_hide_are_undoable_settings_kept_by_path() {
+    let mut m = nested();
+    let work = m.mailbox("Work");
+    let sent = m.mailbox("Sent");
+    let outcome = m.run(Command::PinMailbox { id: work }).unwrap();
+    assert_eq!(outcome.receipt.data["pinned"], true);
+    assert!(outcome.effects.iter().any(|e| matches!(
+        e,
+        Effect::PersistState {
+            delta: PersistDelta::Settings(_)
+        }
+    )));
+    m.run(Command::PinMailbox { id: sent }).unwrap();
+    let again = m.run(Command::PinMailbox { id: work }).unwrap();
+    assert_eq!(again.receipt.data["changed"], false);
+    let pinned: Vec<&str> = m
+        .engine
+        .state()
+        .settings
+        .pinned_mailboxes
+        .iter()
+        .map(|k| k.path.as_str())
+        .collect();
+    assert_eq!(pinned, ["Work", "Sent"], "in pinned order");
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(m.engine.state().settings.pinned_mailboxes.len(), 1);
+
+    m.run(Command::HideMailbox { id: work }).unwrap();
+    assert!(
+        m.engine
+            .state()
+            .settings
+            .hidden_mailboxes
+            .contains(&key(&m, "Work"))
+    );
+    m.run(Command::ShowMailbox { id: work }).unwrap();
+    assert!(m.engine.state().settings.hidden_mailboxes.is_empty());
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(
+        m.engine.state().settings.hidden_mailboxes.len(),
+        1,
+        "hidden again"
+    );
+    m.run(Command::UnpinMailbox { id: work }).unwrap();
+    assert!(m.engine.state().settings.pinned_mailboxes.is_empty());
+
+    let gone = app_core::IdGen::new(99).next_id();
+    let err = m.run(Command::HideMailbox { id: gone }).unwrap_err();
+    assert!(matches!(err, CoreError::NotFound { .. }));
+}

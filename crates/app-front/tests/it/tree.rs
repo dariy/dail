@@ -172,3 +172,43 @@ fn focus_mode_shows_only_the_focused_subtree_or_account() {
     state.view.focused = Some(app_core::FocusTarget::Account(account));
     assert_eq!(app_front::mailbox::sidebar_tree(&state, account).len(), 3);
 }
+
+#[test]
+fn hidden_folders_and_their_subfolders_leave_the_rows_unless_shown() {
+    let (mut state, account) = state(
+        "/",
+        &[
+            ("INBOX", Some(MailboxRole::Inbox), 0),
+            ("Work", None, 0),
+            ("Work/Acme", None, 0),
+            ("Home", None, 0),
+        ],
+    );
+    state.settings.hidden_mailboxes.insert(FolderKey {
+        account,
+        path: "Work".into(),
+    });
+    let nodes = tree(&state, account);
+    let labels = |rows: Vec<&FolderNode>| rows.iter().map(|n| n.label.clone()).collect::<Vec<_>>();
+    assert_eq!(
+        labels(app_front::mailbox::visible_rows(&state, account, &nodes)),
+        ["Inbox", "Home"]
+    );
+    assert_eq!(
+        labels(app_front::mailbox::visible_rows_with(
+            &state, account, &nodes, true
+        ))
+        .len(),
+        4
+    );
+    assert_eq!(app_front::mailbox::hidden_count(&state, account), 1);
+    state.settings.pinned_mailboxes.push(FolderKey {
+        account,
+        path: "Home".into(),
+    });
+    let favourites: Vec<_> = app_front::mailbox::favourites(&state)
+        .iter()
+        .map(|m| m.path.clone())
+        .collect();
+    assert_eq!(favourites, ["Home"]);
+}

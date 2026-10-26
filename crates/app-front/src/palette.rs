@@ -272,6 +272,18 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// `make` for the open mailbox, else for one the user picks.
+fn on_mailbox(
+    state: &AppState,
+    prompt: &str,
+    make: impl Fn(MailboxId) -> Command + Send + Sync + 'static,
+) -> Flow {
+    match state.view.mailbox.filter(|_| !state.view.unified) {
+        Some(id) => Flow::Run(make(id)),
+        None => pick_mailbox(prompt, None, make),
+    }
+}
+
 /// Unread mail above which "Mark all as read" asks first (UX-7).
 pub const MARK_ALL_CONFIRM_ABOVE: u32 = 50;
 
@@ -850,6 +862,18 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             }),
         },
         CommandName::ClearFocus => Flow::Run(Command::ClearFocus {}),
+        CommandName::PinMailbox => {
+            on_mailbox(state, "Pin which mailbox?", |id| Command::PinMailbox { id })
+        }
+        CommandName::UnpinMailbox => on_mailbox(state, "Unpin which mailbox?", |id| {
+            Command::UnpinMailbox { id }
+        }),
+        CommandName::HideMailbox => on_mailbox(state, "Hide which mailbox?", |id| {
+            Command::HideMailbox { id }
+        }),
+        CommandName::ShowMailbox => pick_mailbox("Show which hidden mailbox?", None, |id| {
+            Command::ShowMailbox { id }
+        }),
         CommandName::MarkMailboxRead => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => mark_mailbox_read(state, id),
             None => pick_mailbox("Mark which mailbox read?", None, |id| {

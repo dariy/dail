@@ -182,6 +182,28 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 ui.add_space(t.m.space.md);
             }
             let current = current_account(state);
+            let favourites = app_front::mailbox::favourites(state);
+            if !favourites.is_empty() {
+                // UX-8: pinned folders above the accounts.
+                ui::caption(ui, t, "Favourites");
+                ui.add_space(t.m.space.xs / 2.0);
+                for mailbox in favourites {
+                    let label = favourite_label(state, mailbox);
+                    let row = Row {
+                        icon: crate::theme::role_icon(mailbox.role),
+                        label: &label,
+                        unread: mailbox.unread,
+                        keys: None,
+                        open: state.view.mailbox == Some(mailbox.id)
+                            && state.view.search.is_none()
+                            && !state.view.unified,
+                    };
+                    if row.show(ui, t, focused).clicked() {
+                        queue.push(Request::user(Command::OpenMailbox { id: mailbox.id }));
+                    }
+                }
+                ui.add_space(t.m.space.md);
+            }
             for account in state.accounts.values() {
                 let account_key = FolderKey {
                     account: account.id,
@@ -224,7 +246,11 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     .iter()
                     .any(|n| n.is_parent() || n.children.iter().any(FolderNode::is_parent))
                     .then_some(t.m.controls.icon_sm + t.m.space.xs);
-                for node in app_front::mailbox::visible_rows(state, account.id, &nodes) {
+                let toggle = egui::Id::unique(("sidebar-show-hidden", account.id));
+                let show_hidden = ui.data(|d| d.get_temp::<bool>(toggle).unwrap_or(false));
+                for node in
+                    app_front::mailbox::visible_rows_with(state, account.id, &nodes, show_hidden)
+                {
                     let indent = t.m.space.md * node.depth as f32;
                     let folded = state.view.collapsed.contains(&node.key);
                     ui.horizontal(|ui| {
@@ -269,6 +295,25 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                         }
                     });
                 }
+                let hidden = app_front::mailbox::hidden_count(state, account.id);
+                if hidden > 0 && !account_folded {
+                    let label = if show_hidden {
+                        "Hide hidden folders".to_owned()
+                    } else {
+                        format!("Show hidden ({hidden})")
+                    };
+                    let response = ui::ghost(
+                        ui,
+                        t,
+                        ui::text(&t.type_scale.label_sm, label.clone(), t.text_muted),
+                    );
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::Role::Button, true, label.as_str())
+                    });
+                    if response.clicked() {
+                        ui.data_mut(|d| d.insert_temp(toggle, !show_hidden));
+                    }
+                }
                 ui.add_space(t.m.space.md);
             }
             if state.accounts.is_empty() {
@@ -294,6 +339,15 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             }
         });
     actions
+}
+
+/// A favourite's label: its name, with the account's when there are several accounts.
+fn favourite_label(state: &AppState, mailbox: &Mailbox) -> String {
+    let name = mailbox_name(mailbox);
+    match state.accounts.get(&mailbox.account) {
+        Some(account) if state.accounts.len() > 1 => format!("{name} · {}", account.display_name),
+        _ => name,
+    }
 }
 
 /// `collapse_folders` or `expand_folders` for one key.

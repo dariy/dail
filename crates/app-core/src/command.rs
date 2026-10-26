@@ -318,6 +318,28 @@ pub enum Command {
         /// The sender's address (compared without case).
         sender: String,
     },
+    /// Pin a mailbox to the *Favourites* section at the top of the sidebar, after the ones pinned
+    /// before. Undoable; saved with the settings.
+    PinMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Take a mailbox out of the sidebar's *Favourites* (see `pin_mailbox`). Undoable.
+    UnpinMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Hide a mailbox from the sidebar's folder tree. It stays in search, in "Move to…" and behind
+    /// the sidebar's *Show hidden* toggle. Undoable; saved with the settings.
+    HideMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Show the mailbox again in the sidebar's folder tree (see `hide_mailbox`). Undoable.
+    ShowMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
     /// Save attachments of a downloaded message into a folder of this computer, under their file
     /// names (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).
     /// Progress and the written paths appear in `status.saves`. Only the user can do this (GUI,
@@ -1001,6 +1023,10 @@ impl Command {
             | Self::GetMessage { .. }
             | Self::ShowImagesFrom { .. }
             | Self::HideImagesFrom { .. }
+            | Self::PinMailbox { .. }
+            | Self::UnpinMailbox { .. }
+            | Self::HideMailbox { .. }
+            | Self::ShowMailbox { .. }
             | Self::SaveAttachments { .. }
             | Self::MarkRead { .. }
             | Self::MarkMailboxRead { .. }
@@ -1078,6 +1104,10 @@ impl Command {
             Self::GetMessage { .. } => CommandName::GetMessage,
             Self::ShowImagesFrom { .. } => CommandName::ShowImagesFrom,
             Self::HideImagesFrom { .. } => CommandName::HideImagesFrom,
+            Self::PinMailbox { .. } => CommandName::PinMailbox,
+            Self::UnpinMailbox { .. } => CommandName::UnpinMailbox,
+            Self::HideMailbox { .. } => CommandName::HideMailbox,
+            Self::ShowMailbox { .. } => CommandName::ShowMailbox,
             Self::SaveAttachments { .. } => CommandName::SaveAttachments,
             Self::MarkRead { .. } => CommandName::MarkRead,
             Self::MarkMailboxRead { .. } => CommandName::MarkMailboxRead,

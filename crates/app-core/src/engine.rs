@@ -8,6 +8,7 @@ mod drafts;
 mod identities;
 mod images;
 mod keys;
+mod mailbox_prefs;
 mod moves;
 mod outbox;
 mod pending;
@@ -40,6 +41,7 @@ use crate::state::{
     AppState, FocusTarget, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME, ViewPrefs,
 };
 use crate::threading::Threader;
+use mailbox_prefs::MailboxPref;
 
 /// The deterministic state machine. State changes enter only through [`Engine::dispatch`] and
 /// [`Engine::ingest`].
@@ -670,6 +672,10 @@ impl Engine {
             } => self
                 .save_attachments(message, parts, dir, ctx, receipt)
                 .map(Applied::plain),
+            Command::PinMailbox { id } => self.mailbox_pref(id, MailboxPref::Pin, receipt),
+            Command::UnpinMailbox { id } => self.mailbox_pref(id, MailboxPref::Unpin, receipt),
+            Command::HideMailbox { id } => self.mailbox_pref(id, MailboxPref::Hide, receipt),
+            Command::ShowMailbox { id } => self.mailbox_pref(id, MailboxPref::Show, receipt),
             Command::ShowImagesFrom { sender } => self.images_from(&sender, true, receipt),
             Command::HideImagesFrom { sender } => self.images_from(&sender, false, receipt),
             Command::MarkRead { ids, messages } => self.set_flag(

@@ -612,7 +612,7 @@ its own wave and ADR.
 - [x] UX-6 [core][sync]: automatic periodic sync of all folders, refresh on open (settings)
 - [x] UX-7 [core][gui][tui]: list toolbar — select all, mark all read, refresh, filters; `mark_mailbox_read`,
   `set_list_filter`
-- [ ] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses
+- [x] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses
 - [ ] UX-9 [gui][tui]: sync state per account in the sidebar
 - [ ] UX-10 [gui]: row hover actions and context menu
 - [ ] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)

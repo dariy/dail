@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 96,
+    "action": 98,
     "icon": "edit",
     "label": "Compose"
   },
@@ -13,7 +13,7 @@
   },
   "palette": {
     "close": {
-      "action": 101,
+      "action": 103,
       "icon": "close",
       "label": "Close"
     },
@@ -27,22 +27,22 @@
       {
         "rows": [
           {
-            "action": 97,
+            "action": 99,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 98,
+            "action": 100,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 99,
+            "action": 101,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 100,
+            "action": 102,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -54,32 +54,32 @@
   "reader": {
     "actions": [
       {
-        "action": 88,
+        "action": 90,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 89,
+        "action": 91,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 90,
+        "action": 92,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 91,
+        "action": 93,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 92,
+        "action": 94,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 93,
+        "action": 95,
         "icon": "reply",
         "label": "Reply"
       }
@@ -95,11 +95,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 95
+        "toggle": 97
       }
     ],
     "next": {
-      "action": 94,
+      "action": 96,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -111,17 +111,17 @@
   "top_bar": {
     "actions": [
       {
-        "action": 86,
+        "action": 88,
         "icon": "search",
         "label": "Search or run a command"
       },
       {
-        "action": 87,
+        "action": 89,
         "label": "About"
       }
     ],
     "navigation": {
-      "action": 85,
+      "action": 87,
       "icon": "back",
       "label": "Back"
     },

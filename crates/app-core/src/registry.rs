@@ -157,6 +157,14 @@ pub enum CommandName {
     ShowImagesFrom,
     /// See [`Command::HideImagesFrom`].
     HideImagesFrom,
+    /// See [`Command::PinMailbox`].
+    PinMailbox,
+    /// See [`Command::UnpinMailbox`].
+    UnpinMailbox,
+    /// See [`Command::HideMailbox`].
+    HideMailbox,
+    /// See [`Command::ShowMailbox`].
+    ShowMailbox,
     /// See [`Command::SaveAttachments`].
     SaveAttachments,
     /// See [`Command::MarkRead`].
@@ -353,6 +361,10 @@ impl CommandName {
         Self::GetMessage,
         Self::ShowImagesFrom,
         Self::HideImagesFrom,
+        Self::PinMailbox,
+        Self::UnpinMailbox,
+        Self::HideMailbox,
+        Self::ShowMailbox,
         Self::SaveAttachments,
         Self::MarkRead,
         Self::MarkMailboxRead,
@@ -437,6 +449,10 @@ impl CommandName {
             Self::GetMessage => "get_message",
             Self::ShowImagesFrom => "show_images_from",
             Self::HideImagesFrom => "hide_images_from",
+            Self::PinMailbox => "pin_mailbox",
+            Self::UnpinMailbox => "unpin_mailbox",
+            Self::HideMailbox => "hide_mailbox",
+            Self::ShowMailbox => "show_mailbox",
             Self::SaveAttachments => "save_attachments",
             Self::MarkRead => "mark_read",
             Self::MarkMailboxRead => "mark_mailbox_read",
@@ -521,6 +537,10 @@ impl CommandName {
             | Self::CompactStore
             | Self::ShowImagesFrom
             | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
             | Self::SaveAttachments
             | Self::MarkRead
             | Self::MarkMailboxRead
@@ -621,6 +641,10 @@ impl CommandName {
             | Self::GetMessage
             | Self::ShowImagesFrom
             | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
             | Self::MarkRead
             | Self::MarkMailboxRead
             | Self::MarkUnread
@@ -824,6 +848,22 @@ impl CommandName {
             Self::ShowImagesFrom => CommandSpec {
                 available: has_messages,
                 ..base("Show images from sender", Category::Mail, &[])
+            },
+            Self::ShowMailbox => CommandSpec {
+                available: |state| !state.settings.hidden_mailboxes.is_empty(),
+                ..base("Show hidden folder", Category::Navigation, &[])
+            },
+            Self::HideMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base("Hide folder", Category::Navigation, &[])
+            },
+            Self::UnpinMailbox => CommandSpec {
+                available: |state| !state.settings.pinned_mailboxes.is_empty(),
+                ..base("Unpin folder", Category::Navigation, &[])
+            },
+            Self::PinMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base("Pin folder to Favourites", Category::Navigation, &[])
             },
             Self::HideImagesFrom => CommandSpec {
                 available: |state| !state.settings.images_from.is_empty(),
@@ -1097,6 +1137,18 @@ impl CommandName {
             },
             Self::ShowImagesFrom => Command::ShowImagesFrom {
                 sender: example_addr().email,
+            },
+            Self::ShowMailbox => Command::ShowMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::HideMailbox => Command::HideMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::UnpinMailbox => Command::UnpinMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::PinMailbox => Command::PinMailbox {
+                id: EXAMPLE_MAILBOX,
             },
             Self::HideImagesFrom => Command::HideImagesFrom {
                 sender: example_addr().email,

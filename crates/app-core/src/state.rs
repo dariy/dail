@@ -389,6 +389,12 @@ pub struct Settings {
     /// (`set_keybinding`). An empty list unbinds the command.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub keys: BTreeMap<String, Vec<String>>,
+    /// Folders in the sidebar's *Favourites*, in the order they were pinned (`pin_mailbox`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pinned_mailboxes: Vec<FolderKey>,
+    /// Folders hidden from the sidebar's tree (`hide_mailbox`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub hidden_mailboxes: BTreeSet<FolderKey>,
 }
 
 /// A set of key bindings.
@@ -439,6 +445,8 @@ impl Default for Settings {
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),
+            pinned_mailboxes: Vec::new(),
+            hidden_mailboxes: BTreeSet::new(),
         }
     }
 }

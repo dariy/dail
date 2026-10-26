@@ -216,11 +216,22 @@ pub fn rows<'a>(
 }
 
 /// The sidebar rows of `account` as `view.collapsed` leaves them: none if the account is
-/// collapsed, else the tree without the children of collapsed folders.
+/// collapsed, else the tree without the children of collapsed folders and without hidden
+/// folders (`hide_mailbox`; their subfolders go with them).
 pub fn visible_rows<'a>(
     state: &AppState,
     account: AccountId,
     nodes: &'a [FolderNode],
+) -> Vec<&'a FolderNode> {
+    visible_rows_with(state, account, nodes, false)
+}
+
+/// [`visible_rows`], with the hidden folders too when `show_hidden` (the sidebar's toggle).
+pub fn visible_rows_with<'a>(
+    state: &AppState,
+    account: AccountId,
+    nodes: &'a [FolderNode],
+    show_hidden: bool,
 ) -> Vec<&'a FolderNode> {
     let collapsed = &state.view.collapsed;
     if collapsed.contains(&FolderKey {
@@ -229,7 +240,58 @@ pub fn visible_rows<'a>(
     }) {
         return Vec::new();
     }
-    rows(nodes, &|key| collapsed.contains(key))
+    let hidden = &state.settings.hidden_mailboxes;
+    let mut out = Vec::new();
+    fn walk<'a>(
+        nodes: &'a [FolderNode],
+        skip: &dyn Fn(&FolderKey) -> bool,
+        fold: &dyn Fn(&FolderKey) -> bool,
+        out: &mut Vec<&'a FolderNode>,
+    ) {
+        for node in nodes {
+            if skip(&node.key) {
+                continue;
+            }
+            out.push(node);
+            if !fold(&node.key) {
+                walk(&node.children, skip, fold, out);
+            }
+        }
+    }
+    walk(
+        nodes,
+        &|key| !show_hidden && hidden.contains(key),
+        &|key| collapsed.contains(key),
+        &mut out,
+    );
+    out
+}
+
+/// The mailboxes pinned to the sidebar's *Favourites* (`pin_mailbox`), in pinned order; only
+/// those cached (UX-8).
+pub fn favourites(state: &AppState) -> Vec<&Mailbox> {
+    state
+        .settings
+        .pinned_mailboxes
+        .iter()
+        .filter_map(|key| {
+            state
+                .mailboxes
+                .values()
+                .find(|m| m.account == key.account && m.path == key.path)
+        })
+        .filter(|m| shows_account(state, m.account))
+        .collect()
+}
+
+/// How many of `account`'s folders are hidden (`hide_mailbox`).
+pub fn hidden_count(state: &AppState, account: AccountId) -> usize {
+    state
+        .settings
+        .hidden_mailboxes
+        .iter()
+        .filter(|k| k.account == account)
+        .count()
 }
 
 /// Whether the account's folders are collapsed (`collapse_folders` with an empty path).
