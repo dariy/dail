@@ -118,6 +118,9 @@ pub struct ViewState {
     /// The mailbox or account the sidebar is narrowed to (`focus_mailbox`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focused: Option<FocusTarget>,
+    /// The thread list's quick filters (`set_list_filter`).
+    #[serde(skip_serializing_if = "ListFilter::is_off")]
+    pub filter: ListFilter,
     /// The settings page and its open section (`open_settings`), shown in place of the list
     /// and the reader.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -189,6 +192,32 @@ pub struct ViewPrefs {
     /// Focus mode (`focus_mailbox`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub focused: Option<FocusTarget>,
+    /// The list's quick filters (`set_list_filter`).
+    #[serde(skip_serializing_if = "ListFilter::is_off")]
+    pub list_filter: ListFilter,
+}
+
+/// The thread list's quick filters (`set_list_filter`, UX-7): a thread shows when it passes
+/// every filter that is on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ListFilter {
+    /// Only threads with unread mail.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub unread: bool,
+    /// Only starred threads.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub starred: bool,
+    /// Only threads with attachments.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub attachments: bool,
+}
+
+impl ListFilter {
+    /// Whether no filter is on.
+    pub const fn is_off(&self) -> bool {
+        !self.unread && !self.starred && !self.attachments
+    }
 }
 
 /// What focus mode narrows the sidebar to (`focus_mailbox`).
@@ -215,6 +244,7 @@ impl ViewState {
             sidebar_collapsed: self.sidebar_collapsed,
             collapsed: self.collapsed.clone(),
             focused: self.focused,
+            list_filter: self.filter,
         }
     }
 
@@ -223,6 +253,7 @@ impl ViewState {
         self.sidebar_collapsed = prefs.sidebar_collapsed;
         self.collapsed = prefs.collapsed.clone();
         self.focused = prefs.focused;
+        self.filter = prefs.list_filter;
     }
 }
 

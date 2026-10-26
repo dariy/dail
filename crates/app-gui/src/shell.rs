@@ -350,6 +350,10 @@ impl Shell {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
+                        if let Some(step) = self.list.take_ask() {
+                            self.palette.open_at(step);
+                            queue.push(Request::user(Command::OpenPalette {}));
+                        }
                     });
             });
         egui::CentralPanel::default()

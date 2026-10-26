@@ -14,13 +14,13 @@ dail · Inbox · alice@example.com
 │   │  Show images from sender                                         Mail│   │
 │   │  Save attachments                                                Mail│   │
 │   │  Mark as read                                                 Mail  u│   │
+│   │  Mark all as read                                                Mail│   │
 │   │  Mark as unread                                               Mail  u│   │
 │   │  Star                                                         Mail  s│   │
 │   │  Remove star                                                     Mail│   │
 │   │  Archive                                                      Mail  e│   │
 │   │  Move to Trash                                                Mail  #│   │
 │   │  Move to…                                                     Mail  v│   │
-│   │  Search mail                                                     Mail│   │
 │   │Sync now: list the mailboxes of one account (or of all accounts) and …│   │
 │   │↑↓ move · Enter choose · Esc back                                     │   │
 │   └──────────────────────────────────────────────────────────────────────┘   │

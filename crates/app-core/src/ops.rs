@@ -93,6 +93,16 @@ pub enum RemoteOp {
         /// Source messages and their local placeholders in `to`.
         copies: Vec<CopyRef>,
     },
+    /// Set or clear a flag on every message of a mailbox on the server, cached or not
+    /// (`UID STORE 1:* +FLAGS`; `mark_mailbox_read`, UX-7).
+    FlagMailbox {
+        /// The mailbox.
+        mailbox: MailboxId,
+        /// The flag.
+        flag: FlagKind,
+        /// `true` sets it, `false` clears it.
+        value: bool,
+    },
 }
 
 /// One copied message: the source and its placeholder in the target mailbox.
@@ -110,13 +120,14 @@ impl RemoteOp {
         match self {
             Self::SetFlag { messages, .. } | Self::Move { messages, .. } => messages.clone(),
             Self::Copy { copies, .. } => copies.iter().flat_map(|c| [c.source, c.copy]).collect(),
+            Self::FlagMailbox { .. } => Vec::new(),
         }
     }
 
     /// The target mailbox of a move or copy.
     pub const fn target(&self) -> Option<MailboxId> {
         match self {
-            Self::SetFlag { .. } => None,
+            Self::SetFlag { .. } | Self::FlagMailbox { .. } => None,
             Self::Move { to, .. } | Self::Copy { to, .. } => Some(*to),
         }
     }
@@ -209,5 +220,16 @@ pub enum RemoteStep {
         to: String,
         /// `CREATE` the target first; "already exists" is not an error.
         create: bool,
+    },
+    /// `UID STORE 1:* ±FLAGS.SILENT (flag)`: every message of the mailbox.
+    StoreAll {
+        /// IMAP path of the mailbox.
+        path: String,
+        /// UIDVALIDITY the cache knows; the step fails if the server's differs.
+        uid_validity: u32,
+        /// The flag.
+        flag: FlagKind,
+        /// `true` adds the flag, `false` removes it.
+        value: bool,
     },
 }

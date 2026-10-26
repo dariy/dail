@@ -8,10 +8,16 @@ use egui_kittest::kittest::{By, Queryable};
 
 /// An action button: its label followed by its key hint (`ArchiveE`), unlike the mailbox row
 /// of the same name.
+/// A button named `label` followed by its key hint (`Star s`), not one that only starts with
+/// the same letters (`Starred`, the list filter).
 fn action(label: &str) -> By<'_> {
     By::new().role(Role::Button).predicate(move |node| {
-        node.label()
-            .is_some_and(|l| l.contains(label) && l != label && !l.contains(", "))
+        node.label().is_some_and(|l| {
+            l.find(label)
+                .is_some_and(|at| l[at + label.len()..].starts_with(|c: char| !c.is_alphanumeric()))
+                && l != label
+                && !l.contains(", ")
+        })
     })
 }
 

@@ -415,6 +415,38 @@ impl Engine {
         })
     }
 
+    /// `set_list_filter`: the given filters replace the current ones.
+    pub(super) fn set_list_filter(
+        &mut self,
+        unread: Option<bool>,
+        starred: Option<bool>,
+        attachments: Option<bool>,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let filter = &mut self.state.view.filter;
+        if let Some(on) = unread {
+            filter.unread = on;
+        }
+        if let Some(on) = starred {
+            filter.starred = on;
+        }
+        if let Some(on) = attachments {
+            filter.attachments = on;
+        }
+        let filter = *filter;
+        // Checked threads the filter hides stay checked only if they still show.
+        let shown = crate::listing::visible_threads(&self.state);
+        self.state.view.checked.retain(|id| shown.contains(id));
+        Outcome::new(
+            receipt
+                .affecting(EntityRef::View)
+                .with_data(serde_json::json!({
+                    "filter": filter,
+                    "threads": shown.len(),
+                })),
+        )
+    }
+
     /// `clear_focus`.
     pub(super) fn clear_focus(&mut self, receipt: CommandReceipt) -> Outcome {
         let cleared = self.state.view.focused.take().is_some();

@@ -60,11 +60,24 @@ pub fn list_title(state: &AppState) -> String {
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
         .map_or_else(|| "Conversations".to_owned(), mailbox_name);
-    if state.view.focused.is_some() {
+    let mut title = if state.view.focused.is_some() {
         format!("{title} · Focus")
     } else {
         title
+    };
+    let filter = state.view.filter;
+    let only: Vec<&str> = [
+        (filter.unread, "unread"),
+        (filter.starred, "starred"),
+        (filter.attachments, "attachments"),
+    ]
+    .into_iter()
+    .filter_map(|(on, name)| on.then_some(name))
+    .collect();
+    if !only.is_empty() {
+        title = format!("{title} · only {}", only.join(", "));
     }
+    title
 }
 
 /// A pane's frame: a border with its title from 80 columns (bold when focused), nothing below.

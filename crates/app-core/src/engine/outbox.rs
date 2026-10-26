@@ -220,6 +220,22 @@ impl Engine {
                 let sources = self.sources(live, *to, &mut resolved);
                 self.transfer_steps(sources, *to, true, &mut resolved);
             }
+            RemoteOp::FlagMailbox {
+                mailbox,
+                flag,
+                value,
+            } => {
+                if let Some(mailbox) = self.state.mailboxes.get(mailbox)
+                    && let Some(uid_validity) = mailbox.uid_validity
+                {
+                    resolved.steps.push(RemoteStep::StoreAll {
+                        path: mailbox.path.clone(),
+                        uid_validity,
+                        flag: *flag,
+                        value: *value,
+                    });
+                }
+            }
         }
         resolved
     }
@@ -311,6 +327,7 @@ impl Engine {
             RemoteOp::Copy { copies, .. } => {
                 copies.retain(|c| c.source != message && c.copy != message);
             }
+            RemoteOp::FlagMailbox { .. } => {}
         }
     }
 
@@ -484,6 +501,7 @@ impl Engine {
                 messages.is_empty()
             }
             RemoteOp::Copy { copies, .. } => copies.is_empty(),
+            RemoteOp::FlagMailbox { .. } => false,
         });
         if empty {
             self.state.outbox.shift_remove(&id);

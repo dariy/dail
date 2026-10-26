@@ -49,6 +49,15 @@ impl Density {
 pub struct ListState {
     /// The thread the list last scrolled to, so it scrolls only when the selection moves.
     scrolled_to: Option<ThreadId>,
+    /// A palette step the toolbar asked for (the confirmation of *Mark all as read*).
+    ask: Option<app_front::palette::Ask>,
+}
+
+impl ListState {
+    /// The palette step the toolbar asked for, once.
+    pub fn take_ask(&mut self) -> Option<app_front::palette::Ask> {
+        self.ask.take()
+    }
 }
 
 /// Renders the list pane.
@@ -62,6 +71,7 @@ pub fn show(
     queue: &mut Vec<Request>,
 ) {
     header(ui, t, state, rows.unread, queue);
+    toolbar(ui, t, state, &rows.ids, local, queue);
     let rows = rows.ids.as_slice();
     ui::divider(ui, t);
     if rows.is_empty() {
@@ -189,6 +199,86 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
             );
             bulk_bar(ui, t, state, queue);
         });
+}
+
+/// The list toolbar (UX-7), always shown under the title: the tri-state *Select all* box, the
+/// quick filters, and for a mailbox *Mark all as read* and *Refresh*.
+fn toolbar(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    rows: &[ThreadId],
+    local: &mut ListState,
+    queue: &mut Vec<Request>,
+) {
+    if state.view.mailbox.is_none() && state.view.search.is_none() && !state.view.unified {
+        return;
+    }
+    ui.horizontal(|ui| {
+        ui.add_space(t.m.space.md);
+        ui.spacing_mut().item_spacing.x = t.m.space.sm;
+        let checked = &state.view.checked;
+        let all = !rows.is_empty() && rows.iter().all(|id| checked.contains(id));
+        let some = !checked.is_empty() && !all;
+        let mut on = all;
+        let response = ui.add(egui::Checkbox::new(&mut on, "").indeterminate(some));
+        response.widget_info(|| {
+            egui::WidgetInfo::selected(egui::Role::CheckBox, true, all, "Select all")
+        });
+        if response.on_hover_text("Select all").clicked() {
+            queue.push(Request::user(if all || some {
+                Command::UncheckThreads { ids: Vec::new() }
+            } else {
+                Command::CheckThreads { ids: Vec::new() }
+            }));
+        }
+        let filter = state.view.filter;
+        let chips = [
+            ("Unread", filter.unread, 0),
+            ("Starred", filter.starred, 1),
+            ("Attachments", filter.attachments, 2),
+        ];
+        for (label, on, which) in chips {
+            if ui.selectable_label(on, label).clicked() {
+                let flip = Some(!on);
+                queue.push(Request::user(Command::SetListFilter {
+                    unread: (which == 0).then_some(flip).flatten(),
+                    starred: (which == 1).then_some(flip).flatten(),
+                    attachments: (which == 2).then_some(flip).flatten(),
+                }));
+            }
+        }
+        let Some(mailbox) = state
+            .view
+            .mailbox
+            .filter(|_| state.view.search.is_none() && !state.view.unified)
+            .and_then(|id| state.mailboxes.get(&id))
+        else {
+            return;
+        };
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let syncing = state
+                .status
+                .sync
+                .get(&mailbox.account)
+                .is_some_and(app_core::SyncStatus::is_syncing)
+                || state.status.fetching.contains(&mailbox.id);
+            if syncing {
+                ui.add(egui::Spinner::new()).on_hover_text("Refreshing");
+            } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, "Refresh").clicked() {
+                queue.push(Request::user(Command::SyncNow {
+                    account: Some(mailbox.account),
+                }));
+            }
+            if ui::secondary(ui, t, "Mark all as read", None, mailbox.unread > 0) {
+                match app_front::palette::flow(app_core::CommandName::MarkMailboxRead, state) {
+                    app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                    app_front::palette::Flow::Ask(step) => local.ask = Some(step),
+                    _ => {}
+                }
+            }
+        });
+    });
 }
 
 /// While threads are checked: how many, and the actions that apply to all of them.

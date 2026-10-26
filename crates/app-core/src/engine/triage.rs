@@ -9,7 +9,7 @@ use crate::command::Command;
 use crate::ctx::Ctx;
 use crate::error::CoreError;
 use crate::event::{Effect, PersistDelta};
-use crate::ids::{AccountId, MessageId, ThreadId};
+use crate::ids::{AccountId, MailboxId, MessageId, ThreadId};
 use crate::ops::{FlagKind, RemoteOp};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 
@@ -187,5 +187,96 @@ pub(super) fn count(n: usize) -> String {
         "1 message".to_owned()
     } else {
         format!("{n} messages")
+    }
+}
+
+impl Engine {
+    /// `mark_mailbox_read`: `mark_read` on the cached unread messages shown in the mailbox, and a
+    /// `flag_mailbox` op when the server counts more unread mail than that.
+    pub(super) fn mark_mailbox_read(
+        &mut self,
+        id: MailboxId,
+        ctx: &Ctx,
+        receipt: CommandReceipt,
+    ) -> Result<Applied, CoreError> {
+        let mailbox = self
+            .state
+            .mailboxes
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| not_found("mailbox", id))?;
+        let unread: Vec<MessageId> = self
+            .state
+            .messages
+            .values()
+            .filter(|m| m.location() == id && !m.flags.seen && !m.is_placeholder())
+            .map(|m| m.id)
+            .collect();
+        let cached = u32::try_from(unread.len()).unwrap_or(u32::MAX);
+        let uncached = mailbox.unread > cached;
+        let mut applied = if unread.is_empty() {
+            Applied::plain(Outcome::new(receipt.with_data(serde_json::json!({
+                "changed": [],
+                "ops": [],
+                "cancelled": [],
+            }))))
+        } else {
+            self.set_flag(
+                FlagChange {
+                    flag: FlagKind::Seen,
+                    value: true,
+                    threads: Vec::new(),
+                    messages: unread,
+                },
+                ctx,
+                receipt,
+            )?
+        };
+        let mut changes = CacheChanges::default();
+        let mut effects = Vec::new();
+        if uncached {
+            let mut ids = ctx.ids();
+            let op = RemoteOp::FlagMailbox {
+                mailbox: id,
+                flag: FlagKind::Seen,
+                value: true,
+            };
+            let op = self.queue_op(mailbox.account, op, ctx, &mut ids, &mut changes);
+            applied.outcome.receipt = applied.outcome.receipt.clone().affecting(EntityRef::Op(op));
+            if let Some(ops) = applied
+                .outcome
+                .receipt
+                .data
+                .get_mut("ops")
+                .and_then(|o| o.as_array_mut())
+            {
+                ops.push(serde_json::json!(op));
+            }
+            effects.extend(self.pump_ops(mailbox.account, ctx.now_ms, &mut changes));
+        }
+        if let Some(entry) = self.state.mailboxes.get_mut(&id)
+            && entry.unread != 0
+        {
+            // The server's count follows with the next fetch.
+            entry.unread = 0;
+            changes.mailboxes.insert(id);
+        }
+        let delta = self.delta(changes);
+        if !delta.is_empty() {
+            applied.outcome.effects.push(Effect::PersistState {
+                delta: PersistDelta::Mail(delta),
+            });
+        }
+        applied.outcome.effects.extend(effects);
+        let receipt = &mut applied.outcome.receipt;
+        *receipt = receipt.clone().affecting(EntityRef::Mailbox(id));
+        if let Some(data) = receipt.data.as_object_mut() {
+            data.insert("mailbox".to_owned(), serde_json::json!(id));
+            data.insert("uncached_affected".to_owned(), serde_json::json!(uncached));
+        }
+        if let Some((label, _)) = &mut applied.undo {
+            *label = format!("Mark all read ({})", count(cached as usize));
+        }
+        Ok(applied)
     }
 }

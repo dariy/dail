@@ -272,6 +272,25 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// Unread mail above which "Mark all as read" asks first (UX-7).
+pub const MARK_ALL_CONFIRM_ABOVE: u32 = 50;
+
+/// `mark_mailbox_read` for `id`, after a confirmation when much is unread.
+fn mark_mailbox_read(state: &AppState, id: MailboxId) -> Flow {
+    let unread = state.mailboxes.get(&id).map_or(0, |m| m.unread);
+    if unread <= MARK_ALL_CONFIRM_ABOVE {
+        return Flow::Run(Command::MarkMailboxRead { id });
+    }
+    ask(
+        format!("Mark all {unread} unread messages read? Undo restores only the cached ones."),
+        AskKind::Confirm(format!("Mark {unread} messages read")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::MarkMailboxRead { id }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// The `set_theme` that typed text asks for: a mode (`system`, `light`, `dark`), then optionally
 /// a theme name for that mode (`dark dail-dark-hc`); a name alone sets the mode its name says
 /// (`…-light…` light, else dark). Anything else gives a `set_theme` the engine rejects.
@@ -831,6 +850,46 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             }),
         },
         CommandName::ClearFocus => Flow::Run(Command::ClearFocus {}),
+        CommandName::MarkMailboxRead => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => mark_mailbox_read(state, id),
+            None => pick_mailbox("Mark which mailbox read?", None, |id| {
+                Command::MarkMailboxRead { id }
+            }),
+        },
+        CommandName::SetListFilter => {
+            let filter = state.view.filter;
+            let now: Vec<&str> = [
+                (filter.unread, "unread"),
+                (filter.starred, "starred"),
+                (filter.attachments, "attachments"),
+            ]
+            .into_iter()
+            .filter_map(|(on, name)| on.then_some(name))
+            .collect();
+            ask(
+                "Show only which threads?",
+                AskKind::Text(format!(
+                    "unread, starred, attachments (empty: all); now: {}",
+                    if now.is_empty() {
+                        "all".to_owned()
+                    } else {
+                        now.join(", ")
+                    }
+                )),
+                |_, choice| match choice {
+                    Choice::Text(text) => {
+                        let text = text.to_lowercase();
+                        let has = |word: &str| Some(text.contains(word));
+                        Flow::Run(Command::SetListFilter {
+                            unread: has("unread"),
+                            starred: has("star"),
+                            attachments: has("attach"),
+                        })
+                    }
+                    _ => Flow::Hidden,
+                },
+            )
+        }
         CommandName::CollapseFolders => Flow::Run(Command::CollapseFolders { keys: Vec::new() }),
         CommandName::ExpandFolders => Flow::Run(Command::ExpandFolders { keys: Vec::new() }),
         CommandName::GetView => Flow::Run(Command::GetView {}),
@@ -1111,6 +1170,19 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                         state
                             .mailboxes
                             .get(to)
+                            .map_or_else(String::new, mailbox_name)
+                    ),
+                    app_core::RemoteOp::FlagMailbox {
+                        mailbox,
+                        flag,
+                        value,
+                    } => format!(
+                        "{} {:?} on all of {}",
+                        if *value { "set" } else { "clear" },
+                        flag,
+                        state
+                            .mailboxes
+                            .get(mailbox)
                             .map_or_else(String::new, mailbox_name)
                     ),
                 };

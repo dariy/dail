@@ -1,0 +1,11 @@
+# List toolbar (UX-7). Account seed 1 (..0001-..0), INBOX seed 2 (..0002-..0); the server counts 9 unread, 2 cached.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "seed": 55340232221128654848, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0002-0000-000000000000", "uid_validity": 1, "uid_next": 4, "total": 20, "unread": 9, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "One", "date_ms": 1699000000000, "flags": {}}, {"uid": 2, "message_id_hdr": "two@x", "subject": "Two", "date_ms": 1699000001000, "flags": {"flagged": true}}, {"uid": 3, "message_id_hdr": "three@x", "subject": "Three", "date_ms": 1699000002000, "flags": {"seen": true}}]}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "open_mailbox", "args": {"id": "00000000-0000-0002-0000-000000000000"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "set_list_filter", "args": {"unread": true}}}}
+{"t": 1700000005000, "origin": "mcp", "input": {"command": {"cmd": "set_list_filter", "args": {"starred": true}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "set_list_filter", "args": {"unread": false, "starred": false}}}}
+{"t": 1700000007000, "seed": 129127208515966861312, "origin": "mcp", "input": {"command": {"cmd": "mark_mailbox_read", "args": {"id": "00000000-0000-0002-0000-000000000000"}}}}
+{"t": 1700000008000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000009000, "origin": "gui", "input": {"command": {"cmd": "mark_mailbox_read", "args": {"id": "00000000-0000-0002-0000-000000000009"}}}}

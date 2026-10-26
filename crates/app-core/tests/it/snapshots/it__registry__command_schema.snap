@@ -1741,6 +1741,32 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Mark every message of a mailbox read, including mail on the server that is not cached:\nthe cached unread messages are marked as with `mark_read`, and if the server counts more\nunread mail than is cached, one `UID STORE 1:* +FLAGS (\\\\Seen)` covers the rest. Undo\nrestores only the cached messages it changed (`uncached_affected` in the receipt says\nwhether others were marked too).",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_mailbox_read",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Mark threads (every message) or single messages as unread. Give `ids`, `messages` or both.\nApplied locally at once and on the server in the background. Undoable.",
       "properties": {
         "args": {
@@ -2672,6 +2698,46 @@ expression: command_schema()
         },
         "cmd": {
           "const": "focus_pane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Filter the thread list (GUI and TUI) by unread, starred and attachments; the given\nfields replace the current ones, the others stay. All `false` shows every thread.\nSaved across restarts. `list_threads` and `search` are not filtered.",
+      "properties": {
+        "args": {
+          "properties": {
+            "attachments": {
+              "description": "Only threads with attachments.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "starred": {
+              "description": "Only starred threads.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "unread": {
+              "description": "Only threads with unread mail.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "set_list_filter",
           "type": "string"
         }
       },

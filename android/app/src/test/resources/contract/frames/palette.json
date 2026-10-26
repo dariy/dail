@@ -59,7 +59,7 @@
   },
   "palette": {
     "close": {
-      "action": 70,
+      "action": 72,
       "icon": "close",
       "label": "Close"
     },
@@ -116,40 +116,45 @@
           {
             "action": 21,
             "detail": "Mail",
+            "title": "Mark all as read"
+          },
+          {
+            "action": 22,
+            "detail": "Mail",
             "keys": "u",
             "title": "Mark as unread"
           },
           {
-            "action": 22,
+            "action": 23,
             "detail": "Mail",
             "keys": "s",
             "title": "Star"
           },
           {
-            "action": 23,
+            "action": 24,
             "detail": "Mail",
             "title": "Remove star"
           },
           {
-            "action": 24,
+            "action": 25,
             "detail": "Mail",
             "keys": "e",
             "title": "Archive"
           },
           {
-            "action": 25,
+            "action": 26,
             "detail": "Mail",
             "keys": "#",
             "title": "Move to Trash"
           },
           {
-            "action": 26,
+            "action": 27,
             "detail": "Mail",
             "keys": "v",
             "title": "Move to…"
           },
           {
-            "action": 27,
+            "action": 28,
             "detail": "Mail",
             "title": "Search mail"
           }
@@ -159,31 +164,31 @@
       {
         "rows": [
           {
-            "action": 28,
+            "action": 29,
             "detail": "Compose",
             "keys": "c",
             "title": "Compose"
           },
           {
-            "action": 29,
+            "action": 30,
             "detail": "Compose",
             "keys": "r",
             "title": "Reply"
           },
           {
-            "action": 30,
+            "action": 31,
             "detail": "Compose",
             "keys": "a",
             "title": "Reply all"
           },
           {
-            "action": 31,
+            "action": 32,
             "detail": "Compose",
             "keys": "f",
             "title": "Forward"
           },
           {
-            "action": 32,
+            "action": 33,
             "detail": "Compose",
             "title": "List contacts"
           }
@@ -193,79 +198,84 @@
       {
         "rows": [
           {
-            "action": 33,
+            "action": 34,
             "detail": "Navigation",
             "keys": "Escape",
             "title": "Close command palette"
           },
           {
-            "action": 34,
+            "action": 35,
             "detail": "Navigation",
             "keys": "g i",
             "title": "Go to mailbox"
           },
           {
-            "action": 35,
+            "action": 36,
             "detail": "Navigation",
             "keys": "g u",
             "title": "Go to all inboxes"
           },
           {
-            "action": 36,
+            "action": 37,
             "detail": "Navigation",
             "keys": "j",
             "title": "Select threads"
           },
           {
-            "action": 37,
+            "action": 38,
             "detail": "Navigation",
             "keys": "x",
             "title": "Select all conversations"
           },
           {
-            "action": 38,
+            "action": 39,
             "detail": "Navigation",
             "keys": "Enter",
             "title": "Open thread"
           },
           {
-            "action": 39,
+            "action": 40,
             "detail": "Navigation",
             "keys": "/",
             "title": "Search"
           },
           {
-            "action": 40,
+            "action": 41,
             "detail": "Navigation",
             "keys": "Tab",
             "title": "Focus pane"
           },
           {
-            "action": 41,
+            "action": 42,
+            "detail": "Navigation",
+            "title": "Filter the list"
+          },
+          {
+            "action": 43,
             "detail": "Navigation",
             "keys": "Ctrl+Shift+F",
             "title": "Focus this mailbox"
           },
           {
-            "action": 42,
+            "action": 44,
             "detail": "Navigation",
             "keys": "ArrowLeft",
             "title": "Collapse folders"
           },
           {
-            "action": 43,
+            "action": 45,
             "detail": "Navigation",
             "keys": "ArrowRight",
             "title": "Expand folders"
           },
           {
-            "action": 44,
+            "action": 46,
             "detail": "Navigation",
             "keys": "Ctrl+B",
             "title": "Toggle sidebar"
           },
           {
-            "action": 45,
+            "action": 47,
             "detail": "Navigation",
             "title": "Show view state"
           }
@@ -275,47 +285,47 @@
       {
         "rows": [
           {
-            "action": 46,
+            "action": 48,
             "detail": "Account",
             "title": "Add account"
           },
           {
-            "action": 47,
+            "action": 49,
             "detail": "Account",
             "title": "Test account connection"
           },
           {
-            "action": 48,
+            "action": 50,
             "detail": "Account",
             "title": "Find the mail servers of an address"
           },
           {
-            "action": 49,
+            "action": 51,
             "detail": "Account",
             "title": "Edit account"
           },
           {
-            "action": 50,
+            "action": 52,
             "detail": "Account",
             "title": "Change account password"
           },
           {
-            "action": 51,
+            "action": 53,
             "detail": "Account",
             "title": "Add or edit a sending address"
           },
           {
-            "action": 52,
+            "action": 54,
             "detail": "Account",
             "title": "Send from an address for this mailbox"
           },
           {
-            "action": 53,
+            "action": 55,
             "detail": "Account",
             "title": "Remove account"
           },
           {
-            "action": 54,
+            "action": 56,
             "detail": "Account",
             "title": "Set how much mail to keep offline"
           }
@@ -325,50 +335,50 @@
       {
         "rows": [
           {
-            "action": 55,
+            "action": 57,
             "detail": "App",
             "title": "Show settings"
           },
           {
-            "action": 56,
+            "action": 58,
             "detail": "App",
             "title": "Change setting"
           },
           {
-            "action": 57,
+            "action": 59,
             "detail": "App",
             "title": "Change a command's keys"
           },
           {
-            "action": 58,
+            "action": 60,
             "detail": "App",
             "title": "Choose the key bindings (Gmail, Vim)"
           },
           {
-            "action": 59,
+            "action": 61,
             "detail": "App",
             "title": "Choose the theme"
           },
           {
-            "action": 60,
+            "action": 62,
             "detail": "App",
             "keys": "Ctrl+,",
             "title": "Settings"
           },
           {
-            "action": 61,
+            "action": 63,
             "detail": "App",
             "keys": "z",
             "title": "Undo"
           },
           {
-            "action": 62,
+            "action": 64,
             "detail": "App",
             "keys": "Ctrl+Shift+Z",
             "title": "Redo"
           },
           {
-            "action": 63,
+            "action": 65,
             "detail": "App",
             "title": "Compact the local store"
           }
@@ -378,25 +388,25 @@
       {
         "rows": [
           {
-            "action": 64,
+            "action": 66,
             "detail": "alice@example.com",
             "keys": "g i",
             "title": "Go to Inbox"
           },
           {
-            "action": 65,
+            "action": 67,
             "detail": "alice@example.com",
             "keys": "g s",
             "title": "Go to Sent"
           },
           {
-            "action": 66,
+            "action": 68,
             "detail": "alice@example.com",
             "keys": "g d",
             "title": "Go to Drafts"
           },
           {
-            "action": 67,
+            "action": 69,
             "detail": "alice@example.com",
             "keys": "g a",
             "title": "Go to Archive"
@@ -407,12 +417,12 @@
       {
         "rows": [
           {
-            "action": 68,
+            "action": 70,
             "detail": "Carol",
             "title": "Lunch?"
           },
           {
-            "action": 69,
+            "action": 71,
             "detail": "Bob",
             "title": "Q3 numbers"
           }

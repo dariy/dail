@@ -161,6 +161,8 @@ pub enum CommandName {
     SaveAttachments,
     /// See [`Command::MarkRead`].
     MarkRead,
+    /// See [`Command::MarkMailboxRead`].
+    MarkMailboxRead,
     /// See [`Command::MarkUnread`].
     MarkUnread,
     /// See [`Command::Star`].
@@ -215,6 +217,8 @@ pub enum CommandName {
     CloseComposer,
     /// See [`Command::FocusPane`].
     FocusPane,
+    /// See [`Command::SetListFilter`].
+    SetListFilter,
     /// See [`Command::FocusMailbox`].
     FocusMailbox,
     /// See [`Command::ClearFocus`].
@@ -351,6 +355,7 @@ impl CommandName {
         Self::HideImagesFrom,
         Self::SaveAttachments,
         Self::MarkRead,
+        Self::MarkMailboxRead,
         Self::MarkUnread,
         Self::Star,
         Self::Unstar,
@@ -378,6 +383,7 @@ impl CommandName {
         Self::OpenComposer,
         Self::CloseComposer,
         Self::FocusPane,
+        Self::SetListFilter,
         Self::FocusMailbox,
         Self::ClearFocus,
         Self::CollapseFolders,
@@ -433,6 +439,7 @@ impl CommandName {
             Self::HideImagesFrom => "hide_images_from",
             Self::SaveAttachments => "save_attachments",
             Self::MarkRead => "mark_read",
+            Self::MarkMailboxRead => "mark_mailbox_read",
             Self::MarkUnread => "mark_unread",
             Self::Star => "star",
             Self::Unstar => "unstar",
@@ -460,6 +467,7 @@ impl CommandName {
             Self::OpenComposer => "open_composer",
             Self::CloseComposer => "close_composer",
             Self::FocusPane => "focus_pane",
+            Self::SetListFilter => "set_list_filter",
             Self::FocusMailbox => "focus_mailbox",
             Self::ClearFocus => "clear_focus",
             Self::CollapseFolders => "collapse_folders",
@@ -515,6 +523,7 @@ impl CommandName {
             | Self::HideImagesFrom
             | Self::SaveAttachments
             | Self::MarkRead
+            | Self::MarkMailboxRead
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
@@ -554,6 +563,7 @@ impl CommandName {
             | Self::OpenComposer
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::SetListFilter
             | Self::FocusMailbox
             | Self::ClearFocus
             | Self::CollapseFolders
@@ -612,6 +622,7 @@ impl CommandName {
             | Self::ShowImagesFrom
             | Self::HideImagesFrom
             | Self::MarkRead
+            | Self::MarkMailboxRead
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
@@ -639,6 +650,7 @@ impl CommandName {
             | Self::CloseSettings
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::SetListFilter
             | Self::FocusMailbox
             | Self::ClearFocus
             | Self::CollapseFolders
@@ -821,6 +833,10 @@ impl CommandName {
                 available: has_messages,
                 ..base("Save attachments", Category::Mail, &[])
             },
+            Self::MarkMailboxRead => CommandSpec {
+                available: has_mailboxes,
+                ..base("Mark all as read", Category::Mail, &[])
+            },
             Self::MarkRead => CommandSpec {
                 available: has_threads,
                 ..base("Mark as read", Category::Mail, &["u", "Shift+I"])
@@ -949,6 +965,10 @@ impl CommandName {
                     Category::Navigation,
                     &["Ctrl+Shift+F", "g f"],
                 )
+            },
+            Self::SetListFilter => CommandSpec {
+                available: has_mailboxes,
+                ..base("Filter the list", Category::Navigation, &[])
             },
             Self::FocusPane => base("Focus pane", Category::Navigation, &["Tab", "Shift+Tab"]),
             Self::ToggleSidebar => base("Toggle sidebar", Category::Navigation, &["Ctrl+B", "["]),
@@ -1086,6 +1106,9 @@ impl CommandName {
                 parts: Vec::new(),
                 dir: "/home/me/Downloads".to_owned(),
             },
+            Self::MarkMailboxRead => Command::MarkMailboxRead {
+                id: EXAMPLE_MAILBOX,
+            },
             Self::MarkRead => Command::MarkRead {
                 ids: vec![EXAMPLE_THREAD],
                 messages: Vec::new(),
@@ -1191,6 +1214,11 @@ impl CommandName {
             Self::FocusMailbox => Command::FocusMailbox {
                 id: Some(EXAMPLE_MAILBOX),
                 account: None,
+            },
+            Self::SetListFilter => Command::SetListFilter {
+                unread: Some(true),
+                starred: None,
+                attachments: None,
             },
             Self::FocusPane => Command::FocusPane { pane: Pane::Reader },
             Self::ToggleSidebar => Command::ToggleSidebar {},

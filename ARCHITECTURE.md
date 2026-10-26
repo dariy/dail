@@ -236,9 +236,11 @@ pub struct AttachmentRef { path /* absolute */, name /* last path component */,
 pub struct PendingOp{ id, account, op: RemoteOp, state: OpState /* Queued|Running|Failed */, attempts: u32,
                       last_error: Option<String>, created_ms, next_attempt_ms: Option<i64>, awaiting_sync: bool }
 pub enum  RemoteOp  { SetFlag { flag: FlagKind /* Seen|Flagged */, value: bool, messages: Vec<MessageId> },
-                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> } }
+                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> },
+                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */ }
 pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // resolved when the op starts
-                      Move { path, uid_validity, uids, to: String, create }, Copy { … same … } }
+                      Move { path, uid_validity, uids, to: String, create }, Copy { … same … },
+                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */ }
 ```
 
 Folder tree (UX-2): `app_front::mailbox::tree(state, account) -> Vec<FolderNode { key: FolderKey { account, path },
@@ -704,7 +706,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `ProfileDirs` (app-io) resolves the layout above: `ProfileDirs::named("default")` uses `ProjectDirs::from("", "", "dail")`,
   `ProfileDirs::at(dir)` takes an explicit root; `ensure()` creates it with mode 0700 on Unix.
 - `config.toml` (`app_io::Config`): `[settings]` (missing keys take defaults, values range-checked; `images_from` lists the
-  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`, `focused`; only
+  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`, `focused`, `list_filter`; only
   written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
   and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
@@ -974,7 +976,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar) and the footer; its rows come in three densities
+  unread badge, *Clear* during a search, the checked-threads bar), the toolbar under it (UX-7: tri-state *Select all*
+  box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
+  *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
   clip, message count and the date in mono; then the subject), compact, 40 px on one line (the sender in a fixed
   column), and preview, 72 px on three lines (the snippet on the third). Cozy and compact rows put the newest message's
@@ -1641,6 +1645,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `compact_store` | Mutation (no history) | — → `{bodies_kept}`; emits `CompactStore` (§6); outcome in `status.compaction` | Wave 2 |
 | `open_unified_inbox` | View | — (`g u`) → `{threads}`: `view.unified`, the list shows every account's inbox newest first (`listing::unified_threads`); `open_mailbox` leaves it, a search shows instead of it | Wave 2 |
 | `open_mailbox` / `select_threads` / `open_thread` / `close_thread` | View | `id` / `ids` / `id` / — (`open_mailbox` clears selection and reader; `open_thread` selects the thread unless it is already selected and downloads missing bodies; nothing is marked read) | M3 |
+| `mark_mailbox_read` | Mutation | `id` → the `mark_read` receipt for the cached unread messages located in the mailbox plus `mailbox`, `uncached_affected`; when the server counts more unread than are cached, a second op `flag_mailbox{mailbox, flag, value}` runs `RemoteStep::StoreAll` (`UID STORE 1:* +FLAGS.SILENT (\\Seen)`); the mailbox's `unread` drops to 0 until the next fetch; undo (*Mark all read (n messages)*) restores only the cached ones; no default key; the palette and the GUI toolbar ask first above 50 unread (`palette::MARK_ALL_CONFIRM_ABOVE`); agents allowed | UX-7 |
+| `set_list_filter` | View | `unread?, starred?, attachments?: bool` (given ones replace) → `{filter, threads}`; `view.filter`, saved in `[view]` as `list_filter`; `listing::visible_threads` keeps the threads passing every filter that is on (`list_threads`/`search` are not filtered); checked threads it hides are unchecked; the palette asks for words (`unread starred attachments`) | UX-7 |
 | `mark_read` / `mark_unread` | Mutation | `ids?: [ThreadId], messages?: [MessageId]` (at least one; a thread means all its messages, a message includes its copies in other folders) → `{changed, ops, cancelled}`; undo restores exactly `changed` | M3 |
 | `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
@@ -1662,7 +1668,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `not_found` for an unknown account, `invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |
 | `focus_pane` / `toggle_sidebar` | View | `pane: sidebar\|list\|reader\|composer` / — (`reader` needs an open thread, `composer` an open draft, else `invalid_argument`; focusing the sidebar expands it. After every command and event the engine moves the focus off a pane that is no longer shown: to the composer, the reader or the list) | M6 |
-| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?, focused?`); also the MCP resource `dail://state/view` | M7 |
+| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?, focused?, filter?`); also the MCP resource `dail://state/view` | M7 |
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
 

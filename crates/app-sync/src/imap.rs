@@ -720,6 +720,24 @@ async fn try_steps(session: &mut ImapSession, steps: &[RemoteStep]) -> Result<()
                 let query = format!("{sign}FLAGS.SILENT ({})", flag.imap());
                 store(session, path, uids, &query).await?;
             }
+            RemoteStep::StoreAll {
+                path,
+                uid_validity,
+                flag,
+                value,
+            } => {
+                select(session, path, *uid_validity).await?;
+                let sign = if *value { '+' } else { '-' };
+                let query = format!("{sign}FLAGS.SILENT ({})", flag.imap());
+                let context = format!("IMAP UID STORE 1:* in {path}");
+                let _: Vec<Fetch> = session
+                    .uid_store("1:*", &query)
+                    .await
+                    .map_err(|err| StepError::imap(context.clone(), &err))?
+                    .try_collect()
+                    .await
+                    .map_err(|err| StepError::imap(context, &err))?;
+            }
             RemoteStep::Move {
                 path,
                 uid_validity,

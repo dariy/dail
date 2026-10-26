@@ -841,6 +841,17 @@ impl Engine {
                 self.focus_mailbox(id, account, ctx.now_ms, receipt)?,
             )),
             Command::ClearFocus {} => Ok(Applied::plain(self.clear_focus(receipt))),
+            Command::SetListFilter {
+                unread,
+                starred,
+                attachments,
+            } => Ok(Applied::plain(self.set_list_filter(
+                unread,
+                starred,
+                attachments,
+                receipt,
+            ))),
+            Command::MarkMailboxRead { id } => self.mark_mailbox_read(id, ctx, receipt),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),
             Command::DiscoverServers { email } => {

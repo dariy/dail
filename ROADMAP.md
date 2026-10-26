@@ -610,7 +610,7 @@ its own wave and ADR.
 - [x] UX-4 [core][front][gui][tui]: focus mode on one mailbox — `focus_mailbox`, `clear_focus`; persisted via UX-1
 - [x] UX-5 [front]: mark as read after a delay (setting `mark_read_after_ms`)
 - [x] UX-6 [core][sync]: automatic periodic sync of all folders, refresh on open (settings)
-- [ ] UX-7 [core][gui][tui]: list toolbar — select all, mark all read, refresh, filters; `mark_mailbox_read`,
+- [x] UX-7 [core][gui][tui]: list toolbar — select all, mark all read, refresh, filters; `mark_mailbox_read`,
   `set_list_filter`
 - [ ] UX-8 [core][front]: pinned and hidden folders — `pin_mailbox`, `hide_mailbox` and their inverses
 - [ ] UX-9 [gui][tui]: sync state per account in the sidebar

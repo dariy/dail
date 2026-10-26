@@ -269,8 +269,26 @@ pub fn by_relevance(state: &AppState, query: &Query, threads: &mut [(&Thread, Ve
 }
 
 /// What the thread list shows: the results of `view.search` if set (nothing if it doesn't
-/// parse), else every inbox's threads if `view.unified`, else the threads of `view.mailbox`.
+/// parse), else every inbox's threads if `view.unified`, else the threads of `view.mailbox`;
+/// only those that pass `view.filter` (`set_list_filter`).
 pub fn visible_threads(state: &AppState) -> Vec<ThreadId> {
+    let mut ids = listed_threads(state);
+    let filter = state.view.filter;
+    if !filter.is_off() {
+        ids.retain(|id| {
+            state.threads.get(id).is_some_and(|thread| {
+                let messages = || thread.messages.iter().filter_map(|m| state.messages.get(m));
+                (!filter.unread || messages().any(|m| !m.flags.seen))
+                    && (!filter.starred || messages().any(|m| m.flags.flagged))
+                    && (!filter.attachments || messages().any(|m| m.has_attachments))
+            })
+        });
+    }
+    ids
+}
+
+/// [`visible_threads`] before the filter.
+fn listed_threads(state: &AppState) -> Vec<ThreadId> {
     if let Some(text) = &state.view.search {
         return Query::parse(text)
             .map(|query| {

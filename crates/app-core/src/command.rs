@@ -342,6 +342,15 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         messages: Vec<MessageId>,
     },
+    /// Mark every message of a mailbox read, including mail on the server that is not cached:
+    /// the cached unread messages are marked as with `mark_read`, and if the server counts more
+    /// unread mail than is cached, one `UID STORE 1:* +FLAGS (\\Seen)` covers the rest. Undo
+    /// restores only the cached messages it changed (`uncached_affected` in the receipt says
+    /// whether others were marked too).
+    MarkMailboxRead {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
     /// Mark threads (every message) or single messages as unread. Give `ids`, `messages` or both.
     /// Applied locally at once and on the server in the background. Undoable.
     MarkUnread {
@@ -625,6 +634,20 @@ pub enum Command {
     FocusPane {
         /// The pane to focus.
         pane: Pane,
+    },
+    /// Filter the thread list (GUI and TUI) by unread, starred and attachments; the given
+    /// fields replace the current ones, the others stay. All `false` shows every thread.
+    /// Saved across restarts. `list_threads` and `search` are not filtered.
+    SetListFilter {
+        /// Only threads with unread mail.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unread: Option<bool>,
+        /// Only starred threads.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        starred: Option<bool>,
+        /// Only threads with attachments.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attachments: Option<bool>,
     },
     /// Focus on one mailbox (and the folders below it) or one account: the sidebar shows only
     /// it, the unified inbox is hidden and new-mail notifications come only from it. Opens the
@@ -980,6 +1003,7 @@ impl Command {
             | Self::HideImagesFrom { .. }
             | Self::SaveAttachments { .. }
             | Self::MarkRead { .. }
+            | Self::MarkMailboxRead { .. }
             | Self::MarkUnread { .. }
             | Self::Star { .. }
             | Self::Unstar { .. }
@@ -1001,6 +1025,7 @@ impl Command {
             | Self::OpenSettings { .. }
             | Self::CloseSettings {}
             | Self::FocusPane { .. }
+            | Self::SetListFilter { .. }
             | Self::FocusMailbox { .. }
             | Self::ClearFocus { .. }
             | Self::CollapseFolders { .. }
@@ -1055,6 +1080,7 @@ impl Command {
             Self::HideImagesFrom { .. } => CommandName::HideImagesFrom,
             Self::SaveAttachments { .. } => CommandName::SaveAttachments,
             Self::MarkRead { .. } => CommandName::MarkRead,
+            Self::MarkMailboxRead { .. } => CommandName::MarkMailboxRead,
             Self::MarkUnread { .. } => CommandName::MarkUnread,
             Self::Star { .. } => CommandName::Star,
             Self::Unstar { .. } => CommandName::Unstar,
@@ -1084,6 +1110,7 @@ impl Command {
             Self::OpenSettings { .. } => CommandName::OpenSettings,
             Self::CloseSettings {} => CommandName::CloseSettings,
             Self::FocusPane { .. } => CommandName::FocusPane,
+            Self::SetListFilter { .. } => CommandName::SetListFilter,
             Self::FocusMailbox { .. } => CommandName::FocusMailbox,
             Self::ClearFocus { .. } => CommandName::ClearFocus,
             Self::CollapseFolders { .. } => CommandName::CollapseFolders,

@@ -24,6 +24,7 @@ mod history;
 mod identities;
 mod images;
 mod keys;
+mod listbar;
 mod mailboxes;
 mod moves;
 mod panes;
