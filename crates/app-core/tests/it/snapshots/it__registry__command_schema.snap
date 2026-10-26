@@ -539,6 +539,11 @@ expression: command_schema()
           "const": "full_sync_secs",
           "description": "Seconds between full sync rounds of the poll, which list every mailbox and fetch each\n(0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are\npolled.",
           "type": "string"
+        },
+        {
+          "const": "after_triage",
+          "description": "What the GUI and the TUI show after the open conversation is archived, trashed or moved:\n0 = the next one (default), 1 = the previous one, 2 = the list.",
+          "type": "string"
         }
       ]
     },

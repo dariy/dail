@@ -36,6 +36,8 @@ fn ctrl_k_opens_the_palette_and_enter_runs_the_best_match() {
                 ids: vec![threads[0]],
                 messages: Vec::new()
             },
+            // UX-12: the next conversation opens.
+            Command::OpenThread { id: threads[1] },
             Command::ClosePalette {},
         ]
     );
@@ -83,6 +85,7 @@ fn move_to_asks_for_the_mailbox_and_escape_steps_back() {
                 messages: Vec::new(),
                 to: archive
             },
+            Command::OpenThread { id: threads[1] },
             Command::ClosePalette {},
         ]
     );

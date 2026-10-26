@@ -616,7 +616,7 @@ its own wave and ADR.
 - [x] UX-9 [gui][tui]: sync state per account in the sidebar
 - [x] UX-10 [gui]: row hover actions and context menu
 - [x] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)
-- [ ] UX-12 [front]: auto-advance after triage (setting)
+- [x] UX-12 [front]: auto-advance after triage (setting)
 - [ ] UX-13 [front][gui]: date group headers and row density
 - [ ] UX-14 [core][io][sync][tk][front][gui][tui]: folder management — `create_folder`, `rename_folder`, `delete_folder`
 

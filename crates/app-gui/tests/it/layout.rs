@@ -123,7 +123,8 @@ fn the_reader_shows_the_thread_and_its_actions_act_on_it() {
     ] {
         h.get(action(label)).click();
         h.run();
-        assert_eq!(h.state_mut().take(), [expected], "{label}");
+        // Archive and Trash are followed by opening a neighbour (UX-12).
+        assert_eq!(h.state_mut().take().first(), Some(&expected), "{label}");
     }
     h.get(By::new().role(Role::Button).label_contains("Reply all"))
         .click();

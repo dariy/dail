@@ -5,6 +5,7 @@
 //! draws, and nothing talks to a session.
 
 pub mod a11y;
+pub mod advance;
 pub mod alerts;
 pub mod approvals;
 pub mod autoread;

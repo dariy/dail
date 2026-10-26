@@ -11,6 +11,7 @@ expression: first
     "messages": {},
     "outbox": {},
     "settings": {
+      "after_triage": 0,
       "background_interval_mins": 30,
       "background_sync": 1,
       "full_sync_secs": 900,
@@ -65,6 +66,7 @@ expression: first
               }
             ],
             "data": {
+              "after_triage": 0,
               "background_interval_mins": 30,
               "background_sync": 1,
               "full_sync_secs": 900,
@@ -100,6 +102,7 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
                     "full_sync_secs": 900,
@@ -181,6 +184,7 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
                     "full_sync_secs": 900,
@@ -250,6 +254,7 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
                     "full_sync_secs": 900,
@@ -343,6 +348,7 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
                     "full_sync_secs": 900,
@@ -400,6 +406,7 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
                     "full_sync_secs": 900,

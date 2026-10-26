@@ -550,7 +550,14 @@ impl Tui {
         for request in &requests {
             self.autoread.note(&request.cmd);
         }
+        // Auto-advance after triage (UX-12).
         requests
+            .into_iter()
+            .flat_map(|request| {
+                let next = app_front::advance::after(state, &request.cmd).map(Request::user);
+                std::iter::once(request).chain(next)
+            })
+            .collect()
     }
 
     fn input_inner(&mut self, input: Input, state: &AppState) -> Vec<Request> {

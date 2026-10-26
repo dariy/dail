@@ -37,6 +37,7 @@ fn ctrl_k_opens_it_and_enter_runs_the_best_match() {
                 ids: vec![threads[0]],
                 messages: Vec::new()
             },
+            Command::OpenThread { id: threads[1] },
             Command::ClosePalette {}
         ]
     );

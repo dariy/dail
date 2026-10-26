@@ -784,6 +784,9 @@ pub enum SettingKey {
     /// (0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are
     /// polled.
     FullSyncSecs,
+    /// What the GUI and the TUI show after the open conversation is archived, trashed or moved:
+    /// 0 = the next one (default), 1 = the previous one, 2 = the list.
+    AfterTriage,
 }
 
 impl SettingKey {
@@ -803,6 +806,7 @@ impl SettingKey {
         Self::MarkReadAfterMs,
         Self::StaleSecs,
         Self::FullSyncSecs,
+        Self::AfterTriage,
     ];
 
     /// The key's `snake_case` name.
@@ -822,6 +826,7 @@ impl SettingKey {
             Self::MarkReadAfterMs => "mark_read_after_ms",
             Self::StaleSecs => "stale_secs",
             Self::FullSyncSecs => "full_sync_secs",
+            Self::AfterTriage => "after_triage",
         }
     }
 
@@ -868,6 +873,7 @@ impl SettingKey {
             Self::BackgroundIntervalMins => (15, 720),
             Self::MarkReadAfterMs => (0, 60_000),
             Self::StaleSecs | Self::FullSyncSecs => (0, 86_400),
+            Self::AfterTriage => (0, 2),
         }
     }
 
@@ -888,6 +894,7 @@ impl SettingKey {
             Self::MarkReadAfterMs => settings.mark_read_after_ms,
             Self::StaleSecs => settings.stale_secs,
             Self::FullSyncSecs => settings.full_sync_secs,
+            Self::AfterTriage => settings.after_triage,
         }
     }
 
@@ -908,6 +915,7 @@ impl SettingKey {
             Self::MarkReadAfterMs => settings.mark_read_after_ms = value,
             Self::StaleSecs => settings.stale_secs = value,
             Self::FullSyncSecs => settings.full_sync_secs = value,
+            Self::AfterTriage => settings.after_triage = value,
         }
     }
 }

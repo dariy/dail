@@ -378,6 +378,9 @@ pub struct Settings {
     /// Seconds between full rounds (every mailbox listed and fetched) of the poll; 0 = off
     /// (only INBOX and the open mailbox are polled; UX-6).
     pub full_sync_secs: u64,
+    /// After the open conversation is triaged: 0 = open the next one, 1 = the previous one,
+    /// 2 = back to the list (UX-12).
+    pub after_triage: u64,
     /// Senders (lower-case addresses) whose messages show their inline images, the `cid:` parts
     /// of the message itself (`show_images_from`). Remote images are never loaded.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -442,6 +445,7 @@ impl Default for Settings {
             mark_read_after_ms: 2_000,
             stale_secs: 60,
             full_sync_secs: 900,
+            after_triage: 0,
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),

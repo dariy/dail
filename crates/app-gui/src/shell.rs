@@ -178,7 +178,18 @@ impl Shell {
         state: &AppState,
         replies: Vec<Reply>,
     ) -> Vec<Request> {
-        let mut queue = self.frame_body(ui, state, replies);
+        let queue = self.frame_body(ui, state, replies);
+        // Auto-advance after triage (UX-12): the neighbour opens right after.
+        let mut queue: Vec<Request> = queue
+            .into_iter()
+            .flat_map(|request| {
+                let next = (request.purpose == Purpose::User)
+                    .then(|| app_front::advance::after(state, &request.cmd))
+                    .flatten()
+                    .map(Request::user);
+                std::iter::once(request).chain(next)
+            })
+            .collect();
         // Mark as read after a delay (UX-5): the user's own, undoable `mark_read`.
         for request in &queue {
             if request.purpose == Purpose::User {
