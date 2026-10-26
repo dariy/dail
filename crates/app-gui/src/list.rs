@@ -90,11 +90,13 @@ pub fn show(
     ui.spacing_mut().item_spacing.y = 0.0;
     let cursor = state.view.selected.last().copied().or(state.view.thread);
     let focused = state.view.focus == Pane::List;
+    // UX-13: date group headers, one row slot each, so the virtualized rows stay uniform.
+    let items = grouped(state, rows, now_ms);
     let mut scroll = egui::ScrollArea::vertical()
         .id_salt("list")
         .auto_shrink([false, false]);
     if cursor != local.scrolled_to
-        && let Some(index) = cursor.and_then(|c| rows.iter().position(|r| *r == c))
+        && let Some(index) = cursor.and_then(|c| items.iter().position(|i| *i == Item::Thread(c)))
     {
         let top = index as f32 * row_height;
         let visible = ui.available_height();
@@ -113,8 +115,15 @@ pub fn show(
         .as_deref()
         .map(app_front::highlight::words)
         .unwrap_or_default();
-    let output = scroll.show_rows(ui, row_height, rows.len(), |ui, range| {
-        for id in &rows[range] {
+    let output = scroll.show_rows(ui, row_height, items.len(), |ui, range| {
+        for item in &items[range] {
+            let id = match item {
+                Item::Group(label) => {
+                    group_header(ui, t, label, row_height);
+                    continue;
+                }
+                Item::Thread(id) => id,
+            };
             if let Some(thread) = state.threads.get(id) {
                 let summary = ThreadSummary::of(state, thread);
                 let selected = state.view.selected.contains(id);
@@ -503,6 +512,48 @@ fn hover_actions(
         }
     }
     picked
+}
+
+/// A slot of the list: a date group's header or a thread.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Item {
+    Group(String),
+    Thread(ThreadId),
+}
+
+/// The rows with a header before each run of threads in the same date group
+/// (`app_front::format::date_group` of the thread's newest message).
+fn grouped(state: &AppState, rows: &[ThreadId], now_ms: i64) -> Vec<Item> {
+    let mut items = Vec::with_capacity(rows.len() + 8);
+    let mut last: Option<String> = None;
+    for id in rows {
+        if let Some(thread) = state.threads.get(id) {
+            let group = format::date_group(thread.last_date_ms, now_ms);
+            if last.as_ref() != Some(&group) {
+                items.push(Item::Group(group.clone()));
+                last = Some(group);
+            }
+        }
+        items.push(Item::Thread(*id));
+    }
+    items
+}
+
+/// A date group's header: its name in small capitals at the bottom of the slot.
+fn group_header(ui: &mut Ui, t: &Tokens, label: &str, height: f32) {
+    let (rect, response) =
+        ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::hover());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Heading, true, label));
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(rect.shrink2(Vec2::new(t.m.space.md, t.m.space.xs)))
+            .layout(Layout::bottom_up(Align::Min)),
+    );
+    child.label(ui::text(
+        &t.type_scale.label_sm,
+        label.to_uppercase(),
+        t.text_muted,
+    ));
 }
 
 /// The rows from `cursor` (or the first row) to `to`, either way round.

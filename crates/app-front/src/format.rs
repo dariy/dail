@@ -37,6 +37,49 @@ pub fn short_date(ms: i64, now_ms: i64) -> String {
     }
 }
 
+const FULL_MONTHS: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+/// The list's date group of a thread dated `ms` (UX-13): `Today`, `Yesterday`, `This week`
+/// (since Monday), `Earlier this month`, else `November 2023`; `Later` for the future. UTC days,
+/// like the dates.
+pub fn date_group(ms: i64, now_ms: i64) -> String {
+    let (day, today) = (ms.div_euclid(DAY_MS), now_ms.div_euclid(DAY_MS));
+    // 1970-01-01 was a Thursday: days since the last Monday.
+    let since_monday = (today + 3).rem_euclid(7);
+    let (year, month, _) = civil_from_days(day);
+    let (this_year, this_month, _) = civil_from_days(today);
+    if day > today {
+        "Later".to_owned()
+    } else if day == today {
+        "Today".to_owned()
+    } else if day == today - 1 {
+        "Yesterday".to_owned()
+    } else if day >= today - since_monday {
+        "This week".to_owned()
+    } else if (year, month) == (this_year, this_month) {
+        "Earlier this month".to_owned()
+    } else {
+        let name = FULL_MONTHS
+            .get(month.saturating_sub(1) as usize)
+            .copied()
+            .unwrap_or("?");
+        format!("{name} {year}")
+    }
+}
+
 /// Full date: `2023-11-14 09:41 UTC`.
 pub fn long_date(ms: i64) -> String {
     let (year, month, d) = civil_from_days(ms.div_euclid(DAY_MS));
@@ -147,5 +190,22 @@ mod tests {
         };
         assert_eq!(name(&a), "a@x");
         assert_eq!(full(&a), "a@x");
+    }
+
+    /// Wednesday 2023-11-15 08:00 UTC.
+    const WED_NOW: i64 = 1_700_035_200_000;
+    const DAY: i64 = 86_400_000;
+
+    #[test]
+    fn date_groups_from_today_back() {
+        let at = |days: i64| date_group(WED_NOW - days * DAY, WED_NOW);
+        assert_eq!(at(0), "Today");
+        assert_eq!(at(1), "Yesterday");
+        assert_eq!(at(2), "This week", "Monday the 13th");
+        assert_eq!(at(3), "Earlier this month", "Sunday the 12th");
+        assert_eq!(at(14), "Earlier this month", "the 1st");
+        assert_eq!(at(15), "October 2023");
+        assert_eq!(at(365), "November 2022");
+        assert_eq!(date_group(WED_NOW + DAY, WED_NOW), "Later");
     }
 }

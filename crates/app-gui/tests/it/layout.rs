@@ -374,3 +374,25 @@ fn a_row_dragged_onto_a_folder_moves_there() {
         }]
     );
 }
+
+#[test]
+fn the_list_groups_rows_by_date() {
+    let state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    let groups = [
+        "Later",
+        "Today",
+        "Yesterday",
+        "This week",
+        "Earlier this month",
+    ];
+    let found = h
+        .query_all(By::new().role(Role::Heading).predicate(move |n| {
+            n.label()
+                .is_some_and(|l| groups.contains(&l.as_str()) || l.contains(" 20"))
+        }))
+        .count();
+    assert!(found >= 1, "no date group header");
+}

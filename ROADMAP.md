@@ -617,7 +617,7 @@ its own wave and ADR.
 - [x] UX-10 [gui]: row hover actions and context menu
 - [x] UX-11 [gui]: drag threads onto sidebar folders (`move_threads`)
 - [x] UX-12 [front]: auto-advance after triage (setting)
-- [ ] UX-13 [front][gui]: date group headers and row density
+- [x] UX-13 [front][gui]: date group headers and row density
 - [ ] UX-14 [core][io][sync][tk][front][gui][tui]: folder management — `create_folder`, `rename_folder`, `delete_folder`
 
 ### M — Mobile and misc (`docs/requests/misc.md`)
