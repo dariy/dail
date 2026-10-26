@@ -1,0 +1,8 @@
+# Folder tree view commands (UX-3). Account seed 1 (..0001-..0); mailboxes seed 2.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.com", "imap": {"host": "imap.example.com", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.com", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Work", "delimiter": "/", "selectable": true}, {"path": "Work/Acme", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "collapse_folders", "args": {"keys": [{"account": "00000000-0000-0001-0000-000000000000", "path": "Work"}]}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "collapse_folders", "args": {"keys": [{"account": "00000000-0000-0001-0000-000000000000", "path": "Wor"}]}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "collapse_folders", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "expand_folders", "args": {"keys": [{"account": "00000000-0000-0001-0000-000000000000"}]}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "expand_folders", "args": {}}}}

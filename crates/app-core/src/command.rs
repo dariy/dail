@@ -7,6 +7,7 @@ use crate::account::{Endpoint, ProviderPreset, Secret};
 use crate::draft::Draft;
 use crate::error::CoreError;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::registry::{CommandName, CommandSpec};
 use crate::search::SearchOrder;
@@ -625,6 +626,23 @@ pub enum Command {
         /// The pane to focus.
         pane: Pane,
     },
+    /// Collapse folders in the sidebar's folder tree, so that the folders below them are
+    /// hidden; a collapsed account hides all its folders. Idempotent, unlike a toggle: repeating
+    /// it changes nothing. Saved across restarts.
+    CollapseFolders {
+        /// The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the
+        /// whole account); empty means every account and every folder with folders below it.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        keys: Vec<FolderKey>,
+    },
+    /// Expand folders in the sidebar's folder tree, so that the folders below them show again
+    /// (see `collapse_folders`). Repeating it changes nothing.
+    ExpandFolders {
+        /// The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the
+        /// whole account); empty means every folder and account.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        keys: Vec<FolderKey>,
+    },
     /// Collapse the GUI mailbox sidebar, or expand it again.
     ToggleSidebar {},
     /// Compact the local store: give unused database space back and delete downloaded message
@@ -916,6 +934,8 @@ impl Command {
             | Self::OpenSettings { .. }
             | Self::CloseSettings {}
             | Self::FocusPane { .. }
+            | Self::CollapseFolders { .. }
+            | Self::ExpandFolders { .. }
             | Self::ToggleSidebar {}
             | Self::GetView {}
             | Self::CompactStore {}
@@ -995,6 +1015,8 @@ impl Command {
             Self::OpenSettings { .. } => CommandName::OpenSettings,
             Self::CloseSettings {} => CommandName::CloseSettings,
             Self::FocusPane { .. } => CommandName::FocusPane,
+            Self::CollapseFolders { .. } => CommandName::CollapseFolders,
+            Self::ExpandFolders { .. } => CommandName::ExpandFolders,
             Self::ToggleSidebar {} => CommandName::ToggleSidebar,
             Self::GetView {} => CommandName::GetView,
             Self::CompactStore {} => CommandName::CompactStore,

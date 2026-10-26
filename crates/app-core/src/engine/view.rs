@@ -6,6 +6,7 @@
 
 use crate::error::CoreError;
 use crate::ids::{DraftId, MailboxId, MessageId, ThreadId};
+use crate::mailbox::FolderKey;
 use crate::message::BodyState;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::Pane;
@@ -250,6 +251,77 @@ impl Engine {
                 .affecting(EntityRef::View)
                 .with_data(serde_json::json!({ "focus": pane })),
         ))
+    }
+
+    /// `collapse_folders` / `expand_folders`: adds the keys to `view.collapsed` or takes them
+    /// out. Without keys, every account and every folder with folders below it / all of them.
+    pub(super) fn set_collapsed(
+        &mut self,
+        keys: Vec<FolderKey>,
+        collapse: bool,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        for key in &keys {
+            if !self.state.accounts.contains_key(&key.account) {
+                return Err(not_found("account", key.account));
+            }
+            let known = key.path.is_empty()
+                || self.state.mailboxes.values().any(|m| {
+                    m.account == key.account
+                        && (m.path == key.path
+                            || m.path
+                                .strip_prefix(key.path.as_str())
+                                .is_some_and(|rest| rest.starts_with(m.separator())))
+                });
+            if !known {
+                return Err(invalid(
+                    "keys",
+                    format!("account {} has no folder {:?}", key.account, key.path),
+                ));
+            }
+        }
+        let keys: Vec<FolderKey> = if keys.is_empty() && collapse {
+            let mut all: Vec<FolderKey> = self
+                .state
+                .accounts
+                .keys()
+                .map(|account| FolderKey {
+                    account: *account,
+                    path: String::new(),
+                })
+                .collect();
+            for mailbox in self.state.mailboxes.values() {
+                let mut path = mailbox.parent_path();
+                while let Some(parent) = path {
+                    all.push(FolderKey {
+                        account: mailbox.account,
+                        path: parent.to_owned(),
+                    });
+                    path = parent
+                        .rsplit_once(mailbox.separator())
+                        .map(|(above, _)| above)
+                        .filter(|above| !above.is_empty());
+                }
+            }
+            all
+        } else if keys.is_empty() {
+            self.state.view.collapsed.iter().cloned().collect()
+        } else {
+            keys
+        };
+        let collapsed = &mut self.state.view.collapsed;
+        let mut changed = 0_usize;
+        for key in keys {
+            let did = if collapse {
+                collapsed.insert(key)
+            } else {
+                collapsed.remove(&key)
+            };
+            changed += usize::from(did);
+        }
+        Ok(Outcome::new(receipt.affecting(EntityRef::View).with_data(
+            serde_json::json!({ "changed": changed, "collapsed": collapsed.len() }),
+        )))
     }
 
     pub(super) fn toggle_sidebar(&mut self, receipt: CommandReceipt) -> Outcome {

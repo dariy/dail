@@ -19,6 +19,7 @@ mod engine;
 mod envelopes;
 mod expanded;
 mod flags;
+mod folders;
 mod history;
 mod identities;
 mod images;

@@ -175,7 +175,8 @@ fn view_commands_that_change_preferences_save_them() {
     assert_eq!(
         saved(&outcome),
         [ViewPrefs {
-            sidebar_collapsed: true
+            sidebar_collapsed: true,
+            ..ViewPrefs::default()
         }]
     );
     let outcome = m

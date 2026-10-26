@@ -12,7 +12,7 @@ use crate::account::Account;
 use crate::approval::ApprovalRequest;
 use crate::draft::Draft;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
-use crate::mailbox::Mailbox;
+use crate::mailbox::{FolderKey, Mailbox};
 use crate::message::{Envelope, Thread};
 use crate::ops::PendingOp;
 
@@ -111,6 +111,10 @@ pub struct ViewState {
     pub focus: Pane,
     /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
     pub sidebar_collapsed: bool,
+    /// Folders of the sidebar's tree whose children are hidden, and accounts (empty `path`)
+    /// whose folders are (`collapse_folders`, `expand_folders`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub collapsed: BTreeSet<FolderKey>,
     /// The settings page and its open section (`open_settings`), shown in place of the list
     /// and the reader.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -176,6 +180,9 @@ pub struct ViewPrefs {
     /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub sidebar_collapsed: bool,
+    /// Collapsed folders and accounts (`collapse_folders`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub collapsed: BTreeSet<FolderKey>,
 }
 
 impl ViewPrefs {
@@ -190,12 +197,14 @@ impl ViewState {
     pub fn prefs(&self) -> ViewPrefs {
         ViewPrefs {
             sidebar_collapsed: self.sidebar_collapsed,
+            collapsed: self.collapsed.clone(),
         }
     }
 
     /// Restores saved preferences.
     pub fn apply_prefs(&mut self, prefs: &ViewPrefs) {
         self.sidebar_collapsed = prefs.sidebar_collapsed;
+        self.collapsed = prefs.collapsed.clone();
     }
 }
 

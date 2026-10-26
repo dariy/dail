@@ -1,0 +1,501 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0001-0000-000000000000": {
+        "display_name": "me@example.com",
+        "email": "me@example.com",
+        "id": "00000000-0000-0001-0000-000000000000",
+        "imap": {
+          "host": "imap.example.com",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "custom",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0001-0000-000000000000"
+        },
+        "smtp": {
+          "host": "smtp.example.com",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {
+      "00000000-0000-0002-0000-000000000000": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0002-0000-000000000000",
+        "path": "INBOX",
+        "role": "inbox",
+        "total": 0,
+        "uid_next": null,
+        "uid_validity": null,
+        "unread": 0
+      },
+      "00000000-0000-0002-0000-000000000001": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0002-0000-000000000001",
+        "path": "Work",
+        "role": null,
+        "total": 0,
+        "uid_next": null,
+        "uid_validity": null,
+        "unread": 0
+      },
+      "00000000-0000-0002-0000-000000000002": {
+        "account": "00000000-0000-0001-0000-000000000000",
+        "delimiter": "/",
+        "id": "00000000-0000-0002-0000-000000000002",
+        "path": "Work/Acme",
+        "role": null,
+        "total": 0,
+        "uid_next": null,
+        "uid_validity": null,
+        "unread": 0
+      }
+    },
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "background_interval_mins": 30,
+      "background_sync": 1,
+      "history_cap": 200,
+      "initial_window": 500,
+      "list_density": 0,
+      "notifications": 1,
+      "poll_secs": 120,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {
+        "00000000-0000-0001-0000-000000000000": {
+          "last_error": null,
+          "last_sync_ms": null,
+          "pending": 2
+        }
+      }
+    },
+    "threads": {},
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.com",
+                    "email": "me@example.com",
+                    "id": "00000000-0000-0001-0000-000000000000",
+                    "imap": {
+                      "host": "imap.example.com",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0001-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "smtp.example.com",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@example.com",
+              "email": "me@example.com",
+              "id": "00000000-0000-0001-0000-000000000000",
+              "imap": {
+                "host": "imap.example.com",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "custom",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0001-0000-000000000000"
+              },
+              "smtp": {
+                "host": "smtp.example.com",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@example.com"
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000001",
+                        "path": "Work",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000002",
+                        "path": "Work/Acme",
+                        "role": null,
+                        "total": 0,
+                        "uid_next": null,
+                        "uid_validity": null,
+                        "unread": 0
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0002-0000-000000000000",
+                "path": "INBOX"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0002-0000-000000000001",
+                "path": "Work"
+              },
+              "effect": "fetch_envelopes"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.example.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "limit": 500,
+                "mailbox": "00000000-0000-0002-0000-000000000002",
+                "path": "Work/Acme"
+              },
+              "effect": "fetch_envelopes"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0001-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000000"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000001"
+              },
+              {
+                "entity": "mailbox",
+                "id": "00000000-0000-0002-0000-000000000002"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0001-0000-000000000000",
+              "added_or_changed": 3,
+              "mailboxes": 3,
+              "removed": 0
+            },
+            "kind": null,
+            "name": "mailboxes_listed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "collapsed": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "changed": 1,
+              "collapsed": 1
+            },
+            "kind": "view",
+            "name": "collapse_folders",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "err": {
+          "error": "invalid_argument",
+          "field": "keys",
+          "reason": "account 00000000-0000-0001-0000-000000000000 has no folder \"Wor\""
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "collapsed": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": ""
+                      },
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "changed": 1,
+              "collapsed": 2
+            },
+            "kind": "view",
+            "name": "collapse_folders",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "collapsed": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "path": "Work"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "changed": 1,
+              "collapsed": 1
+            },
+            "kind": "view",
+            "name": "expand_folders",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {}
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "view"
+              }
+            ],
+            "data": {
+              "changed": 1,
+              "collapsed": 0
+            },
+            "kind": "view",
+            "name": "expand_folders",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

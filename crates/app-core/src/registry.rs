@@ -12,6 +12,7 @@ use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
 
@@ -214,6 +215,10 @@ pub enum CommandName {
     CloseComposer,
     /// See [`Command::FocusPane`].
     FocusPane,
+    /// See [`Command::CollapseFolders`].
+    CollapseFolders,
+    /// See [`Command::ExpandFolders`].
+    ExpandFolders,
     /// See [`Command::ToggleSidebar`].
     ToggleSidebar,
     /// See [`Command::GetView`].
@@ -369,6 +374,8 @@ impl CommandName {
         Self::OpenComposer,
         Self::CloseComposer,
         Self::FocusPane,
+        Self::CollapseFolders,
+        Self::ExpandFolders,
         Self::ToggleSidebar,
         Self::GetView,
         Self::CompactStore,
@@ -447,6 +454,8 @@ impl CommandName {
             Self::OpenComposer => "open_composer",
             Self::CloseComposer => "close_composer",
             Self::FocusPane => "focus_pane",
+            Self::CollapseFolders => "collapse_folders",
+            Self::ExpandFolders => "expand_folders",
             Self::ToggleSidebar => "toggle_sidebar",
             Self::GetView => "get_view",
             Self::CompactStore => "compact_store",
@@ -537,6 +546,8 @@ impl CommandName {
             | Self::OpenComposer
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::CollapseFolders
+            | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
             Self::RemoveAccount => CommandKind::Destructive,
         }
@@ -618,6 +629,8 @@ impl CommandName {
             | Self::CloseSettings
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::CollapseFolders
+            | Self::ExpandFolders
             | Self::ToggleSidebar
             | Self::GetView
             | Self::CompactStore
@@ -905,6 +918,14 @@ impl CommandName {
                 available: |state| state.view.composer.is_some(),
                 ..base("Close composer", Category::Compose, &["Escape"])
             },
+            Self::ExpandFolders => CommandSpec {
+                available: has_mailboxes,
+                ..base("Expand folders", Category::Navigation, &["ArrowRight"])
+            },
+            Self::CollapseFolders => CommandSpec {
+                available: has_mailboxes,
+                ..base("Collapse folders", Category::Navigation, &["ArrowLeft"])
+            },
             Self::FocusPane => base("Focus pane", Category::Navigation, &["Tab", "Shift+Tab"]),
             Self::ToggleSidebar => base("Toggle sidebar", Category::Navigation, &["Ctrl+B", "["]),
             Self::GetView => base("Show view state", Category::Navigation, &[]),
@@ -1135,6 +1156,13 @@ impl CommandName {
                 section: Some(crate::state::SettingsSection::Keys),
             },
             Self::CloseSettings => Command::CloseSettings {},
+            Self::ExpandFolders => Command::ExpandFolders { keys: Vec::new() },
+            Self::CollapseFolders => Command::CollapseFolders {
+                keys: vec![FolderKey {
+                    account: EXAMPLE_ACCOUNT,
+                    path: "Work".to_owned(),
+                }],
+            },
             Self::FocusPane => Command::FocusPane { pane: Pane::Reader },
             Self::ToggleSidebar => Command::ToggleSidebar {},
             Self::GetView => Command::GetView {},

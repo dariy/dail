@@ -90,28 +90,54 @@ pub fn header(state: &AppState, one_pane: Option<Slot>) -> Line<'static> {
 }
 
 /// The accounts and their folder trees (UX-2), each line with the mailbox it shows (for taps):
-/// two spaces per level, `▾` on a parent, the open one marked `›` and reversed.
+/// two spaces per level, `▾` on an expanded parent and `▸` on a collapsed one (with the
+/// unread mail it hides, `+n`), the open one marked `›` and reversed.
 pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::MailboxId>)> {
     let mut lines = Vec::new();
     for account in state.accounts.values() {
-        let name = Line::from(Span::styled(clean(&account.display_name), bold()));
+        let folded = app_front::mailbox::account_collapsed(state, account.id);
+        let marker = if folded { "▸ " } else { "" };
+        let name = Line::from(vec![
+            Span::raw(marker),
+            Span::styled(clean(&account.display_name), bold()),
+        ]);
         lines.push((name, None));
         let nodes = app_front::mailbox::tree(state, account.id);
-        for node in app_front::mailbox::rows(&nodes, &|_| false) {
+        let shown = app_front::mailbox::visible_rows(state, account.id, &nodes);
+        let open_hidden = folded
+            .then(|| {
+                app_front::mailbox::rows(&nodes, &|_| false)
+                    .into_iter()
+                    .find(|n| n.mailbox.is_some() && n.mailbox == state.view.mailbox)
+            })
+            .flatten();
+        // The open mailbox is never hidden: a collapsed account still shows it.
+        for node in shown.into_iter().chain(open_hidden) {
             let open = node.mailbox.is_some()
                 && state.view.mailbox == node.mailbox
                 && state.view.search.is_none();
+            let collapsed = state.view.collapsed.contains(&node.key);
+            let fold = match (node.is_parent(), collapsed) {
+                (false, _) => "",
+                (true, false) => "▾ ",
+                (true, true) => "▸ ",
+            };
+            let label = if node.mailbox.is_none() {
+                Span::styled(clean(&node.label), dim())
+            } else {
+                Span::raw(clean(&node.label))
+            };
             let mut spans = vec![
                 Span::raw(if open { "› " } else { "  " }),
                 Span::raw("  ".repeat(node.depth)),
-                Span::raw(if node.is_parent() { "▾ " } else { "" }),
-                Span::raw(clean(&node.label)),
+                Span::raw(fold),
+                label,
             ];
-            if node.mailbox.is_none() {
-                spans[3] = Span::styled(clean(&node.label), dim());
-            }
             if node.unread > 0 {
                 spans.push(Span::styled(format!(" {}", node.unread), bold()));
+            }
+            if collapsed && node.unread_below > 0 {
+                spans.push(Span::styled(format!(" +{}", node.unread_below), dim()));
             }
             let line = Line::from(spans);
             let line = if open { line.style(reverse()) } else { line };

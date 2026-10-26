@@ -810,6 +810,12 @@ impl Engine {
                 )))
             }
             Command::FocusPane { pane } => self.focus_pane(pane, receipt).map(Applied::plain),
+            Command::CollapseFolders { keys } => {
+                Ok(Applied::plain(self.set_collapsed(keys, true, receipt)?))
+            }
+            Command::ExpandFolders { keys } => {
+                Ok(Applied::plain(self.set_collapsed(keys, false, receipt)?))
+            }
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),
             Command::DiscoverServers { email } => {

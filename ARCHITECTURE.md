@@ -247,7 +247,9 @@ sidebar keys. Role folders come first, flat, in role order; the others nest by `
 case-insensitively. A parent that is not cached (`\Noselect`, never listed) is a node without a mailbox (it can't be
 opened); since role folders never become such parents, Gmail's `[Gmail]` vanishes by itself. The inbox's children go to
 the top level (servers such as Dovecot put every folder below `INBOX.`); the other role folders keep theirs.
-`unread_below` sums the folders below. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
+`unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
+the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
 `list_mailboxes`.
 
 Mailbox roles come from `mailbox::assign_roles`: `INBOX` is always the inbox, then the SPECIAL-USE attribute, then the
@@ -689,7 +691,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `ProfileDirs` (app-io) resolves the layout above: `ProfileDirs::named("default")` uses `ProjectDirs::from("", "", "dail")`,
   `ProfileDirs::at(dir)` takes an explicit root; `ensure()` creates it with mode 0700 on Unix.
 - `config.toml` (`app_io::Config`): `[settings]` (missing keys take defaults, values range-checked; `images_from` lists the
-  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`; only
+  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`; only
   written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
   and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
@@ -1092,7 +1094,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   `base` on the header and status lines. Light mode (`theme` 1) takes `theme_light`, anything else `theme_dark`.
   `NO_COLOR` (set and not empty) still wins.
 - **Mailboxes and list.** The mailboxes pane lists each account (bold) and its folder tree (`app_front::mailbox::tree`:
-  role names, two spaces per level, `▾` on a parent, parents that can't be opened dimmed, unread counts), the open one
+  role names, two spaces per level, `▾` on an expanded parent, `▸` on a collapsed one or account (with `+n` unread hidden), parents that can't be opened dimmed, unread counts), the open one
   marked `›` and reversed. The thread list is `listing::visible_threads` with rows
   from `ThreadSummary`: a cursor gutter `›`, unread `●`, starred `★`, attachment `@`, sender, subject and date
   (`app_front::format::short_date`); unread rows bold. The cursor is `view.selected` (else the open thread), as in the
@@ -1644,8 +1646,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
 | `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
+| `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `not_found` for an unknown account, `invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_pane` / `toggle_sidebar` | View | `pane: sidebar\|list\|reader\|composer` / — (`reader` needs an open thread, `composer` an open draft, else `invalid_argument`; focusing the sidebar expands it. After every command and event the engine moves the focus off a pane that is no longer shown: to the composer, the reader or the list) | M6 |
-| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed`); also the MCP resource `dail://state/view` | M7 |
+| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?`); also the MCP resource `dail://state/view` | M7 |
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
 

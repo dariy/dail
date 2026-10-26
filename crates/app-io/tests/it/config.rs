@@ -196,6 +196,7 @@ fn view_preferences_are_saved_in_a_view_table() {
 
     let prefs = ViewPrefs {
         sidebar_collapsed: true,
+        ..ViewPrefs::default()
     };
     store.apply(&PersistDelta::View(prefs.clone())).unwrap();
     let text = std::fs::read_to_string(&path).unwrap();

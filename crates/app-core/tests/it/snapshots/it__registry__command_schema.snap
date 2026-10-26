@@ -306,6 +306,24 @@ expression: command_schema()
       ],
       "type": "object"
     },
+    "FolderKey": {
+      "description": "A node of an account's folder tree: a mailbox, or a parent folder that is not cached\n(`\\Noselect`). An empty `path` stands for the whole account.",
+      "properties": {
+        "account": {
+          "$ref": "#/$defs/AccountId",
+          "description": "The account."
+        },
+        "path": {
+          "default": "",
+          "description": "The folder's full path; empty for the account itself.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account"
+      ],
+      "type": "object"
+    },
     "KeyPreset": {
       "description": "A set of key bindings.",
       "oneOf": [
@@ -2639,6 +2657,58 @@ expression: command_schema()
         },
         "cmd": {
           "const": "focus_pane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Collapse folders in the sidebar's folder tree, so that the folders below them are\nhidden; a collapsed account hides all its folders. Idempotent, unlike a toggle: repeating\nit changes nothing. Saved across restarts.",
+      "properties": {
+        "args": {
+          "properties": {
+            "keys": {
+              "description": "The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the\nwhole account); empty means every account and every folder with folders below it.",
+              "items": {
+                "$ref": "#/$defs/FolderKey"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "collapse_folders",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Expand folders in the sidebar's folder tree, so that the folders below them show again\n(see `collapse_folders`). Repeating it changes nothing.",
+      "properties": {
+        "args": {
+          "properties": {
+            "keys": {
+              "description": "The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the\nwhole account); empty means every folder and account.",
+              "items": {
+                "$ref": "#/$defs/FolderKey"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "expand_folders",
           "type": "string"
         }
       },

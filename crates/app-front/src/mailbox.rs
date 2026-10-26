@@ -212,3 +212,28 @@ pub fn rows<'a>(
     walk(nodes, collapsed, &mut out);
     out
 }
+
+/// The sidebar rows of `account` as `view.collapsed` leaves them: none if the account is
+/// collapsed, else the tree without the children of collapsed folders.
+pub fn visible_rows<'a>(
+    state: &AppState,
+    account: AccountId,
+    nodes: &'a [FolderNode],
+) -> Vec<&'a FolderNode> {
+    let collapsed = &state.view.collapsed;
+    if collapsed.contains(&FolderKey {
+        account,
+        path: String::new(),
+    }) {
+        return Vec::new();
+    }
+    rows(nodes, &|key| collapsed.contains(key))
+}
+
+/// Whether the account's folders are collapsed (`collapse_folders` with an empty path).
+pub fn account_collapsed(state: &AppState, account: AccountId) -> bool {
+    state.view.collapsed.contains(&FolderKey {
+        account,
+        path: String::new(),
+    })
+}

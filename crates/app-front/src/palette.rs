@@ -818,6 +818,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::ToggleSidebar => Flow::Run(Command::ToggleSidebar {}),
+        CommandName::CollapseFolders => Flow::Run(Command::CollapseFolders { keys: Vec::new() }),
+        CommandName::ExpandFolders => Flow::Run(Command::ExpandFolders { keys: Vec::new() }),
         CommandName::GetView => Flow::Run(Command::GetView {}),
         CommandName::CompactStore => Flow::Run(Command::CompactStore {}),
         CommandName::ListApprovals => Flow::Run(Command::ListApprovals {}),

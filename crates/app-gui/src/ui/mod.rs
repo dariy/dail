@@ -439,6 +439,8 @@ pub enum Trailing {
     Count(u32),
     /// A key hint.
     Keys(String),
+    /// The unread mail of the folders a collapsed row hides, faint.
+    Faint(u32),
 }
 
 /// One sidebar row.
@@ -517,6 +519,11 @@ pub fn nav_row(ui: &mut Ui, t: &Tokens, nav: &Nav<'_>) -> Response {
         Trailing::Keys(keys) => {
             child.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                 ui.label(text(&t.type_scale.label_sm, keys.as_str(), t.text_muted));
+            });
+        }
+        Trailing::Faint(n) => {
+            child.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+                ui.label(text(&t.type_scale.label_sm, n.to_string(), t.text_muted));
             });
         }
     }
