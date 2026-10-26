@@ -317,3 +317,59 @@ fn the_cursor_row_offers_its_actions_by_name() {
     );
     h.get(By::new().role(Role::Button).label("Trash conversation"));
 }
+
+#[test]
+fn a_row_dragged_onto_a_folder_moves_there() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let archive = state
+        .mailboxes
+        .values()
+        .find(|m| m.role == Some(MailboxRole::Archive))
+        .unwrap()
+        .id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    h.state_mut().out.clear();
+    let from = h.get_by_label("Lunch?").rect().center();
+    let to = h
+        .get(By::new().role(Role::Button).label("Archive"))
+        .rect()
+        .center();
+    let pointer = |h: &mut egui_kittest::Harness<'_, _>, event: egui::Event| {
+        h.input_mut().events.push(event);
+        h.step();
+    };
+    pointer(&mut h, egui::Event::PointerMoved(from));
+    pointer(
+        &mut h,
+        egui::Event::PointerButton {
+            pos: from,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        },
+    );
+    for step in 1..=8 {
+        let at = from + (to - from) * (step as f32 / 8.0);
+        pointer(&mut h, egui::Event::PointerMoved(at));
+    }
+    pointer(
+        &mut h,
+        egui::Event::PointerButton {
+            pos: to,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::NONE,
+        },
+    );
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::MoveThreads {
+            ids: vec![threads[0]],
+            messages: Vec::new(),
+            to: archive,
+        }]
+    );
+}

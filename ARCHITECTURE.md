@@ -980,7 +980,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
   unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
   `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
-  palette's target step, `palette::move_to` — and *Focus this mailbox*), the toolbar under it (UX-7: tri-state *Select all*
+  palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
+  if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
+  `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
   *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,

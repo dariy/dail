@@ -138,6 +138,7 @@ pub fn show(
                         .view
                         .mailbox
                         .filter(|_| state.view.search.is_none() && !state.view.unified),
+                    checked_ids: &state.view.checked,
                 };
                 match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
@@ -526,6 +527,18 @@ struct RowLook<'a> {
     snippet: Option<&'a str>,
     /// The mailbox the list shows, for *Focus this mailbox*.
     mailbox: Option<app_core::MailboxId>,
+    /// Every checked thread, dragged together.
+    checked_ids: &'a [ThreadId],
+}
+
+/// The threads a list row drag carries (UX-11): the sidebar's folders of the same account
+/// take them with `move_threads`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Dragged {
+    /// Their account (a move stays within one).
+    pub account: app_core::AccountId,
+    /// The threads.
+    pub ids: Vec<ThreadId>,
 }
 
 fn row(
@@ -539,8 +552,18 @@ fn row(
     let (selected, open, cursor) = (look.selected, look.open, look.cursor);
     let (rect, response) = ui.allocate_exact_size(
         Vec2::new(ui.available_width(), density.height(t)),
-        Sense::click(),
+        Sense::click_and_drag(),
     );
+    // UX-11: dragged onto a sidebar folder, the row moves there (with the other checked rows
+    // if it is checked).
+    response.dnd_set_drag_payload(Dragged {
+        account: summary.thread.account,
+        ids: if look.checked {
+            look.checked_ids.to_vec()
+        } else {
+            vec![summary.thread.id]
+        },
+    });
     let name = a11y::thread_row(summary, look.checked, now_ms);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)

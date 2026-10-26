@@ -274,10 +274,10 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                                 let keys = (Some(account.id) == current)
                                     .then(|| role_keys(state, mailbox.role))
                                     .flatten();
-                                if mailbox_row(ui, t, state, mailbox, node, keys, focused) {
-                                    queue.push(Request::user(Command::OpenMailbox {
-                                        id: mailbox.id,
-                                    }));
+                                if let Some(cmd) =
+                                    mailbox_row(ui, t, state, mailbox, node, keys, focused)
+                                {
+                                    queue.push(Request::user(cmd));
                                 }
                             }
                             // A parent folder that can't be opened: a click folds it.
@@ -470,7 +470,7 @@ fn mailbox_row(
     node: &FolderNode,
     keys: Option<String>,
     focused: bool,
-) -> bool {
+) -> Option<Command> {
     let hidden = if state.view.collapsed.contains(&node.key) {
         node.unread_below
     } else {
@@ -486,6 +486,29 @@ fn mailbox_row(
             && !state.view.unified,
     };
     let response = row.show_with(ui, t, focused, hidden);
+    // UX-11: threads dragged from the list move here (same account only).
+    if let Some(dragged) = response.dnd_hover_payload::<crate::list::Dragged>()
+        && dragged.account == mailbox.account
+    {
+        ui.painter().rect_stroke(
+            response.rect,
+            ui::radius(t.m.radius.md),
+            egui::Stroke::new(t.m.stroke.focus, t.focus),
+            egui::StrokeKind::Inside,
+        );
+    }
+    let mut out = response
+        .clicked()
+        .then_some(Command::OpenMailbox { id: mailbox.id });
+    if let Some(dragged) = response.dnd_release_payload::<crate::list::Dragged>()
+        && dragged.account == mailbox.account
+    {
+        out = Some(Command::MoveThreads {
+            ids: dragged.ids.clone(),
+            messages: Vec::new(),
+            to: mailbox.id,
+        });
+    }
     let backfilling = state.status.backfilling.contains(&mailbox.id);
     if backfilling && let Some(history) = listing::history(state, mailbox.id) {
         // Older mail is being fetched in the background: how far it got.
@@ -509,7 +532,7 @@ fn mailbox_row(
                 history.cached, history.wanted
             ));
     }
-    response.clicked()
+    out
 }
 
 /// Renders the collapsed rail: expand, compose, the role mailboxes of the current account and
