@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 4,
+            "action": 3,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 5,
+            "action": 4,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 6,
+            "action": 5,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 7,
+            "action": 6,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -44,9 +44,17 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 8,
+        "action": 7,
         "icon": "settings",
         "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "About",
+        "action": 8,
+        "icon": "info",
+        "label": "About",
         "selected": false,
         "unread": 0
       },
@@ -193,6 +201,7 @@
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
@@ -372,10 +381,6 @@
         "action": 2,
         "icon": "search",
         "label": "Search or run a command"
-      },
-      {
-        "action": 3,
-        "label": "About"
       }
     ],
     "navigation": {

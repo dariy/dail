@@ -24,10 +24,6 @@ expression: phone.frame()
         "icon": "search",
         "label": "Search or run a command",
         "action": 2
-      },
-      {
-        "label": "About",
-        "action": 3
       }
     ]
   },
@@ -41,10 +37,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 4,
-        "long_press": 5,
-        "swipe_start": 6,
-        "swipe_end": 7,
+        "action": 3,
+        "long_press": 4,
+        "swipe_start": 5,
+        "swipe_end": 6,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -59,10 +55,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 8,
-        "long_press": 9,
-        "swipe_start": 10,
-        "swipe_end": 11,
+        "action": 7,
+        "long_press": 8,
+        "swipe_start": 9,
+        "swipe_end": 10,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -84,38 +80,38 @@ expression: phone.frame()
       {
         "icon": "archive",
         "label": "Archive",
-        "action": 12
+        "action": 11
       },
       {
         "icon": "delete",
         "label": "Trash",
-        "action": 13
+        "action": 12
       },
       {
         "icon": "star",
         "label": "Star",
-        "action": 14
+        "action": 13
       },
       {
         "icon": "mark_email_read",
         "label": "Mark read",
-        "action": 15
+        "action": 14
       },
       {
         "icon": "drive_file_move",
         "label": "Move…",
-        "action": 16
+        "action": 15
       },
       {
         "icon": "reply",
         "label": "Reply",
-        "action": 17
+        "action": 16
       }
     ],
     "next": {
       "icon": "expand_more",
       "label": "Next conversation",
-      "action": 18
+      "action": 17
     },
     "position": "1 of 2",
     "messages": [
@@ -125,7 +121,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 19,
+        "toggle": 18,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -136,7 +132,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 20
+    "action": 19
   },
   "theme": {
     "id": "dail-light",
@@ -355,6 +351,7 @@ expression: phone.frame()
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",

@@ -14,15 +14,15 @@
           {
             "actions": [
               {
-                "action": 8,
+                "action": 7,
                 "label": "Test"
               },
               {
-                "action": 9,
+                "action": 8,
                 "label": "Password"
               },
               {
-                "action": 10,
+                "action": 9,
                 "label": "Remove"
               }
             ],
@@ -34,7 +34,7 @@
           {
             "actions": [
               {
-                "action": 11,
+                "action": 10,
                 "label": "Add an account"
               }
             ],
@@ -50,22 +50,22 @@
     "section": "accounts",
     "tabs": [
       {
-        "action": 4,
+        "action": 3,
         "label": "Appearance",
         "selected": false
       },
       {
-        "action": 5,
+        "action": 4,
         "label": "Keyboard",
         "selected": false
       },
       {
-        "action": 6,
+        "action": 5,
         "label": "General",
         "selected": false
       },
       {
-        "action": 7,
+        "action": 6,
         "label": "Accounts",
         "selected": true
       }
@@ -144,6 +144,7 @@
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
@@ -323,10 +324,6 @@
         "action": 2,
         "icon": "search",
         "label": "Search or run a command"
-      },
-      {
-        "action": 3,
-        "label": "About"
       }
     ],
     "navigation": {

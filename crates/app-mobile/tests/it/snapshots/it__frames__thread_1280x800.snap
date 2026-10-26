@@ -20,10 +20,6 @@ expression: phone.frame()
         "icon": "search",
         "label": "Search or run a command",
         "action": 1
-      },
-      {
-        "label": "About",
-        "action": 2
       }
     ]
   },
@@ -40,7 +36,7 @@ expression: phone.frame()
             "icon": "inbox",
             "unread": 1,
             "selected": true,
-            "action": 3,
+            "action": 2,
             "a11y": "Inbox, 1 unread"
           },
           {
@@ -48,7 +44,7 @@ expression: phone.frame()
             "icon": "send",
             "unread": 0,
             "selected": false,
-            "action": 4,
+            "action": 3,
             "a11y": "Sent"
           },
           {
@@ -56,7 +52,7 @@ expression: phone.frame()
             "icon": "draft",
             "unread": 0,
             "selected": false,
-            "action": 5,
+            "action": 4,
             "a11y": "Drafts"
           },
           {
@@ -64,7 +60,7 @@ expression: phone.frame()
             "icon": "archive",
             "unread": 0,
             "selected": false,
-            "action": 6,
+            "action": 5,
             "a11y": "Archive"
           }
         ]
@@ -76,8 +72,16 @@ expression: phone.frame()
         "icon": "settings",
         "unread": 0,
         "selected": false,
-        "action": 7,
+        "action": 6,
         "a11y": "Settings"
+      },
+      {
+        "label": "About",
+        "icon": "info",
+        "unread": 0,
+        "selected": false,
+        "action": 7,
+        "a11y": "About"
       },
       {
         "label": "Add account",
@@ -413,6 +417,7 @@ expression: phone.frame()
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",

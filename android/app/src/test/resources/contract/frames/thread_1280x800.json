@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 20,
+            "action": 19,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 21,
+            "action": 20,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 22,
+            "action": 21,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 23,
+            "action": 22,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -44,9 +44,17 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 24,
+        "action": 23,
         "icon": "settings",
         "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "About",
+        "action": 24,
+        "icon": "info",
+        "label": "About",
         "selected": false,
         "unread": 0
       },
@@ -184,10 +192,6 @@
         "action": 18,
         "icon": "search",
         "label": "Search or run a command"
-      },
-      {
-        "action": 19,
-        "label": "About"
       }
     ],
     "subtitle": "synced 9h ago",

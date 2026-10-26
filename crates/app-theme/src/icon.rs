@@ -78,11 +78,13 @@ pub enum Icon {
     Check,
     /// The drawer (three lines; the phone's *Mailboxes* button, MISC-2).
     Menu,
+    /// *About* (MISC-3).
+    Info,
 }
 
 impl Icon {
     /// Every icon.
-    pub const ALL: [Self; 55] = [
+    pub const ALL: [Self; 56] = [
         Self::Mail,
         Self::Edit,
         Self::Inbox,
@@ -138,6 +140,7 @@ impl Icon {
         Self::ChevronLeft,
         Self::Check,
         Self::Menu,
+        Self::Info,
     ];
 
     /// The code point in the icon font.
@@ -198,6 +201,7 @@ impl Icon {
             Self::ChevronLeft => '\u{e5cb}',
             Self::Check => '\u{e668}',
             Self::Menu => '\u{e5d2}',
+            Self::Info => '\u{e88e}',
         }
     }
 
@@ -259,6 +263,7 @@ impl Icon {
             Self::ChevronLeft => "chevron_left",
             Self::Check => "check",
             Self::Menu => "menu",
+            Self::Info => "info",
         }
     }
 }

@@ -46,31 +46,31 @@
   "setup": {
     "actions": [
       {
-        "action": 20,
+        "action": 19,
         "label": "Next"
       }
     ],
     "back": {
-      "action": 21,
+      "action": 20,
       "label": "Cancel"
     },
     "busy": false,
     "fields": [],
     "presets": [
       {
-        "action": 17,
+        "action": 16,
         "hint": "Needs an App Password (2-Step Verification on).",
         "label": "Gmail",
         "selected": true
       },
       {
-        "action": 18,
+        "action": 17,
         "hint": "Your mailbox password.",
         "label": "Hostinger Mail",
         "selected": false
       },
       {
-        "action": 19,
+        "action": 18,
         "hint": "Enter the servers yourself, or find them.",
         "label": "Other IMAP / SMTP",
         "selected": false
@@ -80,17 +80,13 @@
     "title": "Add an account"
   },
   "top_bar": {
-    "actions": [
-      {
-        "action": 15,
-        "label": "Add account"
-      },
-      {
-        "action": 16,
-        "label": "About"
-      }
-    ],
-    "title": "Conversations"
+    "actions": [],
+    "navigation": {
+      "action": 15,
+      "icon": "close",
+      "label": "Close"
+    },
+    "title": "About"
   },
   "wants_tick": false
 }

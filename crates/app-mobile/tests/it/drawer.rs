@@ -120,8 +120,8 @@ fn settings_and_add_account_open_the_settings_page() {
     });
     let footer = phone.frame().drawer.unwrap().footer;
     let labels: Vec<_> = footer.iter().map(|i| i.label.as_str()).collect();
-    assert_eq!(labels, ["Settings", "Add account"]);
-    let commands = phone.tap(footer[1].action);
+    assert_eq!(labels, ["Settings", "About", "Add account"]);
+    let commands = phone.tap(footer[2].action);
     assert_eq!(
         commands[0],
         Command::OpenSettings {

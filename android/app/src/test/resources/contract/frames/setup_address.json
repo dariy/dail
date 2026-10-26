@@ -20,12 +20,12 @@
   "setup": {
     "actions": [
       {
-        "action": 38,
+        "action": 37,
         "label": "Find servers"
       }
     ],
     "back": {
-      "action": 39,
+      "action": 38,
       "label": "Back"
     },
     "busy": false,
@@ -80,11 +80,11 @@
   "top_bar": {
     "actions": [
       {
-        "action": 36,
+        "action": 35,
         "label": "Add account"
       },
       {
-        "action": 37,
+        "action": 36,
         "label": "About"
       }
     ],

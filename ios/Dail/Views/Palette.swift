@@ -38,7 +38,7 @@ enum Icons {
         "dark_mode": "moon", "delete": "trash", "description": "doc.text", "dock_to_left": "sidebar.left",
         "download": "arrow.down.circle", "draft": "doc", "drive_file_move": "folder.badge.plus", "edit": "square.and.pencil",
         "error": "exclamationmark.circle", "expand_less": "chevron.up", "expand_more": "chevron.down",
-        "folder": "folder", "forward": "arrowshape.turn.up.right", "image": "photo", "inbox": "tray",
+        "folder": "folder", "forward": "arrowshape.turn.up.right", "image": "photo", "inbox": "tray", "info": "info.circle",
         "keyboard": "keyboard", "light_mode": "sun.max", "link": "link", "mail": "envelope",
         "mark_email_read": "envelope.open", "mark_email_unread": "envelope.badge", "menu": "line.3.horizontal",
         "more_horiz": "ellipsis", "open_in_new": "arrow.up.right.square", "person": "person",
