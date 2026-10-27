@@ -10,3 +10,4 @@ mod keys;
 mod palette;
 mod status;
 mod tree;
+mod updates;
