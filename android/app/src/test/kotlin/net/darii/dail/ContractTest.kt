@@ -74,6 +74,7 @@ class ContractTest {
                             put("thread", "00000000-0000-0000-0000-000000000009")
                         },
                     ),
+                "pinch" to UiEvent.Pinch(zoomIn = true),
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
                 "share" to
                     UiEvent.Share(

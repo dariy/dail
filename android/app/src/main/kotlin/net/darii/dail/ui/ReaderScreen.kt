@@ -2,6 +2,8 @@ package net.darii.dail.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -77,6 +79,23 @@ fun ReaderPane(
                 dx += amount
             }
         }
+    // MISC-6: a pinch steps the pane layout (two fingers; one-finger drags stay the swipe's).
+    val pinch =
+        Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                var zoom = 1f
+                var pinching = false
+                do {
+                    val event = awaitPointerEvent()
+                    if (event.changes.count { it.pressed } >= 2) {
+                        pinching = true
+                        zoom *= event.calculateZoom()
+                        event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
+                if (pinching && (zoom > PINCH_IN || zoom < 1f / PINCH_IN)) sendNow(UiEvent.Pinch(zoom > 1f))
+            }
+        }
     val actions =
         listOfNotNull(
             reader.previous?.let { b ->
@@ -95,6 +114,7 @@ fun ReaderPane(
     LazyColumn(
         Modifier
             .fillMaxSize()
+            .then(pinch)
             .then(swipe)
             .semantics { customActions = actions }
             .padding(horizontal = 16.dp),
@@ -352,3 +372,6 @@ fun LinkDialog(
 
 /** How far a horizontal drag must go to change the conversation. */
 private val SWIPE_DISTANCE = 72.dp
+
+/** How far a pinch must zoom (or its inverse) to step the layout. */
+private const val PINCH_IN = 1.15f

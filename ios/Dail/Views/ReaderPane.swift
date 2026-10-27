@@ -30,6 +30,11 @@ struct ReaderPane: View {
             guard abs(dx) > 72, abs(dx) > abs(drag.translation.height) else { return }
             if let target = dx < 0 ? reader.next : reader.previous { send(.tap(target.action)) }
         })
+        // MISC-6: a pinch steps the pane layout, one step per gesture.
+        .simultaneousGesture(MagnifyGesture().onEnded { pinch in
+            let scale = pinch.magnification
+            if scale > 1.15 || scale < 1 / 1.15 { send(.pinch(zoomIn: scale > 1)) }
+        })
         .accessibilityActions {
             if let previous = reader.previous {
                 SwiftUI.Button(previous.label) { send(.tap(previous.action)) }

@@ -25,7 +25,7 @@ expression: phone.frame()
   },
   "drawer": {
     "modal": false,
-    "rail": false,
+    "rail": true,
     "accounts": [
       {
         "name": "alice@example.com",

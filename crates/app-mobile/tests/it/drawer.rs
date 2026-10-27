@@ -74,7 +74,8 @@ fn back_closes_the_modal_drawer_before_the_thread() {
 
 #[test]
 fn the_drawer_is_permanent_on_wide_windows() {
-    let mut phone = Phone::inbox(1280, 800);
+    // Portrait: in landscape it is a rail (MISC-6).
+    let mut phone = Phone::inbox(900, 1280);
     let frame = phone.frame();
     let drawer = frame.drawer.unwrap();
     assert!(!drawer.modal && !drawer.rail);

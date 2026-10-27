@@ -353,6 +353,32 @@
       "type": "object"
     },
     {
+      "description": "A pinch on the message body ended (MISC-6): zooming in (fingers apart) gives the message\nmore room, one step per gesture (first the sidebar goes, then the list); zooming out\nbrings them back. The text size does not change.",
+      "properties": {
+        "args": {
+          "properties": {
+            "zoom_in": {
+              "description": "Fingers apart (`true`) or together.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "zoom_in"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "pinch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "The thread list scrolled: rows `first..first + count` are visible.",
       "properties": {
         "args": {

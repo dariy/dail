@@ -627,7 +627,7 @@ its own wave and ADR.
 - [x] MISC-4 [core][io][sync][tk][front][gui][tui][mobile][kt][ios]: pin threads to the top of the list —
   `pin_threads`, `unpin_threads` (Mutation, agents `any`); IMAP keyword `$Pinned`, device-only without `\*`
 - [x] MISC-5 [mobile][kt][ios]: swipe the message body for the previous/next thread; drop the pager bar
-- [ ] MISC-6 [mobile][kt][ios]: pinch steps the pane layout; landscape sidebar as an icon rail; fix Android landscape
+- [x] MISC-6 [mobile][kt][ios]: pinch steps the pane layout; landscape sidebar as an icon rail; fix Android landscape
   alignment (and check iOS landscape in CI)
 - [ ] MISC-7 [mobile][kt][ios]: close (×) button on the open message
 

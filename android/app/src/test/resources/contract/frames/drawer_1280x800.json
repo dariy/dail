@@ -68,7 +68,7 @@
       }
     ],
     "modal": false,
-    "rail": false
+    "rail": true
   },
   "fab": {
     "action": 17,

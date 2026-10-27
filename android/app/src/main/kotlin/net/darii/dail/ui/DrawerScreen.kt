@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -69,7 +70,12 @@ fun DrawerPane(
         DrawerRail(drawer, send)
         return
     }
-    PermanentDrawerSheet(Modifier.width(DRAWER_WIDTH)) { DrawerItems(drawer, send) }
+    // The Scaffold's padding already holds the window insets: the sheet must not add them again,
+    // or in landscape (a cutout or the navigation bar at the start) it gets wider and its text
+    // starts right of the top bar's (MISC-6).
+    PermanentDrawerSheet(Modifier.width(DRAWER_WIDTH), windowInsets = WindowInsets(0)) {
+        DrawerItems(drawer, send)
+    }
 }
 
 @Composable
@@ -131,7 +137,7 @@ private fun DrawerRail(
     send: (UiEvent) -> Unit,
 ) {
     val items = listOfNotNull(drawer.allInboxes) + drawer.accounts.flatMap { it.mailboxes } + drawer.footer
-    NavigationRail(Modifier.fillMaxHeight().width(RAIL_WIDTH)) {
+    NavigationRail(Modifier.fillMaxHeight().width(RAIL_WIDTH), windowInsets = WindowInsets(0)) {
         LazyColumn {
             items(items) { item ->
                 NavigationRailItem(

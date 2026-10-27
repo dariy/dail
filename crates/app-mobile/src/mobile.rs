@@ -146,6 +146,9 @@ pub struct Mobile {
     theme_sent: Option<String>,
     /// Whether the About screen is open.
     about: bool,
+    /// Panes a pinch took away from the reader (MISC-6): 0 none, 1 the sidebar, 2 the list too.
+    /// Kept across threads.
+    pane_step: u8,
     /// The composer's typed text.
     compose: Buffers,
     /// The drafts whose scheduled or leaving send the host was told about (`sending`).
@@ -246,6 +249,7 @@ impl Mobile {
             dark: false,
             theme_sent: None,
             about: false,
+            pane_step: 0,
             compose: Buffers::default(),
             told: Vec::new(),
             kept: Vec::new(),
@@ -358,6 +362,14 @@ impl Mobile {
                     self.externals.push(External::Haptic);
                 }
                 out
+            }
+            UiEvent::Pinch { zoom_in } => {
+                self.pane_step = if zoom_in {
+                    (self.pane_step + 1).min(2)
+                } else {
+                    self.pane_step.saturating_sub(1)
+                };
+                Vec::new()
             }
             UiEvent::Scrolled { first, count } => {
                 self.scrolled = (first, count);
@@ -761,11 +773,24 @@ impl Mobile {
             kinds.retain(|k| *k == PaneKind::Drawer);
             kinds.push(PaneKind::Settings);
         }
-        // A collapsed sidebar on a wide window is a rail, not gone.
-        let rail =
-            class == Class::Expanded && state.view.sidebar_collapsed && !state.accounts.is_empty();
-        if rail {
+        // A collapsed sidebar on a wide window is a rail, not gone; so is the sidebar of a
+        // landscape window that is not compact (MISC-6).
+        let landscape = self.window.width_dp > self.window.height_dp;
+        let rail = !state.accounts.is_empty()
+            && !modal
+            && ((class == Class::Expanded && state.view.sidebar_collapsed)
+                || (landscape && class != Class::Compact));
+        if rail && !kinds.contains(&PaneKind::Drawer) {
             kinds.insert(0, PaneKind::Drawer);
+        }
+        // A pinch gave the message more room (MISC-6).
+        if kinds.contains(&PaneKind::Reader) {
+            if self.pane_step >= 1 {
+                kinds.retain(|k| *k != PaneKind::Drawer);
+            }
+            if self.pane_step >= 2 && kinds.len() > 1 {
+                kinds.retain(|k| *k != PaneKind::List);
+            }
         }
         let top_bar = self.top_bar(state, &kinds);
         let chosen = crate::theme::chosen(&state.settings, self.dark);
