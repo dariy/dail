@@ -680,6 +680,31 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] D3: monthly toolchain PR (Rust, NDK, Xcode)
 - [x] D4: nightly `cargo deny` advisories on `main`, an issue on failure
 
+## Wave 8 — Mobile polish and release hygiene: "it releases itself, and the phone feels finished"
+
+The requests of 2026-10-27. Details, decisions and open questions are in
+[`docs/requests/misc.md`](docs/requests/misc.md) (MISC-8 to MISC-14). Do the release items first: they unblock
+shipping the rest.
+
+**Exit criteria**
+- A `release` dispatch on `main` is green in every job, and each release carries a higher version than the last.
+- The mobile left pane is a folder tree; landscape switches between icon rail and icon + text; the message pane can be
+  maximized; About closes on both platforms and shows the version.
+- Mobile items pass `cargo xtask verify android` and CI's `ios` job (read with `gh run view`, never assumed).
+
+### R — Release
+- [ ] MISC-8 [ci]: install `desktop-file-utils` for the AppImage step; a dry-run `release` on `main` is green
+- [ ] MISC-9 [ci][xtask]: `prepare-release` dispatch (`bump: patch|minor|major`) → `cargo xtask release next`,
+  `release bump`, commit, tag `vX.Y.Z` → `release.yml`; Android `versionCode` grows
+
+### M — Mobile
+- [ ] MISC-10 [mobile][kt][ios]: folder tree in the left pane (depth, collapse via `collapse_folders`/`expand_folders`)
+- [ ] MISC-11 [core][io][mobile][kt][ios]: landscape left pane toggles icon rail ↔ icon + text; persisted view
+  preference (`View` command, agents `any`)
+- [ ] MISC-12 [ios]: About closes (close action drawn, view stack follows the frame); `DailTests` UI test
+- [ ] MISC-13 [mobile][kt][ios]: About shows `× About dail (<version>)` and a mobile description
+- [ ] MISC-14 [mobile][kt][ios]: maximize / restore button for the message pane
+
 ---
 
 ## Roadmap — future waves (unordered within themes)
