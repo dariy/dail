@@ -30,6 +30,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -196,6 +198,11 @@ fun ThreadRow(
 /**
  * A row that swipes: towards the start edge (left) archives, towards the end edge (right)
  * trashes. The row springs back; the next frame drops it.
+ *
+ * The swipe state is remembered across frames, but action IDs are per frame (the presenter
+ * forgets the old ones), so the callback reads the row of the current frame (MISC-1): with the
+ * row captured at the first composition, every swipe after the first new frame sent a stale ID
+ * and did nothing.
  */
 @Composable
 private fun SwipeRow(
@@ -203,12 +210,14 @@ private fun SwipeRow(
     send: (UiEvent) -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val current by rememberUpdatedState(row)
+    val sendNow by rememberUpdatedState(send)
     val state =
         rememberSwipeToDismissBoxState(
             confirmValueChange = { value ->
                 when (value) {
-                    SwipeToDismissBoxValue.EndToStart -> send(UiEvent.Swipe(row.swipeStart))
-                    SwipeToDismissBoxValue.StartToEnd -> send(UiEvent.Swipe(row.swipeEnd))
+                    SwipeToDismissBoxValue.EndToStart -> sendNow(UiEvent.Swipe(current.swipeStart))
+                    SwipeToDismissBoxValue.StartToEnd -> sendNow(UiEvent.Swipe(current.swipeEnd))
                     SwipeToDismissBoxValue.Settled -> Unit
                 }
                 false
@@ -235,11 +244,12 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
     }
 }
 
-/** The star and the paper clip. */
+/** The paper clip, the star and the pin. */
 @Composable
 private fun Marks(row: Row) {
     if (row.attachments) Box(Modifier.padding(start = 4.dp)) { Glyph("attach_file") }
     if (row.starred) Box(Modifier.padding(start = 4.dp)) { Glyph("star") }
+    if (row.pinned) Box(Modifier.padding(start = 4.dp)) { Glyph("push_pin") }
 }
 
 /** The account's colour bar, with two accounts or more. */

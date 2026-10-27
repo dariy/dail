@@ -2,8 +2,8 @@
 //! tablet's size.
 
 use app_core::{Command, Pane};
-use app_mobile::Class;
 use app_mobile::frame::PaneKind;
+use app_mobile::{Class, UiEvent};
 
 use crate::support::{Phone, SIZES, inbox_of, synced_state};
 
@@ -83,4 +83,42 @@ fn the_list_is_a_window_around_the_visible_rows() {
     assert_eq!(list.rows.len(), list.total.min(50));
     let total = inbox_of(&synced_state()).1.len();
     assert_eq!(list.total, total);
+}
+
+#[test]
+fn a_pinch_gives_the_message_more_room_one_step_at_a_time() {
+    // MISC-6: 1280×800 shows the sidebar (a rail in landscape), the list and the message.
+    let mut phone = Phone::inbox(1280, 800);
+    let (_, threads) = crate::support::inbox_of(phone.state());
+    phone.dispatch(app_core::Command::OpenThread { id: threads[0] });
+    let panes = |phone: &mut Phone| phone.frame().layout.panes;
+    assert_eq!(
+        panes(&mut phone),
+        [PaneKind::Drawer, PaneKind::List, PaneKind::Reader]
+    );
+    phone.event(UiEvent::Pinch { zoom_in: true });
+    assert_eq!(panes(&mut phone), [PaneKind::List, PaneKind::Reader]);
+    phone.event(UiEvent::Pinch { zoom_in: true });
+    assert_eq!(panes(&mut phone), [PaneKind::Reader]);
+    phone.event(UiEvent::Pinch { zoom_in: true });
+    assert_eq!(panes(&mut phone), [PaneKind::Reader], "no further");
+    // The step stays with the next thread.
+    phone.dispatch(app_core::Command::OpenThread { id: threads[1] });
+    assert_eq!(panes(&mut phone), [PaneKind::Reader]);
+    phone.event(UiEvent::Pinch { zoom_in: false });
+    assert_eq!(panes(&mut phone), [PaneKind::List, PaneKind::Reader]);
+    // Without a message open, the list keeps its panes.
+    phone.dispatch(app_core::Command::CloseThread {});
+    assert!(panes(&mut phone).contains(&PaneKind::List));
+}
+
+#[test]
+fn a_landscape_window_shows_the_sidebar_as_a_rail() {
+    let mut phone = Phone::inbox(800, 360);
+    let frame = phone.frame();
+    assert_eq!(frame.layout.panes[0], PaneKind::Drawer);
+    assert!(frame.drawer.unwrap().rail, "icons only");
+    let mut phone = Phone::inbox(700, 1000);
+    let frame = phone.frame();
+    assert!(frame.drawer.is_none_or(|d| !d.rail), "portrait: no rail");
 }

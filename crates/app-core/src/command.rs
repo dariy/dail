@@ -7,6 +7,7 @@ use crate::account::{Endpoint, ProviderPreset, Secret};
 use crate::draft::Draft;
 use crate::error::CoreError;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::registry::{CommandName, CommandSpec};
 use crate::search::SearchOrder;
@@ -171,6 +172,33 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         email: Option<String>,
     },
+    /// Create a folder on the server (IMAP `CREATE`), e.g. `Work/Clients` (with the account's
+    /// hierarchy delimiter). It shows at once; the next listing confirms it. Not undoable
+    /// (`delete_folder` removes it).
+    CreateFolder {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// The full path of the new folder.
+        path: String,
+    },
+    /// Rename or move a folder on the server (IMAP `RENAME`); its subfolders move with it.
+    /// Undo renames it back. The inbox can't be renamed.
+    RenameFolder {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+        /// The new full path, e.g. `Work/Clients/Acme`, with the account's hierarchy delimiter.
+        path: String,
+    },
+    /// Delete a folder on the server (IMAP `DELETE`) with every message in it. Needs
+    /// `confirm: true`; not undoable. The inbox and folders with subfolders can't be deleted
+    /// (delete the subfolders first).
+    DeleteFolder {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+        /// Must be `true`: the folder and its mail are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
     /// Choose the address a draft is sent from: one of its account's identities. Undoable.
     SetDraftFrom {
         /// The draft.
@@ -317,6 +345,28 @@ pub enum Command {
         /// The sender's address (compared without case).
         sender: String,
     },
+    /// Pin a mailbox to the *Favourites* section at the top of the sidebar, after the ones pinned
+    /// before. Undoable; saved with the settings.
+    PinMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Take a mailbox out of the sidebar's *Favourites* (see `pin_mailbox`). Undoable.
+    UnpinMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Hide a mailbox from the sidebar's folder tree. It stays in search, in "Move to…" and behind
+    /// the sidebar's *Show hidden* toggle. Undoable; saved with the settings.
+    HideMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
+    /// Show the mailbox again in the sidebar's folder tree (see `hide_mailbox`). Undoable.
+    ShowMailbox {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
     /// Save attachments of a downloaded message into a folder of this computer, under their file
     /// names (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).
     /// Progress and the written paths appear in `status.saves`. Only the user can do this (GUI,
@@ -341,6 +391,15 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         messages: Vec<MessageId>,
     },
+    /// Mark every message of a mailbox read, including mail on the server that is not cached:
+    /// the cached unread messages are marked as with `mark_read`, and if the server counts more
+    /// unread mail than is cached, one `UID STORE 1:* +FLAGS (\\Seen)` covers the rest. Undo
+    /// restores only the cached messages it changed (`uncached_affected` in the receipt says
+    /// whether others were marked too).
+    MarkMailboxRead {
+        /// The mailbox (from `list_mailboxes`).
+        id: MailboxId,
+    },
     /// Mark threads (every message) or single messages as unread. Give `ids`, `messages` or both.
     /// Applied locally at once and on the server in the background. Undoable.
     MarkUnread {
@@ -364,6 +423,28 @@ pub enum Command {
     /// Remove the star from threads (every message) or single messages. Give `ids`, `messages` or
     /// both. Applied locally at once and on the server in the background. Undoable.
     Unstar {
+        /// Threads to change.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to change (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Pin threads to the top of every list that shows them (a pinned thread's newest message
+    /// gets the IMAP keyword `$Pinned`, so the pin syncs; on a server that keeps no keywords it
+    /// stays on this device). Give `ids`, `messages` or both. Applied locally at once and on the
+    /// server in the background. Undoable.
+    PinThreads {
+        /// Threads to pin.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to pin (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Unpin threads (every message) or single messages (see `pin_threads`). Give `ids`,
+    /// `messages` or both. Undoable.
+    UnpinThreads {
         /// Threads to change.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         ids: Vec<ThreadId>,
@@ -625,6 +706,51 @@ pub enum Command {
         /// The pane to focus.
         pane: Pane,
     },
+    /// Filter the thread list (GUI and TUI) by unread, starred and attachments; the given
+    /// fields replace the current ones, the others stay. All `false` shows every thread.
+    /// Saved across restarts. `list_threads` and `search` are not filtered.
+    SetListFilter {
+        /// Only threads with unread mail.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        unread: Option<bool>,
+        /// Only starred threads.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        starred: Option<bool>,
+        /// Only threads with attachments.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        attachments: Option<bool>,
+    },
+    /// Focus on one mailbox (and the folders below it) or one account: the sidebar shows only
+    /// it, the unified inbox is hidden and new-mail notifications come only from it. Opens the
+    /// mailbox (for an account: its inbox, unless a mailbox of it is open). Opening a mailbox
+    /// outside the focus leaves focus mode (`clear_focus`). Saved across restarts.
+    FocusMailbox {
+        /// The mailbox to focus on (from `list_mailboxes`). Give it or `account`, not both.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        id: Option<MailboxId>,
+        /// The account to focus on.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        account: Option<AccountId>,
+    },
+    /// Leave focus mode (`focus_mailbox`): the sidebar shows every account and folder again.
+    ClearFocus {},
+    /// Collapse folders in the sidebar's folder tree, so that the folders below them are
+    /// hidden; a collapsed account hides all its folders. Idempotent, unlike a toggle: repeating
+    /// it changes nothing. Saved across restarts.
+    CollapseFolders {
+        /// The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the
+        /// whole account); empty means every account and every folder with folders below it.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        keys: Vec<FolderKey>,
+    },
+    /// Expand folders in the sidebar's folder tree, so that the folders below them show again
+    /// (see `collapse_folders`). Repeating it changes nothing.
+    ExpandFolders {
+        /// The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the
+        /// whole account); empty means every folder and account.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        keys: Vec<FolderKey>,
+    },
     /// Collapse the GUI mailbox sidebar, or expand it again.
     ToggleSidebar {},
     /// Compact the local store: give unused database space back and delete downloaded message
@@ -695,6 +821,21 @@ pub enum SettingKey {
     BackgroundSync,
     /// Android: minutes between periodic background checks (15–720).
     BackgroundIntervalMins,
+    /// Mark the open conversation's unread messages read once it has been open this long, in
+    /// milliseconds: 0 = never (only `mark_read` does), else 250–60000 (default 2000). The
+    /// GUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents
+    /// opening threads never mark anything read.
+    MarkReadAfterMs,
+    /// Opening a mailbox fetches what is new in it when its last fetch is older than this many
+    /// seconds (0–86400, default 60; 0 = every time).
+    StaleSecs,
+    /// Seconds between full sync rounds of the poll, which list every mailbox and fetch each
+    /// (0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are
+    /// polled.
+    FullSyncSecs,
+    /// What the GUI and the TUI show after the open conversation is archived, trashed or moved:
+    /// 0 = the next one (default), 1 = the previous one, 2 = the list.
+    AfterTriage,
 }
 
 impl SettingKey {
@@ -711,6 +852,10 @@ impl SettingKey {
         Self::TuiColors,
         Self::BackgroundSync,
         Self::BackgroundIntervalMins,
+        Self::MarkReadAfterMs,
+        Self::StaleSecs,
+        Self::FullSyncSecs,
+        Self::AfterTriage,
     ];
 
     /// The key's `snake_case` name.
@@ -727,10 +872,41 @@ impl SettingKey {
             Self::TuiColors => "tui_colors",
             Self::BackgroundSync => "background_sync",
             Self::BackgroundIntervalMins => "background_interval_mins",
+            Self::MarkReadAfterMs => "mark_read_after_ms",
+            Self::StaleSecs => "stale_secs",
+            Self::FullSyncSecs => "full_sync_secs",
+            Self::AfterTriage => "after_triage",
         }
     }
 
     /// Allowed values, inclusive.
+    /// Whether `value` is allowed: within [`Self::range`], and for `mark_read_after_ms` and
+    /// `full_sync_secs` not in the gap above 0.
+    pub const fn accepts(self, value: u64) -> bool {
+        let (min, max) = self.range();
+        if value < min || value > max {
+            return false;
+        }
+        match self {
+            Self::MarkReadAfterMs => value == 0 || value >= 250,
+            Self::FullSyncSecs => value == 0 || value >= 60,
+            _ => true,
+        }
+    }
+
+    /// The allowed values in words, for messages and prompts.
+    pub fn allowed(self) -> String {
+        match self {
+            Self::MarkReadAfterMs => "0 or between 250 and 60000".to_owned(),
+            Self::FullSyncSecs => "0 or between 60 and 86400".to_owned(),
+            _ => {
+                let (min, max) = self.range();
+                format!("between {min} and {max}")
+            }
+        }
+    }
+
+    /// The allowed range (see [`Self::accepts`] for the gaps).
     pub const fn range(self) -> (u64, u64) {
         match self {
             Self::UndoSendMs => (0, 60_000),
@@ -744,6 +920,9 @@ impl SettingKey {
             Self::TuiColors => (0, 1),
             Self::BackgroundSync => (0, 2),
             Self::BackgroundIntervalMins => (15, 720),
+            Self::MarkReadAfterMs => (0, 60_000),
+            Self::StaleSecs | Self::FullSyncSecs => (0, 86_400),
+            Self::AfterTriage => (0, 2),
         }
     }
 
@@ -761,6 +940,10 @@ impl SettingKey {
             Self::TuiColors => settings.tui_colors,
             Self::BackgroundSync => settings.background_sync,
             Self::BackgroundIntervalMins => settings.background_interval_mins,
+            Self::MarkReadAfterMs => settings.mark_read_after_ms,
+            Self::StaleSecs => settings.stale_secs,
+            Self::FullSyncSecs => settings.full_sync_secs,
+            Self::AfterTriage => settings.after_triage,
         }
     }
 
@@ -778,6 +961,10 @@ impl SettingKey {
             Self::TuiColors => settings.tui_colors = value,
             Self::BackgroundSync => settings.background_sync = value,
             Self::BackgroundIntervalMins => settings.background_interval_mins = value,
+            Self::MarkReadAfterMs => settings.mark_read_after_ms = value,
+            Self::StaleSecs => settings.stale_secs = value,
+            Self::FullSyncSecs => settings.full_sync_secs = value,
+            Self::AfterTriage => settings.after_triage = value,
         }
     }
 }
@@ -875,6 +1062,9 @@ impl Command {
             | Self::SetIdentity { .. }
             | Self::RemoveIdentity { .. }
             | Self::SetMailboxIdentity { .. }
+            | Self::CreateFolder { .. }
+            | Self::RenameFolder { .. }
+            | Self::DeleteFolder { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
             | Self::ListMailboxes { .. }
@@ -893,11 +1083,18 @@ impl Command {
             | Self::GetMessage { .. }
             | Self::ShowImagesFrom { .. }
             | Self::HideImagesFrom { .. }
+            | Self::PinMailbox { .. }
+            | Self::UnpinMailbox { .. }
+            | Self::HideMailbox { .. }
+            | Self::ShowMailbox { .. }
             | Self::SaveAttachments { .. }
             | Self::MarkRead { .. }
+            | Self::MarkMailboxRead { .. }
             | Self::MarkUnread { .. }
             | Self::Star { .. }
             | Self::Unstar { .. }
+            | Self::PinThreads { .. }
+            | Self::UnpinThreads { .. }
             | Self::ArchiveThreads { .. }
             | Self::TrashThreads { .. }
             | Self::MoveThreads { .. }
@@ -916,6 +1113,11 @@ impl Command {
             | Self::OpenSettings { .. }
             | Self::CloseSettings {}
             | Self::FocusPane { .. }
+            | Self::SetListFilter { .. }
+            | Self::FocusMailbox { .. }
+            | Self::ClearFocus { .. }
+            | Self::CollapseFolders { .. }
+            | Self::ExpandFolders { .. }
             | Self::ToggleSidebar {}
             | Self::GetView {}
             | Self::CompactStore {}
@@ -945,6 +1147,9 @@ impl Command {
             Self::SetIdentity { .. } => CommandName::SetIdentity,
             Self::RemoveIdentity { .. } => CommandName::RemoveIdentity,
             Self::SetMailboxIdentity { .. } => CommandName::SetMailboxIdentity,
+            Self::CreateFolder { .. } => CommandName::CreateFolder,
+            Self::RenameFolder { .. } => CommandName::RenameFolder,
+            Self::DeleteFolder { .. } => CommandName::DeleteFolder,
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,
@@ -964,11 +1169,18 @@ impl Command {
             Self::GetMessage { .. } => CommandName::GetMessage,
             Self::ShowImagesFrom { .. } => CommandName::ShowImagesFrom,
             Self::HideImagesFrom { .. } => CommandName::HideImagesFrom,
+            Self::PinMailbox { .. } => CommandName::PinMailbox,
+            Self::UnpinMailbox { .. } => CommandName::UnpinMailbox,
+            Self::HideMailbox { .. } => CommandName::HideMailbox,
+            Self::ShowMailbox { .. } => CommandName::ShowMailbox,
             Self::SaveAttachments { .. } => CommandName::SaveAttachments,
             Self::MarkRead { .. } => CommandName::MarkRead,
+            Self::MarkMailboxRead { .. } => CommandName::MarkMailboxRead,
             Self::MarkUnread { .. } => CommandName::MarkUnread,
             Self::Star { .. } => CommandName::Star,
             Self::Unstar { .. } => CommandName::Unstar,
+            Self::PinThreads { .. } => CommandName::PinThreads,
+            Self::UnpinThreads { .. } => CommandName::UnpinThreads,
             Self::ArchiveThreads { .. } => CommandName::ArchiveThreads,
             Self::TrashThreads { .. } => CommandName::TrashThreads,
             Self::MoveThreads { .. } => CommandName::MoveThreads,
@@ -995,6 +1207,11 @@ impl Command {
             Self::OpenSettings { .. } => CommandName::OpenSettings,
             Self::CloseSettings {} => CommandName::CloseSettings,
             Self::FocusPane { .. } => CommandName::FocusPane,
+            Self::SetListFilter { .. } => CommandName::SetListFilter,
+            Self::FocusMailbox { .. } => CommandName::FocusMailbox,
+            Self::ClearFocus { .. } => CommandName::ClearFocus,
+            Self::CollapseFolders { .. } => CommandName::CollapseFolders,
+            Self::ExpandFolders { .. } => CommandName::ExpandFolders,
             Self::ToggleSidebar {} => CommandName::ToggleSidebar,
             Self::GetView {} => CommandName::GetView,
             Self::CompactStore {} => CommandName::CompactStore,

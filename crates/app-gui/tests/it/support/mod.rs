@@ -64,12 +64,15 @@ pub async fn synced() -> (Arc<MemoryBackend>, Session, AccountId) {
     (backend, session, account)
 }
 
-/// The state of a synced session.
+/// The state of a synced session. The harness's engine drops effects, so opening a mailbox
+/// must not start a refresh fetch (UX-6) that would stay in flight with a spinning toolbar.
 pub fn synced_state() -> AppState {
     runtime().block_on(async {
         let (_backend, session, _account) = synced().await;
         let state = session.state();
-        (*state).clone()
+        let mut state = (*state).clone();
+        state.settings.stale_secs = 86_400;
+        state
     })
 }
 

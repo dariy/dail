@@ -160,6 +160,7 @@ data class Row(
     val date: String,
     val unread: Boolean,
     val starred: Boolean,
+    val pinned: Boolean = false,
     val attachments: Boolean,
     val messages: Int,
     val tag: Int? = null,
@@ -193,6 +194,7 @@ data class Bulk(
 data class Reader(
     val thread: String,
     val subject: String,
+    val close: Button,
     val actions: List<Button>,
     val previous: Button? = null,
     val next: Button? = null,

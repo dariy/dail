@@ -18,6 +18,9 @@ pub fn thread_row(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> St
     if summary.flagged {
         parts.push("starred".to_owned());
     }
+    if summary.pinned {
+        parts.push("pinned".to_owned());
+    }
     if summary.has_attachments {
         parts.push("with attachments".to_owned());
     }

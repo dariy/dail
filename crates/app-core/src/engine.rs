@@ -5,9 +5,11 @@ mod approvals;
 mod backfill;
 mod draft_saves;
 mod drafts;
+mod folders;
 mod identities;
 mod images;
 mod keys;
+mod mailbox_prefs;
 mod moves;
 mod outbox;
 mod pending;
@@ -36,8 +38,11 @@ use crate::message::BodyState;
 use crate::ops::{FlagKind, OpState};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::registry::AgentAccess;
-use crate::state::{AppState, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME};
+use crate::state::{
+    AppState, FocusTarget, HIGH_CONTRAST_DARK_THEME, HIGH_CONTRAST_LIGHT_THEME, ViewPrefs,
+};
 use crate::threading::Threader;
+use mailbox_prefs::MailboxPref;
 
 /// The deterministic state machine. State changes enter only through [`Engine::dispatch`] and
 /// [`Engine::ingest`].
@@ -89,6 +94,8 @@ impl Engine {
             .retain(|_, approval| drafts.contains_key(&approval.draft));
         // Server searches in flight never report; their hits are in the cache anyway.
         state.status.searches.clear();
+        // Nor do fetches.
+        state.status.fetching.clear();
         // A send is never made behind the user's back after a restart: scheduled sends lost
         // their undo window, and an interrupted one may or may not have left.
         for draft in state.drafts.values_mut() {
@@ -142,16 +149,43 @@ impl Engine {
     /// rejected command leaves the state and the history untouched.
     pub fn dispatch(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
-        let outcome = self.dispatch_unsettled(cmd, ctx)?;
+        let prefs = self.state.view.prefs();
+        let mut outcome = self.dispatch_unsettled(cmd, ctx)?;
         self.settle_view();
+        self.persist_view_prefs(&prefs, &mut outcome);
         Ok(outcome)
+    }
+
+    /// Saves the view preferences if the input changed them (`[view]`, UX-1).
+    fn persist_view_prefs(&self, before: &ViewPrefs, outcome: &mut Outcome) {
+        let prefs = self.state.view.prefs();
+        if prefs != *before {
+            outcome.effects.push(Effect::PersistState {
+                delta: PersistDelta::View(prefs),
+            });
+        }
     }
 
     /// Keeps `ViewState` consistent after every change: a composer whose draft is gone closes,
     /// and the focus leaves a pane that is no longer shown.
     fn settle_view(&mut self) {
-        let AppState { view, drafts, .. } = &mut self.state;
+        let AppState {
+            view,
+            drafts,
+            mailboxes,
+            accounts,
+            ..
+        } = &mut self.state;
         view.settle(|id| drafts.contains_key(id));
+        // Focus mode ends with its mailbox or account.
+        let gone = match view.focused {
+            Some(FocusTarget::Mailbox(id)) => !mailboxes.contains_key(&id),
+            Some(FocusTarget::Account(id)) => !accounts.contains_key(&id),
+            None => false,
+        };
+        if gone {
+            view.focused = None;
+        }
     }
 
     fn dispatch_unsettled(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
@@ -182,8 +216,10 @@ impl Engine {
     /// Fact from the outside world (the result of an `Effect`). Never recorded in history.
     pub fn ingest(&mut self, event: Event, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
-        let outcome = self.ingest_unsettled(event, ctx)?;
+        let prefs = self.state.view.prefs();
+        let mut outcome = self.ingest_unsettled(event, ctx)?;
         self.settle_view();
+        self.persist_view_prefs(&prefs, &mut outcome);
         Ok(outcome)
     }
 
@@ -274,6 +310,15 @@ impl Engine {
             }
             Event::DraftSaveFailed { draft, error } => {
                 Ok(self.ingest_draft_saved(draft, Err(error), ctx, receipt))
+            }
+            Event::KeywordsRefused { account, path } => {
+                Ok(self.ingest_keywords_refused(account, &path, receipt))
+            }
+            Event::FolderManaged { account, .. } => {
+                Ok(self.ingest_folder(account, None, ctx, receipt))
+            }
+            Event::FolderFailed { account, error, .. } => {
+                Ok(self.ingest_folder(account, Some(error), ctx, receipt))
             }
             Event::DraftDeleted { draft } => {
                 Ok(Outcome::new(receipt.affecting(EntityRef::Draft(draft))))
@@ -603,7 +648,9 @@ impl Engine {
             Command::SetSyncWindow { mailbox, window } => {
                 self.set_sync_window(mailbox, window, receipt)
             }
-            Command::OpenMailbox { id } => self.open_mailbox(id, receipt).map(Applied::plain),
+            Command::OpenMailbox { id } => self
+                .open_mailbox(id, ctx.now_ms, receipt)
+                .map(Applied::plain),
             Command::OpenUnifiedInbox {} => Ok(Applied::plain(self.open_unified_inbox(receipt))),
             Command::SelectThreads { ids } => self.select_threads(ids, receipt).map(Applied::plain),
             Command::CheckThreads { ids } => {
@@ -635,6 +682,10 @@ impl Engine {
             } => self
                 .save_attachments(message, parts, dir, ctx, receipt)
                 .map(Applied::plain),
+            Command::PinMailbox { id } => self.mailbox_pref(id, MailboxPref::Pin, receipt),
+            Command::UnpinMailbox { id } => self.mailbox_pref(id, MailboxPref::Unpin, receipt),
+            Command::HideMailbox { id } => self.mailbox_pref(id, MailboxPref::Hide, receipt),
+            Command::ShowMailbox { id } => self.mailbox_pref(id, MailboxPref::Show, receipt),
             Command::ShowImagesFrom { sender } => self.images_from(&sender, true, receipt),
             Command::HideImagesFrom { sender } => self.images_from(&sender, false, receipt),
             Command::MarkRead { ids, messages } => self.set_flag(
@@ -644,6 +695,16 @@ impl Engine {
             ),
             Command::MarkUnread { ids, messages } => self.set_flag(
                 flag_change(FlagKind::Seen, false, ids, messages),
+                ctx,
+                receipt,
+            ),
+            Command::PinThreads { ids, messages } => self.set_flag(
+                flag_change(FlagKind::Pinned, true, ids, messages),
+                ctx,
+                receipt,
+            ),
+            Command::UnpinThreads { ids, messages } => self.set_flag(
+                flag_change(FlagKind::Pinned, false, ids, messages),
                 ctx,
                 receipt,
             ),
@@ -796,6 +857,34 @@ impl Engine {
                 )))
             }
             Command::FocusPane { pane } => self.focus_pane(pane, receipt).map(Applied::plain),
+            Command::CollapseFolders { keys } => {
+                Ok(Applied::plain(self.set_collapsed(keys, true, receipt)?))
+            }
+            Command::ExpandFolders { keys } => {
+                Ok(Applied::plain(self.set_collapsed(keys, false, receipt)?))
+            }
+            Command::FocusMailbox { id, account } => Ok(Applied::plain(
+                self.focus_mailbox(id, account, ctx.now_ms, receipt)?,
+            )),
+            Command::ClearFocus {} => Ok(Applied::plain(self.clear_focus(receipt))),
+            Command::SetListFilter {
+                unread,
+                starred,
+                attachments,
+            } => Ok(Applied::plain(self.set_list_filter(
+                unread,
+                starred,
+                attachments,
+                receipt,
+            ))),
+            Command::CreateFolder { account, path } => self
+                .create_folder(account, &path, ctx, receipt)
+                .map(Applied::plain),
+            Command::RenameFolder { id, path } => self.rename_folder(id, &path, receipt),
+            Command::DeleteFolder { id, confirm } => {
+                self.delete_folder(id, confirm, receipt).map(Applied::plain)
+            }
+            Command::MarkMailboxRead { id } => self.mark_mailbox_read(id, ctx, receipt),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),
             Command::DiscoverServers { email } => {
@@ -927,17 +1016,16 @@ fn flag_change(
 }
 
 fn validate_setting(key: SettingKey, value: &serde_json::Value) -> Result<u64, CoreError> {
-    let (min, max) = key.range();
     let number = value.as_u64().ok_or_else(|| {
         invalid(
             "value",
             format!("{} expects a non-negative integer", key.as_str()),
         )
     })?;
-    if number < min || number > max {
+    if !key.accepts(number) {
         return Err(invalid(
             "value",
-            format!("{} must be between {min} and {max}", key.as_str()),
+            format!("{} must be {}", key.as_str(), key.allowed()),
         ));
     }
     Ok(number)

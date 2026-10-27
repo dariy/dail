@@ -469,6 +469,7 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::RunRemoteOp { account, .. }
         | Effect::SaveDraft { account, .. }
         | Effect::DeleteDraft { account, .. }
+        | Effect::ManageFolder { account, .. }
         | Effect::SearchMailbox { account, .. }
         | Effect::SmtpSend { account, .. }
         | Effect::WatchMailbox { account, .. } => Lane::Account(*account),

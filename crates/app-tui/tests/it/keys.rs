@@ -77,10 +77,14 @@ mod keymap {
         t.key(KeyCode::Char('e'));
         assert_eq!(
             t.pump(),
-            [Command::ArchiveThreads {
-                ids: vec![threads[0]],
-                messages: Vec::new()
-            }]
+            [
+                Command::ArchiveThreads {
+                    ids: vec![threads[0]],
+                    messages: Vec::new()
+                },
+                // UX-12: the next conversation opens.
+                Command::OpenThread { id: threads[1] },
+            ]
         );
         t.key(KeyCode::Char('z'));
         assert_eq!(t.pump(), [Command::Undo {}]);
@@ -103,10 +107,14 @@ mod keymap {
         t.chord(KeyModifiers::SHIFT, KeyCode::Char('#'));
         assert_eq!(
             t.take(),
-            [Command::TrashThreads {
-                ids: vec![threads[1]],
-                messages: Vec::new()
-            }]
+            [
+                Command::TrashThreads {
+                    ids: vec![threads[1]],
+                    messages: Vec::new()
+                },
+                // UX-12: the last row falls back to the previous one.
+                Command::OpenThread { id: threads[0] },
+            ]
         );
         t.key(KeyCode::Char('g'));
         assert!(t.take().is_empty(), "g waits");

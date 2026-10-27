@@ -57,7 +57,12 @@ fn presets(key: SettingKey) -> &'static [(u64, &'static str)] {
         SettingKey::HistoryCap
         | SettingKey::Theme
         | SettingKey::TextScale
-        | SettingKey::TuiColors => &[],
+        | SettingKey::TuiColors
+        // The phone has no mark-as-read timer yet (UX-5 is the desktop's).
+        | SettingKey::MarkReadAfterMs
+        | SettingKey::StaleSecs
+        | SettingKey::FullSyncSecs
+        | SettingKey::AfterTriage => &[],
     }
 }
 
@@ -75,6 +80,10 @@ const fn label(key: SettingKey) -> &'static str {
         SettingKey::Theme => "Theme",
         SettingKey::TextScale => "Text size",
         SettingKey::TuiColors => "Terminal colours",
+        SettingKey::MarkReadAfterMs => "Mark as read after",
+        SettingKey::StaleSecs => "Refresh a mailbox on open after",
+        SettingKey::FullSyncSecs => "Sync every folder every",
+        SettingKey::AfterTriage => "After archiving",
     }
 }
 

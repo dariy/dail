@@ -10,15 +10,16 @@ struct ReaderPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    // MISC-7: the × closes the message.
+                    FrameButton(button: reader.close, send: send)
+                }
                 HStack(spacing: 20) {
                     ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
                         FrameButton(button: button, send: send)
                     }
-                    Spacer()
-                    if let previous = reader.previous { FrameButton(button: previous, send: send) }
-                    if let position = reader.position { Text(verbatim: position).font(.caption) }
-                    if let next = reader.next { FrameButton(button: next, send: send) }
                 }
                 ForEach(Array(reader.messages.enumerated()), id: \.offset) { _, message in
                     MessageView(message: message, send: send)
@@ -26,6 +27,26 @@ struct ReaderPane: View {
                 }
             }
             .padding()
+        }
+        // MISC-5: a horizontal swipe goes to the next (left) or previous (right) conversation;
+        // VoiceOver gets the same as named actions.
+        .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
+            let dx = drag.translation.width
+            guard abs(dx) > 72, abs(dx) > abs(drag.translation.height) else { return }
+            if let target = dx < 0 ? reader.next : reader.previous { send(.tap(target.action)) }
+        })
+        // MISC-6: a pinch steps the pane layout, one step per gesture.
+        .simultaneousGesture(MagnifyGesture().onEnded { pinch in
+            let scale = pinch.magnification
+            if scale > 1.15 || scale < 1 / 1.15 { send(.pinch(zoomIn: scale > 1)) }
+        })
+        .accessibilityActions {
+            if let previous = reader.previous {
+                SwiftUI.Button(previous.label) { send(.tap(previous.action)) }
+            }
+            if let next = reader.next {
+                SwiftUI.Button(next.label) { send(.tap(next.action)) }
+            }
         }
         // `dail-action:<id>` is how a link span reaches its action; nothing else is opened.
         .environment(\.openURL, OpenURLAction { url in

@@ -188,7 +188,7 @@ pub fn threads_in(state: &AppState, mailbox: MailboxId) -> Vec<&Thread> {
         .map(|m| m.thread)
         .collect();
     let mut threads: Vec<&Thread> = ids.iter().filter_map(|id| state.threads.get(id)).collect();
-    sort_newest_first(&mut threads, |t| t);
+    sort_newest_first(state, &mut threads, |t| t);
     threads
 }
 
@@ -242,7 +242,7 @@ pub fn search<'a>(
             Some((thread, ordered))
         })
         .collect();
-    sort_newest_first(&mut threads, |(t, _)| t);
+    sort_newest_first(state, &mut threads, |(t, _)| t);
     threads
 }
 
@@ -269,8 +269,26 @@ pub fn by_relevance(state: &AppState, query: &Query, threads: &mut [(&Thread, Ve
 }
 
 /// What the thread list shows: the results of `view.search` if set (nothing if it doesn't
-/// parse), else every inbox's threads if `view.unified`, else the threads of `view.mailbox`.
+/// parse), else every inbox's threads if `view.unified`, else the threads of `view.mailbox`;
+/// only those that pass `view.filter` (`set_list_filter`).
 pub fn visible_threads(state: &AppState) -> Vec<ThreadId> {
+    let mut ids = listed_threads(state);
+    let filter = state.view.filter;
+    if !filter.is_off() {
+        ids.retain(|id| {
+            state.threads.get(id).is_some_and(|thread| {
+                let messages = || thread.messages.iter().filter_map(|m| state.messages.get(m));
+                (!filter.unread || messages().any(|m| !m.flags.seen))
+                    && (!filter.starred || messages().any(|m| m.flags.flagged))
+                    && (!filter.attachments || messages().any(|m| m.has_attachments))
+            })
+        });
+    }
+    ids
+}
+
+/// [`visible_threads`] before the filter.
+fn listed_threads(state: &AppState) -> Vec<ThreadId> {
     if let Some(text) = &state.view.search {
         return Query::parse(text)
             .map(|query| {
@@ -306,7 +324,7 @@ pub fn unified_threads(state: &AppState) -> Vec<&Thread> {
         .map(|m| m.thread)
         .collect();
     let mut threads: Vec<&Thread> = ids.iter().filter_map(|id| state.threads.get(id)).collect();
-    sort_newest_first(&mut threads, |t| t);
+    sort_newest_first(state, &mut threads, |t| t);
     threads
 }
 
@@ -329,6 +347,8 @@ pub struct ThreadSummary<'a> {
     pub unread: usize,
     /// Whether a message is starred.
     pub flagged: bool,
+    /// Whether a message is pinned (`pin_threads`).
+    pub pinned: bool,
     /// Whether a message has attachments.
     pub has_attachments: bool,
 }
@@ -354,6 +374,7 @@ impl<'a> ThreadSummary<'a> {
             thread,
             unread: messages.iter().filter(|m| !m.flags.seen).count(),
             flagged: messages.iter().any(|m| m.flags.flagged),
+            pinned: messages.iter().any(|m| m.flags.pinned),
             has_attachments: messages.iter().any(|m| m.has_attachments),
             senders,
             messages,
@@ -369,11 +390,23 @@ impl<'a> ThreadSummary<'a> {
     }
 }
 
-fn sort_newest_first<T>(items: &mut [T], thread: impl Fn(&T) -> &Thread) {
-    items.sort_by(|a, b| {
-        let (a, b) = (thread(a), thread(b));
-        b.last_date_ms
-            .cmp(&a.last_date_ms)
-            .then_with(|| a.id.cmp(&b.id))
+/// Pinned threads first (MISC-4), then newest first; ties by ID.
+fn sort_newest_first<T>(state: &AppState, items: &mut [T], thread: impl Fn(&T) -> &Thread) {
+    items.sort_by_cached_key(|item| {
+        let thread = thread(item);
+        (
+            std::cmp::Reverse(is_pinned(state, thread)),
+            std::cmp::Reverse(thread.last_date_ms),
+            thread.id,
+        )
     });
+}
+
+/// Whether a message of `thread` is pinned (`pin_threads`).
+pub fn is_pinned(state: &AppState, thread: &Thread) -> bool {
+    thread
+        .messages
+        .iter()
+        .filter_map(|m| state.messages.get(m))
+        .any(|m| m.flags.pinned)
 }

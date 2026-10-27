@@ -146,6 +146,9 @@ pub struct Mobile {
     theme_sent: Option<String>,
     /// Whether the About screen is open.
     about: bool,
+    /// Panes a pinch took away from the reader (MISC-6): 0 none, 1 the sidebar, 2 the list too.
+    /// Kept across threads.
+    pane_step: u8,
     /// The composer's typed text.
     compose: Buffers,
     /// The drafts whose scheduled or leaving send the host was told about (`sending`).
@@ -246,6 +249,7 @@ impl Mobile {
             dark: false,
             theme_sent: None,
             about: false,
+            pane_step: 0,
             compose: Buffers::default(),
             told: Vec::new(),
             kept: Vec::new(),
@@ -358,6 +362,14 @@ impl Mobile {
                     self.externals.push(External::Haptic);
                 }
                 out
+            }
+            UiEvent::Pinch { zoom_in } => {
+                self.pane_step = if zoom_in {
+                    (self.pane_step + 1).min(2)
+                } else {
+                    self.pane_step.saturating_sub(1)
+                };
+                Vec::new()
             }
             UiEvent::Scrolled { first, count } => {
                 self.scrolled = (first, count);
@@ -761,15 +773,29 @@ impl Mobile {
             kinds.retain(|k| *k == PaneKind::Drawer);
             kinds.push(PaneKind::Settings);
         }
-        // A collapsed sidebar on a wide window is a rail, not gone.
-        let rail =
-            class == Class::Expanded && state.view.sidebar_collapsed && !state.accounts.is_empty();
-        if rail {
+        // A collapsed sidebar on a wide window is a rail, not gone; so is the sidebar of a
+        // landscape window that is not compact (MISC-6).
+        let landscape = self.window.width_dp > self.window.height_dp;
+        let rail = !state.accounts.is_empty()
+            && !modal
+            && ((class == Class::Expanded && state.view.sidebar_collapsed)
+                || (landscape && class != Class::Compact));
+        if rail && !kinds.contains(&PaneKind::Drawer) {
             kinds.insert(0, PaneKind::Drawer);
+        }
+        // A pinch gave the message more room (MISC-6).
+        if kinds.contains(&PaneKind::Reader) {
+            if self.pane_step >= 1 {
+                kinds.retain(|k| *k != PaneKind::Drawer);
+            }
+            if self.pane_step >= 2 && kinds.len() > 1 {
+                kinds.retain(|k| *k != PaneKind::List);
+            }
         }
         let top_bar = self.top_bar(state, &kinds);
         let chosen = crate::theme::chosen(&state.settings, self.dark);
-        let drawer = (modal || kinds.contains(&PaneKind::Drawer))
+        // A modal drawer gives way to the About screen it opened.
+        let drawer = ((modal && !self.about) || kinds.contains(&PaneKind::Drawer))
             .then(|| self.drawer(state, modal, rail, chosen.tags.len()));
         let list = kinds
             .contains(&PaneKind::List)
@@ -856,6 +882,15 @@ impl Mobile {
     }
 
     fn top_bar(&mut self, state: &AppState, kinds: &[PaneKind]) -> TopBar {
+        if self.about {
+            // MISC-3: the About screen closes from its own top bar, not only with Back.
+            return TopBar {
+                title: "About".to_owned(),
+                subtitle: None,
+                navigation: Some(self.button("close", "Close", Act::Back)),
+                actions: Vec::new(),
+            };
+        }
         let one = match kinds {
             [only] => Some(*only),
             _ => None,
@@ -899,11 +934,14 @@ impl Mobile {
                 action: self.add(Act::Setup(setup::SetupAct::Open)),
             });
         }
-        actions.push(Button {
-            icon: None,
-            label: "About".to_owned(),
-            action: self.add(Act::About),
-        });
+        if state.accounts.is_empty() {
+            // Without accounts there is no drawer: *About* stays here (MISC-3).
+            actions.push(Button {
+                icon: None,
+                label: "About".to_owned(),
+                action: self.add(Act::About),
+            });
+        }
         TopBar {
             title,
             subtitle,
@@ -969,7 +1007,7 @@ impl Mobile {
             ("Settings", "settings", None),
             ("Add account", "add", Some(SettingsSection::Accounts)),
         ] {
-            let selected = section.is_none() && state.view.settings.is_some();
+            let selected = section.is_none() && state.view.settings.is_some() && !self.about;
             footer.push(DrawerItem {
                 a11y: label.to_owned(),
                 label: label.to_owned(),
@@ -978,6 +1016,18 @@ impl Mobile {
                 selected,
                 action: self.add(open(Command::OpenSettings { section })),
             });
+            if section.is_none() {
+                // MISC-3: *About* right after *Settings* (no command: the screen is the
+                // presenter's).
+                footer.push(DrawerItem {
+                    a11y: "About".to_owned(),
+                    label: "About".to_owned(),
+                    icon: "info".to_owned(),
+                    unread: 0,
+                    selected: self.about,
+                    action: self.add(Act::About),
+                });
+            }
         }
         Drawer {
             modal,
@@ -1085,6 +1135,7 @@ impl Mobile {
                 date: format::short_date(thread.last_date_ms, now),
                 unread: summary.unread > 0,
                 starred: summary.flagged,
+                pinned: summary.pinned,
                 attachments: summary.has_attachments,
                 messages: summary.messages.len(),
                 tag: (state.accounts.len() > 1 && tags > 0)
@@ -1127,6 +1178,10 @@ impl Mobile {
         }
         let ids = palette::targets(state);
         let messages = Vec::new;
+        let all_pinned = ids
+            .iter()
+            .filter_map(|t| state.threads.get(t))
+            .all(|t| listing::is_pinned(state, t));
         let actions = [
             (
                 "archive",
@@ -1168,6 +1223,26 @@ impl Mobile {
                     messages: messages(),
                 },
             ),
+            // MISC-4: unpin when every checked thread is pinned.
+            if all_pinned {
+                (
+                    "push_pin",
+                    "Unpin",
+                    Command::UnpinThreads {
+                        ids: ids.clone(),
+                        messages: messages(),
+                    },
+                )
+            } else {
+                (
+                    "push_pin",
+                    "Pin",
+                    Command::PinThreads {
+                        ids: ids.clone(),
+                        messages: messages(),
+                    },
+                )
+            },
         ]
         .into_iter()
         .map(|(icon, label, cmd)| self.button(icon, label, Act::Run(cmd)))

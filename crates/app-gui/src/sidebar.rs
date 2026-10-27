@@ -1,7 +1,10 @@
 //! The sidebar (UI-5): the brand row, *Compose*, the mailboxes of each account, *Add account* and
 //! *Settings* at the bottom; collapsed, a rail of icons. It draws with the chrome group.
 
-use app_core::{AccountId, AppState, Command, CommandName, Mailbox, MailboxRole, Pane, listing};
+use app_core::{
+    AccountId, AppState, Command, CommandName, FolderKey, Mailbox, MailboxRole, Pane, listing,
+};
+use app_front::mailbox::FolderNode;
 use app_front::mailbox::mailbox_name;
 use app_theme::Icon;
 use egui::{Align, Layout, Sense, Ui, Vec2};
@@ -17,6 +20,36 @@ pub struct SidebarActions {
     pub add_account: bool,
     /// Open the settings page.
     pub settings: bool,
+    /// A folder's context-menu entry that asks in the palette (UX-14).
+    pub folder: Option<FolderMenu>,
+}
+
+/// A folder context-menu entry that continues in the palette.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FolderMenu {
+    /// *New subfolder…*: asks for the name.
+    NewSubfolder(app_core::MailboxId),
+    /// *Rename…*: asks for the new path.
+    Rename(app_core::MailboxId),
+    /// *Delete…*: asks for the confirmation.
+    Delete(app_core::MailboxId),
+}
+
+impl FolderMenu {
+    /// The palette step.
+    pub fn flow(self, state: &AppState) -> app_front::palette::Flow {
+        match self {
+            Self::NewSubfolder(id) => app_front::palette::new_subfolder(state, id),
+            Self::Rename(id) => app_front::palette::rename_folder(state, id),
+            Self::Delete(id) => app_front::palette::delete_folder(state, id),
+        }
+    }
+}
+
+/// What a mailbox row asked for.
+enum RowOut {
+    Run(Command),
+    Menu(FolderMenu),
 }
 
 /// The account the sidebar's shortcuts act on: the open mailbox's, else the first.
@@ -140,7 +173,26 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let focused = state.view.focus == Pane::Sidebar;
-            if state.accounts.len() > 1 {
+            if state.view.focused.is_some() {
+                // Focus mode (UX-4): the way back to every folder.
+                let response = ui::ghost(
+                    ui,
+                    t,
+                    ui::icon_text(
+                        Icon::ChevronLeft,
+                        "Show all folders",
+                        ui::font(&t.type_scale.body_md),
+                        t.text_secondary,
+                    ),
+                );
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::Role::Button, true, "Show all folders")
+                });
+                if response.clicked() {
+                    queue.push(Request::user(Command::ClearFocus {}));
+                }
+                ui.add_space(t.m.space.sm);
+            } else if state.accounts.len() > 1 {
                 let unread: u32 = state
                     .mailboxes
                     .values()
@@ -160,7 +212,34 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 ui.add_space(t.m.space.md);
             }
             let current = current_account(state);
+            let favourites = app_front::mailbox::favourites(state);
+            if !favourites.is_empty() {
+                // UX-8: pinned folders above the accounts.
+                ui::caption(ui, t, "Favourites");
+                ui.add_space(t.m.space.xs / 2.0);
+                for mailbox in favourites {
+                    let label = favourite_label(state, mailbox);
+                    let row = Row {
+                        icon: crate::theme::role_icon(mailbox.role),
+                        label: &label,
+                        unread: mailbox.unread,
+                        keys: None,
+                        open: state.view.mailbox == Some(mailbox.id)
+                            && state.view.search.is_none()
+                            && !state.view.unified,
+                    };
+                    if row.show(ui, t, focused).clicked() {
+                        queue.push(Request::user(Command::OpenMailbox { id: mailbox.id }));
+                    }
+                }
+                ui.add_space(t.m.space.md);
+            }
             for account in state.accounts.values() {
+                let account_key = FolderKey {
+                    account: account.id,
+                    path: String::new(),
+                };
+                let account_folded = state.view.collapsed.contains(&account_key);
                 ui.horizontal(|ui| {
                     if state.accounts.len() > 1 {
                         let tag = t.tag(state, account.id);
@@ -171,15 +250,99 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                         ui.painter()
                             .rect_filled(rect, ui::radius(t.m.radius.sm), tag);
                     }
-                    ui::caption(ui, t, &account.display_name);
+                    let caption = ui::caption(ui, t, &account.display_name);
+                    account_state(ui, t, state, account.id);
+                    let name = format!("{} folders", account.display_name);
+                    if chevron(ui, t, !account_folded, &name, caption.rect.height()).clicked() {
+                        queue.push(Request::user(fold(account_key.clone(), !account_folded)));
+                    }
                 });
                 ui.add_space(t.m.space.xs / 2.0);
-                for mailbox in listing::mailboxes(state, Some(account.id)) {
-                    let keys = (Some(account.id) == current)
-                        .then(|| role_keys(state, mailbox.role))
-                        .flatten();
-                    if mailbox_row(ui, t, state, mailbox, keys, focused) {
-                        queue.push(Request::user(Command::OpenMailbox { id: mailbox.id }));
+                let nodes = app_front::mailbox::sidebar_tree(state, account.id);
+                if account_folded {
+                    // The open mailbox is never hidden: the account stands in for it.
+                    let open = nodes_open(state, &nodes);
+                    if let Some(node) = open {
+                        let row = Row {
+                            icon: crate::theme::role_icon(node.role),
+                            label: &node.label,
+                            unread: node.unread,
+                            keys: None,
+                            open: true,
+                        };
+                        row.show(ui, t, focused);
+                    }
+                }
+                let gutter = nodes
+                    .iter()
+                    .any(|n| n.is_parent() || n.children.iter().any(FolderNode::is_parent))
+                    .then_some(t.m.controls.icon_sm + t.m.space.xs);
+                let toggle = egui::Id::unique(("sidebar-show-hidden", account.id));
+                let show_hidden = ui.data(|d| d.get_temp::<bool>(toggle).unwrap_or(false));
+                for node in
+                    app_front::mailbox::visible_rows_with(state, account.id, &nodes, show_hidden)
+                {
+                    let indent = t.m.space.md * node.depth as f32;
+                    let folded = state.view.collapsed.contains(&node.key);
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.add_space(indent);
+                        if let Some(gutter) = gutter {
+                            if node.is_parent() {
+                                let name = format!("{} subfolders", node.label);
+                                if chevron(ui, t, !folded, &name, t.m.rows.nav).clicked() {
+                                    queue.push(Request::user(fold(node.key.clone(), !folded)));
+                                }
+                            } else {
+                                ui.add_space(gutter);
+                            }
+                        }
+                        let hidden = if folded { node.unread_below } else { 0 };
+                        let mailbox = node.mailbox.and_then(|id| state.mailboxes.get(&id));
+                        match mailbox {
+                            Some(mailbox) => {
+                                let keys = (Some(account.id) == current)
+                                    .then(|| role_keys(state, mailbox.role))
+                                    .flatten();
+                                match mailbox_row(ui, t, state, mailbox, node, keys, focused) {
+                                    Some(RowOut::Run(cmd)) => queue.push(Request::user(cmd)),
+                                    Some(RowOut::Menu(menu)) => actions.folder = Some(menu),
+                                    None => {}
+                                }
+                            }
+                            // A parent folder that can't be opened: a click folds it.
+                            None => {
+                                let row = Row {
+                                    icon: Icon::Folder,
+                                    label: &node.label,
+                                    unread: 0,
+                                    keys: None,
+                                    open: false,
+                                };
+                                if row.show_with(ui, t, focused, hidden).clicked() {
+                                    queue.push(Request::user(fold(node.key.clone(), !folded)));
+                                }
+                            }
+                        }
+                    });
+                }
+                let hidden = app_front::mailbox::hidden_count(state, account.id);
+                if hidden > 0 && !account_folded {
+                    let label = if show_hidden {
+                        "Hide hidden folders".to_owned()
+                    } else {
+                        format!("Show hidden ({hidden})")
+                    };
+                    let response = ui::ghost(
+                        ui,
+                        t,
+                        ui::text(&t.type_scale.label_sm, label.clone(), t.text_muted),
+                    );
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::Role::Button, true, label.as_str())
+                    });
+                    if response.clicked() {
+                        ui.data_mut(|d| d.insert_temp(toggle, !show_hidden));
                     }
                 }
                 ui.add_space(t.m.space.md);
@@ -209,6 +372,87 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
     actions
 }
 
+/// A favourite's label: its name, with the account's when there are several accounts.
+fn favourite_label(state: &AppState, mailbox: &Mailbox) -> String {
+    let name = mailbox_name(mailbox);
+    match state.accounts.get(&mailbox.account) {
+        Some(account) if state.accounts.len() > 1 => format!("{name} · {}", account.display_name),
+        _ => name,
+    }
+}
+
+/// The account's sync state next to its name (UX-9): a busy dot while it syncs, a failed dot
+/// with the error on hover, `offline` while changes wait for the server.
+fn account_state(ui: &mut Ui, t: &Tokens, state: &AppState, account: AccountId) {
+    use app_front::status::AccountState;
+    match app_front::status::account_state(state, account) {
+        AccountState::Idle => {}
+        AccountState::Syncing => {
+            ui::status_dot(ui, t, ui::Dot::Busy).on_hover_text("Syncing");
+        }
+        AccountState::Failed(error) => {
+            ui::status_dot(ui, t, ui::Dot::Failed).on_hover_text(error);
+        }
+        AccountState::Offline { waiting } => {
+            ui.label(ui::text(&t.type_scale.label_sm, "offline", t.text_muted))
+                .on_hover_text(format!("{waiting} change(s) wait for the server"));
+        }
+    }
+}
+
+/// `collapse_folders` or `expand_folders` for one key.
+fn fold(key: FolderKey, collapse: bool) -> Command {
+    if collapse {
+        Command::CollapseFolders { keys: vec![key] }
+    } else {
+        Command::ExpandFolders { keys: vec![key] }
+    }
+}
+
+/// The node of the open mailbox, anywhere in the tree.
+fn nodes_open<'a>(state: &AppState, nodes: &'a [FolderNode]) -> Option<&'a FolderNode> {
+    let open = state.view.mailbox?;
+    if state.view.search.is_some() || state.view.unified {
+        return None;
+    }
+    app_front::mailbox::rows(nodes, &|_| false)
+        .into_iter()
+        .find(|n| n.mailbox == Some(open))
+}
+
+/// The fold chevron of a parent row or an account caption: `ExpandMore` while expanded,
+/// `ChevronRight` while collapsed. Its accessible name says what a click does.
+fn chevron(ui: &mut Ui, t: &Tokens, expanded: bool, what: &str, height: f32) -> egui::Response {
+    let side = t.m.controls.icon_sm + t.m.space.xs;
+    let (rect, response) = ui.allocate_exact_size(Vec2::new(side, height), Sense::click());
+    let label = if expanded {
+        format!("Collapse {what}")
+    } else {
+        format!("Expand {what}")
+    };
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::Role::Button, true, expanded, label.as_str())
+    });
+    if response.hovered() {
+        ui.painter()
+            .rect_filled(rect, ui::radius(t.m.radius.sm), t.hover);
+    }
+    let icon = if expanded {
+        Icon::ExpandMore
+    } else {
+        Icon::ChevronRight
+    };
+    ui::paint_icon(
+        ui,
+        rect.center(),
+        icon,
+        t.m.controls.icon_sm,
+        t.text_muted,
+        false,
+    );
+    response.on_hover_text(label)
+}
+
 /// One nav row: the name, then the unread count or else the key hint.
 struct Row<'a> {
     icon: Icon,
@@ -221,9 +465,15 @@ struct Row<'a> {
 impl Row<'_> {
     /// Screen readers hear the name, the unread count and whether it is the open one.
     fn show(self, ui: &mut Ui, t: &Tokens, focused: bool) -> egui::Response {
+        self.show_with(ui, t, focused, 0)
+    }
+
+    /// `hidden`: the unread mail of the folders a collapsed row hides.
+    fn show_with(self, ui: &mut Ui, t: &Tokens, focused: bool, hidden: u32) -> egui::Response {
         let name = app_front::a11y::nav_row(self.label, self.unread);
         let trailing = match (self.unread, self.keys) {
             (n, _) if n > 0 => ui::Trailing::Count(n),
+            _ if hidden > 0 => ui::Trailing::Faint(hidden),
             (_, Some(keys)) => ui::Trailing::Keys(keys),
             _ => ui::Trailing::None,
         };
@@ -247,20 +497,107 @@ fn mailbox_row(
     t: &Tokens,
     state: &AppState,
     mailbox: &Mailbox,
+    node: &FolderNode,
     keys: Option<String>,
     focused: bool,
-) -> bool {
-    let label = mailbox_name(mailbox);
+) -> Option<RowOut> {
+    let hidden = if state.view.collapsed.contains(&node.key) {
+        node.unread_below
+    } else {
+        0
+    };
     let row = Row {
         icon: crate::theme::role_icon(mailbox.role),
-        label: &label,
+        label: &node.label,
         unread: mailbox.unread,
         keys,
         open: state.view.mailbox == Some(mailbox.id)
             && state.view.search.is_none()
             && !state.view.unified,
     };
-    let response = row.show(ui, t, focused);
+    let response = row.show_with(ui, t, focused, hidden);
+    // UX-11: threads dragged from the list move here (same account only).
+    if let Some(dragged) = response.dnd_hover_payload::<crate::list::Dragged>()
+        && dragged.account == mailbox.account
+    {
+        ui.painter().rect_stroke(
+            response.rect,
+            ui::radius(t.m.radius.md),
+            egui::Stroke::new(t.m.stroke.focus, t.focus),
+            egui::StrokeKind::Inside,
+        );
+    }
+    let mut out = response
+        .clicked()
+        .then_some(RowOut::Run(Command::OpenMailbox { id: mailbox.id }));
+    // UX-8, UX-4, UX-14: the folder's context menu.
+    response.context_menu(|ui| {
+        let id = mailbox.id;
+        let pinned = state.settings.pinned_mailboxes.contains(&node.key);
+        let hidden = state.settings.hidden_mailboxes.contains(&node.key);
+        let not_inbox = mailbox.role != Some(MailboxRole::Inbox);
+        let entries: [(&str, Option<RowOut>); 7] = [
+            (
+                "New subfolder…",
+                Some(RowOut::Menu(FolderMenu::NewSubfolder(id))),
+            ),
+            (
+                "Rename…",
+                not_inbox.then_some(RowOut::Menu(FolderMenu::Rename(id))),
+            ),
+            (
+                if pinned {
+                    "Unpin from Favourites"
+                } else {
+                    "Pin to Favourites"
+                },
+                Some(RowOut::Run(if pinned {
+                    Command::UnpinMailbox { id }
+                } else {
+                    Command::PinMailbox { id }
+                })),
+            ),
+            (
+                if hidden { "Show folder" } else { "Hide folder" },
+                Some(RowOut::Run(if hidden {
+                    Command::ShowMailbox { id }
+                } else {
+                    Command::HideMailbox { id }
+                })),
+            ),
+            (
+                "Focus this mailbox",
+                Some(RowOut::Run(Command::FocusMailbox {
+                    id: Some(id),
+                    account: None,
+                })),
+            ),
+            (
+                "Mark all as read",
+                Some(RowOut::Run(Command::MarkMailboxRead { id })),
+            ),
+            (
+                "Delete…",
+                not_inbox.then_some(RowOut::Menu(FolderMenu::Delete(id))),
+            ),
+        ];
+        for (label, entry) in entries {
+            let Some(entry) = entry else { continue };
+            if ui.button(label).clicked() {
+                out = Some(entry);
+                ui.close();
+            }
+        }
+    });
+    if let Some(dragged) = response.dnd_release_payload::<crate::list::Dragged>()
+        && dragged.account == mailbox.account
+    {
+        out = Some(RowOut::Run(Command::MoveThreads {
+            ids: dragged.ids.clone(),
+            messages: Vec::new(),
+            to: mailbox.id,
+        }));
+    }
     let backfilling = state.status.backfilling.contains(&mailbox.id);
     if backfilling && let Some(history) = listing::history(state, mailbox.id) {
         // Older mail is being fetched in the background: how far it got.
@@ -284,7 +621,7 @@ fn mailbox_row(
                 history.cached, history.wanted
             ));
     }
-    response.clicked()
+    out
 }
 
 /// Renders the collapsed rail: expand, compose, the role mailboxes of the current account and

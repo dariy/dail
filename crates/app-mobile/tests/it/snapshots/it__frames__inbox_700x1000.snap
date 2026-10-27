@@ -24,10 +24,6 @@ expression: phone.frame()
         "icon": "search",
         "label": "Search or run a command",
         "action": 2
-      },
-      {
-        "label": "About",
-        "action": 3
       }
     ]
   },
@@ -41,10 +37,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 4,
-        "long_press": 5,
-        "swipe_start": 6,
-        "swipe_end": 7,
+        "action": 3,
+        "long_press": 4,
+        "swipe_start": 5,
+        "swipe_end": 6,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -59,10 +55,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 8,
-        "long_press": 9,
-        "swipe_start": 10,
-        "swipe_end": 11,
+        "action": 7,
+        "long_press": 8,
+        "swipe_start": 9,
+        "swipe_end": 10,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -80,7 +76,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 12
+    "action": 11
   },
   "theme": {
     "id": "dail-light",
@@ -299,16 +295,19 @@ expression: phone.frame()
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
       "mail": "",
       "mark_email_read": "",
       "mark_email_unread": "",
+      "menu": "",
       "more_horiz": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",
+      "push_pin": "",
       "reply": "",
       "reply_all": "",
       "report": "",

@@ -98,6 +98,13 @@ sealed interface UiEvent {
         override fun json() = event("swipe") { put("action", action) }
     }
 
+    /** A pinch on the message ended: fingers apart (`zoomIn`) or together (MISC-6). */
+    data class Pinch(
+        val zoomIn: Boolean,
+    ) : UiEvent {
+        override fun json() = event("pinch") { put("zoom_in", zoomIn) }
+    }
+
     data class Scrolled(
         val first: Int,
         val count: Int,

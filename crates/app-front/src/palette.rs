@@ -272,6 +272,106 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// "Move to…" for `ids`: asks for the target among their account's mailboxes.
+pub fn move_to(state: &AppState, ids: Vec<ThreadId>) -> Flow {
+    let account = ids
+        .first()
+        .and_then(|t| state.threads.get(t))
+        .map(|t| t.account);
+    pick_mailbox("Move to…", account, move |to| Command::MoveThreads {
+        ids: ids.clone(),
+        messages: Vec::new(),
+        to,
+    })
+}
+
+/// "New subfolder…" of `parent` (the sidebar's context menu, UX-14): asks for the name.
+pub fn new_subfolder(state: &AppState, parent: MailboxId) -> Flow {
+    let Some(mailbox) = state.mailboxes.get(&parent) else {
+        return Flow::Hidden;
+    };
+    let (account, prefix) = (
+        mailbox.account,
+        format!("{}{}", mailbox.path, mailbox.separator()),
+    );
+    ask(
+        format!("New folder in {}", mailbox.path),
+        AskKind::Text("its name".into()),
+        move |_, choice| match choice {
+            Choice::Text(name) if !name.trim().is_empty() => Flow::Run(Command::CreateFolder {
+                account,
+                path: format!("{prefix}{}", name.trim()),
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// "Rename…" of folder `id`: asks for the new full path.
+pub fn rename_folder(state: &AppState, id: MailboxId) -> Flow {
+    let now = state
+        .mailboxes
+        .get(&id)
+        .map_or_else(String::new, |m| m.path.clone());
+    ask(
+        "New name (full path)?",
+        AskKind::Text(format!("now {now}")),
+        move |_, choice| match choice {
+            Choice::Text(path) if !path.trim().is_empty() => {
+                Flow::Run(Command::RenameFolder { id, path })
+            }
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// "Delete…" of folder `id`: the confirmation step.
+pub fn delete_folder(state: &AppState, id: MailboxId) -> Flow {
+    let path = state
+        .mailboxes
+        .get(&id)
+        .map_or_else(String::new, |m| m.path.clone());
+    ask(
+        "Delete this folder and all mail in it? This cannot be undone.",
+        AskKind::Confirm(format!("Delete {path}")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::DeleteFolder { id, confirm: true }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `make` for the open mailbox, else for one the user picks.
+fn on_mailbox(
+    state: &AppState,
+    prompt: &str,
+    make: impl Fn(MailboxId) -> Command + Send + Sync + 'static,
+) -> Flow {
+    match state.view.mailbox.filter(|_| !state.view.unified) {
+        Some(id) => Flow::Run(make(id)),
+        None => pick_mailbox(prompt, None, make),
+    }
+}
+
+/// Unread mail above which "Mark all as read" asks first (UX-7).
+pub const MARK_ALL_CONFIRM_ABOVE: u32 = 50;
+
+/// `mark_mailbox_read` for `id`, after a confirmation when much is unread.
+fn mark_mailbox_read(state: &AppState, id: MailboxId) -> Flow {
+    let unread = state.mailboxes.get(&id).map_or(0, |m| m.unread);
+    if unread <= MARK_ALL_CONFIRM_ABOVE {
+        return Flow::Run(Command::MarkMailboxRead { id });
+    }
+    ask(
+        format!("Mark all {unread} unread messages read? Undo restores only the cached ones."),
+        AskKind::Confirm(format!("Mark {unread} messages read")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::MarkMailboxRead { id }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// The `set_theme` that typed text asks for: a mode (`system`, `light`, `dark`), then optionally
 /// a theme name for that mode (`dark dail-dark-hc`); a name alone sets the mode its name says
 /// (`…-light…` light, else dark). Anything else gives a `set_theme` the engine rejects.
@@ -385,11 +485,11 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             let Choice::Setting(key) = choice else {
                 return Flow::Hidden;
             };
-            let (min, max) = key.range();
+            let allowed = key.allowed();
             let current = key.get(&state.settings);
             ask(
                 format!("New value for {}", key.as_str()),
-                AskKind::Text(format!("{min}–{max}, now {current}")),
+                AskKind::Text(format!("{allowed}, now {current}")),
                 move |_, choice| match choice {
                     Choice::Text(text) => {
                         text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
@@ -655,6 +755,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             ids,
             messages: Vec::new(),
         }),
+        CommandName::PinThreads => on_threads(state, |ids| Command::PinThreads {
+            ids,
+            messages: Vec::new(),
+        }),
+        CommandName::UnpinThreads => on_threads(state, |ids| Command::UnpinThreads {
+            ids,
+            messages: Vec::new(),
+        }),
         CommandName::ArchiveThreads => on_threads(state, |ids| Command::ArchiveThreads {
             ids,
             messages: Vec::new(),
@@ -664,17 +772,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             messages: Vec::new(),
         }),
         CommandName::MoveThreads => {
-            let then = |state: &AppState, ids: Vec<ThreadId>| {
-                let account = ids
-                    .first()
-                    .and_then(|t| state.threads.get(t))
-                    .map(|t| t.account);
-                pick_mailbox("Move to…", account, move |to| Command::MoveThreads {
-                    ids: ids.clone(),
-                    messages: Vec::new(),
-                    to,
-                })
-            };
+            let then = move_to;
             let ids = targets(state);
             if ids.is_empty() {
                 ask(
@@ -818,6 +916,113 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::ToggleSidebar => Flow::Run(Command::ToggleSidebar {}),
+        CommandName::FocusMailbox => match state.view.mailbox {
+            Some(id) if !state.view.unified => Flow::Run(Command::FocusMailbox {
+                id: Some(id),
+                account: None,
+            }),
+            _ => pick_mailbox("Focus on which mailbox?", None, |id| {
+                Command::FocusMailbox {
+                    id: Some(id),
+                    account: None,
+                }
+            }),
+        },
+        CommandName::ClearFocus => Flow::Run(Command::ClearFocus {}),
+        CommandName::CreateFolder => {
+            let named = |account| {
+                ask(
+                    "Name of the new folder?",
+                    AskKind::Text("a path like Work/Clients".into()),
+                    move |_, choice| match choice {
+                        Choice::Text(path) if !path.trim().is_empty() => {
+                            Flow::Run(Command::CreateFolder { account, path })
+                        }
+                        _ => Flow::Hidden,
+                    },
+                )
+            };
+            match current_account(state) {
+                Some(account) if state.accounts.len() == 1 => named(account),
+                _ => pick_account(move |_, account| named(account)),
+            }
+        }
+        CommandName::RenameFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => rename_folder(state, id),
+            None => ask(
+                "Rename which folder?",
+                AskKind::Mailboxes(None),
+                |state, choice| match choice {
+                    Choice::Mailbox(id) => rename_folder(state, id),
+                    _ => Flow::Hidden,
+                },
+            ),
+        },
+        CommandName::DeleteFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => delete_folder(state, id),
+            None => ask(
+                "Delete which folder?",
+                AskKind::Mailboxes(None),
+                |state, choice| match choice {
+                    Choice::Mailbox(id) => delete_folder(state, id),
+                    _ => Flow::Hidden,
+                },
+            ),
+        },
+        CommandName::PinMailbox => {
+            on_mailbox(state, "Pin which mailbox?", |id| Command::PinMailbox { id })
+        }
+        CommandName::UnpinMailbox => on_mailbox(state, "Unpin which mailbox?", |id| {
+            Command::UnpinMailbox { id }
+        }),
+        CommandName::HideMailbox => on_mailbox(state, "Hide which mailbox?", |id| {
+            Command::HideMailbox { id }
+        }),
+        CommandName::ShowMailbox => pick_mailbox("Show which hidden mailbox?", None, |id| {
+            Command::ShowMailbox { id }
+        }),
+        CommandName::MarkMailboxRead => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(id) => mark_mailbox_read(state, id),
+            None => pick_mailbox("Mark which mailbox read?", None, |id| {
+                Command::MarkMailboxRead { id }
+            }),
+        },
+        CommandName::SetListFilter => {
+            let filter = state.view.filter;
+            let now: Vec<&str> = [
+                (filter.unread, "unread"),
+                (filter.starred, "starred"),
+                (filter.attachments, "attachments"),
+            ]
+            .into_iter()
+            .filter_map(|(on, name)| on.then_some(name))
+            .collect();
+            ask(
+                "Show only which threads?",
+                AskKind::Text(format!(
+                    "unread, starred, attachments (empty: all); now: {}",
+                    if now.is_empty() {
+                        "all".to_owned()
+                    } else {
+                        now.join(", ")
+                    }
+                )),
+                |_, choice| match choice {
+                    Choice::Text(text) => {
+                        let text = text.to_lowercase();
+                        let has = |word: &str| Some(text.contains(word));
+                        Flow::Run(Command::SetListFilter {
+                            unread: has("unread"),
+                            starred: has("star"),
+                            attachments: has("attach"),
+                        })
+                    }
+                    _ => Flow::Hidden,
+                },
+            )
+        }
+        CommandName::CollapseFolders => Flow::Run(Command::CollapseFolders { keys: Vec::new() }),
+        CommandName::ExpandFolders => Flow::Run(Command::ExpandFolders { keys: Vec::new() }),
         CommandName::GetView => Flow::Run(Command::GetView {}),
         CommandName::CompactStore => Flow::Run(Command::CompactStore {}),
         CommandName::ListApprovals => Flow::Run(Command::ListApprovals {}),
@@ -1098,6 +1303,19 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                             .get(to)
                             .map_or_else(String::new, mailbox_name)
                     ),
+                    app_core::RemoteOp::FlagMailbox {
+                        mailbox,
+                        flag,
+                        value,
+                    } => format!(
+                        "{} {:?} on all of {}",
+                        if *value { "set" } else { "clear" },
+                        flag,
+                        state
+                            .mailboxes
+                            .get(mailbox)
+                            .map_or_else(String::new, mailbox_name)
+                    ),
                 };
                 let detail = op
                     .last_error
@@ -1109,11 +1327,10 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
         AskKind::Settings => SettingKey::ALL
             .iter()
             .map(|key| {
-                let (min, max) = key.range();
                 row(
                     Choice::Setting(*key),
                     key.as_str().to_owned(),
-                    format!("{} (range {min}–{max})", key.get(&state.settings)),
+                    format!("{} (range {})", key.get(&state.settings), key.allowed()),
                 )
             })
             .collect(),

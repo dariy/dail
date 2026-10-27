@@ -174,22 +174,29 @@ fn triage_keys_act_on_the_open_thread() {
     h.run();
     h.event(egui::Event::Text("#".into()));
     h.run();
+    let out = h.state_mut().pump();
     assert_eq!(
-        h.state_mut().pump(),
-        [Command::TrashThreads {
+        out[0],
+        Command::TrashThreads {
             ids: ids.clone(),
             messages: Vec::new()
-        }]
+        }
     );
+    // UX-12: a neighbour opens after it.
+    assert!(matches!(out[1..], [Command::OpenThread { .. }]), "{out:?}");
     h.run();
     assert_eq!(press(&mut h, Key::Z), [Command::Undo {}]);
     h.run();
+    // The neighbour that opened is the one `e` archives now.
+    let open = h.state().engine.state().view.thread.unwrap();
+    assert_ne!(vec![open], ids);
+    let out = press(&mut h, Key::E);
     assert_eq!(
-        press(&mut h, Key::E),
-        [Command::ArchiveThreads {
-            ids,
+        out[0],
+        Command::ArchiveThreads {
+            ids: vec![open],
             messages: Vec::new()
-        }]
+        }
     );
 }
 

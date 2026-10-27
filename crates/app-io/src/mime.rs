@@ -431,7 +431,8 @@ pub fn has_attachments(raw: &[u8]) -> bool {
         .is_some_and(|message| message.attachment_count() > 0)
 }
 
-/// IMAP system flags (`\Seen`, `\Flagged`, …), case-insensitive; others are ignored.
+/// IMAP system flags (`\Seen`, `\Flagged`, …) and the `$Pinned` keyword, case-insensitive; others
+/// are ignored.
 pub fn parse_flags<'a>(flags: impl IntoIterator<Item = &'a str>) -> Flags {
     let mut parsed = Flags::default();
     for flag in flags {
@@ -440,6 +441,7 @@ pub fn parse_flags<'a>(flags: impl IntoIterator<Item = &'a str>) -> Flags {
             "\\flagged" => parsed.flagged = true,
             "\\answered" => parsed.answered = true,
             "\\draft" => parsed.draft = true,
+            "$pinned" => parsed.pinned = true,
             _ => {}
         }
     }

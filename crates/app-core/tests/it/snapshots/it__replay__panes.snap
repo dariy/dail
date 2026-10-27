@@ -36,6 +36,7 @@ expression: first
         "account": "00000000-0000-0001-0000-000000000000",
         "delimiter": "/",
         "id": "00000000-0000-0002-0000-000000000000",
+        "last_fetch_ms": 1700000002000,
         "path": "INBOX",
         "role": "inbox",
         "total": 1,
@@ -74,13 +75,17 @@ expression: first
     },
     "outbox": {},
     "settings": {
+      "after_triage": 0,
       "background_interval_mins": 30,
       "background_sync": 1,
+      "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
       "list_density": 0,
+      "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 120,
+      "stale_secs": 60,
       "text_scale": 100,
       "theme": 1,
       "theme_dark": "dail-dark",
@@ -295,6 +300,7 @@ expression: first
                         "account": "00000000-0000-0001-0000-000000000000",
                         "delimiter": "/",
                         "id": "00000000-0000-0002-0000-000000000000",
+                        "last_fetch_ms": 1700000002000,
                         "path": "INBOX",
                         "role": "inbox",
                         "total": 1,
@@ -585,7 +591,19 @@ expression: first
       "line": 11,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {
+                    "sidebar_collapsed": true
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -607,7 +625,17 @@ expression: first
       "line": 12,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "view",
+                  "value": {}
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -727,13 +755,17 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 1,
                     "theme_dark": "dail-dark",

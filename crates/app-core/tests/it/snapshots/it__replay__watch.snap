@@ -36,6 +36,7 @@ expression: first
         "account": "00000000-0000-0004-0000-000000000000",
         "delimiter": ".",
         "id": "00000000-0000-0006-0000-000000000000",
+        "last_fetch_ms": 1700000003000,
         "path": "INBOX",
         "role": "inbox",
         "total": 2,
@@ -47,6 +48,7 @@ expression: first
         "account": "00000000-0000-0004-0000-000000000000",
         "delimiter": ".",
         "id": "00000000-0000-0006-0000-000000000001",
+        "last_fetch_ms": 1700000004000,
         "path": "INBOX.Sent",
         "role": "sent",
         "total": 0,
@@ -122,13 +124,17 @@ expression: first
     },
     "outbox": {},
     "settings": {
+      "after_triage": 0,
       "background_interval_mins": 30,
       "background_sync": 1,
+      "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
       "list_density": 0,
+      "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 120,
+      "stale_secs": 60,
       "text_scale": 100,
       "theme": 0,
       "theme_dark": "dail-dark",
@@ -140,12 +146,16 @@ expression: first
       "bodies_in_flight": [
         "00000000-0000-0007-0000-000000000002"
       ],
+      "fetching": [
+        "00000000-0000-0006-0000-000000000000"
+      ],
       "keyring_error": null,
       "next_poll_ms": 1700000121000,
       "persist_error": null,
       "sync": {
         "00000000-0000-0004-0000-000000000000": {
           "last_error": null,
+          "last_full_ms": 1700000001000,
           "last_sync_ms": 1700000004000,
           "pending": 1,
           "watch": {
@@ -433,6 +443,7 @@ expression: first
                         "account": "00000000-0000-0004-0000-000000000000",
                         "delimiter": ".",
                         "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000003000,
                         "path": "INBOX",
                         "role": "inbox",
                         "total": 2,
@@ -607,6 +618,7 @@ expression: first
                         "account": "00000000-0000-0004-0000-000000000000",
                         "delimiter": ".",
                         "id": "00000000-0000-0006-0000-000000000001",
+                        "last_fetch_ms": 1700000004000,
                         "path": "INBOX.Sent",
                         "role": "sent",
                         "total": 0,

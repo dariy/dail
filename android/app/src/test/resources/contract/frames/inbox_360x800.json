@@ -1,7 +1,7 @@
 {
   "back": false,
   "fab": {
-    "action": 12,
+    "action": 11,
     "icon": "edit",
     "label": "Compose"
   },
@@ -19,37 +19,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 4,
+        "action": 3,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 5,
+        "long_press": 4,
         "messages": 1,
         "selected": false,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 7,
-        "swipe_start": 6,
+        "swipe_end": 6,
+        "swipe_start": 5,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 8,
+        "action": 7,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 9,
+        "long_press": 8,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 11,
-        "swipe_start": 10,
+        "swipe_end": 10,
+        "swipe_start": 9,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -131,16 +131,19 @@
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
       "mail": "",
       "mark_email_read": "",
       "mark_email_unread": "",
+      "menu": "",
       "more_horiz": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",
+      "push_pin": "",
       "reply": "",
       "reply_all": "",
       "report": "",
@@ -309,10 +312,6 @@
         "action": 2,
         "icon": "search",
         "label": "Search or run a command"
-      },
-      {
-        "action": 3,
-        "label": "About"
       }
     ],
     "navigation": {

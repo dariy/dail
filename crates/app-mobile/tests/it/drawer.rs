@@ -74,7 +74,8 @@ fn back_closes_the_modal_drawer_before_the_thread() {
 
 #[test]
 fn the_drawer_is_permanent_on_wide_windows() {
-    let mut phone = Phone::inbox(1280, 800);
+    // Portrait: in landscape it is a rail (MISC-6).
+    let mut phone = Phone::inbox(900, 1280);
     let frame = phone.frame();
     let drawer = frame.drawer.unwrap();
     assert!(!drawer.modal && !drawer.rail);
@@ -120,8 +121,8 @@ fn settings_and_add_account_open_the_settings_page() {
     });
     let footer = phone.frame().drawer.unwrap().footer;
     let labels: Vec<_> = footer.iter().map(|i| i.label.as_str()).collect();
-    assert_eq!(labels, ["Settings", "Add account"]);
-    let commands = phone.tap(footer[1].action);
+    assert_eq!(labels, ["Settings", "About", "Add account"]);
+    let commands = phone.tap(footer[2].action);
     assert_eq!(
         commands[0],
         Command::OpenSettings {

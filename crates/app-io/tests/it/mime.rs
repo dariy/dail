@@ -87,3 +87,9 @@ fn garbage_never_panics() {
         let _ = parse_message(raw);
     }
 }
+
+#[test]
+fn the_pinned_keyword_is_a_flag() {
+    let flags = app_io::mime::parse_flags(["\\Seen", "$pinned", "$Junk"]);
+    assert!(flags.seen && flags.pinned && !flags.flagged);
+}

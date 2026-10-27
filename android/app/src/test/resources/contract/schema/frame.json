@@ -1387,6 +1387,10 @@
           },
           "type": "array"
         },
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "The × next to the subject: closes the message (`close_thread`), leaving the list\n(MISC-7)."
+        },
         "messages": {
           "description": "Its messages, oldest first.",
           "items": {
@@ -1403,10 +1407,10 @@
               "type": "null"
             }
           ],
-          "description": "The conversation below it in the list, if any."
+          "description": "The conversation below it in the list, if any: a swipe to the left (MISC-5; no button)."
         },
         "position": {
-          "description": "Where it is in the list (`2 of 14`).",
+          "description": "Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).",
           "type": [
             "string",
             "null"
@@ -1421,7 +1425,7 @@
               "type": "null"
             }
           ],
-          "description": "The conversation above it in the list, if any."
+          "description": "The conversation above it in the list, if any: a swipe to the right (MISC-5; no button)."
         },
         "subject": {
           "description": "Its subject.",
@@ -1435,6 +1439,7 @@
       "required": [
         "thread",
         "subject",
+        "close",
         "actions",
         "messages"
       ],
@@ -1657,6 +1662,10 @@
           "format": "uint",
           "minimum": 0,
           "type": "integer"
+        },
+        "pinned": {
+          "description": "Whether it is pinned to the top (MISC-4).",
+          "type": "boolean"
         },
         "selected": {
           "description": "Whether it is the open or selected thread.",

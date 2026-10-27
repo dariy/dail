@@ -12,7 +12,7 @@ use crate::account::Account;
 use crate::approval::ApprovalRequest;
 use crate::draft::Draft;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
-use crate::mailbox::Mailbox;
+use crate::mailbox::{FolderKey, Mailbox};
 use crate::message::{Envelope, Thread};
 use crate::ops::PendingOp;
 
@@ -111,6 +111,16 @@ pub struct ViewState {
     pub focus: Pane,
     /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
     pub sidebar_collapsed: bool,
+    /// Folders of the sidebar's tree whose children are hidden, and accounts (empty `path`)
+    /// whose folders are (`collapse_folders`, `expand_folders`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub collapsed: BTreeSet<FolderKey>,
+    /// The mailbox or account the sidebar is narrowed to (`focus_mailbox`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused: Option<FocusTarget>,
+    /// The thread list's quick filters (`set_list_filter`).
+    #[serde(skip_serializing_if = "ListFilter::is_off")]
+    pub filter: ListFilter,
     /// The settings page and its open section (`open_settings`), shown in place of the list
     /// and the reader.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -164,6 +174,86 @@ impl Pane {
             Self::Reader => "reader",
             Self::Composer => "composer",
         }
+    }
+}
+
+/// The part of [`ViewState`] that survives a restart: the `[view]` table of `config.toml`
+/// (UX-1). View commands that change it emit `PersistState { delta: view }`; it is never part
+/// of undo history.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ViewPrefs {
+    /// Whether the mailbox sidebar is collapsed (`toggle_sidebar`).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub sidebar_collapsed: bool,
+    /// Collapsed folders and accounts (`collapse_folders`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub collapsed: BTreeSet<FolderKey>,
+    /// Focus mode (`focus_mailbox`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focused: Option<FocusTarget>,
+    /// The list's quick filters (`set_list_filter`).
+    #[serde(skip_serializing_if = "ListFilter::is_off")]
+    pub list_filter: ListFilter,
+}
+
+/// The thread list's quick filters (`set_list_filter`, UX-7): a thread shows when it passes
+/// every filter that is on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct ListFilter {
+    /// Only threads with unread mail.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub unread: bool,
+    /// Only starred threads.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub starred: bool,
+    /// Only threads with attachments.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub attachments: bool,
+}
+
+impl ListFilter {
+    /// Whether no filter is on.
+    pub const fn is_off(&self) -> bool {
+        !self.unread && !self.starred && !self.attachments
+    }
+}
+
+/// What focus mode narrows the sidebar to (`focus_mailbox`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum FocusTarget {
+    /// One mailbox and the folders below it.
+    Mailbox(MailboxId),
+    /// One account.
+    Account(AccountId),
+}
+
+impl ViewPrefs {
+    /// Whether every preference has its default (nothing to write).
+    pub fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+impl ViewState {
+    /// The preferences to save.
+    pub fn prefs(&self) -> ViewPrefs {
+        ViewPrefs {
+            sidebar_collapsed: self.sidebar_collapsed,
+            collapsed: self.collapsed.clone(),
+            focused: self.focused,
+            list_filter: self.filter,
+        }
+    }
+
+    /// Restores saved preferences.
+    pub fn apply_prefs(&mut self, prefs: &ViewPrefs) {
+        self.sidebar_collapsed = prefs.sidebar_collapsed;
+        self.collapsed = prefs.collapsed.clone();
+        self.focused = prefs.focused;
+        self.filter = prefs.list_filter;
     }
 }
 
@@ -280,6 +370,17 @@ pub struct Settings {
     pub background_sync: u64,
     /// Android: minutes between periodic background checks (`background_sync` = 1).
     pub background_interval_mins: u64,
+    /// Mark the open conversation read after this many milliseconds (0 = never; UX-5).
+    pub mark_read_after_ms: u64,
+    /// `open_mailbox` fetches the mailbox when its last fetch is older than this many seconds
+    /// (0 = every time; UX-6).
+    pub stale_secs: u64,
+    /// Seconds between full rounds (every mailbox listed and fetched) of the poll; 0 = off
+    /// (only INBOX and the open mailbox are polled; UX-6).
+    pub full_sync_secs: u64,
+    /// After the open conversation is triaged: 0 = open the next one, 1 = the previous one,
+    /// 2 = back to the list (UX-12).
+    pub after_triage: u64,
     /// Senders (lower-case addresses) whose messages show their inline images, the `cid:` parts
     /// of the message itself (`show_images_from`). Remote images are never loaded.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
@@ -291,6 +392,12 @@ pub struct Settings {
     /// (`set_keybinding`). An empty list unbinds the command.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub keys: BTreeMap<String, Vec<String>>,
+    /// Folders in the sidebar's *Favourites*, in the order they were pinned (`pin_mailbox`).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pinned_mailboxes: Vec<FolderKey>,
+    /// Folders hidden from the sidebar's tree (`hide_mailbox`).
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub hidden_mailboxes: BTreeSet<FolderKey>,
 }
 
 /// A set of key bindings.
@@ -335,9 +442,15 @@ impl Default for Settings {
             notifications: 1,
             background_sync: 1,
             background_interval_mins: 30,
+            mark_read_after_ms: 2_000,
+            stale_secs: 60,
+            full_sync_secs: 900,
+            after_triage: 0,
             images_from: BTreeSet::new(),
             key_preset: KeyPreset::Gmail,
             keys: BTreeMap::new(),
+            pinned_mailboxes: Vec::new(),
+            hidden_mailboxes: BTreeSet::new(),
         }
     }
 }
@@ -366,6 +479,9 @@ pub struct StatusState {
     /// Mailboxes whose older messages are being fetched (history backfill, one batch at a time).
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub backfilling: BTreeSet<MailboxId>,
+    /// Mailboxes whose new envelopes are being fetched (`FetchEnvelopes` in flight).
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub fetching: BTreeSet<MailboxId>,
     /// Recent searches of the local full-text index, oldest first (at most
     /// `MAX_SERVER_SEARCHES`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -506,6 +622,22 @@ pub struct SyncStatus {
     /// Push for the INBOX (IMAP IDLE): whether the server is being watched.
     #[serde(default, skip_serializing_if = "WatchState::is_off")]
     pub watch: WatchState,
+    /// When the last full round (list every mailbox, fetch each) started, in Unix ms
+    /// (`sync_now`, or the poll every `full_sync_secs`; UX-6).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_full_ms: Option<i64>,
+    /// Failed sync steps since the last success: the poll backs off,
+    /// `min(poll_secs × 2^(failures − 1), 15 min)` after the last failure (UX-6).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub failures: u32,
+    /// The last failed folder change (`create_folder`, `rename_folder`, `delete_folder`;
+    /// UX-14), until one succeeds. Listings don't clear it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder_error: Option<SyncIssue>,
+}
+
+const fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// Whether an account's INBOX is watched for new mail (IMAP IDLE). Polling continues for

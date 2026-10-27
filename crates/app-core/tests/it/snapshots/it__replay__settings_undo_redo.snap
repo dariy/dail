@@ -11,8 +11,10 @@ expression: first
     "messages": {},
     "outbox": {},
     "settings": {
+      "after_triage": 0,
       "background_interval_mins": 30,
       "background_sync": 1,
+      "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
       "key_preset": "vim",
@@ -22,8 +24,10 @@ expression: first
         ]
       },
       "list_density": 0,
+      "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 300,
+      "stale_secs": 60,
       "text_scale": 100,
       "theme": 0,
       "theme_dark": "dail-dark",
@@ -62,13 +66,17 @@ expression: first
               }
             ],
             "data": {
+              "after_triage": 0,
               "background_interval_mins": 30,
               "background_sync": 1,
+              "full_sync_secs": 900,
               "history_cap": 200,
               "initial_window": 500,
               "list_density": 0,
+              "mark_read_after_ms": 2000,
               "notifications": 1,
               "poll_secs": 120,
+              "stale_secs": 60,
               "text_scale": 100,
               "theme": 0,
               "theme_dark": "dail-dark",
@@ -94,13 +102,17 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 300,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -172,13 +184,17 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 120,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -238,13 +254,17 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 300,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -328,8 +348,10 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "keys": {
@@ -338,8 +360,10 @@ expression: first
                       ]
                     },
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 300,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",
@@ -382,8 +406,10 @@ expression: first
                 "delta": {
                   "table": "settings",
                   "value": {
+                    "after_triage": 0,
                     "background_interval_mins": 30,
                     "background_sync": 1,
+                    "full_sync_secs": 900,
                     "history_cap": 200,
                     "initial_window": 500,
                     "key_preset": "vim",
@@ -393,8 +419,10 @@ expression: first
                       ]
                     },
                     "list_density": 0,
+                    "mark_read_after_ms": 2000,
                     "notifications": 1,
                     "poll_secs": 300,
+                    "stale_secs": 60,
                     "text_scale": 100,
                     "theme": 0,
                     "theme_dark": "dail-dark",

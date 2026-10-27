@@ -687,19 +687,25 @@ impl StepError {
 /// is safe to repeat.
 ///
 /// The outer error means the connection broke (worth retrying, also on a fresh session); the
-/// inner one that the server rejected a step.
+/// inner one that the server rejected a step. On success: the paths of the mailboxes whose
+/// keyword stores (`$Pinned`) were skipped because they keep no keywords (`PERMANENTFLAGS`
+/// with neither `\*` nor the keyword; MISC-4).
 pub async fn run_steps(
     session: &mut ImapSession,
     steps: &[RemoteStep],
-) -> Result<Result<(), String>, String> {
+) -> Result<Result<Vec<String>, String>, String> {
     match try_steps(session, steps).await {
-        Ok(()) => Ok(Ok(())),
+        Ok(refused) => Ok(Ok(refused)),
         Err(StepError::Rejected(error)) => Ok(Err(error)),
         Err(StepError::Lost(error)) => Err(error),
     }
 }
 
-async fn try_steps(session: &mut ImapSession, steps: &[RemoteStep]) -> Result<(), StepError> {
+async fn try_steps(
+    session: &mut ImapSession,
+    steps: &[RemoteStep],
+) -> Result<Vec<String>, StepError> {
+    let mut refused: Vec<String> = Vec::new();
     let capabilities = session
         .capabilities()
         .await
@@ -715,10 +721,36 @@ async fn try_steps(session: &mut ImapSession, steps: &[RemoteStep]) -> Result<()
                 flag,
                 value,
             } => {
-                select(session, path, *uid_validity).await?;
+                let keeps = select(session, path, *uid_validity, flag.imap()).await?;
+                if flag.is_keyword() && !keeps {
+                    refused.push(path.clone());
+                    continue;
+                }
                 let sign = if *value { '+' } else { '-' };
                 let query = format!("{sign}FLAGS.SILENT ({})", flag.imap());
                 store(session, path, uids, &query).await?;
+            }
+            RemoteStep::StoreAll {
+                path,
+                uid_validity,
+                flag,
+                value,
+            } => {
+                let keeps = select(session, path, *uid_validity, flag.imap()).await?;
+                if flag.is_keyword() && !keeps {
+                    refused.push(path.clone());
+                    continue;
+                }
+                let sign = if *value { '+' } else { '-' };
+                let query = format!("{sign}FLAGS.SILENT ({})", flag.imap());
+                let context = format!("IMAP UID STORE 1:* in {path}");
+                let _: Vec<Fetch> = session
+                    .uid_store("1:*", &query)
+                    .await
+                    .map_err(|err| StepError::imap(context.clone(), &err))?
+                    .try_collect()
+                    .await
+                    .map_err(|err| StepError::imap(context, &err))?;
             }
             RemoteStep::Move {
                 path,
@@ -730,7 +762,7 @@ async fn try_steps(session: &mut ImapSession, steps: &[RemoteStep]) -> Result<()
                 if *create {
                     create_mailbox(session, to).await;
                 }
-                select(session, path, *uid_validity).await?;
+                select(session, path, *uid_validity, "").await?;
                 let set = uid_set(uids);
                 if has_move {
                     session.uid_mv(&set, to).await.map_err(|err| {
@@ -754,18 +786,24 @@ async fn try_steps(session: &mut ImapSession, steps: &[RemoteStep]) -> Result<()
                 if *create {
                     create_mailbox(session, to).await;
                 }
-                select(session, path, *uid_validity).await?;
+                select(session, path, *uid_validity, "").await?;
                 session.uid_copy(uid_set(uids), to).await.map_err(|err| {
                     StepError::imap(format!("IMAP UID COPY {path} -> {to}"), &err)
                 })?;
             }
         }
     }
-    Ok(())
+    Ok(refused)
 }
 
-/// `SELECT path` (read-write) and check UIDVALIDITY.
-async fn select(session: &mut ImapSession, path: &str, uid_validity: u32) -> Result<(), StepError> {
+/// `SELECT path` (read-write) and check UIDVALIDITY. Returns whether the mailbox keeps the
+/// keyword `keyword` (`PERMANENTFLAGS` with `\*` or the keyword itself).
+async fn select(
+    session: &mut ImapSession,
+    path: &str,
+    uid_validity: u32,
+    keyword: &str,
+) -> Result<bool, StepError> {
     let selected = session
         .select(path)
         .await
@@ -775,7 +813,11 @@ async fn select(session: &mut ImapSession, path: &str, uid_validity: u32) -> Res
             "{path}: UIDVALIDITY changed; the messages must be re-synced"
         )));
     }
-    Ok(())
+    Ok(selected.permanent_flags.iter().any(|flag| match flag {
+        Flag::MayCreate => true,
+        Flag::Custom(name) => name.eq_ignore_ascii_case(keyword),
+        _ => false,
+    }))
 }
 
 async fn store(
@@ -935,6 +977,27 @@ pub async fn append_message(
         .append(path, Some(flags), None, raw)
         .await
         .map_err(|err| format!("IMAP APPEND to {path} failed: {err}"))
+}
+
+/// `CREATE`, `RENAME` or `DELETE` a folder (UX-14).
+pub async fn manage_folder(
+    session: &mut ImapSession,
+    action: &app_core::FolderAction,
+) -> Result<(), String> {
+    use app_core::FolderAction;
+    let (what, result) = match action {
+        FolderAction::Create { path } => {
+            (format!("IMAP CREATE {path}"), session.create(path).await)
+        }
+        FolderAction::Rename { from, to } => (
+            format!("IMAP RENAME {from} -> {to}"),
+            session.rename(from, to).await,
+        ),
+        FolderAction::Delete { path } => {
+            (format!("IMAP DELETE {path}"), session.delete(path).await)
+        }
+    };
+    result.map_err(|err| format!("{what} failed: {err}"))
 }
 
 /// Deletes every copy of a draft (by `Message-ID`) from `path`.

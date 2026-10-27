@@ -30,9 +30,12 @@ pub fn test_now() -> i64 {
     NOW.with(std::cell::Cell::get)
 }
 
-/// alice@example.com's account, added and synced.
+/// alice@example.com's account, added and synced. The harness never answers effects, so
+/// opening a mailbox must not start a refresh fetch (UX-6) that would stay in flight.
 pub fn synced_state() -> AppState {
-    app_testkit::synced_state(Fixture::builtin("basic").unwrap()).unwrap()
+    let mut state = app_testkit::synced_state(Fixture::builtin("basic").unwrap()).unwrap();
+    state.settings.stale_secs = 86_400;
+    state
 }
 
 /// The inbox and its threads, newest first.

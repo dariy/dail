@@ -41,6 +41,8 @@ impl Engine {
                     "id": m.id,
                     "account": m.account,
                     "path": m.path,
+                    "parent": m.parent_path(),
+                    "depth": m.depth(),
                     "role": m.role,
                     "unread": m.unread,
                     "total": m.total,
@@ -133,6 +135,7 @@ impl Engine {
             "messages": summary.messages.len(),
             "unread": summary.unread,
             "flagged": summary.flagged,
+            "pinned": summary.pinned,
             "has_attachments": summary.has_attachments,
             "last_date_ms": thread.last_date_ms,
             "untrusted_content": {

@@ -1,0 +1,6 @@
+{
+  "args": {
+    "zoom_in": true
+  },
+  "event": "pinch"
+}

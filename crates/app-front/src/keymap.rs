@@ -237,6 +237,8 @@ fn vim(name: CommandName) -> Option<&'static [&'static str]> {
         CommandName::TrashThreads => &["d d", "#"],
         CommandName::MarkRead => &["m r", "Shift+I"],
         CommandName::MarkUnread => &["m u", "Shift+U"],
+        CommandName::CollapseFolders => &["ArrowLeft", "h"],
+        CommandName::ExpandFolders => &["ArrowRight", "l"],
         _ => return None,
     })
 }
@@ -300,6 +302,10 @@ pub fn resolve(binding: &Binding, state: &AppState) -> Option<Action> {
             CommandName::OpenThread => {
                 return run(Command::FocusPane { pane: Pane::List });
             }
+            CommandName::CollapseFolders | CommandName::ExpandFolders => {
+                return fold_open_folder(state, name == CommandName::CollapseFolders)
+                    .map(Action::Run);
+            }
             _ => {}
         }
     }
@@ -339,6 +345,23 @@ pub fn resolve(binding: &Binding, state: &AppState) -> Option<Action> {
                 .values()
                 .find(|m| m.account == account && m.role == Some(role))?;
             run(Command::OpenMailbox { id: mailbox.id })
+        }
+        CommandName::PinThreads => {
+            // `Shift+P` toggles: unpin when every targeted thread is pinned (MISC-4).
+            let ids = palette::targets(state);
+            if ids.is_empty() {
+                return None;
+            }
+            let all = ids
+                .iter()
+                .filter_map(|t| state.threads.get(t))
+                .all(|t| listing::is_pinned(state, t));
+            let messages = Vec::new();
+            run(if all {
+                Command::UnpinThreads { ids, messages }
+            } else {
+                Command::PinThreads { ids, messages }
+            })
         }
         CommandName::MarkRead | CommandName::MarkUnread if binding.text == "u" => {
             // `u` toggles: read if anything targeted is unread, else unread.
@@ -383,6 +406,8 @@ pub fn resolve(binding: &Binding, state: &AppState) -> Option<Action> {
                 pane: *panes.get(next)?,
             })
         }
+        // The arrows fold folders only in the sidebar.
+        CommandName::CollapseFolders | CommandName::ExpandFolders => None,
         // The palette does not offer itself; the key opens it.
         CommandName::OpenPalette => run(Command::OpenPalette {}),
         // Escape closes the innermost thing that is open.
@@ -402,14 +427,38 @@ pub fn resolve(binding: &Binding, state: &AppState) -> Option<Action> {
     }
 }
 
+/// `collapse_folders` / `expand_folders` for the open mailbox's folder, when it has folders
+/// below it and is not already so.
+fn fold_open_folder(state: &AppState, collapse: bool) -> Option<Command> {
+    let key = state.mailboxes.get(&state.view.mailbox?)?.key();
+    let nodes = crate::mailbox::tree(state, key.account);
+    let node = crate::mailbox::rows(&nodes, &|_| false)
+        .into_iter()
+        .find(|n| n.key == key)?;
+    if !node.is_parent() || state.view.collapsed.contains(&key) == collapse {
+        return None;
+    }
+    let keys = vec![key];
+    Some(if collapse {
+        Command::CollapseFolders { keys }
+    } else {
+        Command::ExpandFolders { keys }
+    })
+}
+
 /// The mailbox `step` rows away from the open one in the sidebar's order (the first one if none
 /// is open).
 fn next_mailbox(state: &AppState, step: isize) -> Option<app_core::MailboxId> {
     let rows: Vec<app_core::MailboxId> = state
         .accounts
         .keys()
-        .flat_map(|account| listing::mailboxes(state, Some(*account)))
-        .map(|m| m.id)
+        .flat_map(|account| {
+            let nodes = crate::mailbox::sidebar_tree(state, *account);
+            crate::mailbox::visible_rows(state, *account, &nodes)
+                .iter()
+                .filter_map(|node| node.mailbox)
+                .collect::<Vec<_>>()
+        })
         .collect();
     let Some(at) = state
         .view

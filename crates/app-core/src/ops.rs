@@ -36,14 +36,23 @@ pub enum FlagKind {
     Seen,
     /// `\Flagged`: starred.
     Flagged,
+    /// The `$Pinned` keyword: pinned (MISC-4).
+    Pinned,
 }
 
 impl FlagKind {
-    /// The IMAP system flag, e.g. `\Seen`.
+    /// Whether it is a keyword (`$Pinned`), which a server may not keep (`PERMANENTFLAGS`
+    /// without `\*`).
+    pub const fn is_keyword(self) -> bool {
+        matches!(self, Self::Pinned)
+    }
+
+    /// The IMAP flag, e.g. `\Seen` or `$Pinned`.
     pub const fn imap(self) -> &'static str {
         match self {
             Self::Seen => "\\Seen",
             Self::Flagged => "\\Flagged",
+            Self::Pinned => "$Pinned",
         }
     }
 
@@ -52,6 +61,7 @@ impl FlagKind {
         match self {
             Self::Seen => flags.seen,
             Self::Flagged => flags.flagged,
+            Self::Pinned => flags.pinned,
         }
     }
 
@@ -60,6 +70,7 @@ impl FlagKind {
         match self {
             Self::Seen => flags.seen = value,
             Self::Flagged => flags.flagged = value,
+            Self::Pinned => flags.pinned = value,
         }
     }
 }
@@ -93,6 +104,16 @@ pub enum RemoteOp {
         /// Source messages and their local placeholders in `to`.
         copies: Vec<CopyRef>,
     },
+    /// Set or clear a flag on every message of a mailbox on the server, cached or not
+    /// (`UID STORE 1:* +FLAGS`; `mark_mailbox_read`, UX-7).
+    FlagMailbox {
+        /// The mailbox.
+        mailbox: MailboxId,
+        /// The flag.
+        flag: FlagKind,
+        /// `true` sets it, `false` clears it.
+        value: bool,
+    },
 }
 
 /// One copied message: the source and its placeholder in the target mailbox.
@@ -110,13 +131,14 @@ impl RemoteOp {
         match self {
             Self::SetFlag { messages, .. } | Self::Move { messages, .. } => messages.clone(),
             Self::Copy { copies, .. } => copies.iter().flat_map(|c| [c.source, c.copy]).collect(),
+            Self::FlagMailbox { .. } => Vec::new(),
         }
     }
 
     /// The target mailbox of a move or copy.
     pub const fn target(&self) -> Option<MailboxId> {
         match self {
-            Self::SetFlag { .. } => None,
+            Self::SetFlag { .. } | Self::FlagMailbox { .. } => None,
             Self::Move { to, .. } | Self::Copy { to, .. } => Some(*to),
         }
     }
@@ -209,5 +231,16 @@ pub enum RemoteStep {
         to: String,
         /// `CREATE` the target first; "already exists" is not an error.
         create: bool,
+    },
+    /// `UID STORE 1:* ±FLAGS.SILENT (flag)`: every message of the mailbox.
+    StoreAll {
+        /// IMAP path of the mailbox.
+        path: String,
+        /// UIDVALIDITY the cache knows; the step fails if the server's differs.
+        uid_validity: u32,
+        /// The flag.
+        flag: FlagKind,
+        /// `true` adds the flag, `false` removes it.
+        value: bool,
     },
 }

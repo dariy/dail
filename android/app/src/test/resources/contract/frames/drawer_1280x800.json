@@ -7,7 +7,7 @@
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 3,
+            "action": 2,
             "icon": "inbox",
             "label": "Inbox",
             "selected": true,
@@ -15,7 +15,7 @@
           },
           {
             "a11y": "Sent",
-            "action": 4,
+            "action": 3,
             "icon": "send",
             "label": "Sent",
             "selected": false,
@@ -23,7 +23,7 @@
           },
           {
             "a11y": "Drafts",
-            "action": 5,
+            "action": 4,
             "icon": "draft",
             "label": "Drafts",
             "selected": false,
@@ -31,7 +31,7 @@
           },
           {
             "a11y": "Archive",
-            "action": 6,
+            "action": 5,
             "icon": "archive",
             "label": "Archive",
             "selected": false,
@@ -44,9 +44,17 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 7,
+        "action": 6,
         "icon": "settings",
         "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "About",
+        "action": 7,
+        "icon": "info",
+        "label": "About",
         "selected": false,
         "unread": 0
       },
@@ -60,7 +68,7 @@
       }
     ],
     "modal": false,
-    "rail": false
+    "rail": true
   },
   "fab": {
     "action": 17,
@@ -195,16 +203,19 @@
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
       "mail": "",
       "mark_email_read": "",
       "mark_email_unread": "",
+      "menu": "",
       "more_horiz": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",
+      "push_pin": "",
       "reply": "",
       "reply_all": "",
       "report": "",
@@ -373,10 +384,6 @@
         "action": 1,
         "icon": "search",
         "label": "Search or run a command"
-      },
-      {
-        "action": 2,
-        "label": "About"
       }
     ],
     "subtitle": "synced 9h ago",

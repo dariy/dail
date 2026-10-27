@@ -6,12 +6,18 @@ use app_gui::{Background, Purpose};
 use egui::accesskit::Role;
 use egui_kittest::kittest::{By, Queryable};
 
-/// An action button: its label followed by its key hint (`ArchiveE`), unlike the mailbox row
-/// of the same name.
+/// An action button: its label followed by its key hint (`Archive (E)`), unlike the mailbox
+/// row of the same name, a button that only starts with the same letters (`Starred`, the list
+/// filter) or a list row's hover action (`Star conversation`).
 fn action(label: &str) -> By<'_> {
     By::new().role(Role::Button).predicate(move |node| {
-        node.label()
-            .is_some_and(|l| l.contains(label) && l != label && !l.contains(", "))
+        node.label().is_some_and(|l| {
+            l.find(label)
+                .is_some_and(|at| l[at + label.len()..].starts_with(|c: char| !c.is_alphanumeric()))
+                && l != label
+                && !l.contains(", ")
+                && !l.ends_with(" conversation")
+        })
     })
 }
 
@@ -117,7 +123,8 @@ fn the_reader_shows_the_thread_and_its_actions_act_on_it() {
     ] {
         h.get(action(label)).click();
         h.run();
-        assert_eq!(h.state_mut().take(), [expected], "{label}");
+        // Archive and Trash are followed by opening a neighbour (UX-12).
+        assert_eq!(h.state_mut().take().first(), Some(&expected), "{label}");
     }
     h.get(By::new().role(Role::Button).label_contains("Reply all"))
         .click();
@@ -278,4 +285,114 @@ fn the_list_shows_all_inboxes_once_opened() {
     h.get_by_label("All inboxes");
     h.get_by_label("Lunch?");
     h.get_by_label("Q3 numbers");
+}
+
+#[test]
+fn the_cursor_row_offers_its_actions_by_name() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::SelectThreads {
+            ids: vec![threads[0]],
+        },
+    );
+    apply(
+        &mut h,
+        Command::FocusPane {
+            pane: app_core::Pane::List,
+        },
+    );
+    h.state_mut().out.clear();
+    h.get(By::new().role(Role::Button).label("Archive conversation"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::ArchiveThreads {
+            ids: vec![threads[0]],
+            messages: Vec::new()
+        }]
+    );
+    h.get(By::new().role(Role::Button).label("Trash conversation"));
+}
+
+#[test]
+fn a_row_dragged_onto_a_folder_moves_there() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let archive = state
+        .mailboxes
+        .values()
+        .find(|m| m.role == Some(MailboxRole::Archive))
+        .unwrap()
+        .id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    h.state_mut().out.clear();
+    let from = h.get_by_label("Lunch?").rect().center();
+    let to = h
+        .get(By::new().role(Role::Button).label("Archive"))
+        .rect()
+        .center();
+    let pointer = |h: &mut egui_kittest::Harness<'_, _>, event: egui::Event| {
+        h.input_mut().events.push(event);
+        h.step();
+    };
+    pointer(&mut h, egui::Event::PointerMoved(from));
+    pointer(
+        &mut h,
+        egui::Event::PointerButton {
+            pos: from,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::NONE,
+        },
+    );
+    for step in 1..=8 {
+        let at = from + (to - from) * (step as f32 / 8.0);
+        pointer(&mut h, egui::Event::PointerMoved(at));
+    }
+    pointer(
+        &mut h,
+        egui::Event::PointerButton {
+            pos: to,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::NONE,
+        },
+    );
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::MoveThreads {
+            ids: vec![threads[0]],
+            messages: Vec::new(),
+            to: archive,
+        }]
+    );
+}
+
+#[test]
+fn the_list_groups_rows_by_date() {
+    let state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    let groups = [
+        "Later",
+        "Today",
+        "Yesterday",
+        "This week",
+        "Earlier this month",
+    ];
+    let found = h
+        .query_all(By::new().role(Role::Heading).predicate(move |n| {
+            n.label()
+                .is_some_and(|l| groups.contains(&l.as_str()) || l.contains(" 20"))
+        }))
+        .count();
+    assert!(found >= 1, "no date group header");
 }

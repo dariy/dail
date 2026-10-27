@@ -62,6 +62,7 @@ final class ContractTests: XCTestCase {
                 mailto: "mailto:bob@example.org?subject=Hi", to: ["carol@example.org"], subject: "Photos",
                 text: "Here", files: ["content://com.example.files/a.pdf"]),
             "swipe": .swipe(9),
+            "pinch": .pinch(zoomIn: true),
             "tap": .tap(7),
             "text": .text(.subject, "Lunch?"),
             "tick": .tick,

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use app_core::{
     Account, AccountId, AccountStatus, AppState, Endpoint, PersistDelta, ProviderPreset, SecretRef,
-    Security, Settings,
+    Security, Settings, ViewPrefs,
 };
 use app_io::{Config, ConfigStore, IoError, ProfileDirs, Store};
 
@@ -177,6 +177,39 @@ fn config_store_applies_deltas_and_reloads() {
     assert_eq!(state.accounts.len(), 1);
     assert_eq!(state.accounts[&a.id].display_name, "Renamed");
     assert_eq!(state, store.load_snapshot().unwrap().unwrap());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn view_preferences_are_saved_in_a_view_table() {
+    let dir = scratch("view");
+    let path = dir.join("config.toml");
+    let store = ConfigStore::open(&path).unwrap();
+    store
+        .apply(&PersistDelta::Account(account(1, "a@example.org")))
+        .unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(
+        !text.contains("[view]"),
+        "defaults are not written:\n{text}"
+    );
+
+    let prefs = ViewPrefs {
+        sidebar_collapsed: true,
+        ..ViewPrefs::default()
+    };
+    store.apply(&PersistDelta::View(prefs.clone())).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("[view]\nsidebar_collapsed = true"), "{text}");
+
+    let state = ConfigStore::open(&path)
+        .unwrap()
+        .load_snapshot()
+        .unwrap()
+        .unwrap();
+    assert_eq!(state.view.prefs(), prefs);
+    assert!(state.view.sidebar_collapsed);
+    assert_eq!(Config::from_state(&state).view, prefs);
     std::fs::remove_dir_all(dir).unwrap();
 }
 

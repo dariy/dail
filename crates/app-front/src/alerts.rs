@@ -6,7 +6,7 @@
 //! Senders and subjects are untrusted: the texts are cleaned of control characters and cut short,
 //! and the delivery must still escape them for its format (markup, XML).
 
-use app_core::{AppState, DraftId, MailboxRole, ThreadId};
+use app_core::{AppState, DraftId, FocusTarget, MailboxRole, ThreadId};
 
 use crate::format;
 
@@ -58,15 +58,24 @@ pub fn alerts(before: &AppState, after: &AppState) -> Vec<Alert> {
     .collect()
 }
 
-/// Unread messages that arrived in an INBOX already fetched before (a first sync or a history
+/// Unread messages that arrived in an INBOX (in focus mode: the focused mailbox, or the
+/// focused account's inbox) already fetched before (a first sync or a history
 /// backfill is not news): new to the state and above the INBOX's `uid_next` of `before`.
 fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
+    let is_inbox =
+        |id| after.mailboxes.get(&id).map(|mb| mb.role) == Some(Some(MailboxRole::Inbox));
     let fresh: Vec<_> = after
         .messages
         .values()
         .filter(|m| !m.flags.seen && !before.messages.contains_key(&m.id))
         .filter(|m| {
-            after.mailboxes.get(&m.mailbox).map(|mb| mb.role) == Some(Some(MailboxRole::Inbox))
+            let watched = match after.view.focused {
+                // Focus mode (UX-4): only its mailbox, or its account's inbox.
+                Some(FocusTarget::Mailbox(id)) => m.mailbox == id,
+                Some(FocusTarget::Account(id)) => m.account == id && is_inbox(m.mailbox),
+                None => is_inbox(m.mailbox),
+            };
+            watched
                 && before
                     .mailboxes
                     .get(&m.mailbox)

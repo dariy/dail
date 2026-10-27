@@ -12,6 +12,7 @@ use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
 
@@ -118,6 +119,12 @@ pub enum CommandName {
     RemoveIdentity,
     /// See [`Command::SetMailboxIdentity`].
     SetMailboxIdentity,
+    /// See [`Command::CreateFolder`].
+    CreateFolder,
+    /// See [`Command::RenameFolder`].
+    RenameFolder,
+    /// See [`Command::DeleteFolder`].
+    DeleteFolder,
     /// See [`Command::SetDraftFrom`].
     SetDraftFrom,
     /// See [`Command::RemoveAccount`].
@@ -156,16 +163,30 @@ pub enum CommandName {
     ShowImagesFrom,
     /// See [`Command::HideImagesFrom`].
     HideImagesFrom,
+    /// See [`Command::PinMailbox`].
+    PinMailbox,
+    /// See [`Command::UnpinMailbox`].
+    UnpinMailbox,
+    /// See [`Command::HideMailbox`].
+    HideMailbox,
+    /// See [`Command::ShowMailbox`].
+    ShowMailbox,
     /// See [`Command::SaveAttachments`].
     SaveAttachments,
     /// See [`Command::MarkRead`].
     MarkRead,
+    /// See [`Command::MarkMailboxRead`].
+    MarkMailboxRead,
     /// See [`Command::MarkUnread`].
     MarkUnread,
     /// See [`Command::Star`].
     Star,
     /// See [`Command::Unstar`].
     Unstar,
+    /// See [`Command::PinThreads`].
+    PinThreads,
+    /// See [`Command::UnpinThreads`].
+    UnpinThreads,
     /// See [`Command::ArchiveThreads`].
     ArchiveThreads,
     /// See [`Command::TrashThreads`].
@@ -214,6 +235,16 @@ pub enum CommandName {
     CloseComposer,
     /// See [`Command::FocusPane`].
     FocusPane,
+    /// See [`Command::SetListFilter`].
+    SetListFilter,
+    /// See [`Command::FocusMailbox`].
+    FocusMailbox,
+    /// See [`Command::ClearFocus`].
+    ClearFocus,
+    /// See [`Command::CollapseFolders`].
+    CollapseFolders,
+    /// See [`Command::ExpandFolders`].
+    ExpandFolders,
     /// See [`Command::ToggleSidebar`].
     ToggleSidebar,
     /// See [`Command::GetView`].
@@ -321,6 +352,9 @@ impl CommandName {
         Self::SetIdentity,
         Self::RemoveIdentity,
         Self::SetMailboxIdentity,
+        Self::CreateFolder,
+        Self::RenameFolder,
+        Self::DeleteFolder,
         Self::SetDraftFrom,
         Self::RemoveAccount,
         Self::SyncNow,
@@ -340,11 +374,18 @@ impl CommandName {
         Self::GetMessage,
         Self::ShowImagesFrom,
         Self::HideImagesFrom,
+        Self::PinMailbox,
+        Self::UnpinMailbox,
+        Self::HideMailbox,
+        Self::ShowMailbox,
         Self::SaveAttachments,
         Self::MarkRead,
+        Self::MarkMailboxRead,
         Self::MarkUnread,
         Self::Star,
         Self::Unstar,
+        Self::PinThreads,
+        Self::UnpinThreads,
         Self::ArchiveThreads,
         Self::TrashThreads,
         Self::MoveThreads,
@@ -369,6 +410,11 @@ impl CommandName {
         Self::OpenComposer,
         Self::CloseComposer,
         Self::FocusPane,
+        Self::SetListFilter,
+        Self::FocusMailbox,
+        Self::ClearFocus,
+        Self::CollapseFolders,
+        Self::ExpandFolders,
         Self::ToggleSidebar,
         Self::GetView,
         Self::CompactStore,
@@ -399,6 +445,9 @@ impl CommandName {
             Self::SetIdentity => "set_identity",
             Self::RemoveIdentity => "remove_identity",
             Self::SetMailboxIdentity => "set_mailbox_identity",
+            Self::CreateFolder => "create_folder",
+            Self::RenameFolder => "rename_folder",
+            Self::DeleteFolder => "delete_folder",
             Self::SetDraftFrom => "set_draft_from",
             Self::RemoveAccount => "remove_account",
             Self::SyncNow => "sync_now",
@@ -418,11 +467,18 @@ impl CommandName {
             Self::GetMessage => "get_message",
             Self::ShowImagesFrom => "show_images_from",
             Self::HideImagesFrom => "hide_images_from",
+            Self::PinMailbox => "pin_mailbox",
+            Self::UnpinMailbox => "unpin_mailbox",
+            Self::HideMailbox => "hide_mailbox",
+            Self::ShowMailbox => "show_mailbox",
             Self::SaveAttachments => "save_attachments",
             Self::MarkRead => "mark_read",
+            Self::MarkMailboxRead => "mark_mailbox_read",
             Self::MarkUnread => "mark_unread",
             Self::Star => "star",
             Self::Unstar => "unstar",
+            Self::PinThreads => "pin_threads",
+            Self::UnpinThreads => "unpin_threads",
             Self::ArchiveThreads => "archive_threads",
             Self::TrashThreads => "trash_threads",
             Self::MoveThreads => "move_threads",
@@ -447,6 +503,11 @@ impl CommandName {
             Self::OpenComposer => "open_composer",
             Self::CloseComposer => "close_composer",
             Self::FocusPane => "focus_pane",
+            Self::SetListFilter => "set_list_filter",
+            Self::FocusMailbox => "focus_mailbox",
+            Self::ClearFocus => "clear_focus",
+            Self::CollapseFolders => "collapse_folders",
+            Self::ExpandFolders => "expand_folders",
             Self::ToggleSidebar => "toggle_sidebar",
             Self::GetView => "get_view",
             Self::CompactStore => "compact_store",
@@ -490,17 +551,26 @@ impl CommandName {
             | Self::SetIdentity
             | Self::RemoveIdentity
             | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::SetSyncWindow
             | Self::CompactStore
             | Self::ShowImagesFrom
             | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
             | Self::SaveAttachments
             | Self::MarkRead
+            | Self::MarkMailboxRead
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
             | Self::MoveThreads
@@ -537,8 +607,13 @@ impl CommandName {
             | Self::OpenComposer
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::SetListFilter
+            | Self::FocusMailbox
+            | Self::ClearFocus
+            | Self::CollapseFolders
+            | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
-            Self::RemoveAccount => CommandKind::Destructive,
+            Self::RemoveAccount | Self::DeleteFolder => CommandKind::Destructive,
         }
     }
 
@@ -572,6 +647,9 @@ impl CommandName {
             | Self::DiscoverServers
             | Self::RemoveAccount
             | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
+            | Self::DeleteFolder
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::ListMailboxes
@@ -590,10 +668,17 @@ impl CommandName {
             | Self::GetMessage
             | Self::ShowImagesFrom
             | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
             | Self::MarkRead
+            | Self::MarkMailboxRead
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
             | Self::MoveThreads
@@ -618,6 +703,11 @@ impl CommandName {
             | Self::CloseSettings
             | Self::CloseComposer
             | Self::FocusPane
+            | Self::SetListFilter
+            | Self::FocusMailbox
+            | Self::ClearFocus
+            | Self::CollapseFolders
+            | Self::ExpandFolders
             | Self::ToggleSidebar
             | Self::GetView
             | Self::CompactStore
@@ -690,6 +780,18 @@ impl CommandName {
             Self::RemoveIdentity => CommandSpec {
                 available: |state| state.accounts.values().any(|a| !a.identities.is_empty()),
                 ..base("Remove a sending address", Category::Account, &[])
+            },
+            Self::DeleteFolder => CommandSpec {
+                available: has_mailboxes,
+                ..base("Delete folder", Category::Mail, &[])
+            },
+            Self::RenameFolder => CommandSpec {
+                available: has_mailboxes,
+                ..base("Rename folder", Category::Mail, &[])
+            },
+            Self::CreateFolder => CommandSpec {
+                available: |state| !state.accounts.is_empty(),
+                ..base("New folder", Category::Mail, &[])
             },
             Self::SetMailboxIdentity => CommandSpec {
                 available: |state| !state.mailboxes.is_empty(),
@@ -788,6 +890,22 @@ impl CommandName {
                 available: has_messages,
                 ..base("Show images from sender", Category::Mail, &[])
             },
+            Self::ShowMailbox => CommandSpec {
+                available: |state| !state.settings.hidden_mailboxes.is_empty(),
+                ..base("Show hidden folder", Category::Navigation, &[])
+            },
+            Self::HideMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base("Hide folder", Category::Navigation, &[])
+            },
+            Self::UnpinMailbox => CommandSpec {
+                available: |state| !state.settings.pinned_mailboxes.is_empty(),
+                ..base("Unpin folder", Category::Navigation, &[])
+            },
+            Self::PinMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base("Pin folder to Favourites", Category::Navigation, &[])
+            },
             Self::HideImagesFrom => CommandSpec {
                 available: |state| !state.settings.images_from.is_empty(),
                 ..base("Hide images from sender", Category::Mail, &[])
@@ -795,6 +913,10 @@ impl CommandName {
             Self::SaveAttachments => CommandSpec {
                 available: has_messages,
                 ..base("Save attachments", Category::Mail, &[])
+            },
+            Self::MarkMailboxRead => CommandSpec {
+                available: has_mailboxes,
+                ..base("Mark all as read", Category::Mail, &[])
             },
             Self::MarkRead => CommandSpec {
                 available: has_threads,
@@ -807,6 +929,14 @@ impl CommandName {
             Self::Star => CommandSpec {
                 available: has_threads,
                 ..base("Star", Category::Mail, &["s"])
+            },
+            Self::UnpinThreads => CommandSpec {
+                available: has_threads,
+                ..base("Unpin", Category::Mail, &[])
+            },
+            Self::PinThreads => CommandSpec {
+                available: has_threads,
+                ..base("Pin to top", Category::Mail, &["Shift+P"])
             },
             Self::Unstar => CommandSpec {
                 available: has_threads,
@@ -905,6 +1035,30 @@ impl CommandName {
                 available: |state| state.view.composer.is_some(),
                 ..base("Close composer", Category::Compose, &["Escape"])
             },
+            Self::ExpandFolders => CommandSpec {
+                available: has_mailboxes,
+                ..base("Expand folders", Category::Navigation, &["ArrowRight"])
+            },
+            Self::CollapseFolders => CommandSpec {
+                available: has_mailboxes,
+                ..base("Collapse folders", Category::Navigation, &["ArrowLeft"])
+            },
+            Self::ClearFocus => CommandSpec {
+                available: |state| state.view.focused.is_some(),
+                ..base("Exit focus", Category::Navigation, &[])
+            },
+            Self::FocusMailbox => CommandSpec {
+                available: has_mailboxes,
+                ..base(
+                    "Focus this mailbox",
+                    Category::Navigation,
+                    &["Ctrl+Shift+F", "g f"],
+                )
+            },
+            Self::SetListFilter => CommandSpec {
+                available: has_mailboxes,
+                ..base("Filter the list", Category::Navigation, &[])
+            },
             Self::FocusPane => base("Focus pane", Category::Navigation, &["Tab", "Shift+Tab"]),
             Self::ToggleSidebar => base("Toggle sidebar", Category::Navigation, &["Ctrl+B", "["]),
             Self::GetView => base("Show view state", Category::Navigation, &[]),
@@ -983,6 +1137,18 @@ impl CommandName {
                 account: EXAMPLE_ACCOUNT,
                 email: "sales@example.org".to_owned(),
             },
+            Self::DeleteFolder => Command::DeleteFolder {
+                id: EXAMPLE_MAILBOX,
+                confirm: true,
+            },
+            Self::RenameFolder => Command::RenameFolder {
+                id: EXAMPLE_MAILBOX,
+                path: "Work/Clients".to_owned(),
+            },
+            Self::CreateFolder => Command::CreateFolder {
+                account: EXAMPLE_ACCOUNT,
+                path: "Work/Clients".to_owned(),
+            },
             Self::SetMailboxIdentity => Command::SetMailboxIdentity {
                 mailbox: EXAMPLE_MAILBOX,
                 email: Some("sales@example.org".to_owned()),
@@ -1033,6 +1199,18 @@ impl CommandName {
             Self::ShowImagesFrom => Command::ShowImagesFrom {
                 sender: example_addr().email,
             },
+            Self::ShowMailbox => Command::ShowMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::HideMailbox => Command::HideMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::UnpinMailbox => Command::UnpinMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
+            Self::PinMailbox => Command::PinMailbox {
+                id: EXAMPLE_MAILBOX,
+            },
             Self::HideImagesFrom => Command::HideImagesFrom {
                 sender: example_addr().email,
             },
@@ -1040,6 +1218,9 @@ impl CommandName {
                 message: EXAMPLE_MESSAGE,
                 parts: Vec::new(),
                 dir: "/home/me/Downloads".to_owned(),
+            },
+            Self::MarkMailboxRead => Command::MarkMailboxRead {
+                id: EXAMPLE_MAILBOX,
             },
             Self::MarkRead => Command::MarkRead {
                 ids: vec![EXAMPLE_THREAD],
@@ -1050,6 +1231,14 @@ impl CommandName {
                 messages: vec![EXAMPLE_MESSAGE],
             },
             Self::Star => Command::Star {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::UnpinThreads => Command::UnpinThreads {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::PinThreads => Command::PinThreads {
                 ids: vec![EXAMPLE_THREAD],
                 messages: Vec::new(),
             },
@@ -1135,6 +1324,23 @@ impl CommandName {
                 section: Some(crate::state::SettingsSection::Keys),
             },
             Self::CloseSettings => Command::CloseSettings {},
+            Self::ExpandFolders => Command::ExpandFolders { keys: Vec::new() },
+            Self::CollapseFolders => Command::CollapseFolders {
+                keys: vec![FolderKey {
+                    account: EXAMPLE_ACCOUNT,
+                    path: "Work".to_owned(),
+                }],
+            },
+            Self::ClearFocus => Command::ClearFocus {},
+            Self::FocusMailbox => Command::FocusMailbox {
+                id: Some(EXAMPLE_MAILBOX),
+                account: None,
+            },
+            Self::SetListFilter => Command::SetListFilter {
+                unread: Some(true),
+                starred: None,
+                attachments: None,
+            },
             Self::FocusPane => Command::FocusPane { pane: Pane::Reader },
             Self::ToggleSidebar => Command::ToggleSidebar {},
             Self::GetView => Command::GetView {},

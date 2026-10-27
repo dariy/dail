@@ -67,6 +67,8 @@ pub struct Shell {
     /// The last query result the user asked for (command name, pretty JSON).
     result: Option<(CommandName, String)>,
     clock: fn() -> i64,
+    /// The mark-as-read timer (UX-5).
+    autoread: app_front::autoread::AutoRead,
     /// The language of the shared texts (`app_front::i18n`).
     lang: app_front::i18n::Lang,
 }
@@ -92,6 +94,7 @@ impl Default for Shell {
             settings: crate::settings::SettingsState::default(),
             result: None,
             clock: system_now_ms,
+            autoread: app_front::autoread::AutoRead::default(),
             lang: app_front::i18n::Lang::default(),
         }
     }
@@ -170,6 +173,41 @@ impl Shell {
 
     /// Renders one frame and returns the commands the user issued in it, in order.
     pub fn frame(
+        &mut self,
+        ui: &mut egui::Ui,
+        state: &AppState,
+        replies: Vec<Reply>,
+    ) -> Vec<Request> {
+        let queue = self.frame_body(ui, state, replies);
+        // Auto-advance after triage (UX-12): the neighbour opens right after.
+        let mut queue: Vec<Request> = queue
+            .into_iter()
+            .flat_map(|request| {
+                let next = (request.purpose == Purpose::User)
+                    .then(|| app_front::advance::after(state, &request.cmd))
+                    .flatten()
+                    .map(Request::user);
+                std::iter::once(request).chain(next)
+            })
+            .collect();
+        // Mark as read after a delay (UX-5): the user's own, undoable `mark_read`.
+        for request in &queue {
+            if request.purpose == Purpose::User {
+                self.autoread.note(&request.cmd);
+            }
+        }
+        let focused = ui.ctx().input(|i| i.viewport().focused) != Some(false);
+        match self.autoread.poll(state, (self.clock)(), focused) {
+            app_front::autoread::Poll::Fire(cmd) => queue.push(Request::user(cmd)),
+            app_front::autoread::Poll::Wait(ms) => ui
+                .ctx()
+                .request_repaint_after(std::time::Duration::from_millis(ms)),
+            app_front::autoread::Poll::Idle => {}
+        }
+        queue
+    }
+
+    fn frame_body(
         &mut self,
         ui: &mut egui::Ui,
         state: &AppState,
@@ -262,6 +300,16 @@ impl Shell {
         if sidebar.settings {
             queue.push(Request::user(Command::OpenSettings { section: None }));
         }
+        if let Some(menu) = sidebar.folder {
+            match menu.flow(state) {
+                app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                app_front::palette::Flow::Ask(step) => {
+                    self.palette.open_at(step);
+                    queue.push(Request::user(Command::OpenPalette {}));
+                }
+                _ => {}
+            }
+        }
         let top = Panel::top("top-bar")
             .exact_size(t.m.frame.top_bar)
             .frame(bar.stroke(egui::Stroke::new(t.m.stroke.hairline, chrome.border_subtle)))
@@ -323,6 +371,10 @@ impl Shell {
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
+                        if let Some(step) = self.list.take_ask() {
+                            self.palette.open_at(step);
+                            queue.push(Request::user(Command::OpenPalette {}));
+                        }
                     });
             });
         egui::CentralPanel::default()

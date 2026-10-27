@@ -5,8 +5,9 @@ use std::collections::{BTreeMap, VecDeque};
 
 use app_core::search::{Condition, Query};
 use app_core::{
-    AppState, Effect, Endpoint, Event, IdGen, ImapLogin, MailboxRole, OutgoingMessage,
-    RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security, SmtpLogin, UidFlags,
+    AppState, Effect, Endpoint, Event, FolderAction, IdGen, ImapLogin, MailboxRole,
+    OutgoingMessage, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security,
+    SmtpLogin, UidFlags,
 };
 use app_io::Store;
 use app_io::compose::Bcc;
@@ -314,16 +315,26 @@ impl MemoryBackend {
                 Err(error) => Event::BodyFetchFailed { message, error },
             }]),
             Effect::RunRemoteOp {
-                op, imap, steps, ..
-            } => Ok(vec![match self.remote(&imap, &steps) {
-                Ok(()) => Event::RemoteOpSucceeded { op },
+                op,
+                imap,
+                steps,
+                account: imap_account,
+            } => Ok(match self.remote(&imap, &steps) {
+                Ok(refused) => refused
+                    .into_iter()
+                    .map(|path| Event::KeywordsRefused {
+                        account: imap_account,
+                        path,
+                    })
+                    .chain([Event::RemoteOpSucceeded { op }])
+                    .collect(),
                 // The fake server answered: a refusal is a rejection, not a lost connection.
-                Err(error) => Event::RemoteOpFailed {
+                Err(error) => vec![Event::RemoteOpFailed {
                     op,
                     error,
                     permanent: true,
-                },
-            }]),
+                }],
+            }),
             Effect::SaveDraft {
                 draft,
                 imap,
@@ -337,6 +348,18 @@ impl MemoryBackend {
             {
                 Ok(()) => Event::DraftSaved { draft, revision },
                 Err(error) => Event::DraftSaveFailed { draft, error },
+            }]),
+            Effect::ManageFolder {
+                account,
+                imap,
+                action,
+            } => Ok(vec![match self.manage_folder(&imap, &action) {
+                Ok(()) => Event::FolderManaged { account, action },
+                Err(error) => Event::FolderFailed {
+                    account,
+                    action,
+                    error,
+                },
             }]),
             Effect::DeleteDraft {
                 draft,
@@ -505,9 +528,10 @@ impl MemoryBackend {
         }
     }
 
-    /// Fake `SELECT` + `UID STORE` / `UID MOVE` / `UID COPY`, step by step. A step whose
+    /// Fake `SELECT` + `UID STORE` (also `1:*`) / `UID MOVE` / `UID COPY`, step by step. A step whose
     /// UIDVALIDITY no longer matches fails; steps before it stay applied (as on a real server).
-    fn remote(&self, imap: &ImapLogin, steps: &[RemoteStep]) -> Result<(), String> {
+    fn remote(&self, imap: &ImapLogin, steps: &[RemoteStep]) -> Result<Vec<String>, String> {
+        let mut refused = Vec::new();
         self.verify(&imap.login, &imap.secret)?;
         let mut server = self.server.lock();
         let account = server
@@ -525,12 +549,35 @@ impl MemoryBackend {
                     value,
                 } => {
                     let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    if flag.is_keyword() && !mailbox.keywords {
+                        refused.push(path.clone());
+                        continue;
+                    }
                     let name = flag.imap();
                     for message in mailbox
                         .messages
                         .iter_mut()
                         .filter(|m| uids.contains(&m.uid))
                     {
+                        message.flags.retain(|f| !f.eq_ignore_ascii_case(name));
+                        if *value {
+                            message.flags.push(name.to_owned());
+                        }
+                    }
+                }
+                RemoteStep::StoreAll {
+                    path,
+                    uid_validity,
+                    flag,
+                    value,
+                } => {
+                    let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    if flag.is_keyword() && !mailbox.keywords {
+                        refused.push(path.clone());
+                        continue;
+                    }
+                    let name = flag.imap();
+                    for message in &mut mailbox.messages {
                         message.flags.retain(|f| !f.eq_ignore_ascii_case(name));
                         if *value {
                             message.flags.push(name.to_owned());
@@ -577,7 +624,7 @@ impl MemoryBackend {
                 }
             }
         }
-        Ok(())
+        Ok(refused)
     }
 
     /// Writes attachments of a stored body into the fake file system, like
@@ -709,6 +756,48 @@ impl MemoryBackend {
                 .retain(|m| !has_message_id(&m.raw, message_id));
             Ok(())
         })
+    }
+
+    /// Fake `CREATE` / `RENAME` / `DELETE`: a new folder gets a fresh UIDVALIDITY, a renamed
+    /// one keeps its messages and takes its subfolders along (`/` delimiter), `DELETE` refuses
+    /// `INBOX` and unknown folders.
+    fn manage_folder(&self, imap: &ImapLogin, action: &FolderAction) -> Result<(), String> {
+        self.verify(&imap.login, &imap.secret)?;
+        let mut server = self.server.lock();
+        let account = server
+            .accounts
+            .iter_mut()
+            .find(|account| account.email.eq_ignore_ascii_case(&imap.login))
+            .ok_or_else(|| "IMAP LOGIN failed: unknown user".to_owned())?;
+        let exists = |path: &str| account.mailboxes.iter().any(|m| m.path == path);
+        match action {
+            FolderAction::Create { path } => {
+                if exists(path) {
+                    return Err(format!("IMAP CREATE {path} failed: [ALREADYEXISTS]"));
+                }
+                account.mailboxes.push(FakeMailbox::new(path.clone()));
+            }
+            FolderAction::Rename { from, to } => {
+                if !exists(from) || exists(to) || from.eq_ignore_ascii_case("INBOX") {
+                    return Err(format!("IMAP RENAME {from} -> {to} failed: [CANNOT]"));
+                }
+                let below = format!("{from}/");
+                for mailbox in &mut account.mailboxes {
+                    if mailbox.path == *from {
+                        mailbox.path.clone_from(to);
+                    } else if let Some(rest) = mailbox.path.strip_prefix(&below) {
+                        mailbox.path = format!("{to}/{rest}");
+                    }
+                }
+            }
+            FolderAction::Delete { path } => {
+                if !exists(path) || path.eq_ignore_ascii_case("INBOX") {
+                    return Err(format!("IMAP DELETE {path} failed: [NONEXISTENT]"));
+                }
+                account.mailboxes.retain(|m| m.path != *path);
+            }
+        }
+        Ok(())
     }
 
     /// Runs `change` on the mailbox at `path` of the account `imap` logs in to.

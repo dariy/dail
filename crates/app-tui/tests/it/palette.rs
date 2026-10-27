@@ -37,6 +37,7 @@ fn ctrl_k_opens_it_and_enter_runs_the_best_match() {
                 ids: vec![threads[0]],
                 messages: Vec::new()
             },
+            Command::OpenThread { id: threads[1] },
             Command::ClosePalette {}
         ]
     );
@@ -82,7 +83,7 @@ fn query_results_open_read_only_and_close_with_q() {
     );
     let screen = t.screen();
     assert!(screen.contains("untrusted data"), "{screen}");
-    assert!(screen.contains("\"undo_send_ms\": 10000"), "{screen}");
+    assert!(screen.contains("\"poll_secs\": 120"), "{screen}");
     t.key(KeyCode::Char('q'));
     assert!(!t.screen().contains("untrusted data"));
     assert!(!t.tui.quit_requested(), "q closed the result first");

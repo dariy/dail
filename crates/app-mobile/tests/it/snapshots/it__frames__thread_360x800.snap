@@ -23,52 +23,53 @@ expression: phone.frame()
         "icon": "search",
         "label": "Search or run a command",
         "action": 2
-      },
-      {
-        "label": "About",
-        "action": 3
       }
     ]
   },
   "reader": {
     "thread": "00000000-0000-0007-0000-000000000002",
     "subject": "Lunch?",
+    "close": {
+      "icon": "close",
+      "label": "Close message",
+      "action": 11
+    },
     "actions": [
       {
         "icon": "archive",
         "label": "Archive",
-        "action": 4
+        "action": 3
       },
       {
         "icon": "delete",
         "label": "Trash",
-        "action": 5
+        "action": 4
       },
       {
         "icon": "star",
         "label": "Star",
-        "action": 6
+        "action": 5
       },
       {
         "icon": "mark_email_read",
         "label": "Mark read",
-        "action": 7
+        "action": 6
       },
       {
         "icon": "drive_file_move",
         "label": "Move…",
-        "action": 8
+        "action": 7
       },
       {
         "icon": "reply",
         "label": "Reply",
-        "action": 9
+        "action": 8
       }
     ],
     "next": {
       "icon": "expand_more",
       "label": "Next conversation",
-      "action": 10
+      "action": 9
     },
     "position": "1 of 2",
     "messages": [
@@ -78,7 +79,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 11,
+        "toggle": 10,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -308,16 +309,19 @@ expression: phone.frame()
       "forward": "",
       "image": "",
       "inbox": "",
+      "info": "",
       "keyboard": "",
       "light_mode": "",
       "link": "",
       "mail": "",
       "mark_email_read": "",
       "mark_email_unread": "",
+      "menu": "",
       "more_horiz": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",
+      "push_pin": "",
       "reply": "",
       "reply_all": "",
       "report": "",

@@ -265,6 +265,9 @@ pub struct Row {
     pub unread: bool,
     /// Whether a message is starred.
     pub starred: bool,
+    /// Whether it is pinned to the top (MISC-4).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     /// Whether a message has attachments.
     pub attachments: bool,
     /// Messages in the thread.
@@ -323,15 +326,18 @@ pub struct Reader {
     pub thread: ThreadId,
     /// Its subject.
     pub subject: String,
+    /// The × next to the subject: closes the message (`close_thread`), leaving the list
+    /// (MISC-7).
+    pub close: Button,
     /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
-    /// The conversation above it in the list, if any.
+    /// The conversation above it in the list, if any: a swipe to the right (MISC-5; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub previous: Option<Button>,
-    /// The conversation below it in the list, if any.
+    /// The conversation below it in the list, if any: a swipe to the left (MISC-5; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next: Option<Button>,
-    /// Where it is in the list (`2 of 14`).
+    /// Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<String>,
     /// Its messages, oldest first.

@@ -5,10 +5,11 @@
 //! `status.bodies_in_flight`).
 
 use crate::error::CoreError;
-use crate::ids::{DraftId, MailboxId, MessageId, ThreadId};
+use crate::ids::{AccountId, DraftId, MailboxId, MessageId, ThreadId};
+use crate::mailbox::{FolderKey, MailboxRole};
 use crate::message::BodyState;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
-use crate::state::Pane;
+use crate::state::{FocusTarget, Pane};
 
 use super::{Engine, invalid, not_found};
 
@@ -16,23 +17,56 @@ impl Engine {
     pub(super) fn open_mailbox(
         &mut self,
         id: MailboxId,
+        now_ms: i64,
         receipt: CommandReceipt,
     ) -> Result<Outcome, CoreError> {
-        if !self.state.mailboxes.contains_key(&id) {
+        let Some(mailbox) = self.state.mailboxes.get(&id) else {
             return Err(not_found("mailbox", id));
-        }
+        };
+        // Explicit navigation out of the focus ends it.
+        let inside = match self.state.view.focused {
+            Some(FocusTarget::Mailbox(focus)) => {
+                self.state.mailboxes.get(&focus).is_some_and(|f| {
+                    f.id == id
+                        || (f.account == mailbox.account
+                            && mailbox
+                                .path
+                                .strip_prefix(f.path.as_str())
+                                .is_some_and(|rest| rest.starts_with(f.separator())))
+                })
+            }
+            Some(FocusTarget::Account(account)) => mailbox.account == account,
+            None => true,
+        };
         let view = &mut self.state.view;
+        if !inside {
+            view.focused = None;
+        }
         view.mailbox = Some(id);
         view.unified = false;
         view.selected.clear();
         view.checked.clear();
         view.thread = None;
-        Ok(Outcome::new(
-            receipt
-                .affecting(EntityRef::View)
-                .affecting(EntityRef::Mailbox(id))
-                .with_data(serde_json::json!({ "mailbox": id })),
-        ))
+        // Refresh on open (UX-6): fetch what is new when the last fetch is stale.
+        let stale_ms = i64::try_from(self.state.settings.stale_secs)
+            .unwrap_or(i64::MAX)
+            .saturating_mul(1000);
+        let stale = self.state.mailboxes.get(&id).is_some_and(|m| {
+            m.last_fetch_ms
+                .is_none_or(|at| now_ms.saturating_sub(at) >= stale_ms)
+        });
+        let fetch = if stale { self.refresh(id) } else { None };
+        let mut receipt = receipt
+            .affecting(EntityRef::View)
+            .affecting(EntityRef::Mailbox(id));
+        if fetch.is_some() {
+            receipt = receipt.affecting(EntityRef::Status);
+        }
+        Ok(Outcome {
+            receipt: receipt
+                .with_data(serde_json::json!({ "mailbox": id, "fetching": fetch.is_some() })),
+            effects: fetch.into_iter().collect(),
+        })
     }
 
     pub(super) fn select_threads(
@@ -60,6 +94,7 @@ impl Engine {
 
     pub(super) fn open_unified_inbox(&mut self, receipt: CommandReceipt) -> Outcome {
         let view = &mut self.state.view;
+        view.focused = None;
         view.unified = true;
         view.mailbox = None;
         view.selected.clear();
@@ -250,6 +285,176 @@ impl Engine {
                 .affecting(EntityRef::View)
                 .with_data(serde_json::json!({ "focus": pane })),
         ))
+    }
+
+    /// `collapse_folders` / `expand_folders`: adds the keys to `view.collapsed` or takes them
+    /// out. Without keys, every account and every folder with folders below it / all of them.
+    pub(super) fn set_collapsed(
+        &mut self,
+        keys: Vec<FolderKey>,
+        collapse: bool,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        for key in &keys {
+            if !self.state.accounts.contains_key(&key.account) {
+                return Err(not_found("account", key.account));
+            }
+            let known = key.path.is_empty()
+                || self.state.mailboxes.values().any(|m| {
+                    m.account == key.account
+                        && (m.path == key.path
+                            || m.path
+                                .strip_prefix(key.path.as_str())
+                                .is_some_and(|rest| rest.starts_with(m.separator())))
+                });
+            if !known {
+                return Err(invalid(
+                    "keys",
+                    format!("account {} has no folder {:?}", key.account, key.path),
+                ));
+            }
+        }
+        let keys: Vec<FolderKey> = if keys.is_empty() && collapse {
+            let mut all: Vec<FolderKey> = self
+                .state
+                .accounts
+                .keys()
+                .map(|account| FolderKey {
+                    account: *account,
+                    path: String::new(),
+                })
+                .collect();
+            for mailbox in self.state.mailboxes.values() {
+                let mut path = mailbox.parent_path();
+                while let Some(parent) = path {
+                    all.push(FolderKey {
+                        account: mailbox.account,
+                        path: parent.to_owned(),
+                    });
+                    path = parent
+                        .rsplit_once(mailbox.separator())
+                        .map(|(above, _)| above)
+                        .filter(|above| !above.is_empty());
+                }
+            }
+            all
+        } else if keys.is_empty() {
+            self.state.view.collapsed.iter().cloned().collect()
+        } else {
+            keys
+        };
+        let collapsed = &mut self.state.view.collapsed;
+        let mut changed = 0_usize;
+        for key in keys {
+            let did = if collapse {
+                collapsed.insert(key)
+            } else {
+                collapsed.remove(&key)
+            };
+            changed += usize::from(did);
+        }
+        Ok(Outcome::new(receipt.affecting(EntityRef::View).with_data(
+            serde_json::json!({ "changed": changed, "collapsed": collapsed.len() }),
+        )))
+    }
+
+    /// `focus_mailbox`: narrows the sidebar to a mailbox or an account and opens it.
+    pub(super) fn focus_mailbox(
+        &mut self,
+        id: Option<MailboxId>,
+        account: Option<AccountId>,
+        now_ms: i64,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        let (target, open) = match (id, account) {
+            (Some(id), None) => {
+                if !self.state.mailboxes.contains_key(&id) {
+                    return Err(not_found("mailbox", id));
+                }
+                (FocusTarget::Mailbox(id), Some(id))
+            }
+            (None, Some(account)) => {
+                if !self.state.accounts.contains_key(&account) {
+                    return Err(not_found("account", account));
+                }
+                let current = self
+                    .state
+                    .view
+                    .mailbox
+                    .and_then(|m| self.state.mailboxes.get(&m))
+                    .filter(|m| m.account == account && !self.state.view.unified);
+                let open = match current {
+                    Some(_) => None,
+                    None => self
+                        .state
+                        .mailboxes
+                        .values()
+                        .find(|m| m.account == account && m.role == Some(MailboxRole::Inbox))
+                        .map(|m| m.id),
+                };
+                (FocusTarget::Account(account), open)
+            }
+            _ => return Err(invalid("id", "give either id or account")),
+        };
+        let mut receipt = receipt;
+        let mut effects = Vec::new();
+        if let Some(open) = open
+            && (self.state.view.mailbox != Some(open) || self.state.view.unified)
+        {
+            let opened = self.open_mailbox(open, now_ms, receipt)?;
+            receipt = opened.receipt;
+            effects = opened.effects;
+        }
+        self.state.view.focused = Some(target);
+        self.state.view.search = None;
+        Ok(Outcome {
+            receipt: receipt.affecting(EntityRef::View).with_data(
+                serde_json::json!({ "focused": target, "mailbox": self.state.view.mailbox }),
+            ),
+            effects,
+        })
+    }
+
+    /// `set_list_filter`: the given filters replace the current ones.
+    pub(super) fn set_list_filter(
+        &mut self,
+        unread: Option<bool>,
+        starred: Option<bool>,
+        attachments: Option<bool>,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let filter = &mut self.state.view.filter;
+        if let Some(on) = unread {
+            filter.unread = on;
+        }
+        if let Some(on) = starred {
+            filter.starred = on;
+        }
+        if let Some(on) = attachments {
+            filter.attachments = on;
+        }
+        let filter = *filter;
+        // Checked threads the filter hides stay checked only if they still show.
+        let shown = crate::listing::visible_threads(&self.state);
+        self.state.view.checked.retain(|id| shown.contains(id));
+        Outcome::new(
+            receipt
+                .affecting(EntityRef::View)
+                .with_data(serde_json::json!({
+                    "filter": filter,
+                    "threads": shown.len(),
+                })),
+        )
+    }
+
+    /// `clear_focus`.
+    pub(super) fn clear_focus(&mut self, receipt: CommandReceipt) -> Outcome {
+        let cleared = self.state.view.focused.take().is_some();
+        Outcome::new(
+            receipt
+                .affecting(EntityRef::View)
+                .with_data(serde_json::json!({ "cleared": cleared })),
+        )
     }
 
     pub(super) fn toggle_sidebar(&mut self, receipt: CommandReceipt) -> Outcome {

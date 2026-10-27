@@ -272,7 +272,8 @@ fn undoable_commands_get_an_undo_toast() {
     h.run();
     assert!(matches!(
         h.state_mut().pump()[..],
-        [Command::ArchiveThreads { .. }]
+        // UX-12: the next conversation opens after it.
+        [Command::ArchiveThreads { .. }, Command::OpenThread { .. }]
     ));
     h.run();
     h.get(By::new().role(Role::Button).label_contains("Undo"))

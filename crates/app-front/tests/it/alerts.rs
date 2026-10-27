@@ -172,3 +172,23 @@ fn failed_sends_and_agent_requests_are_news() {
     assert_eq!(alert.body, "To Bob: Plans");
     assert_eq!(alert.draft, Some(asked));
 }
+
+#[test]
+fn focus_mode_silences_the_mail_outside_the_focus() {
+    let before = synced_state();
+    let next = uid_next(&before);
+    let mut after = before.clone();
+    arrived(&mut after, 1, next, "Dana", "Lunch");
+    let (inbox, _) = inbox_of(&after);
+    let other = after.mailboxes.values().find(|m| m.id != inbox).unwrap().id;
+    after.view.focused = Some(app_core::FocusTarget::Mailbox(other));
+    assert!(
+        alerts(&before, &after).is_empty(),
+        "the inbox is out of focus"
+    );
+    after.view.focused = Some(app_core::FocusTarget::Mailbox(inbox));
+    assert_eq!(alerts(&before, &after).len(), 1);
+    let account = after.mailboxes[&inbox].account;
+    after.view.focused = Some(app_core::FocusTarget::Account(account));
+    assert_eq!(alerts(&before, &after).len(), 1, "the account's inbox");
+}

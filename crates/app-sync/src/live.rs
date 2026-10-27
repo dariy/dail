@@ -549,19 +549,23 @@ impl LiveBackend {
                         Box::pin(async move { imap::run_steps(session, &steps).await })
                     })
                     .await;
-                Ok(vec![match done {
-                    Ok(Ok(())) => Event::RemoteOpSucceeded { op },
-                    Ok(Err(error)) => Event::RemoteOpFailed {
+                Ok(match done {
+                    Ok(Ok(refused)) => refused
+                        .into_iter()
+                        .map(|path| Event::KeywordsRefused { account, path })
+                        .chain([Event::RemoteOpSucceeded { op }])
+                        .collect(),
+                    Ok(Err(error)) => vec![Event::RemoteOpFailed {
                         op,
                         error,
                         permanent: true,
-                    },
-                    Err(error) => Event::RemoteOpFailed {
+                    }],
+                    Err(error) => vec![Event::RemoteOpFailed {
                         op,
                         error,
                         permanent: false,
-                    },
-                }])
+                    }],
+                })
             }
             Effect::SaveDraft {
                 draft,
@@ -617,6 +621,27 @@ impl LiveBackend {
                 path,
                 imap,
             } => Ok(vec![self.watch(account, mailbox, &path, &imap).await]),
+            Effect::ManageFolder {
+                account,
+                imap,
+                action,
+            } => {
+                let wanted = action.clone();
+                let done = self
+                    .with_imap(account, &imap, move |session| {
+                        let action = wanted.clone();
+                        Box::pin(async move { imap::manage_folder(session, &action).await })
+                    })
+                    .await;
+                Ok(vec![match done {
+                    Ok(()) => Event::FolderManaged { account, action },
+                    Err(error) => Event::FolderFailed {
+                        account,
+                        action,
+                        error,
+                    },
+                }])
+            }
             Effect::SearchIndex {
                 search,
                 words,

@@ -8,6 +8,8 @@ enum UiEvent {
     case tap(ActionId)
     case longPress(ActionId)
     case swipe(ActionId)
+    /// A pinch on the message ended: fingers apart (zoom in) or together (MISC-6).
+    case pinch(zoomIn: Bool)
     case scrolled(first: Int, count: Int)
     case back
     case refresh
@@ -36,6 +38,7 @@ enum UiEvent {
         case let .tap(action): return Self.event("tap", ["action": .number(Double(action))])
         case let .longPress(action): return Self.event("long_press", ["action": .number(Double(action))])
         case let .swipe(action): return Self.event("swipe", ["action": .number(Double(action))])
+        case let .pinch(zoomIn): return Self.event("pinch", ["zoom_in": .bool(zoomIn)])
         case let .scrolled(first, count):
             return Self.event("scrolled", ["first": .number(Double(first)), "count": .number(Double(count))])
         case .back: return Self.event("back")

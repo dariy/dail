@@ -306,6 +306,24 @@ expression: command_schema()
       ],
       "type": "object"
     },
+    "FolderKey": {
+      "description": "A node of an account's folder tree: a mailbox, or a parent folder that is not cached\n(`\\Noselect`). An empty `path` stands for the whole account.",
+      "properties": {
+        "account": {
+          "$ref": "#/$defs/AccountId",
+          "description": "The account."
+        },
+        "path": {
+          "default": "",
+          "description": "The folder's full path; empty for the account itself.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "account"
+      ],
+      "type": "object"
+    },
     "KeyPreset": {
       "description": "A set of key bindings.",
       "oneOf": [
@@ -505,6 +523,26 @@ expression: command_schema()
         {
           "const": "background_interval_mins",
           "description": "Android: minutes between periodic background checks (15–720).",
+          "type": "string"
+        },
+        {
+          "const": "mark_read_after_ms",
+          "description": "Mark the open conversation's unread messages read once it has been open this long, in\nmilliseconds: 0 = never (only `mark_read` does), else 250–60000 (default 2000). The\nGUI and the TUI run the timer and submit an ordinary, undoable `mark_read`; agents\nopening threads never mark anything read.",
+          "type": "string"
+        },
+        {
+          "const": "stale_secs",
+          "description": "Opening a mailbox fetches what is new in it when its last fetch is older than this many\nseconds (0–86400, default 60; 0 = every time).",
+          "type": "string"
+        },
+        {
+          "const": "full_sync_secs",
+          "description": "Seconds between full sync rounds of the poll, which list every mailbox and fetch each\n(0 = off, else 60–86400; default 900). Between them only INBOX and the open mailbox are\npolled.",
+          "type": "string"
+        },
+        {
+          "const": "after_triage",
+          "description": "What the GUI and the TUI show after the open conversation is archived, trashed or moved:\n0 = the next one (default), 1 = the previous one, 2 = the list.",
           "type": "string"
         }
       ]
@@ -1101,6 +1139,99 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Create a folder on the server (IMAP `CREATE`), e.g. `Work/Clients` (with the account's\nhierarchy delimiter). It shows at once; the next listing confirms it. Not undoable\n(`delete_folder` removes it).",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (from `list_mailboxes`)."
+            },
+            "path": {
+              "description": "The full path of the new folder.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "account",
+            "path"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "create_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Rename or move a folder on the server (IMAP `RENAME`); its subfolders move with it.\nUndo renames it back. The inbox can't be renamed.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            },
+            "path": {
+              "description": "The new full path, e.g. `Work/Clients/Acme`, with the account's hierarchy delimiter.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "path"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "rename_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Delete a folder on the server (IMAP `DELETE`) with every message in it. Needs\n`confirm: true`; not undoable. The inbox and folders with subfolders can't be deleted\n(delete the subfolders first).",
+      "properties": {
+        "args": {
+          "properties": {
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the folder and its mail are gone for good.",
+              "type": "boolean"
+            },
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "delete_folder",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Choose the address a draft is sent from: one of its account's identities. Undoable.",
       "properties": {
         "args": {
@@ -1635,6 +1766,110 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Pin a mailbox to the *Favourites* section at the top of the sidebar, after the ones pinned\nbefore. Undoable; saved with the settings.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "pin_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Take a mailbox out of the sidebar's *Favourites* (see `pin_mailbox`). Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "unpin_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Hide a mailbox from the sidebar's folder tree. It stays in search, in \"Move to…\" and behind\nthe sidebar's *Show hidden* toggle. Undoable; saved with the settings.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "hide_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Show the mailbox again in the sidebar's folder tree (see `hide_mailbox`). Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "show_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Save attachments of a downloaded message into a folder of this computer, under their file\nnames (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).\nProgress and the written paths appear in `status.saves`. Only the user can do this (GUI,\nTUI or CLI); agents (MCP) get `origin_not_allowed`.",
       "properties": {
         "args": {
@@ -1698,6 +1933,32 @@ expression: command_schema()
         },
         "cmd": {
           "const": "mark_read",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Mark every message of a mailbox read, including mail on the server that is not cached:\nthe cached unread messages are marked as with `mark_read`, and if the server counts more\nunread mail than is cached, one `UID STORE 1:* +FLAGS (\\\\Seen)` covers the rest. Undo\nrestores only the cached messages it changed (`uncached_affected` in the receipt says\nwhether others were marked too).",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox (from `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_mailbox_read",
           "type": "string"
         }
       },
@@ -1797,6 +2058,72 @@ expression: command_schema()
         },
         "cmd": {
           "const": "unstar",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Pin threads to the top of every list that shows them (a pinned thread's newest message\ngets the IMAP keyword `$Pinned`, so the pin syncs; on a server that keeps no keywords it\nstays on this device). Give `ids`, `messages` or both. Applied locally at once and on the\nserver in the background. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to pin.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to pin (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "pin_threads",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Unpin threads (every message) or single messages (see `pin_threads`). Give `ids`,\n`messages` or both. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to change.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to change (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "unpin_threads",
           "type": "string"
         }
       },
@@ -2639,6 +2966,156 @@ expression: command_schema()
         },
         "cmd": {
           "const": "focus_pane",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Filter the thread list (GUI and TUI) by unread, starred and attachments; the given\nfields replace the current ones, the others stay. All `false` shows every thread.\nSaved across restarts. `list_threads` and `search` are not filtered.",
+      "properties": {
+        "args": {
+          "properties": {
+            "attachments": {
+              "description": "Only threads with attachments.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "starred": {
+              "description": "Only starred threads.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "unread": {
+              "description": "Only threads with unread mail.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "set_list_filter",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Focus on one mailbox (and the folders below it) or one account: the sidebar shows only\nit, the unified inbox is hidden and new-mail notifications come only from it. Opens the\nmailbox (for an account: its inbox, unless a mailbox of it is open). Opening a mailbox\noutside the focus leaves focus mode (`clear_focus`). Saved across restarts.",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AccountId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The account to focus on."
+            },
+            "id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/MailboxId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The mailbox to focus on (from `list_mailboxes`). Give it or `account`, not both."
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "focus_mailbox",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Leave focus mode (`focus_mailbox`): the sidebar shows every account and folder again.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "clear_focus",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Collapse folders in the sidebar's folder tree, so that the folders below them are\nhidden; a collapsed account hides all its folders. Idempotent, unlike a toggle: repeating\nit changes nothing. Saved across restarts.",
+      "properties": {
+        "args": {
+          "properties": {
+            "keys": {
+              "description": "The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the\nwhole account); empty means every account and every folder with folders below it.",
+              "items": {
+                "$ref": "#/$defs/FolderKey"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "collapse_folders",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Expand folders in the sidebar's folder tree, so that the folders below them show again\n(see `collapse_folders`). Repeating it changes nothing.",
+      "properties": {
+        "args": {
+          "properties": {
+            "keys": {
+              "description": "The folders (`account` and `path` as in `list_mailboxes`; an empty `path` is the\nwhole account); empty means every folder and account.",
+              "items": {
+                "$ref": "#/$defs/FolderKey"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "expand_folders",
           "type": "string"
         }
       },

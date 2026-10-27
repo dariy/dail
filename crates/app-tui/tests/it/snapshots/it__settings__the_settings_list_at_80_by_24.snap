@@ -18,10 +18,10 @@ dail · Conversations
 │tui_colors                0                                                   │
 │background_sync           1                                                   │
 │background_interval_mins  30                                                  │
-│theme_light               dail-light                                          │
-│theme_dark                dail-dark                                           │
-│                                                                              │
-│                                                                              │
+│mark_read_after_ms        2000                                                │
+│stale_secs                86400                                               │
+│full_sync_secs            900                                                 │
+│after_triage              0                                                   │
 │Tab section · j/k move · Enter change · Esc close                             │
 └──────────────────────────────────────────────────────────────────────────────┘
 └────────────────────────────────┘└────────────────────────────────────────────┘

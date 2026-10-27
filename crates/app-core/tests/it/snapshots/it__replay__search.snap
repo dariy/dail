@@ -36,6 +36,7 @@ expression: first
         "account": "00000000-0000-0004-0000-000000000000",
         "delimiter": "/",
         "id": "00000000-0000-0005-0000-000000000000",
+        "last_fetch_ms": 1700000002000,
         "path": "INBOX",
         "role": "inbox",
         "total": 3,
@@ -47,6 +48,7 @@ expression: first
         "account": "00000000-0000-0004-0000-000000000000",
         "delimiter": "/",
         "id": "00000000-0000-0005-0000-000000000001",
+        "last_fetch_ms": 1700000003000,
         "path": "Archive",
         "role": "archive",
         "total": 1,
@@ -211,13 +213,17 @@ expression: first
     },
     "outbox": {},
     "settings": {
+      "after_triage": 0,
       "background_interval_mins": 30,
       "background_sync": 1,
+      "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
       "list_density": 0,
+      "mark_read_after_ms": 2000,
       "notifications": 1,
       "poll_secs": 120,
+      "stale_secs": 60,
       "text_scale": 100,
       "theme": 0,
       "theme_dark": "dail-dark",
@@ -522,6 +528,7 @@ expression: first
                         "account": "00000000-0000-0004-0000-000000000000",
                         "delimiter": "/",
                         "id": "00000000-0000-0005-0000-000000000000",
+                        "last_fetch_ms": 1700000002000,
                         "path": "INBOX",
                         "role": "inbox",
                         "total": 3,
@@ -759,6 +766,7 @@ expression: first
                         "account": "00000000-0000-0004-0000-000000000000",
                         "delimiter": "/",
                         "id": "00000000-0000-0005-0000-000000000001",
+                        "last_fetch_ms": 1700000003000,
                         "path": "Archive",
                         "role": "archive",
                         "total": 1,
@@ -940,6 +948,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000001"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -965,6 +974,7 @@ expression: first
                     "00000000-0000-0007-0000-000000000001"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 0,
                   "untrusted_content": {
                     "from": [
@@ -1057,6 +1067,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1236,6 +1247,7 @@ expression: first
               }
             ],
             "data": {
+              "fetching": false,
               "mailbox": "00000000-0000-0005-0000-000000000000"
             },
             "kind": "view",
@@ -1353,6 +1365,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000004"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1374,6 +1387,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1529,6 +1543,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1827,6 +1842,7 @@ expression: first
                     "00000000-0000-0013-0000-000000000001"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 0,
                   "untrusted_content": {
                     "from": [

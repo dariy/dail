@@ -80,6 +80,13 @@ pub enum UiEvent {
         /// The action.
         action: ActionId,
     },
+    /// A pinch on the message body ended (MISC-6): zooming in (fingers apart) gives the message
+    /// more room, one step per gesture (first the sidebar goes, then the list); zooming out
+    /// brings them back. The text size does not change.
+    Pinch {
+        /// Fingers apart (`true`) or together.
+        zoom_in: bool,
+    },
     /// The thread list scrolled: rows `first..first + count` are visible.
     Scrolled {
         /// The first visible row.

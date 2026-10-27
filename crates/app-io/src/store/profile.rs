@@ -101,7 +101,8 @@ impl Store for ProfileStore {
             PersistDelta::Mail(mail) => self.cache.apply_mail(mail),
             PersistDelta::Settings(_)
             | PersistDelta::Account(_)
-            | PersistDelta::AccountRemoved(_) => self.config.apply(delta),
+            | PersistDelta::AccountRemoved(_)
+            | PersistDelta::View(_) => self.config.apply(delta),
         }
     }
 

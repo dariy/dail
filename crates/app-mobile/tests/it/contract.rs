@@ -136,6 +136,7 @@ fn events() -> Vec<UiEvent> {
         UiEvent::Tap { action: 7 },
         UiEvent::LongPress { action: 8 },
         UiEvent::Swipe { action: 9 },
+        UiEvent::Pinch { zoom_in: true },
         UiEvent::Scrolled {
             first: 20,
             count: 12,
@@ -180,6 +181,7 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Tap { .. }
             | UiEvent::LongPress { .. }
             | UiEvent::Swipe { .. }
+            | UiEvent::Pinch { .. }
             | UiEvent::Scrolled { .. }
             | UiEvent::Back
             | UiEvent::Refresh

@@ -2,8 +2,11 @@
 
 mod support;
 
+mod advance;
 mod alerts;
+mod autoread;
 mod body;
 mod keys;
 mod palette;
 mod status;
+mod tree;

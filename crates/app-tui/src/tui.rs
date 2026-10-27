@@ -84,6 +84,8 @@ pub enum EditOutcome {
 /// UI-local state that is not part of `AppState`.
 pub struct Tui {
     clock: fn() -> i64,
+    /// The mark-as-read timer (UX-5).
+    autoread: app_front::autoread::AutoRead,
     /// `NO_COLOR` is set: never paint the theme's colours.
     no_color: bool,
     /// The language of the shared texts (`app_front::i18n`).
@@ -130,6 +132,7 @@ impl Default for Tui {
     fn default() -> Self {
         Self {
             clock: system_now_ms,
+            autoread: app_front::autoread::AutoRead::default(),
             no_color: false,
             lang: app_front::i18n::Lang::default(),
             quit: false,
@@ -452,7 +455,15 @@ impl Tui {
         self.composer.sync(state);
         let now = self.now_ms();
         let idle = self.composer.idle(state, now);
-        idle.into_iter().chain(self.bodies_request(state)).collect()
+        // Mark as read after a delay (UX-5); a terminal has no focus signal: always counts.
+        let read = match self.autoread.poll(state, now, true) {
+            app_front::autoread::Poll::Fire(cmd) => Some(Request::user(cmd)),
+            app_front::autoread::Poll::Wait(_) | app_front::autoread::Poll::Idle => None,
+        };
+        idle.into_iter()
+            .chain(self.bodies_request(state))
+            .chain(read)
+            .collect()
     }
 
     fn bodies_request(&mut self, state: &AppState) -> Vec<Request> {
@@ -535,6 +546,21 @@ impl Tui {
 
     /// Handles one input event and returns the commands it issued, in order.
     pub fn input(&mut self, input: Input, state: &AppState) -> Vec<Request> {
+        let requests = self.input_inner(input, state);
+        for request in &requests {
+            self.autoread.note(&request.cmd);
+        }
+        // Auto-advance after triage (UX-12).
+        requests
+            .into_iter()
+            .flat_map(|request| {
+                let next = app_front::advance::after(state, &request.cmd).map(Request::user);
+                std::iter::once(request).chain(next)
+            })
+            .collect()
+    }
+
+    fn input_inner(&mut self, input: Input, state: &AppState) -> Vec<Request> {
         self.palette.sync(state);
         match input {
             Input::Paste(text) if self.setup.is_some() => {

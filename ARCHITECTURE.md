@@ -200,7 +200,9 @@ pub struct Mailbox  { id, account, path: String, delimiter: Option<String>, role
                       uid_validity: Option<u32>, uid_next: Option<u32>, unread: u32, total: u32,
                       highest_modseq: Option<u64> /* CONDSTORE, as of the last flag resync */,
                       sync_window: Option<u32> /* newest messages to cache; 0 = all; None = settings */,
-                      history_complete: bool /* the oldest server message is cached */ }
+                      history_complete: bool /* the oldest server message is cached */,
+                      last_fetch_ms: Option<i64> /* UX-6 */,
+                      custom_keywords: Option<bool> /* Some(false): keeps no keywords, pins stay local (MISC-4) */ }
 pub struct RemoteMailbox { path, delimiter, special_use: Option<MailboxRole>, selectable } // as LISTed
 pub struct SyncStatus { pending: u32 /* sync effects in flight */, last_sync_ms: Option<i64>,
                         last_error: Option<SyncIssue { error, mailbox: Option<MailboxId>, at_ms }>,
@@ -224,7 +226,8 @@ pub struct Envelope { id, account, mailbox, uid: u32, message_id_hdr: Option<Str
                       moved_to: Option<MailboxId> }  // mailbox/uid = server location (uid 0: placeholder); shown in
                                                      // location() = moved_to.unwrap_or(mailbox)
 pub struct Thread   { id, account, messages: Vec<MessageId> /* oldest first */, last_date_ms: i64, subject: String }
-pub struct Addr     { name: Option<String>, email }   pub struct Flags { seen, flagged, answered, draft }
+pub struct Addr     { name: Option<String>, email }   pub struct Flags { seen, flagged, answered, draft,
+                      pinned /* the keyword `$Pinned`, MISC-4 */ }
 pub struct Draft    { id, account, reply_to: Option<MessageId>, message_id_hdr: String /* stable, from the draft ID */,
                       in_reply_to, references, to, cc, bcc: Vec<Addr>, subject, body_text,
                       quote: Option<Quote { message, style: Reply|Forward, header: String }>,
@@ -236,10 +239,27 @@ pub struct AttachmentRef { path /* absolute */, name /* last path component */,
 pub struct PendingOp{ id, account, op: RemoteOp, state: OpState /* Queued|Running|Failed */, attempts: u32,
                       last_error: Option<String>, created_ms, next_attempt_ms: Option<i64>, awaiting_sync: bool }
 pub enum  RemoteOp  { SetFlag { flag: FlagKind /* Seen|Flagged */, value: bool, messages: Vec<MessageId> },
-                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> } }
+                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> },
+                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */ }
 pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // resolved when the op starts
-                      Move { path, uid_validity, uids, to: String, create }, Copy { … same … } }
+                      Move { path, uid_validity, uids, to: String, create }, Copy { … same … },
+                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */ }
 ```
+
+Folder tree (UX-2): `app_front::mailbox::tree(state, account) -> Vec<FolderNode { key: FolderKey { account, path },
+label, depth, mailbox: Option<MailboxId>, role, children, unread, unread_below }>` is shared by the GUI, the TUI and the
+sidebar keys. Role folders come first, flat, in role order; the others nest by `path.split(delimiter)`, sorted
+case-insensitively. A parent that is not cached (`\Noselect`, never listed) is a node without a mailbox (it can't be
+opened); since role folders never become such parents, Gmail's `[Gmail]` vanishes by itself. The inbox's children go to
+the top level (servers such as Dovecot put every folder below `INBOX.`); the other role folders keep theirs.
+`unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
+each account caption shows its sync state (`app_front::status::account_state`, UX-9: a busy dot while it syncs, a
+failed dot with the cleaned error on hover, `offline` while changes wait after failed attempts; the TUI writes `⟳`, `⚠`,
+`offline`); a folder row's context menu offers *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
+folder*, *Focus this mailbox*, *Mark all as read* and *Delete…* (the steps that ask go through the palette:
+`palette::new_subfolder`, `rename_folder`, `delete_folder`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
+`list_mailboxes`.
 
 Mailbox roles come from `mailbox::assign_roles`: `INBOX` is always the inbox, then the SPECIAL-USE attribute, then the
 preset's folder names (`ProviderPreset::folder_roles`, e.g. `[Gmail]/Sent Mail`, `INBOX.Sent`), then name heuristics on
@@ -297,7 +317,8 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `IndexSearchFailed{search, error}`, `ServersDiscovered{email, imap, smtp, source}`, `DiscoveryFailed{email, error}`, `Closing`,
   `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
   `SearchResults{account, mailbox, uid_validity, search, started_ms, mailboxes, envelopes}`, `SearchFailed{account, mailbox, search, started_ms, mailboxes, error}`,
-  `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
+  `KeywordsRefused{account, path}` (MISC-4), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
+  failure stays in `SyncStatus.folder_error` until a folder change succeeds — listings don't clear it), `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
 - **`Effect`** — a request to the world: `VerifyAccount{account, login, imap, smtp, secret}`, `ListMailboxes{account, imap: ImapLogin}`, `FetchEnvelopes{account, mailbox, path, imap, uid_validity?, since_uid?, limit}`,
   `ResyncFlags{account, mailbox, path, imap, uid_validity, from_uid, to_uid, changed_since?}`,
   `FetchBody{account, message, path, imap, uid_validity, uid}`, `RunRemoteOp{op, account, imap, steps: Vec<RemoteStep>}`, `InspectAttachment{draft, path}`, `SaveAttachments{message, blob, parts, dir}`, `SaveDraft{draft, account, imap, path, revision, message: OutgoingMessage}`,
@@ -305,7 +326,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `SmtpSend{draft, account, smtp: SmtpLogin, message: OutgoingMessage,
   sent_copy?: SentCopy{imap, path}}`, `StoreSecret{account, secret, value: Secret}`,
   `DeleteSecret{account, secret}`, `PersistState{delta}`, `ScheduleTick{at_ms}`, `WatchMailbox{account, mailbox, path, imap}`,
-  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`. JSON form: `{"effect": "<name>", "args": {…}}`.
+  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`. JSON form: `{"effect": "<name>", "args": {…}}`.
   `Effect::failure_event` maps a failed effect to the `Event` that records the failure in state.
 - **`CommandReceipt`** — `{ ok, name, kind: Option<CommandKind>, affected: Vec<EntityRef>, data: serde_json::Value, undo_label: Option<String> }`.
   Query results travel in `data`. `kind` is `null` for receipts of ingested events. Rejected inputs return a
@@ -587,6 +608,19 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    (case-insensitive, on character boundaries) in the list's subjects and in the reader, in plain text and in document
    spans (`ui::marked`, on `emphasis`).
 
+**Periodic sync (UX-6).** Everything runs in the engine's `Tick` → `poll()` path, so it is replayable
+(`tests/replay/periodic_sync.jsonl`):
+- *Refresh on open*: `open_mailbox` (and `focus_mailbox`) emits `FetchEnvelopes` when the mailbox's `last_fetch_ms`
+  (set by `EnvelopesFetched`) is older than `stale_secs` and `status.fetching` (fetches in flight, cleared by
+  `EnvelopesFetched`/`SyncFailed{mailbox}` and on restart) does not hold it; the receipt says `fetching`.
+- Each due poll, per idle account: a *full round* (`ListMailboxes` → a fetch of each mailbox) when `full_sync_secs` is
+  not 0 and `SyncStatus.last_full_ms` (also set by `sync_now`) is that old; else INBOX (unless IDLE watches it) and the
+  open mailbox (`view.mailbox`, if not in flight).
+- *Back-off*: `SyncStatus.failures` counts failed sync steps since the last success (`EnvelopesFetched` or
+  `MailboxesListed` reset it); from two on, the account's polls wait `min(poll_secs × 2^(failures − 1), 15 min)` after
+  the last failure.
+- The status line reads `synced 2m ago · next in 1m` (`app_front::format::until`, `status.next_poll_ms`).
+
 ### 5.3 Provider presets
 
 | Preset | IMAP | SMTP | Archive | Sent copy | Notes |
@@ -680,7 +714,8 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `ProfileDirs` (app-io) resolves the layout above: `ProfileDirs::named("default")` uses `ProjectDirs::from("", "", "dail")`,
   `ProfileDirs::at(dir)` takes an explicit root; `ensure()` creates it with mode 0700 on Unix.
 - `config.toml` (`app_io::Config`): `[settings]` (missing keys take defaults, values range-checked; `images_from` lists the
-  senders whose inline images show) and one `[[account]]`
+  senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`, `focused`, `list_filter`; only
+  written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
   and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
   disk, rename it over, flush the directory on Unix); blobs are written the same way, and redb commits are durable.
@@ -700,7 +735,8 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
-  `AccountRemoved` or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,
@@ -943,11 +979,20 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   the session, so tests drive it headlessly (`app-gui/tests`, `egui_kittest`: widgets are found by their AccessKit
   label and clicked; a real `Engine` stands in for the session). vsync is off (`DAIL_VSYNC=1` turns it on): egui
   repaints only on demand, and on some Wayland compositors eglSwapBuffers blocks the UI thread otherwise.
-- Layout: a resizable sidebar (accounts and their mailboxes from `app_core::listing::mailboxes`, unread counts; collapsed
+- Layout: a resizable sidebar (accounts and their folder trees from `app_front::mailbox::tree`, indented per level,
+  unread counts; collapsed
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar) and the footer; its rows come in three densities
+  unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
+  `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
+  palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
+  if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
+  `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
+  this month*, then *November 2023*, UTC days — as heading rows that take one row slot each, so `show_rows` stays
+  uniform; the densities are `list_density`'s), the toolbar under it (UX-7: tri-state *Select all*
+  box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
+  *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
   clip, message count and the date in mono; then the subject), compact, 40 px on one line (the sender in a fixed
   column), and preview, 72 px on three lines (the snippet on the third). Cozy and compact rows put the newest message's
@@ -1079,8 +1124,9 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   for bold, `text_muted` for dim, the `selected` fill for reversed cells, `border` for box drawing, the chrome's
   `base` on the header and status lines. Light mode (`theme` 1) takes `theme_light`, anything else `theme_dark`.
   `NO_COLOR` (set and not empty) still wins.
-- **Mailboxes and list.** The mailboxes pane lists each account (bold) and its mailboxes (`listing::mailboxes`: role
-  names, unread counts), the open one marked `▸` and reversed. The thread list is `listing::visible_threads` with rows
+- **Mailboxes and list.** The mailboxes pane lists each account (bold) and its folder tree (`app_front::mailbox::tree`:
+  role names, two spaces per level, `▾` on an expanded parent, `▸` on a collapsed one or account (with `+n` unread hidden), parents that can't be opened dimmed, unread counts), the open one
+  marked `›` and reversed. The thread list is `listing::visible_threads` with rows
   from `ThreadSummary`: a cursor gutter `›`, unread `●`, starred `★`, attachment `@`, sender, subject and date
   (`app_front::format::short_date`); unread rows bold. The cursor is `view.selected` (else the open thread), as in the
   GUI, shown reversed and with `›` (so `tmux capture-pane` sees it too); the list scrolls as little as possible to
@@ -1247,15 +1293,23 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
   carries the content and chrome colour roles as `#RRGGBBAA`, the tags, the type scale, the metrics and the icon
-  font's glyph per icon name. The top bar's *About* opens `about` (the version, the bundled fonts' and icons' licences, from
+  font's glyph per icon name (Kotlin draws a button with an icon from it, and its label only where the font has no
+  glyph: the list's *Mailboxes* button is the `menu` glyph, named *Mailboxes* for TalkBack, MISC-2). The drawer's *About* (MISC-3: the entry after *Settings*, icon
+  `info`; without accounts, there being no drawer, the top bar's) opens `about`, whose top bar has a *Close* button (`close`,
+  as Back) and over which a modal drawer gives way (the version, the bundled fonts' and icons' licences, from
   `app_theme::fonts` and `icon`, and the lists in `crates/app-mobile/licences/`: the Rust crates `libdail.so` links
   and the Android libraries of the release APK, each `name version SPDX-licence`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
   `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
-  and detail. The class never dispatches a command.
+  and detail. The class never dispatches a command. A landscape window that is not compact shows the sidebar as the
+  icon rail (as `toggle_sidebar` does on a wide one). A pinch on the message (`pinch{zoom_in}`, MISC-6) steps the
+  presenter's `pane_step`: zooming in hides the sidebar, then the list; zooming out brings them back, one step per
+  gesture; the text size never changes and the step stays across threads. Kotlin's drawer sheet and rail take no window
+  insets of their own (the Scaffold's padding has them), which kept the landscape drawer too wide and misaligned.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
   grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
-  Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
+  So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
+  row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
   threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
   `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
@@ -1326,9 +1380,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   tapped (presenter state per message and kind, no command). *Links (N)* lists every target in full. A link's tap
   opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
-  another app; *Copy* is `copy`. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
-  palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list,
-  with `position` (`2 of 14`). Back closes the link dialog or the preview, then the thread (the `Escape` binding).
+  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
+  palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list:
+  no pager bar, a horizontal swipe on the body (left: next, right: previous; content wider than the screen scrolls
+  first) and TalkBack/VoiceOver custom actions (MISC-5); `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).
 - **Attachments and pictures.** An expanded message lists its attachments (not the inline parts): a tap opens
   `preview` over the panes, a picture (`kind: image`, the host's `blob` `image` request decoded by `app_io::images`),
   text (`kind: text`, not HTML: `blob`'s `text` request, which answers `app_mobile::preview_text` — UTF-8, at most
@@ -1567,6 +1622,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 - **Signing.** Device archives are unsigned (the user re-signs them). Simulator builds are signed ad hoc
   (`CODE_SIGN_IDENTITY[sdk=iphonesimulator*] = -`): without the entitlements that signing embeds, the
   data-protection Keychain refuses every item.
+- **Installing on a device** (free Apple ID, ROADMAP I4). What worked for the live IPA on the user's iPad: download
+  `dail-<v>-unsigned.ipa` from the release (check its `.sha256`), re-sign and install it with iloader under a free
+  Apple ID, turn on Developer Mode (Settings → Privacy & Security, then restart), and trust the developer profile
+  (Settings → General → VPN & Device Management). A free-account signature expires after 7 days; re-sign to renew.
+  The demo IPA (`net.darii.dail.demo`) should take the same steps under its own bundle ID (not yet tried).
 - **Scale** (plan §9). `app-testkit`'s generated `large` fixture is `basic` plus 20 000 inbox messages in threads of
   4. `ScaleTests` opens it in the simulator, keeps the whole inbox offline through the palette, and logs the open,
   backfill and scroll times and the app's footprint (`phys_footprint`). `cargo xtask ios measure` builds `app-io`'s
@@ -1581,7 +1641,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |
@@ -1592,10 +1652,14 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
-| `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
+| `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
 | `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
 | `save_attachments` | Mutation (no history; user only, §9) | `message, parts? (MIME part numbers; none: all), dir` (absolute; the body must be downloaded) → emits `SaveAttachments`; progress in `status.saves` (one per message, at most 16) | Wave 2 |
+| `create_folder` | Mutation (no history) | `account, path` (trimmed; no control characters, `*`, `%` or empty segments; not an existing path, compared without case) → `{mailbox, path, undoable: false}`; the mailbox is cached at once (the account's delimiter, never fetched) and `ManageFolder{account, imap, action: create{path}}` runs IMAP `CREATE`; agents allowed | UX-14 |
+| `rename_folder` | Mutation | `id, path` (the new full path; not the inbox, not into itself, not an existing path) → `{mailbox, from, to}`; the folder and its subfolders get their new paths in the cache, and pins, hidden folders and collapsed parents follow; `ManageFolder{rename{from, to}}` (IMAP `RENAME`); undo renames it back; agents allowed | UX-14 |
+| `delete_folder` | Destructive | `id, confirm` (not the inbox, not a folder with subfolders) → `{deleted, path, undoable: false}`; drops the mailbox and its cached mail, `ManageFolder{delete{path}}` (IMAP `DELETE`); agents allowed with `confirm` | UX-14 |
+| `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
 | `set_identity` / `remove_identity` | Mutation (user only, §9) | `account, email, name?, signature?` / `account, email`: the addresses the account sends from (saved with it, `[[account.identity]]`); undoable | Wave 2 |
@@ -1608,8 +1672,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `compact_store` | Mutation (no history) | — → `{bodies_kept}`; emits `CompactStore` (§6); outcome in `status.compaction` | Wave 2 |
 | `open_unified_inbox` | View | — (`g u`) → `{threads}`: `view.unified`, the list shows every account's inbox newest first (`listing::unified_threads`); `open_mailbox` leaves it, a search shows instead of it | Wave 2 |
 | `open_mailbox` / `select_threads` / `open_thread` / `close_thread` | View | `id` / `ids` / `id` / — (`open_mailbox` clears selection and reader; `open_thread` selects the thread unless it is already selected and downloads missing bodies; nothing is marked read) | M3 |
+| `mark_mailbox_read` | Mutation | `id` → the `mark_read` receipt for the cached unread messages located in the mailbox plus `mailbox`, `uncached_affected`; when the server counts more unread than are cached, a second op `flag_mailbox{mailbox, flag, value}` runs `RemoteStep::StoreAll` (`UID STORE 1:* +FLAGS.SILENT (\\Seen)`); the mailbox's `unread` drops to 0 until the next fetch; undo (*Mark all read (n messages)*) restores only the cached ones; no default key; the palette and the GUI toolbar ask first above 50 unread (`palette::MARK_ALL_CONFIRM_ABOVE`); agents allowed | UX-7 |
+| `set_list_filter` | View | `unread?, starred?, attachments?: bool` (given ones replace) → `{filter, threads}`; `view.filter`, saved in `[view]` as `list_filter`; `listing::visible_threads` keeps the threads passing every filter that is on (`list_threads`/`search` are not filtered); checked threads it hides are unchecked; the palette asks for words (`unread starred attachments`) | UX-7 |
 | `mark_read` / `mark_unread` | Mutation | `ids?: [ThreadId], messages?: [MessageId]` (at least one; a thread means all its messages, a message includes its copies in other folders) → `{changed, ops, cancelled}`; undo restores exactly `changed` | M3 |
 | `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
+| `pin_threads` / `unpin_threads` | Mutation | same as `star` / `unstar` (pinning a thread marks its newest message, unpinning all) → `{changed, ops, cancelled}`; `Flags.pinned`, the IMAP keyword `$Pinned` (`FlagKind::Pinned`, a `set_flag` op), so the pin syncs like a star; pinned threads come first in every list (`listing::sort_newest_first`: pinned, then newest; `list_threads` has `pinned`); `Shift+P` toggles; agents allowed. Where the server keeps no keywords (a `SELECT` whose `PERMANENTFLAGS` has neither `\\*` nor `$Pinned`) the runtime skips the keyword `STORE` and reports `KeywordsRefused{account, path}` before the op's success: the mailbox gets `custom_keywords: false`, its pins stay on the device (server flag merges keep them, no store is queued) | MISC-4 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
 | `move_threads` | Mutation | `ids?, messages?, to: MailboxId` (same account) | M3 |
 | `list_pending_ops` | Query | `account?` → `{ops: [{id, account, action: set_flag\|move\|copy, detail, state, attempts, last_error, next_attempt_ms, created_ms}]}`, oldest first | M3 |
@@ -1626,8 +1693,10 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
 | `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
+| `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `not_found` for an unknown account, `invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
+| `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |
 | `focus_pane` / `toggle_sidebar` | View | `pane: sidebar\|list\|reader\|composer` / — (`reader` needs an open thread, `composer` an open draft, else `invalid_argument`; focusing the sidebar expands it. After every command and event the engine moves the focus off a pane that is no longer shown: to the composer, the reader or the list) | M6 |
-| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed`); also the MCP resource `dail://state/view` | M7 |
+| `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?, focused?, filter?`); also the MCP resource `dail://state/view` | M7 |
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
 

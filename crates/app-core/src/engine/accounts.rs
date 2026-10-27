@@ -297,6 +297,9 @@ impl Engine {
             | Event::RemoteOpSucceeded { .. }
             | Event::RemoteOpFailed { .. }
             | Event::SyncFailed { .. }
+            | Event::FolderManaged { .. }
+            | Event::KeywordsRefused { .. }
+            | Event::FolderFailed { .. }
             | Event::AttachmentInspected { .. }
             | Event::AttachmentFailed { .. }
             | Event::AttachmentsSaved { .. }

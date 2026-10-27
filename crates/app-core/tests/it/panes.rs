@@ -5,7 +5,10 @@
 #![allow(clippy::unwrap_used)]
 
 use crate::support::{Mail, mail};
-use app_core::{Command, CommandKind, CoreError, DraftId, EntityRef, Pane, SettingKey};
+use app_core::{
+    Command, CommandKind, CoreError, DraftId, Effect, EntityRef, Pane, PersistDelta, SettingKey,
+    ViewPrefs,
+};
 use serde_json::json;
 
 fn with_thread() -> Mail {
@@ -153,6 +156,49 @@ fn toggle_sidebar_collapses_and_focusing_the_sidebar_expands_it() {
 }
 
 #[test]
+fn view_commands_that_change_preferences_save_them() {
+    let mut m = with_thread();
+    let undo_len = m.engine.history().undo_len();
+    let saved = |outcome: &app_core::Outcome| {
+        outcome
+            .effects
+            .iter()
+            .filter_map(|effect| match effect {
+                Effect::PersistState {
+                    delta: PersistDelta::View(prefs),
+                } => Some(prefs.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let outcome = m.run(Command::ToggleSidebar {}).unwrap();
+    assert_eq!(
+        saved(&outcome),
+        [ViewPrefs {
+            sidebar_collapsed: true,
+            ..ViewPrefs::default()
+        }]
+    );
+    let outcome = m
+        .run(Command::FocusPane {
+            pane: Pane::Sidebar,
+        })
+        .unwrap();
+    assert_eq!(
+        saved(&outcome),
+        [ViewPrefs::default()],
+        "focusing expands it"
+    );
+    let outcome = m.run(Command::FocusPane { pane: Pane::List }).unwrap();
+    assert!(saved(&outcome).is_empty(), "nothing saved changed");
+    assert_eq!(
+        m.engine.history().undo_len(),
+        undo_len,
+        "view changes are not undoable"
+    );
+}
+
+#[test]
 fn theme_setting_is_range_checked_and_undoable() {
     let mut m = with_thread();
     assert_eq!(m.engine.state().settings.theme, 0);
@@ -193,4 +239,30 @@ fn get_view_reports_the_view_without_changing_it() {
         serde_json::from_value::<app_core::ViewState>(data.clone()).unwrap(),
         before.view
     );
+}
+
+#[test]
+fn mark_read_after_ms_is_zero_or_at_least_a_quarter_second() {
+    let mut m = with_thread();
+    assert_eq!(m.engine.state().settings.mark_read_after_ms, 2_000);
+    for bad in [1_u64, 249, 60_001] {
+        let err = m
+            .run(Command::SetSetting {
+                key: SettingKey::MarkReadAfterMs,
+                value: bad.into(),
+            })
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("0 or between 250 and 60000"),
+            "{err}"
+        );
+    }
+    for good in [0_u64, 250, 60_000] {
+        m.run(Command::SetSetting {
+            key: SettingKey::MarkReadAfterMs,
+            value: good.into(),
+        })
+        .unwrap();
+        assert_eq!(m.engine.state().settings.mark_read_after_ms, good);
+    }
 }

@@ -49,6 +49,15 @@ impl Density {
 pub struct ListState {
     /// The thread the list last scrolled to, so it scrolls only when the selection moves.
     scrolled_to: Option<ThreadId>,
+    /// A palette step the toolbar asked for (the confirmation of *Mark all as read*).
+    ask: Option<app_front::palette::Ask>,
+}
+
+impl ListState {
+    /// The palette step the toolbar asked for, once.
+    pub fn take_ask(&mut self) -> Option<app_front::palette::Ask> {
+        self.ask.take()
+    }
 }
 
 /// Renders the list pane.
@@ -62,6 +71,7 @@ pub fn show(
     queue: &mut Vec<Request>,
 ) {
     header(ui, t, state, rows.unread, queue);
+    toolbar(ui, t, state, &rows.ids, local, queue);
     let rows = rows.ids.as_slice();
     ui::divider(ui, t);
     if rows.is_empty() {
@@ -80,11 +90,13 @@ pub fn show(
     ui.spacing_mut().item_spacing.y = 0.0;
     let cursor = state.view.selected.last().copied().or(state.view.thread);
     let focused = state.view.focus == Pane::List;
+    // UX-13: date group headers, one row slot each, so the virtualized rows stay uniform.
+    let items = grouped(state, rows, now_ms);
     let mut scroll = egui::ScrollArea::vertical()
         .id_salt("list")
         .auto_shrink([false, false]);
     if cursor != local.scrolled_to
-        && let Some(index) = cursor.and_then(|c| rows.iter().position(|r| *r == c))
+        && let Some(index) = cursor.and_then(|c| items.iter().position(|i| *i == Item::Thread(c)))
     {
         let top = index as f32 * row_height;
         let visible = ui.available_height();
@@ -103,8 +115,15 @@ pub fn show(
         .as_deref()
         .map(app_front::highlight::words)
         .unwrap_or_default();
-    let output = scroll.show_rows(ui, row_height, rows.len(), |ui, range| {
-        for id in &rows[range] {
+    let output = scroll.show_rows(ui, row_height, items.len(), |ui, range| {
+        for item in &items[range] {
+            let id = match item {
+                Item::Group(label) => {
+                    group_header(ui, t, label, row_height);
+                    continue;
+                }
+                Item::Thread(id) => id,
+            };
             if let Some(thread) = state.threads.get(id) {
                 let summary = ThreadSummary::of(state, thread);
                 let selected = state.view.selected.contains(id);
@@ -124,6 +143,11 @@ pub fn show(
                         .rev()
                         .filter_map(|m| state.messages.get(m))
                         .find_map(|m| m.snippet.as_deref()),
+                    mailbox: state
+                        .view
+                        .mailbox
+                        .filter(|_| state.view.search.is_none() && !state.view.unified),
+                    checked_ids: &state.view.checked,
                 };
                 match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
@@ -137,6 +161,14 @@ pub fn show(
                     Some(Click::Range) => {
                         let ids = span_of(rows, cursor, *id);
                         queue.push(Request::user(Command::CheckThreads { ids }));
+                    }
+                    Some(Click::Run(cmd)) => queue.push(Request::user(cmd)),
+                    Some(Click::Move) => {
+                        if let app_front::palette::Flow::Ask(step) =
+                            app_front::palette::move_to(state, vec![*id])
+                        {
+                            local.ask = Some(step);
+                        }
                     }
                     None => {}
                 }
@@ -174,6 +206,9 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
                     if unread > 0 {
                         ui::count(ui, t, format!("{unread} unread"), true);
                     }
+                    if state.view.focused.is_some() {
+                        ui::count(ui, t, "Focus".to_owned(), false);
+                    }
                     // The right side: *Clear* during a search (room for the list toolbar later).
                     if state.view.search.is_some() {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -186,6 +221,86 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
             );
             bulk_bar(ui, t, state, queue);
         });
+}
+
+/// The list toolbar (UX-7), always shown under the title: the tri-state *Select all* box, the
+/// quick filters, and for a mailbox *Mark all as read* and *Refresh*.
+fn toolbar(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    rows: &[ThreadId],
+    local: &mut ListState,
+    queue: &mut Vec<Request>,
+) {
+    if state.view.mailbox.is_none() && state.view.search.is_none() && !state.view.unified {
+        return;
+    }
+    ui.horizontal(|ui| {
+        ui.add_space(t.m.space.md);
+        ui.spacing_mut().item_spacing.x = t.m.space.sm;
+        let checked = &state.view.checked;
+        let all = !rows.is_empty() && rows.iter().all(|id| checked.contains(id));
+        let some = !checked.is_empty() && !all;
+        let mut on = all;
+        let response = ui.add(egui::Checkbox::new(&mut on, "").indeterminate(some));
+        response.widget_info(|| {
+            egui::WidgetInfo::selected(egui::Role::CheckBox, true, all, "Select all")
+        });
+        if response.on_hover_text("Select all").clicked() {
+            queue.push(Request::user(if all || some {
+                Command::UncheckThreads { ids: Vec::new() }
+            } else {
+                Command::CheckThreads { ids: Vec::new() }
+            }));
+        }
+        let filter = state.view.filter;
+        let chips = [
+            ("Unread", filter.unread, 0),
+            ("Starred", filter.starred, 1),
+            ("Attachments", filter.attachments, 2),
+        ];
+        for (label, on, which) in chips {
+            if ui.selectable_label(on, label).clicked() {
+                let flip = Some(!on);
+                queue.push(Request::user(Command::SetListFilter {
+                    unread: (which == 0).then_some(flip).flatten(),
+                    starred: (which == 1).then_some(flip).flatten(),
+                    attachments: (which == 2).then_some(flip).flatten(),
+                }));
+            }
+        }
+        let Some(mailbox) = state
+            .view
+            .mailbox
+            .filter(|_| state.view.search.is_none() && !state.view.unified)
+            .and_then(|id| state.mailboxes.get(&id))
+        else {
+            return;
+        };
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let syncing = state
+                .status
+                .sync
+                .get(&mailbox.account)
+                .is_some_and(app_core::SyncStatus::is_syncing)
+                || state.status.fetching.contains(&mailbox.id);
+            if syncing {
+                ui.add(egui::Spinner::new()).on_hover_text("Refreshing");
+            } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, "Refresh").clicked() {
+                queue.push(Request::user(Command::SyncNow {
+                    account: Some(mailbox.account),
+                }));
+            }
+            if ui::secondary(ui, t, "Mark all as read", None, mailbox.unread > 0) {
+                match app_front::palette::flow(app_core::CommandName::MarkMailboxRead, state) {
+                    app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                    app_front::palette::Flow::Ask(step) => local.ask = Some(step),
+                    _ => {}
+                }
+            }
+        });
+    });
 }
 
 /// While threads are checked: how many, and the actions that apply to all of them.
@@ -293,6 +408,171 @@ enum Click {
     Open,
     Toggle,
     Range,
+    /// A hover action or a context-menu entry (UX-10).
+    Run(Command),
+    /// *Move to…* from the context menu.
+    Move,
+}
+
+/// The actions a row offers on hover and in its context menu: archive, trash, star or unstar,
+/// read or unread, pin or unpin (by its current state).
+fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5] {
+    let ids = || vec![summary.thread.id];
+    let star = if summary.flagged {
+        (
+            Icon::Star,
+            "Unstar",
+            Command::Unstar {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    } else {
+        (
+            Icon::Star,
+            "Star",
+            Command::Star {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    };
+    let read = if summary.unread > 0 {
+        (
+            Icon::MarkEmailRead,
+            "Mark read",
+            Command::MarkRead {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    } else {
+        (
+            Icon::MarkEmailUnread,
+            "Mark unread",
+            Command::MarkUnread {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    };
+    [
+        (
+            Icon::Archive,
+            "Archive",
+            Command::ArchiveThreads {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        ),
+        (
+            Icon::Delete,
+            "Trash",
+            Command::TrashThreads {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        ),
+        star,
+        read,
+        if summary.pinned {
+            (
+                Icon::PushPin,
+                "Unpin",
+                Command::UnpinThreads {
+                    ids: ids(),
+                    messages: Vec::new(),
+                },
+            )
+        } else {
+            (
+                Icon::PushPin,
+                "Pin",
+                Command::PinThreads {
+                    ids: ids(),
+                    messages: Vec::new(),
+                },
+            )
+        },
+    ]
+}
+
+/// The hover actions, as icon buttons over the right end of the row (on the row's fill, so
+/// the date under them does not show through). Each is named for screen readers.
+fn hover_actions(
+    ui: &mut Ui,
+    t: &Tokens,
+    rect: egui::Rect,
+    summary: &ThreadSummary<'_>,
+) -> Option<Click> {
+    let actions = row_actions(summary);
+    let side = t.m.controls.icon_button;
+    let width = side * actions.len() as f32 + t.m.space.sm;
+    let area = egui::Rect::from_min_max(
+        egui::pos2(rect.right() - width - t.m.space.sm, rect.top()),
+        egui::pos2(
+            rect.right() - t.m.space.sm,
+            rect.top() + side.min(rect.height()),
+        ),
+    );
+    ui.painter()
+        .rect_filled(area, ui::radius(t.m.radius.md), t.hover);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(area)
+            .layout(Layout::left_to_right(Align::Center)),
+    );
+    child.spacing_mut().item_spacing.x = 0.0;
+    let mut picked = None;
+    for (icon, label, cmd) in actions {
+        let name = format!("{label} conversation");
+        if ui::icon_button(&mut child, t, t.text_secondary, icon, &name).clicked() {
+            picked = Some(Click::Run(cmd));
+        }
+    }
+    picked
+}
+
+/// A slot of the list: a date group's header or a thread.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Item {
+    Group(String),
+    Thread(ThreadId),
+}
+
+/// The rows with a header before each run of threads in the same date group
+/// (`app_front::format::date_group` of the thread's newest message).
+fn grouped(state: &AppState, rows: &[ThreadId], now_ms: i64) -> Vec<Item> {
+    let mut items = Vec::with_capacity(rows.len() + 8);
+    let mut last: Option<String> = None;
+    for id in rows {
+        if let Some(thread) = state.threads.get(id) {
+            let group = format::date_group(thread.last_date_ms, now_ms);
+            if last.as_ref() != Some(&group) {
+                items.push(Item::Group(group.clone()));
+                last = Some(group);
+            }
+        }
+        items.push(Item::Thread(*id));
+    }
+    items
+}
+
+/// A date group's header: its name in small capitals at the bottom of the slot.
+fn group_header(ui: &mut Ui, t: &Tokens, label: &str, height: f32) {
+    let (rect, response) =
+        ui.allocate_exact_size(Vec2::new(ui.available_width(), height), Sense::hover());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Heading, true, label));
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(rect.shrink2(Vec2::new(t.m.space.md, t.m.space.xs)))
+            .layout(Layout::bottom_up(Align::Min)),
+    );
+    child.label(ui::text(
+        &t.type_scale.label_sm,
+        label.to_uppercase(),
+        t.text_muted,
+    ));
 }
 
 /// The rows from `cursor` (or the first row) to `to`, either way round.
@@ -315,6 +595,20 @@ struct RowLook<'a> {
     marks: &'a [String],
     /// The newest message's snippet. Untrusted.
     snippet: Option<&'a str>,
+    /// The mailbox the list shows, for *Focus this mailbox*.
+    mailbox: Option<app_core::MailboxId>,
+    /// Every checked thread, dragged together.
+    checked_ids: &'a [ThreadId],
+}
+
+/// The threads a list row drag carries (UX-11): the sidebar's folders of the same account
+/// take them with `move_threads`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Dragged {
+    /// Their account (a move stays within one).
+    pub account: app_core::AccountId,
+    /// The threads.
+    pub ids: Vec<ThreadId>,
 }
 
 fn row(
@@ -328,8 +622,18 @@ fn row(
     let (selected, open, cursor) = (look.selected, look.open, look.cursor);
     let (rect, response) = ui.allocate_exact_size(
         Vec2::new(ui.available_width(), density.height(t)),
-        Sense::click(),
+        Sense::click_and_drag(),
     );
+    // UX-11: dragged onto a sidebar folder, the row moves there (with the other checked rows
+    // if it is checked).
+    response.dnd_set_drag_payload(Dragged {
+        account: summary.thread.account,
+        ids: if look.checked {
+            look.checked_ids.to_vec()
+        } else {
+            vec![summary.thread.id]
+        },
+    });
     let name = a11y::thread_row(summary, look.checked, now_ms);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
@@ -435,6 +739,10 @@ fn row(
         if summary.flagged {
             ui::icon(ui, Icon::Star, t.m.controls.icon_xs, t.text_strong, true);
         }
+        if summary.pinned {
+            ui::icon(ui, Icon::PushPin, t.m.controls.icon_xs, t.text_strong, true)
+                .on_hover_text("Pinned");
+        }
     };
     let line = child.available_width();
     match density {
@@ -502,6 +810,36 @@ fn row(
                 },
             );
         }
+    }
+    // UX-10: the row's actions on the right while it is hovered (or has the keyboard cursor),
+    // and the same in its context menu.
+    let mut action = None;
+    if response.hovered() || cursor {
+        action = hover_actions(ui, t, rect, summary);
+    }
+    response.context_menu(|ui| {
+        for (_, label, cmd) in row_actions(summary) {
+            if ui.button(label).clicked() {
+                action = Some(Click::Run(cmd));
+                ui.close();
+            }
+        }
+        if ui.button("Move to…").clicked() {
+            action = Some(Click::Move);
+            ui.close();
+        }
+        if let Some(mailbox) = look.mailbox
+            && ui.button("Focus this mailbox").clicked()
+        {
+            action = Some(Click::Run(Command::FocusMailbox {
+                id: Some(mailbox),
+                account: None,
+            }));
+            ui.close();
+        }
+    });
+    if action.is_some() {
+        return action;
     }
     if !response.clicked() {
         return None;

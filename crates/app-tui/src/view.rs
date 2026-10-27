@@ -2,7 +2,7 @@
 //! Only the terminal's own colours: default foreground and background, bold, dim and reverse.
 //! Email text goes through [`text::clean`](crate::text::clean).
 
-use app_core::{AppState, ThreadSummary, listing};
+use app_core::{AppState, ThreadSummary};
 use app_front::{format, mailbox::mailbox_name};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
@@ -55,11 +55,29 @@ pub fn list_title(state: &AppState) -> String {
     if state.view.unified {
         return "All inboxes".to_owned();
     }
-    state
+    let title = state
         .view
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
-        .map_or_else(|| "Conversations".to_owned(), mailbox_name)
+        .map_or_else(|| "Conversations".to_owned(), mailbox_name);
+    let mut title = if state.view.focused.is_some() {
+        format!("{title} · Focus")
+    } else {
+        title
+    };
+    let filter = state.view.filter;
+    let only: Vec<&str> = [
+        (filter.unread, "unread"),
+        (filter.starred, "starred"),
+        (filter.attachments, "attachments"),
+    ]
+    .into_iter()
+    .filter_map(|(on, name)| on.then_some(name))
+    .collect();
+    if !only.is_empty() {
+        title = format!("{title} · only {}", only.join(", "));
+    }
+    title
 }
 
 /// A pane's frame: a border with its title from 80 columns (bold when focused), nothing below.
@@ -89,17 +107,26 @@ pub fn header(state: &AppState, one_pane: Option<Slot>) -> Line<'static> {
     Line::from(spans)
 }
 
-/// The accounts and their mailboxes, each line with the mailbox it shows (for taps); the open
-/// one is marked.
+/// The accounts and their folder trees (UX-2), each line with the mailbox it shows (for taps):
+/// two spaces per level, `▾` on an expanded parent and `▸` on a collapsed one (with the
+/// unread mail it hides, `+n`), the open one marked `›` and reversed.
 pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::MailboxId>)> {
     let mut lines = Vec::new();
-    for account in state.accounts.values() {
-        let name = Line::from(Span::styled(clean(&account.display_name), bold()));
-        lines.push((name, None));
-        for mailbox in listing::mailboxes(state, Some(account.id)) {
+    if state.view.focused.is_some() {
+        // Focus mode (UX-4): `Exit focus` in the palette shows every folder again.
+        lines.push((
+            Line::from(Span::styled("Focus · palette: Exit focus", dim())),
+            None,
+        ));
+    }
+    let favourites = app_front::mailbox::favourites(state);
+    if !favourites.is_empty() {
+        // UX-8: pinned folders first.
+        lines.push((Line::from(Span::styled("Favourites", bold())), None));
+        for mailbox in favourites {
             let open = state.view.mailbox == Some(mailbox.id) && state.view.search.is_none();
             let mut spans = vec![
-                Span::raw(if open { "▸ " } else { "  " }),
+                Span::raw(if open { "› " } else { "  " }),
                 Span::raw(clean(&mailbox_name(mailbox))),
             ];
             if mailbox.unread > 0 {
@@ -111,12 +138,76 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
         }
         lines.push((Line::from(""), None));
     }
+    for account in state.accounts.values() {
+        if !app_front::mailbox::shows_account(state, account.id) {
+            continue;
+        }
+        let folded = app_front::mailbox::account_collapsed(state, account.id);
+        let marker = if folded { "▸ " } else { "" };
+        let mut name = vec![
+            Span::raw(marker),
+            Span::styled(clean(&account.display_name), bold()),
+        ];
+        // UX-9: the account's sync state.
+        match app_front::status::account_state(state, account.id) {
+            app_front::status::AccountState::Idle => {}
+            app_front::status::AccountState::Syncing => name.push(Span::raw(" ⟳")),
+            app_front::status::AccountState::Failed(_) => name.push(Span::styled(" ⚠", bold())),
+            app_front::status::AccountState::Offline { .. } => {
+                name.push(Span::styled(" offline", dim()));
+            }
+        }
+        let name = Line::from(name);
+        lines.push((name, None));
+        let nodes = app_front::mailbox::sidebar_tree(state, account.id);
+        let shown = app_front::mailbox::visible_rows(state, account.id, &nodes);
+        let open_hidden = folded
+            .then(|| {
+                app_front::mailbox::rows(&nodes, &|_| false)
+                    .into_iter()
+                    .find(|n| n.mailbox.is_some() && n.mailbox == state.view.mailbox)
+            })
+            .flatten();
+        // The open mailbox is never hidden: a collapsed account still shows it.
+        for node in shown.into_iter().chain(open_hidden) {
+            let open = node.mailbox.is_some()
+                && state.view.mailbox == node.mailbox
+                && state.view.search.is_none();
+            let collapsed = state.view.collapsed.contains(&node.key);
+            let fold = match (node.is_parent(), collapsed) {
+                (false, _) => "",
+                (true, false) => "▾ ",
+                (true, true) => "▸ ",
+            };
+            let label = if node.mailbox.is_none() {
+                Span::styled(clean(&node.label), dim())
+            } else {
+                Span::raw(clean(&node.label))
+            };
+            let mut spans = vec![
+                Span::raw(if open { "› " } else { "  " }),
+                Span::raw("  ".repeat(node.depth)),
+                Span::raw(fold),
+                label,
+            ];
+            if node.unread > 0 {
+                spans.push(Span::styled(format!(" {}", node.unread), bold()));
+            }
+            if collapsed && node.unread_below > 0 {
+                spans.push(Span::styled(format!(" +{}", node.unread_below), dim()));
+            }
+            let line = Line::from(spans);
+            let line = if open { line.style(reverse()) } else { line };
+            lines.push((line, node.mailbox));
+        }
+        lines.push((Line::from(""), None));
+    }
     lines
 }
 
 /// One row of the thread list, `width` columns wide: checked `✓` (else the cursor `›`), unread
-/// `●`, starred `★`, attachment `@`, sender, subject and date. Unread rows are bold, the
-/// cursor's row reversed.
+/// `●`, starred `★`, attachment `@`, sender, subject (after `▲` when pinned) and date. Unread
+/// rows are bold, the cursor's row reversed.
 pub fn thread_row(
     summary: &ThreadSummary<'_>,
     now_ms: i64,
@@ -144,6 +235,12 @@ pub fn thread_row(
     let subject = match summary.thread.subject.trim() {
         "" => "(no subject)".to_owned(),
         s => clean(s),
+    };
+    // MISC-4: pinned threads (at the top) say so before the subject.
+    let subject = if summary.pinned {
+        format!("▲ {subject}")
+    } else {
+        subject
     };
     let date = format::short_date(summary.thread.last_date_ms, now_ms);
     let sender_width = (width / 4).clamp(6, 18);

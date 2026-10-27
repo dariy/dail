@@ -53,15 +53,19 @@ fn the_theme_comes_once_and_again_when_it_changes() {
 #[test]
 fn about_shows_the_licences_and_back_closes_it() {
     let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: app_core::Pane::Sidebar,
+    });
     let frame = phone.frame();
     assert!(frame.about.is_none());
-    let about = frame
-        .top_bar
-        .actions
-        .iter()
-        .find(|b| b.label == "About")
-        .unwrap()
-        .action;
+    assert!(
+        frame.top_bar.actions.iter().all(|b| b.label != "About"),
+        "MISC-3: About is in the drawer now"
+    );
+    let footer = frame.drawer.unwrap().footer;
+    let entry = footer.iter().find(|i| i.label == "About").unwrap();
+    assert_eq!(entry.icon, "info");
+    let about = entry.action;
     assert!(
         phone.tap(about).is_empty(),
         "no command: the screen is the presenter's"
@@ -103,4 +107,41 @@ fn about_shows_the_licences_and_back_closes_it() {
     phone.event(UiEvent::Back);
     assert!(phone.take().is_empty());
     assert!(phone.frame().about.is_none());
+}
+
+#[test]
+fn the_mailboxes_button_is_a_menu_icon_named_mailboxes() {
+    // MISC-2: a phone shows the list alone; its navigation button opens the drawer.
+    let mut phone = Phone::inbox(360, 800);
+    let frame = phone.frame();
+    let navigation = frame.top_bar.navigation.unwrap();
+    assert_eq!(navigation.icon.as_deref(), Some("menu"));
+    assert_eq!(navigation.label, "Mailboxes", "TalkBack's name");
+    let icons = frame.theme.unwrap().icons;
+    assert!(
+        icons.contains_key("menu"),
+        "Android draws it from the theme's glyphs"
+    );
+}
+
+#[test]
+fn the_about_screen_has_a_close_button_in_its_top_bar() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: app_core::Pane::Sidebar,
+    });
+    let footer = phone.frame().drawer.unwrap().footer;
+    let about = footer.iter().find(|i| i.label == "About").unwrap().action;
+    phone.tap(about);
+    let frame = phone.frame();
+    assert!(frame.about.is_some());
+    assert!(frame.drawer.is_none(), "the modal drawer gives way");
+    assert_eq!(frame.top_bar.title, "About");
+    let close = frame.top_bar.navigation.unwrap();
+    assert_eq!(
+        (close.icon.as_deref(), close.label.as_str()),
+        (Some("close"), "Close")
+    );
+    assert!(phone.tap(close.action).is_empty());
+    assert!(phone.frame().about.is_none(), "closed");
 }
