@@ -125,7 +125,7 @@ interprocess = { version = "2.4", features = ["tokio"] }
 # --- Agent surfaces ---
 rmcp = { version = "3.6", default-features = false, features = ["server", "macros", "transport-io", "transport-streamable-http-server"] }
 # `dail mcp --http` (ADR 0007): HTTP/1.1 on loopback for rmcp's Streamable HTTP service. Pure Rust.
-hyper = { version = "1", default-features = false, features = ["server", "http1"] }
+hyper = { version = "1", default-features = false, features = ["server", "client", "http1"] } # client: update checks (ADR 0011)
 hyper-util = { version = "0.1", default-features = false, features = ["tokio", "service"] }
 http-body-util = "0.1" # the 401 answer of `dail mcp --http` (already in the tree via rmcp)
 bytes = "1"

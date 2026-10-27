@@ -686,6 +686,16 @@ password (it must reach the owner's keyring; the socket is user-only); everywher
 Transport failures are JSON-RPC errors (`-32600` bad request, `-32601` unknown method, `-32602` bad params or origin,
 `-32603` session closed).
 
+### 5.5 Updates of dail (Wave 7, ADR 0011)
+
+Effects run on their own worker (`Lane::Update`). `app_sync::https::Https` is hyper's HTTP/1.1 client over
+tokio-rustls with app-tls and the webpki roots: one GET per connection, `User-Agent: dail/<version>` and nothing else
+about the user, redirects at most 5 times and only to `github.com`, `objects.githubusercontent.com` and
+`release-assets.githubusercontent.com` (`ALLOWED_HOSTS`), 30 s for the response head and 60 s per body stall.
+`CheckForUpdates{running}` GETs `releases/latest/download/manifest.json` (at most 64 KiB) and its `.minisig` and
+hands both to `app_io::update::verify_manifest` with `UPDATE_PUBLIC_KEYS` → `UpdateChecked{manifest}` or
+`UpdateFailed{reason}`. An `#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
+
 ## 6. Storage (`app-io`)
 
 ```text

@@ -770,8 +770,16 @@ impl LiveBackend {
                     Err(error) => Event::SendFailed { draft, error },
                 },
             ]),
+            Effect::CheckForUpdates { running } => Ok(vec![match tls::client_config() {
+                Ok(config) => {
+                    let https = crate::https::Https::new(config, env!("CARGO_PKG_VERSION"));
+                    crate::https::check(&https, &running).await
+                }
+                Err(err) => Event::UpdateFailed {
+                    reason: err.to_string(),
+                },
+            }]),
             Effect::ScheduleTick { .. }
-            | Effect::CheckForUpdates { .. }
             | Effect::DownloadUpdate { .. }
             | Effect::InstallUpdate { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
