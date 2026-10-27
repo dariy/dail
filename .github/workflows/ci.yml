@@ -81,7 +81,7 @@ jobs:
         with:
           # Only main writes the cache, so a pull request cannot poison it for later runs.
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.1.0" > /dev/null
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-37.2" "build-tools;37.0.0" > /dev/null
       - run: cargo xtask verify android
 
   # `cargo xtask android test` (ADR 0009): the Rust tests of app-core, app-io, app-tls and app-sync on an x86_64
@@ -115,7 +115,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - run: echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
-      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.1.0" > /dev/null
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "platforms;android-37.2" "build-tools;37.0.0" > /dev/null
       - uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 36

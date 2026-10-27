@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <lint>
-    <!-- reason: versions are pinned to what compiles against SDK 36 (libs.versions.toml, ADR 0009); updates are deliberate. -->
+    <!-- reason: versions change only through Dependabot and /update-dependabot (libs.versions.toml, ADR 0011); updates are deliberate. -->
     <issue id="GradleDependency" severity="ignore" />
     <issue id="NewerVersionAvailable" severity="ignore" />
     <issue id="AndroidGradlePluginVersion" severity="ignore" />

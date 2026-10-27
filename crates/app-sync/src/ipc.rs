@@ -28,16 +28,18 @@
 
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 use app_core::{AppState, Command, CoreError, Origin};
-use interprocess::local_socket::tokio::{RecvHalf, SendHalf, Stream};
+use interprocess::local_socket::tokio::Stream;
 use interprocess::local_socket::traits::tokio::{Listener as _, Stream as _};
 use interprocess::local_socket::{ListenerOptions, Name};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, Lines, ReadBuf};
 use tokio::sync::{Mutex, watch};
 use tokio::task::{JoinHandle, JoinSet};
 
@@ -260,8 +262,48 @@ impl Drop for IpcServer {
     }
 }
 
+/// One side of a connection. `&Stream` reads and writes, so both sides share the stream
+/// (interprocess 2.4.7 deprecated its split halves for this).
+struct Half(Arc<Stream>);
+
+type RecvHalf = Half;
+type SendHalf = Half;
+
+fn split(stream: Stream) -> (RecvHalf, SendHalf) {
+    let stream = Arc::new(stream);
+    (Half(Arc::clone(&stream)), Half(stream))
+}
+
+impl AsyncRead for Half {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut &*self.0).poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Half {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut &*self.0).poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut &*self.0).poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut &*self.0).poll_shutdown(cx)
+    }
+}
+
 async fn serve_connection(stream: Stream, session: SessionClient) {
-    let (recv, mut send) = stream.split();
+    let (recv, mut send) = split(stream);
     let mut lines = BufReader::new(recv).lines();
     loop {
         let line = match lines.next_line().await {
@@ -446,7 +488,7 @@ impl IpcClient {
         let stream = Stream::connect(name).await.map_err(|err| {
             SyncError::Ipc(format!("cannot connect to {}: {err}", endpoint.display()))
         })?;
-        let (recv, send) = stream.split();
+        let (recv, send) = split(stream);
         Ok(Self {
             endpoint: endpoint.clone(),
             inner: Arc::new(Mutex::new(ClientConn {
@@ -513,7 +555,7 @@ impl IpcClient {
                 self.endpoint.display()
             ))
         })?;
-        let (recv, mut send) = stream.split();
+        let (recv, mut send) = split(stream);
         let mut lines = BufReader::new(recv).lines();
         let request = json!({ "jsonrpc": "2.0", "id": 0, "method": "watch" });
         write_line(&mut send, &request)

@@ -33,7 +33,10 @@ val signingEnv: Map<String, String>? =
 
 android {
     namespace = "net.darii.dail"
-    compileSdk = 36
+    // Compose 1.12 needs SDK 37.2 to compile against; targetSdk stays 36.
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
     ndkVersion = "28.2.13676358"
 
     defaultConfig {

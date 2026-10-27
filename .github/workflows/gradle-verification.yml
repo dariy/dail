@@ -24,9 +24,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.1.0" > /dev/null
-      # `help` resolves the build's plugins; the tasks after it resolve every configuration the build uses.
-      - run: ./gradlew --no-daemon --write-verification-metadata sha256 help licensee lint --dry-run
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.2" "build-tools;37.0.0" > /dev/null
+      # The CI tasks resolve every configuration the build uses (`--dry-run` resolves none). Gradle writes the checksums
+      # even when a task fails (there is no NDK here for `libdail.so`), so the build's result is not this job's.
+      - run: ./gradlew --no-daemon --write-verification-metadata sha256 --continue spotlessCheck licensee lint testLiveDebugUnitTest testDemoDebugUnitTest assembleLiveRelease assembleDemoDebug || true
         working-directory: android
       - name: Push the new checksums
         run: |

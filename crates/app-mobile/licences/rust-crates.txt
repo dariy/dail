@@ -54,6 +54,7 @@ dyn-clone 1.0.20 MIT OR Apache-2.0
 either 1.19.0 MIT OR Apache-2.0
 email-encoding 0.4.2 MIT OR Apache-2.0
 email_address 0.2.9 MIT
+encodify 1.0.2 Apache-2.0 OR MIT
 encoding_rs 0.8.42 (Apache-2.0 OR MIT) AND BSD-3-Clause
 equivalent 1.0.3 Apache-2.0 OR MIT
 erased-serde 0.4.10 MIT OR Apache-2.0
@@ -109,7 +110,7 @@ image 0.25.10 MIT OR Apache-2.0
 image-webp 0.2.4 MIT OR Apache-2.0
 imap-proto 0.17.0 MIT OR Apache-2.0
 indexmap 2.14.2 Apache-2.0 OR MIT
-interprocess 2.4.6 0BSD OR Apache-2.0
+interprocess 2.4.7 0BSD OR Apache-2.0
 inventory 0.3.25 MIT OR Apache-2.0
 itertools 0.14.0 MIT OR Apache-2.0
 itoa 1.0.18 MIT OR Apache-2.0
@@ -128,10 +129,11 @@ linux-raw-sys 0.12.1 Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
 linux-raw-sys 0.4.15 Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
 litemap 0.8.3 Unicode-3.0
 lock_api 0.4.14 MIT OR Apache-2.0
+lock_api 0.5.0 MIT OR Apache-2.0
 log 0.4.34 MIT OR Apache-2.0
 lru 0.18.5 MIT
 lz4_flex 0.14.0 MIT
-mail-builder 1.0.0 Apache-2.0 OR MIT
+mail-builder 2.0.0 Apache-2.0 OR MIT
 mail-parser 0.11.9 Apache-2.0 OR MIT
 maplit 1.0.2 MIT/Apache-2.0
 markup5ever 0.40.0 MIT OR Apache-2.0
@@ -163,6 +165,8 @@ ordered-float 5.5.0 MIT
 ownedbytes 0.9.0 MIT
 parking 2.2.1 Apache-2.0 OR MIT
 parking_lot 0.12.5 MIT OR Apache-2.0
+parking_lot 0.13.0 MIT OR Apache-2.0
+parking_lot_core 0.10.0 MIT OR Apache-2.0
 parking_lot_core 0.9.12 MIT OR Apache-2.0
 percent-encoding 2.3.2 MIT OR Apache-2.0
 phf 0.14.0 MIT
@@ -260,10 +264,10 @@ unwrap-infallible 1.0.0 MIT OR Apache-2.0
 url 2.5.8 MIT OR Apache-2.0
 utf8-ranges 1.0.5 Unlicense/MIT
 utf8_iter 1.0.4 Apache-2.0 OR MIT
-uuid 1.28.0 Apache-2.0 OR MIT
+uuid 1.29.0 Apache-2.0 OR MIT
 want 0.3.2 MIT
 web_atoms 0.3.0 MIT OR Apache-2.0
-webpki-roots 1.0.10 CDLA-Permissive-2.0
+webpki-roots 1.0.11 CDLA-Permissive-2.0
 weezl 0.1.12 MIT OR Apache-2.0
 winnow 1.0.4 MIT
 writeable 0.6.4 Unicode-3.0

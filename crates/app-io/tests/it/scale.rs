@@ -187,5 +187,7 @@ fn a_50k_full_text_index() {
     timed("reopen the index", Duration::from_secs(5), || {
         FullText::open(&dir).unwrap()
     });
-    std::fs::remove_dir_all(dir).unwrap();
+    // Best effort, like `scratch`: tantivy's threads may still be removing files when the
+    // reopened index drops, and the iOS simulator then reports the directory as not empty.
+    let _ = std::fs::remove_dir_all(dir);
 }

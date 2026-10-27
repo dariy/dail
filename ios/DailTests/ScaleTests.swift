@@ -31,7 +31,11 @@ final class ScaleTests: XCTestCase {
         var row = frame.palette?.sections.flatMap(\.rows).first { $0.title == title }
         for _ in 0..<6 {
             guard let action = row?.action, let before = frame.palette else { break }
-            frame = try demo.send(.tap(action)) { $0.palette?.prompt != before.prompt || $0.palette == nil }
+            // When the flow ends, the palette shows its first step until `close_palette` is
+            // through: only a new question or a closed palette counts.
+            frame = try demo.send(.tap(action)) {
+                $0.palette == nil || ($0.palette?.prompt).map { $0 != before.prompt } == true
+            }
             guard let sheet = frame.palette else { break }
             if sheet.prompt != nil, sheet.hint != "Filter…" {
                 frame = try demo.send(.text(.query, text)) { $0.palette?.query.text == text }

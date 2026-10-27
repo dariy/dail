@@ -39,7 +39,7 @@ loader ships `libjnidispatch.so`). The options weighed are in plan §1, the plat
   send through its undo window; a one-off job flushes queued work when the app leaves the screen; a periodic
   JobScheduler job checks mail (`background_sync` 1, default, every `background_interval_mins` = 30); push
   (`background_sync` 2) is a `specialUse` foreground service around the IMAP IDLE watches.
-- **Platform.** minSdk 29, compile and target SDK 36; arm64-v8a and x86_64; NDK r28+ with 16 KB pages; no Google Play
+- **Platform.** minSdk 29, target SDK 36 (compile SDK 37.2 since Compose 1.12 needs it; it changes no runtime behaviour); arm64-v8a and x86_64; NDK r28+ with 16 KB pages; no Google Play
   Services, Firebase or WorkManager. Application ID `net.darii.dail`. The first release is a signed APK per ABI on
   GitHub releases.
 - **Secrets and files.** keyring 4 with `android-native-keyring-store` (Keystore-wrapped). The profile lives in
