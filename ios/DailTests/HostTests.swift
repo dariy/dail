@@ -64,6 +64,29 @@ final class HostTests: XCTestCase {
         XCTAssertEqual(frame.list?.total, total, "undo brings the thread back")
         XCTAssertTrue(frame.list?.rows.contains { $0.thread == first.thread } ?? false)
     }
+
+    /// About closes from its top bar, and gives way to a mailbox opened from the drawer (MISC-12).
+    func testAboutClosesAndGivesWayToTheDrawer() throws {
+        let demo = try DemoHost()
+        defer { demo.close() }
+        var frame = try demo.send(.configure(
+            widthPt: 1180, heightPt: 820, dark: false, fontScale: 1, locale: "en-US", keyboard: false)) { $0.list?.rows.isEmpty == false }
+        let about = try XCTUnwrap(frame.drawer?.footer.first { $0.label == "About" })
+
+        frame = try demo.send(.tap(about.action)) { $0.about != nil }
+        let close = try XCTUnwrap(frame.topBar.navigation, "About draws its close")
+        frame = try demo.send(.tap(close.action)) { $0.about == nil }
+        XCTAssertNil(frame.about)
+        XCTAssertNotNil(frame.list, "the list is visible again")
+
+        let again = try XCTUnwrap(frame.drawer?.footer.first { $0.label == "About" })
+        frame = try demo.send(.tap(again.action)) { $0.about != nil }
+        let drawer = try XCTUnwrap(frame.drawer, "the drawer stays beside About on a wide window")
+        let mailbox = try XCTUnwrap(drawer.accounts.first?.mailboxes.first { $0.icon == "send" })
+        frame = try demo.send(.tap(mailbox.action)) { $0.about == nil }
+        XCTAssertNil(frame.about, "About is gone")
+        XCTAssertNotNil(frame.list)
+    }
 }
 
 /// The demo host for a test, in its own profile.

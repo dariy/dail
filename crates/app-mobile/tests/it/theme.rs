@@ -145,3 +145,29 @@ fn the_about_screen_has_a_close_button_in_its_top_bar() {
     assert!(phone.tap(close.action).is_empty());
     assert!(phone.frame().about.is_none(), "closed");
 }
+
+#[test]
+fn a_mailbox_opened_from_the_drawer_closes_about() {
+    // A wide window: the drawer stays beside About (MISC-12).
+    let mut phone = Phone::inbox(1280, 800);
+    let drawer = phone.frame().drawer.unwrap();
+    let about = drawer
+        .footer
+        .iter()
+        .find(|i| i.label == "About")
+        .unwrap()
+        .action;
+    phone.tap(about);
+    let drawer = phone.frame().drawer.unwrap();
+    let sent = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.icon == "send")
+        .unwrap()
+        .action;
+    let commands = phone.tap(sent);
+    assert!(matches!(commands[..], [Command::OpenMailbox { .. }]));
+    let frame = phone.frame();
+    assert!(frame.about.is_none(), "About gives way to the mailbox");
+    assert_eq!(frame.list.unwrap().title, "Sent");
+}

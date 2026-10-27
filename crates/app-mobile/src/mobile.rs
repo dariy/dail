@@ -528,6 +528,11 @@ impl Mobile {
         else {
             return Vec::new();
         };
+        // About is over everything: a command from elsewhere (a mailbox in the drawer) moves on
+        // from it, or the panes would change unseen beneath it (MISC-12).
+        if matches!(act, Act::Run(_) | Act::Many(_)) {
+            self.about = false;
+        }
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
             Act::Many(cmds) => cmds.into_iter().map(Request::user).collect(),
