@@ -1,0 +1,220 @@
+//! `cargo xtask release …` (Wave 7, ADR 0011):
+//!
+//! - `versions`: prints every version site and the version it holds; fails if they differ.
+//! - `check-tag <vX.Y.Z>`: fails unless every version site holds the tag's version (the guard job
+//!   of `release.yml`).
+//! - `bump <x.y.z>`: writes the version into every site, refreshes `Cargo.lock` and the mobile
+//!   contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md` stub.
+
+use std::io::Write;
+use std::path::Path;
+use std::process::Command;
+
+use anyhow::{Context, Result, bail};
+
+use crate::workspace_root;
+
+pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>";
+
+/// A file that spells out the release version: the version is the text between `prefix` and
+/// `suffix` on the first line that starts with `prefix` (after leading spaces). The Android
+/// `versionName` and `versionCode` are read from `Cargo.toml` by Gradle, so they are not a site.
+pub(crate) struct Site {
+    pub path: &'static str,
+    pub prefix: &'static str,
+    pub suffix: &'static str,
+}
+
+/// Every version site. `release_sites_agree` pins the table against the files.
+pub(crate) const SITES: &[Site] = &[
+    // `[workspace.package] version`: every crate takes it, and Gradle reads it.
+    Site {
+        path: "Cargo.toml",
+        prefix: "version = \"",
+        suffix: "\"",
+    },
+    Site {
+        path: "ios/project.yml",
+        prefix: "MARKETING_VERSION: \"",
+        suffix: "\"",
+    },
+];
+
+/// The version a site holds, and the byte range it occupies in `text`.
+fn find(site: &Site, text: &str) -> Option<(String, std::ops::Range<usize>)> {
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix(site.prefix) {
+            let end = rest.find(site.suffix)?;
+            let start = offset + (line.len() - trimmed.len()) + site.prefix.len();
+            return Some((rest[..end].to_owned(), start..start + end));
+        }
+        offset += line.len();
+    }
+    None
+}
+
+/// `(path, version)` for every site.
+pub(crate) fn versions(root: &Path) -> Result<Vec<(&'static str, String)>> {
+    SITES
+        .iter()
+        .map(|site| {
+            let text = std::fs::read_to_string(root.join(site.path))
+                .with_context(|| format!("reading {}", site.path))?;
+            let (version, _) = find(site, &text).with_context(|| {
+                format!("{} has no line starting with {}", site.path, site.prefix)
+            })?;
+            Ok((site.path, version))
+        })
+        .collect()
+}
+
+/// The one version every site holds.
+pub(crate) fn current_version(root: &Path) -> Result<String> {
+    let found = versions(root)?;
+    let first = found
+        .first()
+        .map(|(_, v)| v.clone())
+        .context("no version sites")?;
+    if let Some((path, other)) = found.iter().find(|(_, v)| *v != first) {
+        bail!(
+            "version sites disagree: {} has {first}, {path} has {other}",
+            SITES[0].path
+        );
+    }
+    Ok(first)
+}
+
+/// `x.y.z` with numeric parts only (no pre-release: ADR 0011 has stable releases only).
+pub(crate) fn is_version(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('.').collect();
+    parts.len() == 3
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.len() <= 4 && p.bytes().all(|b| b.is_ascii_digit()))
+}
+
+pub(crate) fn run(args: &[String]) -> Result<()> {
+    let root = workspace_root()?;
+    match args.first().map(String::as_str) {
+        Some("versions") => {
+            let mut out = std::io::stdout().lock();
+            for (path, version) in versions(&root)? {
+                writeln!(out, "{path}: {version}")?;
+            }
+            current_version(&root).map(|_| ())
+        }
+        Some("check-tag") => {
+            let tag = args.get(1).context("usage: check-tag <vX.Y.Z>")?;
+            let wanted = tag.strip_prefix('v').unwrap_or(tag);
+            if !is_version(wanted) {
+                bail!("tag {tag} is not vX.Y.Z");
+            }
+            let current = current_version(&root)?;
+            if current != wanted {
+                bail!("tag {tag} does not match the version sites ({current})");
+            }
+            Ok(())
+        }
+        Some("bump") => bump(&root, args.get(1).context("usage: bump <x.y.z>")?),
+        _ => {
+            let mut err = std::io::stderr().lock();
+            writeln!(err, "usage: {USAGE}")?;
+            bail!("unknown or missing release task")
+        }
+    }
+}
+
+fn bump(root: &Path, version: &str) -> Result<()> {
+    if !is_version(version) {
+        bail!("{version} is not x.y.z");
+    }
+    let current = current_version(root)?;
+    for site in SITES {
+        let path = root.join(site.path);
+        let mut text = std::fs::read_to_string(&path)?;
+        let (_, range) = find(site, &text).context("version site vanished")?;
+        text.replace_range(range, version);
+        std::fs::write(&path, text)?;
+    }
+
+    let changelog = root.join("CHANGELOG.md");
+    let old = std::fs::read_to_string(&changelog).unwrap_or_default();
+    let heading = format!("## {version}");
+    if !old.lines().any(|line| line == heading) {
+        let (head, rest) = match old.find("\n## ") {
+            Some(at) => old.split_at(at + 1),
+            None => (old.as_str(), ""),
+        };
+        let head = if head.is_empty() {
+            "# Changelog\n\n"
+        } else {
+            head
+        };
+        std::fs::write(&changelog, format!("{head}{heading}\n\n- \n\n{rest}"))?;
+    }
+
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let status = Command::new(&cargo)
+        .current_dir(root)
+        .args(["update", "--workspace", "--offline"])
+        .status()?;
+    if !status.success() {
+        bail!("cargo update --workspace failed with {status}");
+    }
+    let status = Command::new(&cargo)
+        .current_dir(root)
+        .env("DAIL_UPDATE_CONTRACT", "1")
+        .args(["test", "-p", "app-mobile", "--test", "it", "contract"])
+        .status()?;
+    if !status.success() {
+        bail!("refreshing the contract fixtures failed with {status}");
+    }
+    let mut out = std::io::stdout().lock();
+    writeln!(
+        out,
+        "bumped {current} → {version}; fill in CHANGELOG.md under {heading}"
+    )?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn release_sites_agree() {
+        let root = workspace_root().unwrap();
+        let found = versions(&root).unwrap();
+        assert_eq!(found.len(), SITES.len());
+        let version = current_version(&root).unwrap();
+        assert!(is_version(&version), "{version}");
+        // Cargo.toml's first `version = ` line is `[workspace.package]`'s.
+        let cargo = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
+        let package = cargo.find("[workspace.package]").unwrap();
+        assert!(cargo.find("version = \"").unwrap() > package);
+    }
+
+    #[test]
+    fn find_replaces_only_the_version() {
+        let site = Site {
+            path: "x",
+            prefix: "MARKETING_VERSION: \"",
+            suffix: "\"",
+        };
+        let mut text = "a: 1\n    MARKETING_VERSION: \"0.1.0\"\n".to_owned();
+        let (version, range) = find(&site, &text).unwrap();
+        assert_eq!(version, "0.1.0");
+        text.replace_range(range, "1.20.3");
+        assert_eq!(text, "a: 1\n    MARKETING_VERSION: \"1.20.3\"\n");
+    }
+
+    #[test]
+    fn versions_are_three_numbers() {
+        assert!(is_version("0.1.0"));
+        assert!(!is_version("0.1"));
+        assert!(!is_version("0.1.0-rc1"));
+        assert!(!is_version("v0.1.0"));
+    }
+}

@@ -13,3 +13,6 @@
 - `windows/dail.manifest`: embedded into `dail.exe` by `crates/app-cli/build.rs` (MSVC targets). Its
   `consoleAllocationPolicy` of `detached` stops Windows 11 24H2+ from opening a console when dail is started from
   Explorer, the Start menu or a shortcut, so only the GUI appears. Run from a terminal, dail still uses that terminal.
+- Versions: `cargo xtask release bump <x.y.z>` writes the version into every site (`[workspace.package]` in
+  `Cargo.toml`, which Gradle reads, and `MARKETING_VERSION` in `ios/project.yml`), refreshes `Cargo.lock` and the
+  mobile contract fixtures, and adds a `CHANGELOG.md` stub. `cargo xtask release versions` lists the sites.

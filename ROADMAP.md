@@ -652,7 +652,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
   the environment
 - [ ] R4: `publish` job in the `release` environment (`contents: write` only there): `gh release create`, notes from
   `CHANGELOG.md`
-- [ ] R5: `cargo xtask release bump <x.y.z>` — every version site and a CHANGELOG stub; a test pins the sites
+- [x] R5: `cargo xtask release bump <x.y.z>` — every version site and a CHANGELOG stub; a test pins the sites
 
 ### C — Core
 - [ ] C1 [core]: `UpdateState` (idle, checking, available, downloading, ready, failed; last check; skipped version)
