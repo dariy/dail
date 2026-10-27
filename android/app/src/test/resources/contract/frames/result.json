@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 130,
+    "action": 134,
     "icon": "edit",
     "label": "Compose"
   },
@@ -14,36 +14,41 @@
   "reader": {
     "actions": [
       {
-        "action": 122,
+        "action": 125,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 123,
+        "action": 126,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 124,
+        "action": 127,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 125,
+        "action": 128,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 126,
+        "action": 129,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 127,
+        "action": 130,
         "icon": "reply",
         "label": "Reply"
       }
     ],
+    "close": {
+      "action": 133,
+      "icon": "close",
+      "label": "Close message"
+    },
     "messages": [
       {
         "attachments": [],
@@ -55,11 +60,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 129
+        "toggle": 132
       }
     ],
     "next": {
-      "action": 128,
+      "action": 131,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -69,7 +74,7 @@
   },
   "result": {
     "close": {
-      "action": 131,
+      "action": 135,
       "icon": "close",
       "label": "Close"
     },
@@ -138,13 +143,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 121,
+        "action": 124,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 120,
+      "action": 123,
       "icon": "back",
       "label": "Back"
     },

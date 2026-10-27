@@ -10,7 +10,12 @@ struct ReaderPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    // MISC-7: the × closes the message.
+                    FrameButton(button: reader.close, send: send)
+                }
                 HStack(spacing: 20) {
                     ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
                         FrameButton(button: button, send: send)

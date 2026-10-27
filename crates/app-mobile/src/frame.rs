@@ -326,6 +326,9 @@ pub struct Reader {
     pub thread: ThreadId,
     /// Its subject.
     pub subject: String,
+    /// The × next to the subject: closes the message (`close_thread`), leaving the list
+    /// (MISC-7).
+    pub close: Button,
     /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
     /// The conversation above it in the list, if any: a swipe to the right (MISC-5; no button).

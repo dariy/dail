@@ -1380,7 +1380,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   tapped (presenter state per message and kind, no command). *Links (N)* lists every target in full. A link's tap
   opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
-  another app; *Copy* is `copy`. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
+  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
   palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list:
   no pager bar, a horizontal swipe on the body (left: next, right: previous; content wider than the screen scrolls
   first) and TalkBack/VoiceOver custom actions (MISC-5); `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).

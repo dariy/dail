@@ -194,6 +194,7 @@ data class Bulk(
 data class Reader(
     val thread: String,
     val subject: String,
+    val close: Button,
     val actions: List<Button>,
     val previous: Button? = null,
     val next: Button? = null,

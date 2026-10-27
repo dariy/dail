@@ -142,6 +142,11 @@ expression: phone.frame()
   "reader": {
     "thread": "00000000-0000-0007-0000-000000000002",
     "subject": "Lunch?",
+    "close": {
+      "icon": "close",
+      "label": "Close message",
+      "action": 25
+    },
     "actions": [
       {
         "icon": "archive",
@@ -198,7 +203,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 25
+    "action": 26
   },
   "theme": {
     "id": "dail-light",

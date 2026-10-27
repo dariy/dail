@@ -493,7 +493,9 @@ impl Mobile {
                 links,
             });
         }
+        let close = self.button("close", "Close message", Act::Run(Command::CloseThread {}));
         Some(Reader {
+            close,
             thread: thread.id,
             subject: match thread.subject.trim() {
                 "" => "(no subject)".to_owned(),

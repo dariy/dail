@@ -224,3 +224,17 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
     );
     assert!(phone.frame().bulk.is_none());
 }
+
+#[test]
+fn the_open_message_has_a_close_button() {
+    // MISC-7: the × beside the subject closes the message.
+    let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    let close = phone.frame().reader.unwrap().close;
+    assert_eq!(
+        (close.icon.as_deref(), close.label.as_str()),
+        (Some("close"), "Close message")
+    );
+    assert_eq!(phone.tap(close.action), [Command::CloseThread {}]);
+}

@@ -119,7 +119,13 @@ fun ReaderPane(
             .semantics { customActions = actions }
             .padding(horizontal = 16.dp),
     ) {
-        item(key = "subject") { Text(reader.subject, style = MaterialTheme.typography.titleLarge) }
+        item(key = "subject") {
+            // MISC-7: the × closes the message.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(reader.subject, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                ActionButton(reader.close, send)
+            }
+        }
         item(key = "toolbar") { Toolbar(reader, send) }
         items(reader.messages, key = { it.message }) { message ->
             MessageCard(message, send)

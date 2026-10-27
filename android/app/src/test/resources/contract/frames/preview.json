@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 90,
+    "action": 94,
     "icon": "edit",
     "label": "Compose"
   },
@@ -14,7 +14,7 @@
   "preview": {
     "blob": "b0",
     "close": {
-      "action": 93,
+      "action": 97,
       "icon": "close",
       "label": "Close"
     },
@@ -23,7 +23,7 @@
     "name": "chart.png",
     "part": 2,
     "save": {
-      "action": 92,
+      "action": 96,
       "icon": "download",
       "label": "Save"
     }
@@ -31,61 +31,66 @@
   "reader": {
     "actions": [
       {
-        "action": 71,
+        "action": 74,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 72,
+        "action": 75,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 73,
+        "action": 76,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 74,
+        "action": 77,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 75,
+        "action": 78,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 76,
+        "action": 79,
         "icon": "reply",
         "label": "Reply"
       }
     ],
+    "close": {
+      "action": 93,
+      "icon": "close",
+      "label": "Close message"
+    },
     "messages": [
       {
         "attachments": [
           {
             "mime": "image/png",
             "name": "chart.png",
-            "open": 83,
+            "open": 86,
             "part": 2,
-            "save": 84,
+            "save": 87,
             "size": "2 KB"
           },
           {
             "mime": "text/plain",
             "name": "notes.txt",
-            "open": 85,
+            "open": 88,
             "part": 3,
-            "save": 86,
+            "save": 89,
             "size": "12 B"
           },
           {
             "mime": "application/pdf",
             "name": "q3.pdf",
-            "open": 87,
+            "open": 90,
             "part": 4,
-            "save": 88,
+            "save": 91,
             "size": "120 KB"
           }
         ],
@@ -106,7 +111,7 @@
               },
               {
                 "bold": true,
-                "link": 79,
+                "link": 82,
                 "text": "the report"
               },
               {
@@ -185,7 +190,7 @@
             "blocks": [],
             "expanded": false,
             "label": "Signature",
-            "toggle": 80,
+            "toggle": 83,
             "type": "fold"
           }
         ],
@@ -196,31 +201,31 @@
           "shown": true,
           "text": "Showing the pictures in this message.",
           "toggle": {
-            "action": 82,
+            "action": 85,
             "icon": "visibility_off",
             "label": "Hide images from carol@example.org"
           }
         },
         "links": [
           {
-            "action": 81,
+            "action": 84,
             "icon": "link",
             "label": "https://example.org/q3"
           }
         ],
         "message": "00000000-0000-0007-0000-000000000003",
         "save_all": {
-          "action": 89,
+          "action": 92,
           "icon": "download",
           "label": "Save all (3)"
         },
         "snippet": "Q3 numbers",
         "to": "alice@example.com",
-        "toggle": 78
+        "toggle": 81
       }
     ],
     "next": {
-      "action": 77,
+      "action": 80,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -231,7 +236,7 @@
   "revision": 4,
   "snackbar": {
     "action": {
-      "action": 91,
+      "action": 95,
       "label": "Undo"
     },
     "text": "Show images from carol@example.org"
@@ -239,13 +244,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 70,
+        "action": 73,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 69,
+      "action": 72,
       "icon": "back",
       "label": "Back"
     },

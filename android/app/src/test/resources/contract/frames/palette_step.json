@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 100,
+    "action": 102,
     "icon": "edit",
     "label": "Compose"
   },
@@ -13,7 +13,7 @@
   },
   "palette": {
     "close": {
-      "action": 105,
+      "action": 107,
       "icon": "close",
       "label": "Close"
     },
@@ -27,22 +27,22 @@
       {
         "rows": [
           {
-            "action": 101,
+            "action": 103,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 102,
+            "action": 104,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 103,
+            "action": 105,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 104,
+            "action": 106,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -54,36 +54,41 @@
   "reader": {
     "actions": [
       {
-        "action": 92,
+        "action": 93,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 93,
+        "action": 94,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 94,
+        "action": 95,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 95,
+        "action": 96,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 96,
+        "action": 97,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 97,
+        "action": 98,
         "icon": "reply",
         "label": "Reply"
       }
     ],
+    "close": {
+      "action": 101,
+      "icon": "close",
+      "label": "Close message"
+    },
     "messages": [
       {
         "attachments": [],
@@ -95,11 +100,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 99
+        "toggle": 100
       }
     ],
     "next": {
-      "action": 98,
+      "action": 99,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -111,13 +116,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 91,
+        "action": 92,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 90,
+      "action": 91,
       "icon": "back",
       "label": "Back"
     },

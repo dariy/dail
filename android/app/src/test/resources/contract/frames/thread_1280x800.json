@@ -71,7 +71,7 @@
     "rail": true
   },
   "fab": {
-    "action": 42,
+    "action": 43,
     "icon": "edit",
     "label": "Compose"
   },
@@ -162,6 +162,11 @@
         "label": "Reply"
       }
     ],
+    "close": {
+      "action": 42,
+      "icon": "close",
+      "label": "Close message"
+    },
     "messages": [
       {
         "attachments": [],

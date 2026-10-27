@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 22,
+    "action": 23,
     "icon": "edit",
     "label": "Compose"
   },
@@ -44,6 +44,11 @@
         "label": "Reply"
       }
     ],
+    "close": {
+      "action": 22,
+      "icon": "close",
+      "label": "Close message"
+    },
     "messages": [
       {
         "attachments": [],

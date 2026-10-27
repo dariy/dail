@@ -1387,6 +1387,10 @@
           },
           "type": "array"
         },
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "The × next to the subject: closes the message (`close_thread`), leaving the list\n(MISC-7)."
+        },
         "messages": {
           "description": "Its messages, oldest first.",
           "items": {
@@ -1435,6 +1439,7 @@
       "required": [
         "thread",
         "subject",
+        "close",
         "actions",
         "messages"
       ],
