@@ -15,10 +15,6 @@ struct ReaderPane: View {
                     ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
                         FrameButton(button: button, send: send)
                     }
-                    Spacer()
-                    if let previous = reader.previous { FrameButton(button: previous, send: send) }
-                    if let position = reader.position { Text(verbatim: position).font(.caption) }
-                    if let next = reader.next { FrameButton(button: next, send: send) }
                 }
                 ForEach(Array(reader.messages.enumerated()), id: \.offset) { _, message in
                     MessageView(message: message, send: send)
@@ -26,6 +22,21 @@ struct ReaderPane: View {
                 }
             }
             .padding()
+        }
+        // MISC-5: a horizontal swipe goes to the next (left) or previous (right) conversation;
+        // VoiceOver gets the same as named actions.
+        .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
+            let dx = drag.translation.width
+            guard abs(dx) > 72, abs(dx) > abs(drag.translation.height) else { return }
+            if let target = dx < 0 ? reader.next : reader.previous { send(.tap(target.action)) }
+        })
+        .accessibilityActions {
+            if let previous = reader.previous {
+                SwiftUI.Button(previous.label) { send(.tap(previous.action)) }
+            }
+            if let next = reader.next {
+                SwiftUI.Button(next.label) { send(.tap(next.action)) }
+            }
         }
         // `dail-action:<id>` is how a link span reaches its action; nothing else is opened.
         .environment(\.openURL, OpenURLAction { url in

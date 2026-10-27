@@ -1403,10 +1403,10 @@
               "type": "null"
             }
           ],
-          "description": "The conversation below it in the list, if any."
+          "description": "The conversation below it in the list, if any: a swipe to the left (MISC-5; no button)."
         },
         "position": {
-          "description": "Where it is in the list (`2 of 14`).",
+          "description": "Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).",
           "type": [
             "string",
             "null"
@@ -1421,7 +1421,7 @@
               "type": "null"
             }
           ],
-          "description": "The conversation above it in the list, if any."
+          "description": "The conversation above it in the list, if any: a swipe to the right (MISC-5; no button)."
         },
         "subject": {
           "description": "Its subject.",

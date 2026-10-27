@@ -2,6 +2,7 @@ package net.darii.dail.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,9 +23,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -41,16 +48,57 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 
 /**
- * The open thread: the toolbar, the previous and next conversation, and the messages, collapsed
- * (sender and snippet) or expanded (the body's blocks, attachments, *Links (N)*). A link's tap
- * only sends its action: the presenter shows the full target first ([LinkDialog]).
+ * The open thread: the toolbar and the messages, collapsed (sender and snippet) or expanded (the
+ * body's blocks, attachments, *Links (N)*). A link's tap only sends its action: the presenter
+ * shows the full target first ([LinkDialog]).
+ *
+ * A horizontal swipe goes to the next (left) or previous (right) conversation (MISC-5); TalkBack
+ * offers the same as custom actions. Content wider than the screen scrolls first: its own
+ * horizontal scroll consumes the drag, so the swipe only starts at its edge.
  */
 @Composable
 fun ReaderPane(
     reader: Reader,
     send: (UiEvent) -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    val current by rememberUpdatedState(reader)
+    val sendNow by rememberUpdatedState(send)
+    val swipe =
+        Modifier.pointerInput(Unit) {
+            var dx = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { dx = 0f },
+                onDragEnd = {
+                    val target = if (dx < 0) current.next else current.previous
+                    if (kotlin.math.abs(dx) > SWIPE_DISTANCE.toPx()) target?.let { sendNow(UiEvent.Tap(it.action)) }
+                },
+            ) { change, amount ->
+                change.consume()
+                dx += amount
+            }
+        }
+    val actions =
+        listOfNotNull(
+            reader.previous?.let { b ->
+                CustomAccessibilityAction(b.label) {
+                    send(UiEvent.Tap(b.action))
+                    true
+                }
+            },
+            reader.next?.let { b ->
+                CustomAccessibilityAction(b.label) {
+                    send(UiEvent.Tap(b.action))
+                    true
+                }
+            },
+        )
+    LazyColumn(
+        Modifier
+            .fillMaxSize()
+            .then(swipe)
+            .semantics { customActions = actions }
+            .padding(horizontal = 16.dp),
+    ) {
         item(key = "subject") { Text(reader.subject, style = MaterialTheme.typography.titleLarge) }
         item(key = "toolbar") { Toolbar(reader, send) }
         items(reader.messages, key = { it.message }) { message ->
@@ -68,11 +116,6 @@ private fun Toolbar(
 ) {
     FlowRow(verticalArrangement = Arrangement.Center) {
         reader.actions.forEach { ActionButton(it, send) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            reader.position?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
-            reader.previous?.let { ActionButton(it, send) }
-            reader.next?.let { ActionButton(it, send) }
-        }
     }
 }
 
@@ -306,3 +349,6 @@ fun LinkDialog(
         dismissButton = { TextButton(onClick = { send(UiEvent.Tap(link.copy.action)) }) { Text(link.copy.label) } },
     )
 }
+
+/** How far a horizontal drag must go to change the conversation. */
+private val SWIPE_DISTANCE = 72.dp
