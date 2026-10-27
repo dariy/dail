@@ -140,3 +140,35 @@ fn a_landscape_window_switches_the_sidebar_between_tree_and_rail() {
         "portrait: no rail, no switch"
     );
 }
+
+#[test]
+fn the_message_pane_maximizes_and_restores() {
+    // MISC-14: a button, not only the pinch.
+    let mut phone = Phone::inbox(1280, 800);
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    let frame = phone.frame();
+    assert!(frame.layout.panes.len() > 1);
+    let maximize = frame.reader.unwrap().maximize.unwrap();
+    assert_eq!(maximize.label, "Maximize message");
+    assert!(
+        phone.tap(maximize.action).is_empty(),
+        "no command: the presenter's"
+    );
+    let frame = phone.frame();
+    assert_eq!(frame.layout.panes, [PaneKind::Reader]);
+    assert!(frame.top_bar.actions.is_empty(), "a bare top bar");
+    let restore = frame.reader.unwrap().maximize.unwrap();
+    assert_eq!(restore.label, "Restore panes");
+    // It stays with the next thread.
+    phone.dispatch(Command::OpenThread { id: threads[1] });
+    assert_eq!(phone.frame().layout.panes, [PaneKind::Reader]);
+    let restore = phone.frame().reader.unwrap().maximize.unwrap();
+    phone.tap(restore.action);
+    assert!(phone.frame().layout.panes.len() > 1);
+
+    // A phone shows the message alone already: nothing to maximize.
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    assert!(phone.frame().reader.unwrap().maximize.is_none());
+}

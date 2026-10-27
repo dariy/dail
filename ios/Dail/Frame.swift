@@ -237,6 +237,7 @@ struct Reader: Codable {
     let thread: String
     let subject: String
     let close: ActionButton
+    let maximize: ActionButton?
     let actions: [ActionButton]
     let previous: ActionButton?
     let next: ActionButton?

@@ -81,7 +81,7 @@
     }
   },
   "fab": {
-    "action": 47,
+    "action": 48,
     "icon": "edit",
     "label": "Compose"
   },
@@ -176,6 +176,11 @@
       "action": 46,
       "icon": "close",
       "label": "Close message"
+    },
+    "maximize": {
+      "action": 47,
+      "icon": "unfold_more",
+      "label": "Maximize message"
     },
     "messages": [
       {

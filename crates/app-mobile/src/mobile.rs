@@ -58,6 +58,8 @@ enum Act {
     Compose,
     /// Open the About screen.
     About,
+    /// Maximize the message pane, or restore the panes (MISC-14).
+    Maximize,
     /// Add a suggested contact to a recipient field.
     Suggest(Field, Addr),
     /// Expand or fold the composer's quote.
@@ -537,6 +539,11 @@ impl Mobile {
             Act::Run(cmd) => vec![Request::user(cmd)],
             Act::Many(cmds) => cmds.into_iter().map(Request::user).collect(),
             Act::Back => self.back(state),
+            Act::Maximize => {
+                // The largest pinch step (MISC-6), or back to none; it stays across threads.
+                self.pane_step = if self.pane_step >= 2 { 0 } else { 2 };
+                Vec::new()
+            }
             Act::About => {
                 self.about = true;
                 Vec::new()
@@ -789,6 +796,8 @@ impl Mobile {
         if (rail || (side && landscape)) && !kinds.contains(&PaneKind::Drawer) {
             kinds.insert(0, PaneKind::Drawer);
         }
+        // Whether there is anything beside the message to hide (MISC-14).
+        let crowded = kinds.contains(&PaneKind::Reader) && kinds.len() > 1;
         // A pinch gave the message more room (MISC-6).
         if kinds.contains(&PaneKind::Reader) {
             if self.pane_step >= 1 {
@@ -798,7 +807,12 @@ impl Mobile {
                 kinds.retain(|k| *k != PaneKind::List);
             }
         }
-        let top_bar = self.top_bar(state, &kinds);
+        let maximized = self.pane_step >= 2 && kinds == [PaneKind::Reader];
+        let mut top_bar = self.top_bar(state, &kinds);
+        if maximized {
+            // Minimal: the message has the room; its own bar keeps its actions.
+            top_bar.actions.clear();
+        }
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         // A modal drawer gives way to the About screen it opened.
         let drawer = ((modal && !self.about) || kinds.contains(&PaneKind::Drawer))
@@ -806,11 +820,20 @@ impl Mobile {
         let list = kinds
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
-        let reader = if kinds.contains(&PaneKind::Reader) {
+        let mut reader = if kinds.contains(&PaneKind::Reader) {
             self.reader(state)
         } else {
             None
         };
+        if let Some(reader) = reader.as_mut()
+            && (crowded || maximized)
+        {
+            reader.maximize = Some(if maximized {
+                self.button("unfold_less", "Restore panes", Act::Maximize)
+            } else {
+                self.button("unfold_more", "Maximize message", Act::Maximize)
+            });
+        }
         let composer = if kinds.contains(&PaneKind::Composer) {
             self.composer(state)
         } else {

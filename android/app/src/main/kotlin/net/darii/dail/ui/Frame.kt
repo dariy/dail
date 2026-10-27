@@ -206,6 +206,7 @@ data class Reader(
     val thread: String,
     val subject: String,
     val close: Button,
+    val maximize: Button? = null,
     val actions: List<Button>,
     val previous: Button? = null,
     val next: Button? = null,

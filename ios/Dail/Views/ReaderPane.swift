@@ -13,7 +13,8 @@ struct ReaderPane: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
                     Spacer()
-                    // MISC-7: the × closes the message.
+                    // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
+                    if let maximize = reader.maximize { FrameButton(button: maximize, send: send) }
                     FrameButton(button: reader.close, send: send)
                 }
                 HStack(spacing: 20) {

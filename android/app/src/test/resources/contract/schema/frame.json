@@ -1470,6 +1470,17 @@
           "$ref": "#/$defs/Button",
           "description": "The × next to the subject: closes the message (`close_thread`), leaving the list\n(MISC-7)."
         },
+        "maximize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Beside the ×: maximizes the message (no sidebar, no list, a bare top bar), or restores\nthe panes. Only while there is something to hide or it is maximized (MISC-14)."
+        },
         "messages": {
           "description": "Its messages, oldest first.",
           "items": {

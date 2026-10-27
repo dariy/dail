@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 31,
+    "action": 32,
     "icon": "edit",
     "label": "Compose"
   },
@@ -95,6 +95,11 @@
       "action": 30,
       "icon": "close",
       "label": "Close message"
+    },
+    "maximize": {
+      "action": 31,
+      "icon": "unfold_more",
+      "label": "Maximize message"
     },
     "messages": [
       {

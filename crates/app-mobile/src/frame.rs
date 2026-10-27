@@ -359,6 +359,10 @@ pub struct Reader {
     /// The × next to the subject: closes the message (`close_thread`), leaving the list
     /// (MISC-7).
     pub close: Button,
+    /// Beside the ×: maximizes the message (no sidebar, no list, a bare top bar), or restores
+    /// the panes. Only while there is something to hide or it is maximized (MISC-14).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maximize: Option<Button>,
     /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
     /// The conversation above it in the list, if any: a swipe to the right (MISC-5; no button).

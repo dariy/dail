@@ -120,9 +120,10 @@ fun ReaderPane(
             .padding(horizontal = 16.dp),
     ) {
         item(key = "subject") {
-            // MISC-7: the × closes the message.
+            // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(reader.subject, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                reader.maximize?.let { ActionButton(it, send) }
                 ActionButton(reader.close, send)
             }
         }

@@ -157,6 +157,11 @@ expression: phone.frame()
       "label": "Close message",
       "action": 27
     },
+    "maximize": {
+      "icon": "unfold_more",
+      "label": "Maximize message",
+      "action": 28
+    },
     "actions": [
       {
         "icon": "archive",
@@ -213,7 +218,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 28
+    "action": 29
   },
   "theme": {
     "id": "dail-light",
