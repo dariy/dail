@@ -1532,8 +1532,8 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   an error), and the calls over JSON (handles, errors, the log file).
 
 **The Kotlin app** (`android/`, Gradle; application ID `net.darii.dail`). Versions live in
-`gradle/libs.versions.toml`: AGP 9.4 (its built-in Kotlin), Kotlin 2.4, and the newest Compose BOM, AndroidX core and
-lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and targetSdk 36, minSdk 29, NDK r28
+`gradle/libs.versions.toml`: AGP 9.4 (its built-in Kotlin), Kotlin 2.4, and the Compose BOM, AndroidX core and
+lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it), targetSdk 36, minSdk 29, NDK r28
 (`ndkVersion`), ABI splits arm64-v8a and x86_64 (`-Pdail.abis=x86_64` narrows a local build).
 
 - **The library.** A `cargoNdk<Variant>` task per variant runs `cargo ndk -t <abi>… --platform 29 build -p app-android
@@ -1571,7 +1571,7 @@ lifecycle that still compile against SDK 36 (later ones need 37). compileSdk and
 - **The Gradle side of `cargo deny`.** `gradle/verification-metadata.xml` holds a SHA-256 per artifact (regenerate
   with `./gradlew --write-verification-metadata sha256 <tasks>` after a version change); Licensee allows only
   Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
-  `app/lint.xml` turning off, with reasons, the checks that the SDK 36 pins make moot.
+  `app/lint.xml` turning off, with reasons, the checks that deliberate version updates make moot.
 - **The APK check** (`cargo xtask android apk-check`, over every APK under `app/build/outputs/apk`): `lib/` holds
   only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
   with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
