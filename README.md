@@ -7,6 +7,18 @@ command from the GUI or its command palette (Ctrl+K), the terminal UI, the CLI (
 or the built-in MCP server (`dail mcp`). One deterministic engine runs them all. Email content is treated as untrusted
 input. An agent cannot send mail without the user's approval, and it cannot reach the few user-only commands at all.
 
+## Screenshots
+
+![The desktop GUI, dark theme: mailboxes, the inbox and an open conversation](docs/screenshots/gui-dark.png)
+
+| Command palette (Ctrl+K) | Light theme |
+|---|---|
+| ![The command palette over the inbox](docs/screenshots/gui-palette.png) | ![The desktop GUI, light theme](docs/screenshots/gui-light.png) |
+
+![The terminal UI, dail tui](docs/screenshots/tui.png)
+
+The mail shown is made up: `docs/screenshots/demo-fixture.json`, served by the in-memory backend.
+
 ## Platforms
 
 - **Ubuntu** (X11/Wayland) and **Windows**: `egui` desktop GUI, `ratatui` terminal UI (`dail tui`), CLI and MCP.
@@ -23,7 +35,7 @@ You need Rust ≥ 1.92 with `rustfmt` and `clippy`, plus `cargo-deny`. `rust-too
 ```sh
 cargo xtask verify                      # fmt, deny, clippy, tests, headless smoke test
 cargo run -p app-cli -- gui             # the desktop GUI
-cargo run -p app-cli -- gui --backend memory   # the GUI over a demo mailbox, no network
+cargo run -p app-cli -- gui --backend memory   # the GUI over an in-memory fake server, no network
 cargo run -p app-cli -- schema          # every command, as JSON Schema
 ```
 
