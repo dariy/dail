@@ -11,7 +11,9 @@
   sha256), each with a `.sha256`. The `release` workflow
   (`.github/workflows/release.yml`) runs on a pushed `vX.Y.Z` tag, after a guard job checks the tag against every
   version site (`cargo xtask release check-tag`); started by hand from the Actions tab it is a dry run that uploads
-  `dist/` as run artifacts only.
+  `dist/` as run artifacts only. On a tag, the `publish` job (environment `release`, the only job with
+  `contents: write`) signs the manifest and runs `gh release create` with every artifact and `.sha256`, the notes
+  being the tag's `CHANGELOG.md` section (`cargo xtask release notes`).
 - `windows/dail.manifest`: embedded into `dail.exe` by `crates/app-cli/build.rs` (MSVC targets). Its
   `consoleAllocationPolicy` of `detached` stops Windows 11 24H2+ from opening a console when dail is started from
   Explorer, the Start menu or a shortcut, so only the GUI appears. Run from a terminal, dail still uses that terminal.

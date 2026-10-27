@@ -10,7 +10,7 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-# The jobs upload run artifacts and publish nothing, so the token stays read-only.
+# Read-only by default; only `publish` (tags, environment `release`) may write.
 permissions:
   contents: read
 
@@ -118,3 +118,37 @@ jobs:
           name: dail-ios
           path: dist/*
           if-no-files-found: error
+
+  # Tags only (ADR 0011): the signed manifest over every artifact, then the GitHub Release. The only job with
+  # `contents: write`, and the only one that sees the update signing key (environment `release`).
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, ubuntu, android, ios]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Sign the manifest
+        env:
+          DAIL_UPDATE_SIGNING_KEY: ${{ secrets.DAIL_UPDATE_SIGNING_KEY }}
+          DAIL_UPDATE_SIGNING_PASSWORD: ${{ secrets.DAIL_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          if [ -z "$DAIL_UPDATE_SIGNING_KEY" ]; then
+            echo "::error::secret DAIL_UPDATE_SIGNING_KEY is not set; a release manifest must be signed"
+            exit 1
+          fi
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" cargo xtask release manifest --dist dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cargo xtask release notes >"$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "dail ${GITHUB_REF_NAME#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" dist/*

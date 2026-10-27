@@ -650,7 +650,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] R2: `release.yml` on `v*` tags (dispatch kept for dry runs); a guard job checks the tag against every version site
 - [x] R3: `cargo xtask release manifest` — `manifest.json` from the artifacts (sha256, size), signed with the key from
   the environment
-- [ ] R4: `publish` job in the `release` environment (`contents: write` only there): `gh release create`, notes from
+- [x] R4: `publish` job in the `release` environment (`contents: write` only there): `gh release create`, notes from
   `CHANGELOG.md`
 - [x] R5: `cargo xtask release bump <x.y.z>` — every version site and a CHANGELOG stub; a test pins the sites
 

@@ -5,6 +5,7 @@
 //!   of `release.yml`).
 //! - `bump <x.y.z>`: writes the version into every site, refreshes `Cargo.lock` and the mobile
 //!   contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md` stub.
+//! - `notes`: prints the `CHANGELOG.md` section of the current version (the release notes).
 //! - `manifest`, `keygen`: see [`crate::manifest`].
 
 use std::io::Write;
@@ -15,7 +16,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::workspace_root;
 
-pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>|manifest [--dist DIR]|keygen <DIR>";
+pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>|notes|manifest [--dist DIR]|keygen <DIR>";
 
 /// A file that spells out the release version: the version is the text between `prefix` and
 /// `suffix` on the first line that starts with `prefix` (after leading spaces). The Android
@@ -122,6 +123,16 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
         Some("keygen") => {
             crate::manifest::keygen(Path::new(args.get(1).context("usage: keygen <dir>")?))
         }
+        Some("notes") => {
+            let version = current_version(&root)?;
+            let changelog = std::fs::read_to_string(root.join("CHANGELOG.md"))
+                .context("reading CHANGELOG.md")?;
+            let notes = notes(&changelog, &version)
+                .with_context(|| format!("CHANGELOG.md has no section ## {version}"))?;
+            let mut out = std::io::stdout().lock();
+            writeln!(out, "{notes}")?;
+            Ok(())
+        }
         Some("bump") => bump(&root, args.get(1).context("usage: bump <x.y.z>")?),
         _ => {
             let mut err = std::io::stderr().lock();
@@ -129,6 +140,16 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
             bail!("unknown or missing release task")
         }
     }
+}
+
+/// The body of the `## <version>` section, trimmed; `None` if there is none or it is empty.
+pub(crate) fn notes(changelog: &str, version: &str) -> Option<String> {
+    let heading = format!("## {version}");
+    let mut lines = changelog.lines().skip_while(|line| *line != heading);
+    lines.next()?;
+    let body: Vec<&str> = lines.take_while(|line| !line.starts_with("## ")).collect();
+    let body = body.join("\n").trim().to_owned();
+    (!body.is_empty() && body != "-").then_some(body)
 }
 
 fn bump(root: &Path, version: &str) -> Result<()> {
@@ -213,6 +234,18 @@ mod tests {
         assert_eq!(version, "0.1.0");
         text.replace_range(range, "1.20.3");
         assert_eq!(text, "a: 1\n    MARKETING_VERSION: \"1.20.3\"\n");
+    }
+
+    #[test]
+    fn notes_are_the_version_section() {
+        let log = "# Changelog\n\n## 0.2.0\n\n- Updates.\n\n## 0.1.0\n\n- First.\n";
+        assert_eq!(notes(log, "0.2.0").as_deref(), Some("- Updates."));
+        assert_eq!(notes(log, "0.1.0").as_deref(), Some("- First."));
+        assert_eq!(notes(log, "0.3.0"), None);
+        assert_eq!(notes("## 0.3.0\n\n- \n", "0.3.0"), None);
+        let root = workspace_root().unwrap();
+        let changelog = std::fs::read_to_string(root.join("CHANGELOG.md")).unwrap();
+        assert!(notes(&changelog, &current_version(&root).unwrap()).is_some());
     }
 
     #[test]
