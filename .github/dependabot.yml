@@ -1,5 +1,7 @@
-# Keeps the SHA-pinned actions in .github/workflows fresh (Wave 5 O). Cargo and Gradle updates stay manual:
-# cargo-deny and Gradle's dependency verification review them.
+# Update PRs (Wave 7 D1, ADR 0011): the SHA-pinned actions, the Cargo workspace and the Gradle project, each grouped
+# into one PR for minor and patch updates (majors stay separate PRs). cargo-deny, Gradle's dependency verification
+# and the licence allowlist review them like any other change; `gradle-verification.yml` refreshes the
+# verification metadata of the Gradle PRs (D2).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -9,3 +11,19 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      cargo:
+        update-types: [minor, patch]
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      gradle:
+        update-types: [minor, patch]
