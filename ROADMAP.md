@@ -669,9 +669,10 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] S5 [tk][cli]: fake update server with a test key; smoke step; `dail update check|install`
 
 ### F — Front ends
-- [ ] F1 [gui][tui]: update badge, version and check button in About, settings toggle and interval
-- [ ] F2 [mobile][kt][ios]: update banner in the frame; the apps open the release page
-- [ ] F3 [front][io]: first-run opt-in, `[updates]` in `config.toml`
+- [x] F1 [gui][tui]: update badge, version and check button (Settings › General; the desktop has no About), settings
+  toggle and interval
+- [x] F2 [mobile][kt][ios]: update banner in the frame; the apps open the release page
+- [x] F3 [front][io]: first-run opt-in, `[settings.updates]` in `config.toml`
 
 ### D — Dependency automation
 - [x] D1: Dependabot for `cargo` and `gradle` (grouped minor/patch) beside actions

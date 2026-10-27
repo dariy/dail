@@ -711,6 +711,14 @@ artifact. A memory session reports `app_testkit::updates::host()`. `dail update 
 `dail update install [--yes]` are CLI aliases for the chain. An
 `#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
 
+The front ends read `app_front::updates` (Wave 7 F1–F3): the panel (running version, a status line, the buttons —
+*Check now*, *Download* on desktop installs, *Install…* through the palette's confirmation step, *Release notes*,
+*Skip this version*), the badge (`Update x.y.z`, `Restart to update`) and the first-run question, asked once an account
+exists while `settings.updates.checks` is `unset`. The GUI shows the panel and the interval in Settings › General, the
+badge in the top bar (it opens that section) and the question as a callout over the reader; the TUI shows them as the
+first rows of the general settings and in the status line; the phones as the frame's banner. The policy is saved as
+`[settings.updates]` in `config.toml` (`checks`, `interval_hours` 1–720, `skipped_version`).
+
 ## 6. Storage (`app-io`)
 
 ```text
@@ -1292,7 +1300,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
-  first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
+  first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
+  the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
 - **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the four `open_settings` sections as
@@ -1470,8 +1479,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 
 **The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail"`, cdylib + rlib, over it). `app_host::Host`
 is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
-`app_host::Platform` (the credential store and the logs, two plain functions): `app_android::PLATFORM` on Android,
-`app_host::DESKTOP` (the OS keyring, no logs) in tests.
+`app_host::Platform` (the credential store and the logs, two plain functions, and the install kind for update checks):
+`app_android::PLATFORM` on Android, `app_host::DESKTOP` (the OS keyring, no logs, no install kind) in tests. With an
+install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `android`/`ios`), as the CLI runtime does.
 
 - **`open(&Config, Platform, wake, alert)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
