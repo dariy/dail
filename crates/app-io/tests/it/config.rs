@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use app_core::{
     Account, AccountId, AccountStatus, AppState, Endpoint, PersistDelta, ProviderPreset, SecretRef,
-    Security, Settings, ViewPrefs,
+    Security, Settings, UpdateChecks, ViewPrefs,
 };
 use app_io::{Config, ConfigStore, IoError, ProfileDirs, Store};
 
@@ -104,12 +104,37 @@ fn partial_and_empty_configs_take_defaults() {
     );
 }
 
+/// Wave 7 F3: the update policy is `[settings.updates]`; the first-run answer survives a restart.
+#[test]
+fn the_update_policy_is_saved_in_settings_updates() {
+    let mut state = AppState::default();
+    state.settings.updates.checks = UpdateChecks::On;
+    state.settings.updates.interval_hours = 168;
+    state.settings.updates.skipped_version = Some("1.2.3".to_owned());
+    let text = Config::from_state(&state).to_toml().unwrap();
+    assert!(text.contains("[settings.updates]"), "{text}");
+    assert!(text.contains("checks = \"on\""), "{text}");
+    let config = Config::parse(&text, "c.toml".as_ref()).unwrap();
+    assert_eq!(config.settings.updates, state.settings.updates);
+
+    let text = "[settings.updates]\nchecks = \"off\"\n";
+    let config = Config::parse(text, "c.toml".as_ref()).unwrap();
+    assert_eq!(config.settings.updates.checks, UpdateChecks::Off);
+    assert_eq!(config.settings.updates.interval_hours, 24);
+    // Not asked yet unless the file says otherwise.
+    let config = Config::parse("", "c.toml".as_ref()).unwrap();
+    assert_eq!(config.settings.updates.checks, UpdateChecks::Unset);
+}
+
 #[test]
 fn invalid_configs_are_rejected_with_the_path() {
     let bad = [
         "settings = [",
         "[settings]\npoll_secs = 1\n",
         "[settings]\npoll_secs = -5\n",
+        "[settings.updates]\ninterval_hours = 0\n",
+        "[settings.updates]\ninterval_hours = 721\n",
+        "[settings.updates]\nchecks = \"sometimes\"\n",
     ];
     for text in bad {
         let err = Config::parse(text, "/x/config.toml".as_ref()).unwrap_err();

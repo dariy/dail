@@ -17,4 +17,5 @@ mod settings;
 mod shell;
 mod style;
 mod topbar;
+mod updates;
 mod wizard;

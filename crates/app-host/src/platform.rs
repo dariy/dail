@@ -1,4 +1,5 @@
-//! What a platform host gives the session: its credential store and its logs (ADR 0010).
+//! What a platform host gives the session: its credential store, its logs (ADR 0010) and how the
+//! app was installed, for update checks (ADR 0011).
 //! `app-android` passes the Keystore store and logcat; [`DESKTOP`] is the OS keyring with no
 //! logs, so that the host runs in desktop tests.
 
@@ -17,12 +18,16 @@ pub struct Platform {
     /// Starts the process's logs for the profile at this path. Called on every `open`; it must
     /// do its work once.
     pub logging: fn(&Path),
+    /// How the app was installed (`Android`, `Ios`): the session reports it with the running
+    /// version, so that update checks run and point at the release page. `None` checks nothing.
+    pub install: Option<app_core::InstallKind>,
 }
 
 /// The desktop: the OS keyring (`KeyringSecrets`), and no logs.
 pub const DESKTOP: Platform = Platform {
     secrets: keyring,
     logging: no_logs,
+    install: None,
 };
 
 fn keyring() -> Result<Arc<dyn SecretStore>, HostError> {

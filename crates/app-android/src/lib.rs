@@ -8,8 +8,9 @@ mod jni;
 pub mod logging;
 pub mod secrets;
 
-/// Android's credential store and logs, for `app_host::calls::open`.
+/// Android's credential store, logs and install kind, for `app_host::calls::open`.
 pub const PLATFORM: app_host::Platform = app_host::Platform {
     secrets: secrets::store,
     logging: logging::init,
+    install: Some(app_core::InstallKind::Android),
 };

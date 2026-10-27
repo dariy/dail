@@ -47,10 +47,23 @@ pub fn show(
                 t.text_muted,
             ));
             password = status_chip(ui, t, state, lang, queue);
+            update_badge(ui, t, state, queue);
             sync_state(ui, t, state, now_ms, lang, queue);
         });
     });
     password
+}
+
+/// `Update 1.2.3` while a new version waits (Wave 7 F1); a click opens the update panel.
+fn update_badge(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
+    let Some(text) = app_front::updates::badge(state) else {
+        return;
+    };
+    if ui::secondary(ui, t, &text, None, true) {
+        queue.push(Request::user(Command::OpenSettings {
+            section: Some(app_core::SettingsSection::General),
+        }));
+    }
 }
 
 /// The status dot and "synced 2m ago"; a click runs `sync_now`. Its name is the text.

@@ -189,7 +189,11 @@ expression: first
       "theme_dark": "dail-dark",
       "theme_light": "dail-light",
       "tui_colors": 0,
-      "undo_send_ms": 10000
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
     },
     "status": {
       "backfilling": [
@@ -240,6 +244,11 @@ expression: first
           "00000000-0000-0003-0000-000000000005"
         ],
         "subject": "Three"
+      }
+    },
+    "update": {
+      "status": {
+        "state": "idle"
       }
     },
     "view": {

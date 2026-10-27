@@ -71,7 +71,7 @@
       "type": "object"
     },
     "Banner": {
-      "description": "A problem and the action that may fix it.",
+      "description": "A problem and the action that may fix it, or news (`info`) with what to do about it.",
       "properties": {
         "action": {
           "anyOf": [
@@ -82,7 +82,18 @@
               "type": "null"
             }
           ],
-          "description": "The fix."
+          "description": "The fix, or the main answer."
+        },
+        "dismiss": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A second, lesser button (*No thanks*, *Skip*)."
         },
         "hint": {
           "description": "What it probably means and what to do.",
@@ -91,8 +102,12 @@
             "null"
           ]
         },
+        "info": {
+          "description": "News, not a problem: drawn in neutral colours without the warning sign.",
+          "type": "boolean"
+        },
         "text": {
-          "description": "What went wrong.",
+          "description": "What went wrong, or the news.",
           "type": "string"
         }
       },
@@ -2113,7 +2128,7 @@
           "type": "null"
         }
       ],
-      "description": "A problem to fix (a failed login, a failed sync)."
+      "description": "A problem to fix (a failed login, a failed sync), else news: a new version of dail, or\nthe question whether to check for one."
     },
     "bulk": {
       "anyOf": [

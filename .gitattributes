@@ -2,3 +2,5 @@
 # the frame and fail app-mobile's contract test. Keep them LF everywhere.
 crates/app-mobile/licences/*.txt text eol=lf
 crates/app-theme/assets/fonts/*.txt text eol=lf
+# Signed update fixtures: a CRLF checkout (Windows) would change the signed bytes. Never convert them.
+crates/app-io/testdata/updates/** -text

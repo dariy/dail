@@ -60,7 +60,8 @@ fn smoke_batch_prints_one_receipt_per_command() {
             "close_palette",
             "get_settings",
             "sync_now",
-            "list_mailboxes"
+            "list_mailboxes",
+            "check_for_updates"
         ]
     );
     assert!(lines.iter().all(|line| line["ok"] == true));

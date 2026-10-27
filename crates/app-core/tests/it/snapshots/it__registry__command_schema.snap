@@ -596,6 +596,26 @@ expression: command_schema()
       "description": "A conversation that groups messages across mailboxes.",
       "format": "uuid",
       "type": "string"
+    },
+    "UpdateChecks": {
+      "description": "Whether dail checks for updates on its own.",
+      "oneOf": [
+        {
+          "const": "unset",
+          "description": "The user has not been asked yet: no checks (the first-run question asks).",
+          "type": "string"
+        },
+        {
+          "const": "on",
+          "description": "Periodic checks every `interval_hours`.",
+          "type": "string"
+        },
+        {
+          "const": "off",
+          "description": "No periodic checks. `check_for_updates` still works on request.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3167,6 +3187,129 @@ expression: command_schema()
         },
         "cmd": {
           "const": "get_view",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Check for a new version of dail now: fetch the signed release manifest from GitHub and\nverify it. Sends nothing but a plain GET with `User-Agent: dail/<version>`. Works even\nwhen periodic checks are off. The outcome appears in `update.status` (`available`,\n`idle` when nothing is newer, or `failed`). Not undoable.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "check_for_updates",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Download the available update (`update.status` is `available`) to the profile's\n`updates/` and verify its size and SHA-256 against the signed manifest. Desktop only: on\nAndroid and iOS the user opens the release page. Not undoable.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "download_update",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Install the downloaded update (`update.status` is `ready`): replace the running AppImage\nor binary, or start the `.deb`/MSI installer, which asks for admin rights. It runs\ndownloaded code, so only the user can do this; agents (MCP) get `origin_not_allowed`.\nRequires `confirm: true`; cannot be undone. Restart dail afterwards.",
+      "properties": {
+        "args": {
+          "properties": {
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`; confirms that the install is intended.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "install_update",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Skip one version: it is not offered again (a newer one is). `null` offers every version\nagain. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "version": {
+              "description": "The version to skip, `x.y.z` (usually `update.status.release.version`), or `null`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "skip_update_version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Change the update policy: periodic checks (`on`, `off`, or `unset` = not asked yet) and\nthe hours between them. Omitted fields keep their value. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "checks": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/UpdateChecks"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Periodic checks."
+            },
+            "interval_hours": {
+              "description": "Hours between periodic checks, 1 to 720.",
+              "format": "uint64",
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "set_update_policy",
           "type": "string"
         }
       },

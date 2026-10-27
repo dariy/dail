@@ -1,0 +1,17 @@
+{
+  "version": "0.99.0",
+  "published_ms": 1700000000000,
+  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.99.0",
+  "artifacts": [
+    { "target": "x86_64-unknown-linux-gnu", "kind": "appimage", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-unknown-linux-gnu.appimage", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "x86_64-unknown-linux-gnu", "kind": "deb", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-unknown-linux-gnu.deb", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "x86_64-unknown-linux-gnu", "kind": "exe", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-unknown-linux-gnu.exe", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "x86_64-pc-windows-msvc", "kind": "exe", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-pc-windows-msvc.exe", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "x86_64-pc-windows-msvc", "kind": "msi", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-pc-windows-msvc.msi", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "aarch64-unknown-linux-gnu", "kind": "exe", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/aarch64-unknown-linux-gnu.exe", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "aarch64-apple-darwin", "kind": "exe", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/aarch64-apple-darwin.exe", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "x86_64-apple-darwin", "kind": "exe", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/x86_64-apple-darwin.exe", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "android", "kind": "apk-arm64-v8a", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/android.apk-arm64-v8a", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 },
+    { "target": "ios", "kind": "ipa", "url": "https://github.com/dariy/dail/releases/download/v0.99.0/ios.ipa", "sha256": "aa4aa503185e2057a8a830bac070d64b98c9fa5f431232bcdcb6f13b1038ce26", "size": 26 }
+  ]
+}

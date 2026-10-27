@@ -25,6 +25,7 @@ pub mod replay;
 pub mod search;
 pub mod state;
 pub mod threading;
+pub mod update;
 
 pub use account::{
     Account, AccountStatus, Endpoint, Identity, ImapLogin, PresetProfile, ProviderPreset, Secret,
@@ -55,4 +56,8 @@ pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
     KeyPreset, ListFilter, Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection,
     StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
+};
+pub use update::{
+    InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,
+    UpdateRelease, UpdateState, UpdateStatus,
 };

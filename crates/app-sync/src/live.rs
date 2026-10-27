@@ -49,6 +49,8 @@ pub struct LiveBackend {
     idle_timeout: Duration,
     /// The full-text index of downloaded bodies (ADR 0005), if the profile has one.
     fulltext: Option<Arc<FullText>>,
+    /// Where updates of dail are downloaded (the profile's `updates/`); none: no downloads.
+    updates_dir: Option<std::path::PathBuf>,
 }
 
 impl LiveBackend {
@@ -71,7 +73,15 @@ impl LiveBackend {
             watchers: Mutex::new(HashMap::new()),
             idle_timeout: imap::IDLE_TIMEOUT,
             fulltext: None,
+            updates_dir: None,
         }
+    }
+
+    /// Downloads updates of dail into `dir` (`ProfileDirs::updates_dir`, ADR 0011).
+    #[must_use]
+    pub fn with_updates_dir(mut self, dir: std::path::PathBuf) -> Self {
+        self.updates_dir = Some(dir);
+        self
     }
 
     /// Keeps `index` up to date with the bodies it stores and searches it for `SearchIndex`.
@@ -770,6 +780,36 @@ impl LiveBackend {
                     Err(error) => Event::SendFailed { draft, error },
                 },
             ]),
+            Effect::CheckForUpdates { running } => Ok(vec![match tls::client_config() {
+                Ok(config) => {
+                    let https = crate::https::Https::new(config, env!("CARGO_PKG_VERSION"));
+                    crate::https::check(&https, &running).await
+                }
+                Err(err) => Event::UpdateFailed {
+                    reason: err.to_string(),
+                },
+            }]),
+            Effect::DownloadUpdate { version, artifact } => {
+                let Some(dir) = self.updates_dir.clone() else {
+                    return Ok(vec![Event::UpdateFailed {
+                        reason: "this build does not download updates".to_owned(),
+                    }]);
+                };
+                Ok(vec![match tls::client_config() {
+                    Ok(config) => {
+                        let https = crate::https::Https::new(config, env!("CARGO_PKG_VERSION"));
+                        crate::https::download(&https, &dir, version, &artifact).await
+                    }
+                    Err(err) => Event::UpdateFailed {
+                        reason: err.to_string(),
+                    },
+                }])
+            }
+            Effect::InstallUpdate {
+                version,
+                install,
+                path,
+            } => Ok(vec![crate::install::install(version, install, path).await]),
             Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
                 effect: effect.name(),

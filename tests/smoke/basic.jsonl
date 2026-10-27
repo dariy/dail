@@ -10,3 +10,4 @@
 {"cmd": "get_settings", "args": {}}
 {"cmd": "sync_now"}
 {"cmd": "list_mailboxes"}
+{"cmd": "check_for_updates"}

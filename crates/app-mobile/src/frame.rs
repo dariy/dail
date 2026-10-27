@@ -45,7 +45,8 @@ pub struct Frame {
     /// The floating button (compose).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fab: Option<Button>,
-    /// A problem to fix (a failed login, a failed sync).
+    /// A problem to fix (a failed login, a failed sync), else news: a new version of dail, or
+    /// the question whether to check for one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub banner: Option<Banner>,
     /// A short message: a send counting down, an undoable action, a rejection.
@@ -774,17 +775,23 @@ pub struct OutgoingFile {
     pub remove: Option<ActionId>,
 }
 
-/// A problem and the action that may fix it.
+/// A problem and the action that may fix it, or news (`info`) with what to do about it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Banner {
-    /// What went wrong.
+    /// What went wrong, or the news.
     pub text: String,
     /// What it probably means and what to do.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
-    /// The fix.
+    /// The fix, or the main answer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub action: Option<Button>,
+    /// A second, lesser button (*No thanks*, *Skip*).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dismiss: Option<Button>,
+    /// News, not a problem: drawn in neutral colours without the warning sign.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub info: bool,
 }
 
 /// A short message at the bottom.

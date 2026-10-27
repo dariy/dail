@@ -133,7 +133,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   because stderr is the screen.
 - **Tests.** ratatui's `TestBackend` with a real `Engine`, like `app-gui/tests`; `insta` snapshots of the buffer at
   40×20, 80×24 and 120×40; the clock injected. Look at it under tmux:
-  `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example demo'`, then `tmux send-keys -t t j Enter` and
+  `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example tui-demo'`, then `tmux send-keys -t t j Enter` and
   `tmux capture-pane -p -t t`.
 
 **Out of scope** (Wave 2, for both front-ends): multi-select, collapsed quotes and signatures, HTML rendering.
@@ -157,7 +157,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] [sync] Move `Bridge` from app-gui to app-sync: it runs over a `Connection`, submits with the front-end's origin, wakes the front-end through a callback, tags each result for it, and shuts the session down only if it owns it; opening the browser stays in app-gui (`tests/it/bridge.rs` stays green)
 
 ### T1 — Terminal shell
-- [x] [tui] Scaffold `app-tui`: `Tui`, a projection like `Shell` (`draw(frame, &state)`, `input(event, &state) -> Vec<Request>`, the clock injected); test support (`TestBackend`, a real `Engine`, `insta` buffer snapshots); `examples/demo.rs` like the GUI's (memory backend, `basic` fixture, account synced; `open`, `compose`, `agent`)
+- [x] [tui] Scaffold `app-tui`: `Tui`, a projection like `Shell` (`draw(frame, &state)`, `input(event, &state) -> Vec<Request>`, the clock injected); test support (`TestBackend`, a real `Engine`, `insta` buffer snapshots); `examples/tui-demo.rs` like the GUI's (memory backend, `basic` fixture, account synced; `open`, `compose`, `agent`)
 - [x] [tui] Terminal lifecycle: raw mode, alternate screen and bracketed paste, restored on quit, on error and on panic; one input queue for keys, resizes, pastes, bridge wake-ups and a 1 s tick while a countdown or an age is shown; redraws coalesced; a dead terminal, SIGHUP or SIGTERM (console close on Windows) shuts the session down cleanly (drafts saved)
 - [x] [cli] `dail tui` (the global flags apply): attaches to the profile's owner, or owns the profile and listens; an attached TUI whose owner goes away says so and exits; without accounts it shows the `dail account add` line to run in another shell (the account then appears live); plain `dail` starts the TUI on Linux when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set and it runs in a terminal; `tracing` goes to a log file
 
@@ -250,7 +250,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub
   Actions matrix CI (Ubuntu + Windows) exists already
-- [ ] Packaging: AppImage and MSI, and a release workflow that builds all three on tags — split from the `.deb`: needs
+- [x] Packaging: AppImage and MSI — moved to Wave 7 R1 (done there). Was: a release workflow that builds all three on tags — split from the `.deb`: needs
   `appimagetool` and WiX on the CI runners, which this machine can't run or check; `cargo-dist` makes neither `.deb`
   nor AppImage, so the tool choice is open
 - [x] Crash-safe store with backups; `dail doctor` diagnostics command (durable atomic writes, daily backups of
@@ -630,6 +630,55 @@ its own wave and ADR.
 - [x] MISC-6 [mobile][kt][ios]: pinch steps the pane layout; landscape sidebar as an icon rail; fix Android landscape
   alignment (and check iOS landscape in CI)
 - [x] MISC-7 [mobile][kt][ios]: close (×) button on the open message
+
+## Wave 7 — Updates: "new versions arrive without effort"
+
+A tag publishes a release; dail finds, verifies and installs it on the user's word; dependency and toolchain updates
+arrive as PRs the gates check. Decisions go in ADR 0011 (manifest at
+`releases/latest/download/manifest.json`, Ed25519 signature with the public key built in, opt-in checks with no
+identifiers sent, install strategy per install kind as data, `install_update` is `user_only`).
+
+**Exit criteria**
+- Pushing `vX.Y.Z` publishes a GitHub Release with every artifact, `.sha256`s and a signed `manifest.json`.
+- A desktop build updates itself end to end from the testkit's fake update server; a tampered manifest, signature or
+  artifact fails with `UpdateFailed`. MCP gets `origin_not_allowed` for `install_update`.
+- Cargo and Gradle update PRs pass CI unattended.
+
+### R — Release pipeline
+- [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy
+- [x] R1: AppImage and MSI in `release.yml` (moves the open Wave 2 packaging item here)
+- [x] R2: `release.yml` on `v*` tags (dispatch kept for dry runs); a guard job checks the tag against every version site
+- [x] R3: `cargo xtask release manifest` — `manifest.json` from the artifacts (sha256, size), signed with the key from
+  the environment
+- [x] R4: `publish` job in the `release` environment (`contents: write` only there): `gh release create`, notes from
+  `CHANGELOG.md`
+- [x] R5: `cargo xtask release bump <x.y.z>` — every version site and a CHANGELOG stub; a test pins the sites
+
+### C — Core
+- [x] C1 [core]: `UpdateState` (idle, checking, available, downloading, ready, failed; last check; skipped version)
+- [x] C2 [core]: `check_for_updates`, `download_update`, `install_update` (`user_only`), `skip_update_version`,
+  `set_update_policy`; effects and events; version comparison in core
+- [x] C3 [core][sync]: periodic check, due-ness from `Ctx::now_ms` (like UX-6)
+
+### S — Runtime
+- [x] S1 [sync]: HTTPS GET on `app-tls` (hyper client), redirects only to GitHub hosts
+- [x] S2 [io]: manifest parse and signature verify (pure Rust)
+- [x] S3 [sync]: download to the profile's `updates/` with sha256 check
+- [x] S4 [sync]: installers per kind — AppImage/exe self-replace, `.deb` via `pkexec`, MSI via `msiexec`, mobile
+  notify only
+- [x] S5 [tk][cli]: fake update server with a test key; smoke step; `dail update check|install`
+
+### F — Front ends
+- [x] F1 [gui][tui]: update badge, version and check button (Settings › General; the desktop has no About), settings
+  toggle and interval
+- [x] F2 [mobile][kt][ios]: update banner in the frame; the apps open the release page
+- [x] F3 [front][io]: first-run opt-in, `[settings.updates]` in `config.toml`
+
+### D — Dependency automation
+- [x] D1: Dependabot for `cargo` and `gradle` (grouped minor/patch) beside actions
+- [x] D2: Gradle verification metadata regenerated on Dependabot Gradle PRs
+- [x] D3: monthly toolchain PR (Rust, NDK, Xcode)
+- [x] D4: nightly `cargo deny` advisories on `main`, an issue on failure
 
 ---
 

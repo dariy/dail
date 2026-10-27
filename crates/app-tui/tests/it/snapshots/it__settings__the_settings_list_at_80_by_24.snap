@@ -7,6 +7,7 @@ dail · Conversations
 ┌ Settings ────────────────────────────────────────────────────────────────────┐
 │ General   Keys   Accounts                                                    │
 │                                                                              │
+│update_checks             unset (Daily)                                       │
 │undo_send_ms              10000                                               │
 │poll_secs                 120                                                 │
 │initial_window            500                                                 │
@@ -21,7 +22,6 @@ dail · Conversations
 │mark_read_after_ms        2000                                                │
 │stale_secs                86400                                               │
 │full_sync_secs            900                                                 │
-│after_triage              0                                                   │
 │Tab section · j/k move · Enter change · Esc close                             │
 └──────────────────────────────────────────────────────────────────────────────┘
 └────────────────────────────────┘└────────────────────────────────────────────┘

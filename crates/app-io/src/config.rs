@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use app_core::{
     Account, AccountId, AccountStatus, AppState, Endpoint, PersistDelta, ProviderPreset, SecretRef,
-    SettingKey, Settings, ViewPrefs,
+    SettingKey, Settings, UpdatePolicy, ViewPrefs,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -159,7 +159,7 @@ impl Config {
         crate::store::backup::write_atomic(path, text.as_bytes())
     }
 
-    /// Checks setting ranges and that account IDs and emails are unique.
+    /// Checks setting ranges (with the update interval) and that account IDs and emails are unique.
     pub fn validate(&self) -> Result<(), String> {
         for &key in SettingKey::ALL {
             let value = key.get(&self.settings);
@@ -170,6 +170,15 @@ impl Config {
                     key.allowed()
                 ));
             }
+        }
+        let hours = self.settings.updates.interval_hours;
+        let range = UpdatePolicy::MIN_INTERVAL_HOURS..=UpdatePolicy::MAX_INTERVAL_HOURS;
+        if !range.contains(&hours) {
+            return Err(format!(
+                "settings.updates.interval_hours = {hours} is not {} to {}",
+                range.start(),
+                range.end()
+            ));
         }
         for (index, account) in self.accounts.iter().enumerate() {
             let earlier = &self.accounts[..index];

@@ -1,4 +1,5 @@
-# Builds the release `dail.exe` and packages it as dist/dail-<version>-x86_64-pc-windows-msvc.zip (+ .sha256).
+# Builds the release `dail.exe` and packages it as dist/dail-<version>-x86_64-pc-windows-msvc.zip and
+# dist/dail-<version>-x86_64.msi and the bare dist/dail-<version>-x86_64-pc-windows-msvc.exe (+ .sha256 for each). The MSI needs WiX v5: `dotnet tool install --global wix --version 5.0.2`.
 # Run from anywhere: `pwsh scripts/release-windows.ps1`. The release workflow (.github/workflows/release.yml) runs it too.
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
@@ -25,7 +26,19 @@ if (Test-Path $zip) { Remove-Item -Force $zip }
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $zip
 Remove-Item -Recurse -Force $stage
 
-$hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
-Set-Content -NoNewline -Path "$zip.sha256" -Value "$hash  $name.zip`n"
+# MSI (Wave 7 R1): packaging/windows/dail.wxs, a per-machine install with a Start menu shortcut.
+$msi = Join-Path $dist "dail-$version-x86_64.msi"
+if (Test-Path $msi) { Remove-Item -Force $msi }
+wix build -arch x64 -d "Version=$version" -d "Exe=$(Join-Path $root 'target/release/dail.exe')" -o $msi `
+    (Join-Path $root 'packaging/windows/dail.wxs')
+Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $dist "dail-$version-x86_64.wixpdb")
 
-Write-Output "built $zip"
+# The bare dail.exe: what a plain-binary install replaces itself with (ADR 0011, kind `exe`).
+$exe = Join-Path $dist "$name.exe"
+Copy-Item (Join-Path $root 'target/release/dail.exe') $exe
+
+foreach ($file in @($zip, $msi, $exe)) {
+    $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLowerInvariant()
+    Set-Content -NoNewline -Path "$file.sha256" -Value "$hash  $(Split-Path -Leaf $file)`n"
+    Write-Output "built $file"
+}

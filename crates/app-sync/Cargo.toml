@@ -17,6 +17,9 @@ app-io.workspace = true
 app-tls.workspace = true
 async-imap.workspace = true
 futures-util.workspace = true
+http-body-util.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
 interprocess.workspace = true
 keyring.workspace = true
 lettre.workspace = true
@@ -33,6 +36,10 @@ webpki-roots.workspace = true
 
 # keyring's `v1` set turns on the Apple store's `keychain` feature, which does not build for iOS without
 # `protected` (ADR 0010). Only this feature is wanted here; the iOS host uses the store itself.
+# Desktop installs replace themselves with an update (ADR 0011); the phones only notify.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+self-replace.workspace = true
+
 [target.'cfg(target_os = "ios")'.dependencies]
 apple-native-keyring-store.workspace = true
 

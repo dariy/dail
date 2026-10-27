@@ -28,6 +28,10 @@ key_preset = "vim"
 [settings.keys]
 archive_threads = ["y"]
 
+[settings.updates]
+checks = "unset"
+interval_hours = 24
+
 [[account]]
 id = "00000000-0000-0000-0000-000000000001"
 display_name = "Account 1"

@@ -1,0 +1,61 @@
+# Once a month (Wave 7 D3): a PR that moves rust-toolchain.toml to the newest stable Rust and the NDK in the
+# workflows to the newest stable NDK, and names the Xcode of the macOS runner (the iOS job uses its default).
+# A PR opened with GITHUB_TOKEN does not start CI by itself: close and reopen it, or run `ci` by hand on its branch.
+name: toolchain
+
+on:
+  schedule:
+    - cron: "17 4 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Newest versions
+        id: newest
+        run: |
+          rust="$(curl -sSf https://static.rust-lang.org/dist/channel-rust-stable.toml \
+            | sed -n '/^\[pkg.rust\]/,/^version/ s/^version = "\([0-9]*\.[0-9]*\).*/\1/p' | head -1)"
+          ndk="$("$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list 2>/dev/null \
+            | sed -n 's/^ *ndk;\([0-9]*\.[0-9]*\.[0-9]*\) .*/\1/p' | sort -V | tail -1)"
+          echo "rust=$rust" >>"$GITHUB_OUTPUT"
+          echo "ndk=$ndk" >>"$GITHUB_OUTPUT"
+      - name: Write them
+        env:
+          RUST: ${{ steps.newest.outputs.rust }}
+          NDK: ${{ steps.newest.outputs.ndk }}
+        run: |
+          test -n "$RUST" && test -n "$NDK"
+          sed -i "s/^channel = \".*\"/channel = \"$RUST\"/" rust-toolchain.toml
+          sed -i -E "s/ndk;[0-9]+\.[0-9]+\.[0-9]+/ndk;$NDK/g; s/ndk\/[0-9]+\.[0-9]+\.[0-9]+/ndk\/$NDK/g" \
+            .github/workflows/ci.yml .github/workflows/release.yml
+      - name: Open the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUST: ${{ steps.newest.outputs.rust }}
+          NDK: ${{ steps.newest.outputs.ndk }}
+        run: |
+          if git diff --quiet; then
+            echo "toolchains are current"
+            exit 0
+          fi
+          branch="toolchain/rust-$RUST-ndk-$NDK"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            echo "$branch exists already"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "workspace: move to Rust $RUST and NDK $NDK"
+          git push origin "$branch"
+          gh pr create --head "$branch" --title "workspace: move to Rust $RUST and NDK $NDK" --body \
+            "Monthly toolchain update (Wave 7 D3). The iOS job builds with the macos-latest runner's default Xcode. Close and reopen this PR to start CI."

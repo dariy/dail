@@ -79,13 +79,13 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
             });
             out
         }
-        SettingsSection::General | SettingsSection::Appearance => SettingKey::ALL
-            .iter()
-            .map(|key| Row {
+        SettingsSection::General | SettingsSection::Appearance => update_rows(state)
+            .into_iter()
+            .chain(SettingKey::ALL.iter().map(|key| Row {
                 key: key.as_str().to_owned(),
                 value: key.get(settings).to_string(),
                 change: Some(CommandName::SetSetting),
-            })
+            }))
             .chain([
                 Row {
                     key: "theme_light".to_owned(),
@@ -100,6 +100,59 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
             ])
             .collect(),
     }
+}
+
+/// The update rows (Wave 7 F1): the version and status, one row per button, and the policy.
+fn update_rows(state: &AppState) -> Vec<Row> {
+    use app_front::updates::{Action, interval_label, panel};
+
+    let mut out = Vec::new();
+    // Without a reported host this build cannot check: only the policy shows.
+    if let Some(host) = &state.update.host {
+        // No clock here: the age of the last check is left out.
+        let panel = panel(state, 0, &host.version);
+        out.push(Row {
+            key: panel.version,
+            value: clean(&panel.status),
+            change: None,
+        });
+        for action in &panel.actions {
+            let (value, change) = match action {
+                Action::Check => (String::new(), CommandName::CheckForUpdates),
+                Action::Download => (String::new(), CommandName::DownloadUpdate),
+                Action::Install => (String::new(), CommandName::InstallUpdate),
+                Action::Skip(version) => (clean(version), CommandName::SkipUpdateVersion),
+                // No browser from a terminal: the address, to copy.
+                Action::Open(url) => {
+                    out.push(Row {
+                        key: "  release notes".to_owned(),
+                        value: clean(url),
+                        change: None,
+                    });
+                    continue;
+                }
+            };
+            out.push(Row {
+                key: format!("  {}", action.label()),
+                value,
+                change: Some(change),
+            });
+        }
+    }
+    let policy = &state.settings.updates;
+    out.push(Row {
+        key: "update_checks".to_owned(),
+        value: format!(
+            "{} ({})",
+            serde_json::to_value(policy.checks)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_owned))
+                .unwrap_or_default(),
+            interval_label(policy.interval_hours)
+        ),
+        change: Some(CommandName::SetUpdatePolicy),
+    });
+    out
 }
 
 /// What a key in the settings view did.

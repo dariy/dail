@@ -20,6 +20,8 @@
 //!
 //! `cargo xtask ios check|xcframework [--demo]|build|test|app|all` — see [`ios`] (ADR 0010).
 //!
+//! `cargo xtask release versions|check-tag|bump|manifest|keygen` — see [`release`] (Wave 7, ADR 0011).
+//!
 //! `cargo xtask android test [ARGS…]` — builds the test binaries of [`ANDROID_TEST_CRATES`] for
 //! `x86_64-linux-android` with cargo-ndk, pushes them and their test data to the device adb sees
 //! (an emulator) and runs them there; `ARGS` go to every test binary.
@@ -31,6 +33,8 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 
 mod ios;
+mod manifest;
+mod release;
 
 /// One gate of the Verification Loop.
 struct Gate {
@@ -183,6 +187,7 @@ fn main() -> Result<()> {
     match args.next().as_deref() {
         Some("verify") => verify(&args.collect::<Vec<_>>()),
         Some("ios") => ios::run(&args.collect::<Vec<_>>()),
+        Some("release") => release::run(&args.collect::<Vec<_>>()),
         Some("android") => match args.next().as_deref() {
             Some("check") => android_check(),
             Some("apk") => android_apk(),
@@ -203,6 +208,7 @@ fn main() -> Result<()> {
             writeln!(err, "usage: cargo xtask verify [{}]…", gate_names("|"))?;
             writeln!(err, "       {ANDROID_USAGE}")?;
             writeln!(err, "       {}", ios::USAGE)?;
+            writeln!(err, "       {}", release::USAGE)?;
             bail!("unknown or missing task")
         }
     }

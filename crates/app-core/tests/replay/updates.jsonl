@@ -1,0 +1,14 @@
+# Updates of dail (Wave 7 C1–C3): the host is reported, checks turned on start one, a newer release is offered, skipped, offered again after undo, downloaded and installed; MCP cannot install.
+{"t": 1700000000000, "origin": "runtime", "input": {"event": {"event": "update_host_detected", "args": {"host": {"version": "0.1.0", "target": "x86_64-unknown-linux-gnu", "install": "appimage"}}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "set_update_policy", "args": {"checks": "on", "interval_hours": 24}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "update_checked", "args": {"manifest": {"version": "0.2.0", "published_ms": 1699990000000, "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0", "artifacts": [{"target": "x86_64-unknown-linux-gnu", "kind": "appimage", "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage", "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "size": 3}]}}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "skip_update_version", "args": {"version": "0.2.0"}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000005000, "origin": "mcp", "input": {"command": {"cmd": "check_for_updates", "args": {}}}}
+{"t": 1700000006000, "origin": "runtime", "input": {"event": {"event": "update_checked", "args": {"manifest": {"version": "0.2.0", "published_ms": 1699990000000, "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0", "artifacts": [{"target": "x86_64-unknown-linux-gnu", "kind": "appimage", "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage", "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "size": 3}]}}}}}
+{"t": 1700000007000, "origin": "mcp", "input": {"command": {"cmd": "download_update", "args": {}}}}
+{"t": 1700000008000, "origin": "runtime", "input": {"event": {"event": "update_downloaded", "args": {"version": "0.2.0", "path": "/profile/updates/dail-0.2.0-x86_64.AppImage"}}}}
+{"t": 1700000009000, "origin": "mcp", "input": {"command": {"cmd": "install_update", "args": {"confirm": true}}}}
+{"t": 1700000010000, "origin": "gui", "input": {"command": {"cmd": "install_update", "args": {"confirm": false}}}}
+{"t": 1700000011000, "origin": "gui", "input": {"command": {"cmd": "install_update", "args": {"confirm": true}}}}
+{"t": 1700000012000, "origin": "runtime", "input": {"event": {"event": "update_installed", "args": {"version": "0.2.0"}}}}

@@ -22,6 +22,7 @@ mail-parser.workspace = true
 parking_lot.workspace = true
 redb.workspace = true
 serde_json.workspace = true
+minisign-verify.workspace = true
 sha2.workspace = true
 tantivy.workspace = true
 image.workspace = true

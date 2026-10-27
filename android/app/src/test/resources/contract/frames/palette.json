@@ -59,7 +59,7 @@
   },
   "palette": {
     "close": {
-      "action": 78,
+      "action": 80,
       "icon": "close",
       "label": "Close"
     },
@@ -417,6 +417,16 @@
             "action": 71,
             "detail": "App",
             "title": "Compact the local store"
+          },
+          {
+            "action": 72,
+            "detail": "App",
+            "title": "Check for updates"
+          },
+          {
+            "action": 73,
+            "detail": "App",
+            "title": "Update checks"
           }
         ],
         "title": "App"
@@ -424,25 +434,25 @@
       {
         "rows": [
           {
-            "action": 72,
+            "action": 74,
             "detail": "alice@example.com",
             "keys": "g i",
             "title": "Go to Inbox"
           },
           {
-            "action": 73,
+            "action": 75,
             "detail": "alice@example.com",
             "keys": "g s",
             "title": "Go to Sent"
           },
           {
-            "action": 74,
+            "action": 76,
             "detail": "alice@example.com",
             "keys": "g d",
             "title": "Go to Drafts"
           },
           {
-            "action": 75,
+            "action": 77,
             "detail": "alice@example.com",
             "keys": "g a",
             "title": "Go to Archive"
@@ -453,12 +463,12 @@
       {
         "rows": [
           {
-            "action": 76,
+            "action": 78,
             "detail": "Carol",
             "title": "Lunch?"
           },
           {
-            "action": 77,
+            "action": 79,
             "detail": "Bob",
             "title": "Q3 numbers"
           }

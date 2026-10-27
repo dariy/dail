@@ -10,3 +10,4 @@ mod search;
 mod testkit;
 mod triage;
 mod undo_send;
+mod updates;

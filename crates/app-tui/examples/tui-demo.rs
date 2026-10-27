@@ -1,8 +1,8 @@
 //! Opens the TUI on the offline memory backend with the `basic` fixture, its account added and
-//! synced: `cargo run -p app-tui --example demo [fixture] [open] [compose] [agent] [palette]`
+//! synced: `cargo run -p app-tui --example tui-demo [fixture] [open] [compose] [agent] [palette]`
 //! (`open` opens the newest inbox thread, `compose` a reply to it, `agent` lets an agent ask to
 //! send a reply, `palette` the command palette). Under tmux an agent can drive it:
-//! `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example demo'`, then
+//! `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example tui-demo'`, then
 //! `tmux send-keys -t t j Enter` and `tmux capture-pane -p -t t`.
 
 // reason: a demo binary; failing loudly is the right behaviour.

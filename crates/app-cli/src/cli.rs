@@ -105,6 +105,11 @@ pub enum Sub {
     /// (`{"check","status":"ok|warn|fail","detail"}`); exit code 1 if any failed. With dail
     /// running on the profile, only what the running process reports is checked.
     Doctor,
+    /// Updates of dail (aliases for the update commands, ADR 0011).
+    Update {
+        #[command(subcommand)]
+        command: UpdateCmd,
+    },
     /// Print the JSON Schema of commands and events, or the spec of one command.
     Schema {
         /// Print only this command's spec and argument schema.
@@ -122,6 +127,22 @@ pub enum AccountCmd {
     /// Replace an account's password and test the login (alias for `set_password`). Read like
     /// `add`'s: a no-echo prompt, or the first line of stdin with `--password-stdin`.
     Password(AccountPasswordArgs),
+}
+
+/// `dail update …`.
+#[derive(Debug, Subcommand)]
+pub enum UpdateCmd {
+    /// Check for a new version now (`check_for_updates`) and print the outcome (`update`).
+    /// Exit code 0 if a newer version is available or none is, 1 if the check failed.
+    Check,
+    /// Check, download and install the newest version (`check_for_updates`, `download_update`,
+    /// `install_update`). Without `--yes` it stops after the download and says what it would
+    /// install.
+    Install {
+        /// Install without asking (the install still needs admin rights for `.deb` and MSI).
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 #[derive(Debug, Args)]

@@ -44,5 +44,6 @@ mod theme;
 mod threading;
 mod undo;
 mod unified;
+mod updates;
 mod view;
 mod watch;

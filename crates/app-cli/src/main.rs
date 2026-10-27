@@ -12,6 +12,7 @@ mod replay;
 mod runtime;
 mod schema;
 mod tui;
+mod update;
 
 use std::fs::File;
 use std::io::{IsTerminal, Write};
@@ -109,6 +110,7 @@ fn run(cli: Cli, terminal_ui: bool) -> anyhow::Result<ExitCode> {
         Some(Sub::Account {
             command: AccountCmd::Password(args),
         }) => runtime::block_on(account::password(&cli.global, &args)),
+        Some(Sub::Update { command }) => runtime::block_on(update::run(&cli.global, &command)),
         Some(Sub::Mcp {
             allow_send,
             http: None,

@@ -120,23 +120,27 @@ struct TopBarView: View {
     }
 }
 
-/// The first problem and its fix (`app_front::status`).
+/// The first problem and its fix (`app_front::status`), or news (`info`): a new version.
 struct BannerView: View {
     let banner: Banner
     let send: (UiEvent) -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle")
+            if banner.info != true { Image(systemName: "exclamationmark.triangle") }
             VStack(alignment: .leading) {
                 Text(banner.text).fontWeight(.semibold)
                 if let hint = banner.hint { Text(hint).font(.footnote) }
             }
             Spacer()
+            if let dismiss = banner.dismiss { FrameButton(button: dismiss, send: send) }
             if let action = banner.action { FrameButton(button: action, send: send) }
         }
         .padding(12)
-        .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .background(
+            banner.info == true ? Color.accentColor.opacity(0.12) : Color.red.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
         .padding(8)
     }
 }

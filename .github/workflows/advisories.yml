@@ -1,0 +1,38 @@
+# Every night on main (Wave 7 D4): `cargo deny check advisories` against the advisory database of that day, so a new
+# advisory for a locked crate shows up without a push. On failure it opens an issue (or comments on the open one).
+name: advisories
+
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
+        with:
+          tool: cargo-deny
+      - run: cargo deny check advisories
+      - name: Report the failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="cargo deny: new advisory on main"
+          open="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Still failing: $RUN"
+          else
+            gh issue create --title "$title" --body "The nightly \`cargo deny check advisories\` failed: $RUN"
+          fi

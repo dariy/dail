@@ -290,6 +290,7 @@ impl Engine {
         outcome.effects.extend(self.pump_sends(now_ms));
         outcome.effects.extend(self.pump_draft_saves(now_ms, false));
         outcome.effects.extend(self.retry_watches(now_ms));
+        outcome.effects.extend(self.update_due(now_ms));
         outcome
     }
 

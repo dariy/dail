@@ -1,13 +1,16 @@
-# Builds the release packages on demand (Actions → release → Run workflow): a zip with `dail.exe` on Windows, and a
-# tar.gz and a .deb on Ubuntu, a signed APK per ABI for Android, and the unsigned IPAs (live and demo) for iOS, each with a .sha256. They run the same scripts as a local release build (scripts/) and
+# Builds the release packages on demand (Actions → release → Run workflow): a zip and an MSI with `dail.exe` on
+# Windows, and a tar.gz, a .deb and an AppImage on Ubuntu, a signed APK per ABI for Android, and the unsigned IPAs (live and demo) for iOS, each with a .sha256. They run the same scripts as a local release build (scripts/) and
 # are uploaded as the run's artifacts.
 name: release
 
-# By hand only, so that the signing secrets never run with pull-request code (Wave 5 O).
+# A pushed `vX.Y.Z` tag builds and publishes a release (Wave 7, ADR 0011); by hand it is a dry run that builds
+# everything and publishes nothing. Never on pull requests, so the signing secrets never run with their code.
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
 
-# The jobs upload run artifacts and publish nothing, so the token stays read-only.
+# Read-only by default; only `publish` (tags, environment `release`) may write.
 permissions:
   contents: read
 
@@ -16,12 +19,26 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  # The tag must name the version every version site holds (`cargo xtask release check-tag`); a dry run only checks
+  # that the sites agree.
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup show active-toolchain || rustup toolchain install
+      - if: startsWith(github.ref, 'refs/tags/')
+        run: cargo xtask release check-tag "$GITHUB_REF_NAME"
+      - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: cargo xtask release versions
+
   windows:
+    needs: guard
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # rustup reads rust-toolchain.toml (channel + rustfmt + clippy) on the first cargo call.
       - run: rustup show active-toolchain || rustup toolchain install
+      - run: dotnet tool install --global wix --version 5.0.2
       - run: ./scripts/release-windows.ps1
         shell: pwsh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -31,6 +48,7 @@ jobs:
           if-no-files-found: error
 
   ubuntu:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,6 +64,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -86,15 +105,50 @@ jobs:
   # The unsigned IPAs, live and demo, with their .sha256 (ADR 0010, plan §6): the user re-signs them with their own
   # Apple ID. No signing secret is involved.
   ios:
+    needs: guard
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: rustup show active-toolchain || rustup toolchain install
       - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
       - run: brew install xcodegen
       - run: cargo xtask ios app
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dail-ios
           path: dist/*
           if-no-files-found: error
+
+  # Tags only (ADR 0011): the signed manifest over every artifact, then the GitHub Release. The only job with
+  # `contents: write`, and the only one that sees the update signing key (environment `release`).
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, ubuntu, android, ios]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Sign the manifest
+        env:
+          DAIL_UPDATE_SIGNING_KEY: ${{ secrets.DAIL_UPDATE_SIGNING_KEY }}
+          DAIL_UPDATE_SIGNING_PASSWORD: ${{ secrets.DAIL_UPDATE_SIGNING_PASSWORD }}
+        run: |
+          if [ -z "$DAIL_UPDATE_SIGNING_KEY" ]; then
+            echo "::error::secret DAIL_UPDATE_SIGNING_KEY is not set; a release manifest must be signed"
+            exit 1
+          fi
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" cargo xtask release manifest --dist dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cargo xtask release notes >"$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "dail ${GITHUB_REF_NAME#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" dist/*

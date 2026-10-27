@@ -294,7 +294,7 @@ pub struct StatusParts<'a> {
 
 /// The status line, `width` columns: the parts that fit, most important first — a send's
 /// countdown, the latest notice, problems (store, keyring, login, sync), pending and failed
-/// changes, the latest undoable action with `z`, and the sync state — then `? help` if there is
+/// changes, the latest undoable action with `z`, a waiting update, and the sync state — then `? help` if there is
 /// room.
 pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16) -> Line<'static> {
     use app_front::status;
@@ -337,6 +337,15 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
     // While a send counts down, `z` cancels it: the countdown says so.
     if let Some(label) = parts.undo.filter(|_| parts.sending.is_none()) {
         segments.push((format!("“{}” z undo", clean(label)), Style::default()));
+    }
+    // Wave 7 F1/F3: a waiting update, or the unanswered question about checks.
+    if let Some(badge) = app_front::updates::badge(state) {
+        segments.push((format!("{badge} (settings)"), bold()));
+    } else if app_front::updates::ask_first_run(state) {
+        segments.push((
+            "Check for updates? (settings: update_checks)".to_owned(),
+            Style::default(),
+        ));
     }
     segments.push((status::sync_text(state, now_ms, parts.lang), dim()));
     if status::searching(state) {

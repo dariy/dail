@@ -184,6 +184,9 @@ pub struct AppState {
                                                        // composer (open draft), focus: Pane, sidebar_collapsed
     pub settings:  Settings,
     pub status:    StatusState,                        // runtime health: persist_error, keyring_error, sync (per account)
+    pub update:    UpdateState,                        // updates of dail (Wave 7, update.rs): host {version, target, install},
+                                                       // status: idle|checking|available|downloading|ready|installing|installed|failed,
+                                                       // last_check_ms, next_check_ms; the policy is settings.updates
     pub revision:  Revision,                           // counts engine inputs; not serialized, always compares equal:
                                                        // front-ends keep projections until it moves
 }
@@ -682,6 +685,39 @@ and `mcp_allow_send` origins may be claimed, so a local client can't pose as the
 password (it must reach the owner's keyring; the socket is user-only); everywhere else `Secret` serializes as `<redacted>`.
 Transport failures are JSON-RPC errors (`-32600` bad request, `-32601` unknown method, `-32602` bad params or origin,
 `-32603` session closed).
+
+### 5.5 Updates of dail (Wave 7, ADR 0011)
+
+Effects run on their own worker (`Lane::Update`). `app_sync::https::Https` is hyper's HTTP/1.1 client over
+tokio-rustls with app-tls and the webpki roots: one GET per connection, `User-Agent: dail/<version>` and nothing else
+about the user, redirects at most 5 times and only to `github.com`, `objects.githubusercontent.com` and
+`release-assets.githubusercontent.com` (`ALLOWED_HOSTS`), 30 s for the response head and 60 s per body stall.
+`CheckForUpdates{running}` GETs `releases/latest/download/manifest.json` (at most 64 KiB) and its `.minisig` and
+hands both to `app_io::update::verify_manifest` with `UPDATE_PUBLIC_KEYS` → `UpdateChecked{manifest}` or
+`UpdateFailed{reason}`. `DownloadUpdate{version, artifact}` empties the profile's `updates/`
+(`LiveBackend::with_updates_dir`; only the newest download is kept), streams the artifact into `<name>.part` through
+`app_io::update::ArtifactCheck` (size and SHA-256 against the manifest, failing as soon as it is too long), renames it
+to the URL's last segment and makes AppImages and binaries executable → `UpdateDownloaded{version, path}`. At start the CLI
+runtime of a live session ingests `UpdateHostDetected{host}` (`app_sync::install::desktop_host`: the version, the
+target triple, and the install kind from `Probe`: `$APPIMAGE` → AppImage, `/usr/bin/dail` listed by dpkg → `.deb`,
+under `%ProgramFiles%\dail` → MSI, else a plain binary), so a due periodic check starts then. `InstallUpdate{version,
+install, path}` runs `app_sync::install::STRATEGIES`: an AppImage is copied beside `$APPIMAGE` and renamed over it, a
+plain binary is swapped with `self-replace`, a `.deb` goes through `pkexec apt-get install -y <file>` (without
+`pkexec` the failure names the `sudo apt-get install` command), an MSI starts `msiexec /i <file>`; the phones never
+install → `UpdateInstalled{version}` or `UpdateFailed{reason}`. The memory backend answers the three effects from
+`app_testkit::updates::FakeUpdates`: release `0.99.0` signed by a test key (`app-io/testdata/updates/`; the secret
+key was discarded and no build trusts it), with switches that tamper with the manifest, the signature or the
+artifact. A memory session reports `app_testkit::updates::host()`. `dail update check` and
+`dail update install [--yes]` are CLI aliases for the chain. An
+`#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
+
+The front ends read `app_front::updates` (Wave 7 F1–F3): the panel (running version, a status line, the buttons —
+*Check now*, *Download* on desktop installs, *Install…* through the palette's confirmation step, *Release notes*,
+*Skip this version*), the badge (`Update x.y.z`, `Restart to update`) and the first-run question, asked once an account
+exists while `settings.updates.checks` is `unset`. The GUI shows the panel and the interval in Settings › General, the
+badge in the top bar (it opens that section) and the question as a callout over the reader; the TUI shows them as the
+first rows of the general settings and in the status line; the phones as the frame's banner. The policy is saved as
+`[settings.updates]` in `config.toml` (`checks`, `interval_hours` 1–720, `skipped_version`).
 
 ## 6. Storage (`app-io`)
 
@@ -1244,7 +1280,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   notifications — it waits on the bridge's wake-ups, never polls — shows the agent's send request in the banner and
   the requests view, and its approval goes through with origin `tui`: the owner's session schedules the send.
 - **Tests.** `app-tui/tests` draw `Tui` on ratatui's `TestBackend` over a real `Engine` (requests dispatched with
-  `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example demo [open]
+  `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example tui-demo [open]
   [compose] [agent] [palette]` opens it on the memory backend.
 
 ### 7.5 Android (`app-mobile`, `app-android`, ADR 0009)
@@ -1264,7 +1300,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
-  first `app_front::status` problem and its fix), `snackbar` (a send counting down with Undo = `cancel_send`, a
+  first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
+  the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
 - **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the four `open_settings` sections as
@@ -1442,8 +1479,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 
 **The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail"`, cdylib + rlib, over it). `app_host::Host`
 is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
-`app_host::Platform` (the credential store and the logs, two plain functions): `app_android::PLATFORM` on Android,
-`app_host::DESKTOP` (the OS keyring, no logs) in tests.
+`app_host::Platform` (the credential store and the logs, two plain functions, and the install kind for update checks):
+`app_android::PLATFORM` on Android, `app_host::DESKTOP` (the OS keyring, no logs, no install kind) in tests. With an
+install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `android`/`ios`), as the CLI runtime does.
 
 - **`open(&Config, Platform, wake, alert)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
@@ -1670,6 +1708,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `search` (Wave 2 additions) | Query | `order = newest | relevance` (full-text hits first, best first) | Wave 2 |
 | `set_sync_window` | Mutation | `mailbox, window?` (newest messages to keep cached; 0 = all; none = `initial_window`) → `{mailbox, window, previous}`; starts the history backfill (§5.2); undo restores the previous window | Wave 2 |
 | `compact_store` | Mutation (no history) | — → `{bodies_kept}`; emits `CompactStore` (§6); outcome in `status.compaction` | Wave 2 |
+| `check_for_updates` | Mutation (no history) | — → `update` (`AppState.update`); emits `CheckForUpdates{running}` unless a check, download or install runs; works with periodic checks off; needs `update.host` (`update_host_detected` from the runtime), else `invalid_argument`; `update_checked{manifest}` (signature verified by the runtime) → `available{release}` if newer than the host and not skipped, else `idle`; `update_failed{reason}` → `failed` (ADR 0011) | Wave 7 |
+| `download_update` | Mutation (no history) | — (status `available`, a desktop install) → `downloading`; emits `DownloadUpdate{version, artifact}` (the artifact whose target and kind fit `host.install`) → `update_downloaded{version, path}` → `ready{release, path}` | Wave 7 |
+| `install_update` | Destructive (user only, §9) | `confirm` (status `ready`) → `installing`; emits `InstallUpdate{version, install, path}` → `update_installed{version}` → `installed` (takes effect on restart) | Wave 7 |
+| `skip_update_version` | Mutation | `version` (`x.y.z`, or null to offer every version again) → `settings.updates.skipped_version`; an `available` of that version becomes `idle`; undoable | Wave 7 |
+| `set_update_policy` | Mutation | `checks?: unset | on | off, interval_hours?` (1–720, default 24) → `settings.updates`; undoable. With `on`, a check is due `interval_hours` after `update.last_check_ms` (at once if none): it starts on `update_host_detected`, on a tick or on this command, otherwise a `ScheduleTick` is emitted once for the due time (`update.next_check_ms`) | Wave 7 |
 | `open_unified_inbox` | View | — (`g u`) → `{threads}`: `view.unified`, the list shows every account's inbox newest first (`listing::unified_threads`); `open_mailbox` leaves it, a search shows instead of it | Wave 2 |
 | `open_mailbox` / `select_threads` / `open_thread` / `close_thread` | View | `id` / `ids` / `id` / — (`open_mailbox` clears selection and reader; `open_thread` selects the thread unless it is already selected and downloads missing bodies; nothing is marked read) | M3 |
 | `mark_mailbox_read` | Mutation | `id` → the `mark_read` receipt for the cached unread messages located in the mailbox plus `mailbox`, `uncached_affected`; when the server counts more unread than are cached, a second op `flag_mailbox{mailbox, flag, value}` runs `RemoteStep::StoreAll` (`UID STORE 1:* +FLAGS.SILENT (\\Seen)`); the mailbox's `unread` drops to 0 until the next fetch; undo (*Mark all read (n messages)*) restores only the cached ones; no default key; the palette and the GUI toolbar ask first above 50 unread (`palette::MARK_ALL_CONFIRM_ABOVE`); agents allowed | UX-7 |
@@ -1715,13 +1758,14 @@ canonical form, which parses back to the same `Query`.
 |---|---|
 | Prompt injection via email | `untrusted_content` envelopes; MCP instructions; agents can't escalate via content; no auto-actions on content in the MVP |
 | Agent sends mail | `Origin::Mcp` + `send_draft` (also via `undo` of a `cancel_send` or `redo` of an approval) → `ApprovalRequest`, unless `--allow-send`; `approve_request`/`reject_request` refused from agent origins (`origin_not_allowed`); an agent's edit withdraws its request; IPC clients can't claim the `gui` origin (§5.4) |
-| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request` → `origin_not_allowed` (`save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
+| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request`, `install_update` → `origin_not_allowed` (`install_update` runs downloaded code; `save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
 | Agent exfiltrates local files | `attach_file` takes any readable path. The file leaves the machine when the draft is sent (agent sends need approval; the card lists attachments with their paths) and when the draft is saved to its account's Drafts mailbox, on a server only the user sets up (`add_account`/`update_account` are user only). An agent can't hand the engine a draft with a forged attachment check: `restore_draft` is user only, and it checks every attachment again anyway |
 | Agent mass-deletes | No permanent delete in the MVP besides `remove_account` (agents may run it: `Destructive`, needs `confirm`, MCP `destructiveHint`); trash is undoable |
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
 | Tracking pixels / remote content | Never fetched; links shown with real target. `show_images_from` (agents may run it) only lets the reader draw parts carried in the message itself (`cid:`), decoded off the UI thread with size limits (PNG, JPEG, GIF, WebP; 4096 px per side) |
 | Terminal escape injection (TUI) | Email text and agents' drafts are drawn through one sanitizer (controls, ESC, DEL, bidi overrides replaced; `app-tui/tests/it/untrusted.rs`); no OSC 8 links, no window title, no browser or file dialog (they would open on the SSH host) |
 | MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki roots, no plaintext, no "accept invalid certs" setting |
+| Malicious update | The manifest is accepted only with a valid minisign signature from the built-in key, a trusted comment naming its version, and a version newer than the running one; an artifact only with the manifest's size and sha256; `install_update` is user only and needs `confirm`; checks are off until the user turns them on and send no identifiers (ADR 0011) |
 | Local IPC abuse | Socket in the user-only profile dir (0700) / named pipe with the default DACL (only the owner, SYSTEM and admins may write); clients can't claim the `gui` or `runtime` origin |
 
 ## 10. Error model
@@ -1778,7 +1822,17 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 **Packaging** (`packaging/`): the desktop entry and icon (`dail`, matching the window's `app_id` and the notifications'
 `desktop-entry` hint), and `[package.metadata.deb]` on `app-cli`: `cargo deb -p app-cli` builds a `.deb` with
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
-AppImage, MSI and a release workflow are still to come (`ROADMAP.md`).
+`scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256) and
+`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
+`vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
+`xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
+
+**Dependency automation** (Wave 7 D, ADR 0011): Dependabot opens grouped minor/patch PRs for actions, Cargo and Gradle
+(`.github/dependabot.yml`); `gradle-verification.yml` regenerates `android/gradle/verification-metadata.xml` on
+Dependabot's Gradle PRs and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
+(`rust-toolchain.toml`) and NDK (the workflows); `advisories.yml` runs `cargo deny check advisories` on `main` every
+night and opens or updates an issue when it fails. The gates stay cargo-deny, Gradle's verification and the licence
+allowlist; bot PRs are merged like any other.
 
 ## 12. Key dependencies
 
@@ -1792,6 +1846,8 @@ AppImage, MSI and a release workflow are still to come (`ROADMAP.md`).
 | HTML sanitizer | `ammonia` | "Open original"; shares `html5ever` with `html2text` |
 | Full-text index | `tantivy` 0.27 (app-io; no default features: zstd would compile C) | Body words found offline (ADR 0005) |
 | HTML parser | `html5ever` | The reader's documents (`app_io::document`); the parser `html2text` and `ammonia` use too |
+| Update signatures | `minisign-verify` (app-io), `minisign` (xtask only) | Ed25519 in minisign format, pure Rust, no dependencies on the verifying side; `app_io::update::verify_manifest` checks signature, trusted comment and version (ADR 0011) |
+| Self-update | `self-replace` (app-sync, desktop targets only) | Replaces the running executable, also on Windows where it is locked; pure Rust (ADR 0011) |
 | Browser | `webbrowser` (app-gui) | Opens clicked links and the original page |
 | Notifications | `zbus` 5 (Linux), `windows` 0.62 `UI_Notifications` (Windows), both app-gui | Desktop notifications; both crates already in the tree (keyring, accesskit); `notify-rust` would add `mac-notification-sys`, which compiles C |
 | Images | `image` 0.25 (app-gui; png, jpeg, gif, webp) | Inline `cid:` images; pure-Rust decoders, already in the tree via eframe |

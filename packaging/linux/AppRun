@@ -1,0 +1,4 @@
+#!/bin/sh
+# AppImage entry point: runs the bundled dail with the arguments it was given.
+here="$(dirname "$(readlink -f "$0")")"
+exec "$here/usr/bin/dail" "$@"

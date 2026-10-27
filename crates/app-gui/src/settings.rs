@@ -31,8 +31,10 @@ pub struct SettingsActions {
     pub wizard: bool,
     /// Open the password form for this account.
     pub password: Option<AccountId>,
-    /// Open the palette at this step (*Change…* on a key binding).
+    /// Open the palette at this step (*Change…* on a key binding, *Install…* of an update).
     pub ask: Option<Ask>,
+    /// Open this release page in the browser (*Release notes* of an update).
+    pub open: Option<String>,
 }
 
 /// The tabs, in order, with their icons and titles.
@@ -51,6 +53,7 @@ impl SettingsState {
         t: &Tokens,
         state: &AppState,
         section: SettingsSection,
+        now_ms: i64,
         queue: &mut Vec<Request>,
     ) -> SettingsActions {
         let mut actions = SettingsActions::default();
@@ -100,7 +103,10 @@ impl SettingsState {
                     SettingsSection::Keys => {
                         actions.ask = keys(ui, t, state, &mut self.filter, queue);
                     }
-                    SettingsSection::General => general(ui, t, state, queue),
+                    SettingsSection::General => {
+                        general(ui, t, state, queue);
+                        updates(ui, t, state, now_ms, &mut actions, queue);
+                    }
                     SettingsSection::Accounts => {
                         self.accounts(ui, t, state, &mut actions, queue);
                     }
@@ -604,4 +610,68 @@ fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) 
             );
         },
     );
+}
+
+/// The update panel (Wave 7 F1): the running version, where an update stands with its buttons,
+/// and the periodic checks with their interval.
+fn updates(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    now_ms: i64,
+    actions: &mut SettingsActions,
+    queue: &mut Vec<Request>,
+) {
+    use app_front::updates::{Action, INTERVALS, panel};
+
+    ui.add_space(t.m.space.lg);
+    ui::caption(ui, t, "Updates");
+    let panel = panel(state, now_ms, env!("CARGO_PKG_VERSION"));
+    let detail = match &panel.checked {
+        Some(checked) => format!("{} · {checked}", panel.status),
+        None => panel.status.clone(),
+    };
+    row(ui, t, &panel.version, &detail, |ui| {
+        // Right to left: the first action ends up rightmost.
+        for action in &panel.actions {
+            if !ui::secondary(ui, t, action.label(), None, true) {
+                continue;
+            }
+            match (action, action.flow(state)) {
+                (Action::Open(url), _) => actions.open = Some(url.clone()),
+                (_, Flow::Run(cmd)) => queue.push(Request::user(cmd)),
+                (_, Flow::Ask(step)) => actions.ask = Some(step),
+                _ => {}
+            }
+        }
+    });
+    let policy = &state.settings.updates;
+    row(
+        ui,
+        t,
+        "Check automatically",
+        "Asks GitHub for the signed release list; nothing about you is sent",
+        |ui| {
+            let on = policy.checks == app_core::UpdateChecks::On;
+            if ui::switch(ui, t, on, "Check automatically").clicked() {
+                queue.push(Request::user(app_front::updates::answer(!on)));
+            }
+        },
+    );
+    row(ui, t, "How often", "Between automatic checks", |ui| {
+        let labels: Vec<&str> = INTERVALS.iter().map(|(_, l)| *l).collect();
+        let chosen = INTERVALS
+            .iter()
+            .position(|(h, _)| *h == policy.interval_hours)
+            .unwrap_or(usize::MAX);
+        if let Some(i) = ui::segmented(ui, t, &labels, chosen)
+            && let Some((hours, _)) = INTERVALS.get(i)
+            && *hours != policy.interval_hours
+        {
+            queue.push(Request::user(Command::SetUpdatePolicy {
+                checks: None,
+                interval_hours: Some(*hours),
+            }));
+        }
+    });
 }

@@ -23,3 +23,4 @@ pub mod palette;
 pub mod panes;
 pub mod status;
 pub mod text;
+pub mod updates;

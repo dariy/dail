@@ -448,11 +448,12 @@ impl EngineLoop {
 /// Which worker runs an effect: each account's server and keyring effects in order on its own
 /// worker, so that a slow or unreachable server delays only its account; everything local
 /// (store writes, files, the index) in order on one more; lookups of other servers (autoconfig)
-/// on their own, as they may take seconds.
+/// on their own, as they may take seconds; updates of dail on theirs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum Lane {
     Local,
     Lookup,
+    Update,
     Account(AccountId),
 }
 
@@ -480,6 +481,10 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::CompactStore { .. }
         | Effect::SearchIndex { .. } => Lane::Local,
         Effect::DiscoverServers { .. } => Lane::Lookup,
+        // Downloads take minutes; they must not hold up the store or the lookups.
+        Effect::CheckForUpdates { .. }
+        | Effect::DownloadUpdate { .. }
+        | Effect::InstallUpdate { .. } => Lane::Update,
     }
 }
 

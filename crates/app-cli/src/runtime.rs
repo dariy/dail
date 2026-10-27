@@ -162,7 +162,8 @@ async fn open_owned(
                 Arc::new(KeyringSecrets),
                 Arc::new(NetVerifier::new()?),
                 Arc::new(NetImap::new()?),
-            );
+            )
+            .with_updates_dir(dirs.updates_dir());
             // Without an index, search still matches headers and asks the servers.
             match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {
                 Ok(index) => Arc::new(backend.with_fulltext(Arc::new(index))),
@@ -177,6 +178,14 @@ async fn open_owned(
     let audit = root.map(|root| AuditLog::new(ProfileDirs::at(root).logs_dir()));
     let session =
         Session::open_audited(backend, Arc::new(SystemClock), Arc::new(RandomSeeds), audit).await?;
+    // The running build, for update checks (ADR 0011); a due periodic check starts now.
+    let host = match global.backend {
+        BackendKind::Live => app_sync::install::desktop_host(),
+        BackendKind::Memory => app_testkit::updates::host(),
+    };
+    session
+        .ingest(app_core::Event::UpdateHostDetected { host })
+        .await?;
     let server = match (root, listen) {
         (Some(root), Listen::Yes) => Some(IpcServer::listen(root, session.client())?),
         _ => None,

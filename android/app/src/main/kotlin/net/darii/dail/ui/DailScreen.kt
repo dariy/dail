@@ -157,26 +157,34 @@ private fun FrameScaffold(
     }
 }
 
-/** The first problem and its fix (`app_front::status`). */
+/** The first problem and its fix (`app_front::status`), or news (`info`): a new version. */
 @Composable
 private fun BannerCard(
     banner: Banner,
     send: (UiEvent) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    Surface(Modifier.fillMaxWidth().padding(8.dp), color = colors.errorContainer, shape = MaterialTheme.shapes.medium) {
+    val fill = if (banner.info) colors.secondaryContainer else colors.errorContainer
+    val ink = if (banner.info) colors.onSecondaryContainer else colors.onErrorContainer
+    Surface(
+        Modifier.fillMaxWidth().padding(8.dp),
+        color = fill,
+        contentColor = ink,
+        shape = MaterialTheme.shapes.medium,
+    ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Glyph("warning")
+            if (!banner.info) Glyph("warning")
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(banner.text, fontWeight = FontWeight.SemiBold, color = colors.onErrorContainer)
+                Text(banner.text, fontWeight = FontWeight.SemiBold, color = ink)
                 banner.hint?.let {
                     Text(
                         it,
                         style = MaterialTheme.typography.bodySmall,
-                        color = colors.onErrorContainer,
+                        color = ink,
                     )
                 }
             }
+            banner.dismiss?.let { ActionButton(it, send) }
             banner.action?.let { ActionButton(it, send) }
         }
     }

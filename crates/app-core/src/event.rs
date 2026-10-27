@@ -388,6 +388,35 @@ pub enum Event {
         /// Diagnostic from the server or the connection.
         error: String,
     },
+    /// The runtime reports the running build at start (Wave 7): its version, target and install
+    /// kind. A periodic update check that is due starts now.
+    UpdateHostDetected {
+        /// The running build.
+        host: crate::update::UpdateHost,
+    },
+    /// An [`Effect::CheckForUpdates`] fetched the manifest and verified its signature.
+    UpdateChecked {
+        /// The verified manifest.
+        manifest: crate::update::UpdateManifest,
+    },
+    /// An [`Effect::DownloadUpdate`] completed: the file's size and SHA-256 matched.
+    UpdateDownloaded {
+        /// The release version.
+        version: String,
+        /// The downloaded file.
+        path: String,
+    },
+    /// An [`Effect::InstallUpdate`] completed; the new version runs after a restart.
+    UpdateInstalled {
+        /// The installed version.
+        version: String,
+    },
+    /// An update check, download or install failed (a bad signature, a checksum mismatch, a
+    /// network or installer error).
+    UpdateFailed {
+        /// Diagnostic.
+        reason: String,
+    },
 }
 
 impl Event {
@@ -436,6 +465,11 @@ impl Event {
             Self::AttachmentsSaveFailed { .. } => "attachments_save_failed",
             Self::SearchResults { .. } => "search_results",
             Self::SearchFailed { .. } => "search_failed",
+            Self::UpdateHostDetected { .. } => "update_host_detected",
+            Self::UpdateChecked { .. } => "update_checked",
+            Self::UpdateDownloaded { .. } => "update_downloaded",
+            Self::UpdateInstalled { .. } => "update_installed",
+            Self::UpdateFailed { .. } => "update_failed",
         }
     }
 }
@@ -723,6 +757,31 @@ pub enum Effect {
         /// Maximum number of hits returned (the newest).
         limit: u32,
     },
+    /// Fetch `manifest.json` and its signature from the latest GitHub release, verify the
+    /// signature with the built-in key and check that its version is newer than `running`.
+    /// Reports `UpdateChecked` or `UpdateFailed`.
+    CheckForUpdates {
+        /// The running version.
+        running: String,
+    },
+    /// Download `artifact` to the profile's `updates/` (only the newest download is kept) and
+    /// check its size and SHA-256. Reports `UpdateDownloaded` or `UpdateFailed`.
+    DownloadUpdate {
+        /// The release version.
+        version: String,
+        /// The file to download.
+        artifact: crate::update::UpdateArtifact,
+    },
+    /// Install the downloaded file the way `install` needs. Reports `UpdateInstalled` or
+    /// `UpdateFailed`.
+    InstallUpdate {
+        /// The release version.
+        version: String,
+        /// How the running dail was installed.
+        install: crate::update::InstallKind,
+        /// The downloaded file.
+        path: String,
+    },
 }
 
 impl Effect {
@@ -751,6 +810,9 @@ impl Effect {
             Self::DeleteDraft { .. } => "delete_draft",
             Self::ManageFolder { .. } => "manage_folder",
             Self::SearchMailbox { .. } => "search_mailbox",
+            Self::CheckForUpdates { .. } => "check_for_updates",
+            Self::DownloadUpdate { .. } => "download_update",
+            Self::InstallUpdate { .. } => "install_update",
         }
     }
 
@@ -758,6 +820,9 @@ impl Effect {
     pub fn failure_event(&self, error: String) -> Event {
         match self {
             Self::PersistState { .. } => Event::PersistFailed { error },
+            Self::CheckForUpdates { .. }
+            | Self::DownloadUpdate { .. }
+            | Self::InstallUpdate { .. } => Event::UpdateFailed { reason: error },
             // A timer cannot fail meaningfully; deliver the tick so scheduled work still runs.
             Self::ScheduleTick { at_ms } => Event::Tick { now_ms: *at_ms },
             Self::StoreSecret { account, .. } | Self::DeleteSecret { account, .. } => {

@@ -1,0 +1,41 @@
+# Dependabot's Gradle PRs change versions but not android/gradle/verification-metadata.xml, so Gradle's dependency
+# verification fails them (Wave 7 D2). This job regenerates the checksums on the PR's branch and pushes them; CI then
+# checks the PR as usual. Only for Dependabot's own PRs, whose code is the version bump.
+name: gradle-verification
+
+on:
+  pull_request:
+    paths: ["android/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    if: github.actor == 'dependabot[bot]' && startsWith(github.head_ref, 'dependabot/gradle/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.1.0" > /dev/null
+      # `help` resolves the build's plugins; the tasks after it resolve every configuration the build uses.
+      - run: ./gradlew --no-daemon --write-verification-metadata sha256 help licensee lint --dry-run
+        working-directory: android
+      - name: Push the new checksums
+        run: |
+          if git diff --quiet -- android/gradle/verification-metadata.xml; then
+            echo "verification metadata unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/gradle/verification-metadata.xml
+          git commit -m "android: refresh Gradle verification metadata"
+          git push

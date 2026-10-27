@@ -329,7 +329,8 @@ impl Shell {
                         .inner_margin(egui::Margin::same(t.m.frame.reader_padding as i8)),
                 )
                 .show(ui, |ui| {
-                    self.settings.show(ui, &t, state, section, &mut queue)
+                    self.settings
+                        .show(ui, &t, state, section, now_ms, &mut queue)
                 })
                 .inner;
             if page.wizard {
@@ -341,6 +342,9 @@ impl Shell {
             if let Some(step) = page.ask {
                 self.palette.open_at(step);
                 queue.push(Request::user(Command::OpenPalette {}));
+            }
+            if let Some(url) = page.open {
+                self.externals.push(External::OpenUrl(url));
             }
             return queue;
         }
@@ -387,6 +391,13 @@ impl Shell {
                     )),
             )
             .show(ui, |ui| {
+                if app_front::updates::ask_first_run(state) {
+                    ui::callout(&t).show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        updates_question(ui, &t, &mut queue);
+                    });
+                    ui.add_space(t.m.space.sm);
+                }
                 if !state.approvals.is_empty() {
                     ui::callout(&t).show(ui, |ui| {
                         ui.set_width(ui.available_width());
@@ -556,6 +567,27 @@ enum Placement {
     Pane,
     /// A reply to a message of the open conversation shows under it.
     Docked(app_core::DraftId),
+}
+
+/// The first-run question about update checks (Wave 7 F3): it stays until it is answered.
+fn updates_question(ui: &mut egui::Ui, t: &theme::Tokens, queue: &mut Vec<Request>) {
+    use app_front::updates::{QUESTION, QUESTION_DETAIL, answer};
+
+    ui.label(ui::text(&t.type_scale.headline_md, QUESTION, t.text_strong));
+    ui.label(ui::text(
+        &t.type_scale.body_sm,
+        QUESTION_DETAIL,
+        t.text_secondary,
+    ));
+    ui.add_space(t.m.space.xs);
+    ui.horizontal(|ui| {
+        if ui::primary(ui, t, "Check for updates", None, true) {
+            queue.push(Request::user(answer(true)));
+        }
+        if ui::secondary(ui, t, "No thanks", None, true) {
+            queue.push(Request::user(answer(false)));
+        }
+    });
 }
 
 fn placement(state: &AppState) -> Placement {

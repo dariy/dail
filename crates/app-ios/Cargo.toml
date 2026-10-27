@@ -33,6 +33,7 @@ print_stderr = "warn"
 demo = ["app-host/demo"]
 
 [dependencies]
+app-core.workspace = true
 app-host.workspace = true
 app-io.workspace = true
 app-sync.workspace = true
@@ -40,7 +41,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [target.'cfg(target_os = "ios")'.dependencies]
-app-core.workspace = true
 apple-native-keyring-store.workspace = true
 keyring-core.workspace = true
 
