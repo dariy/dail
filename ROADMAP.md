@@ -676,7 +676,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 ### D — Dependency automation
 - [x] D1: Dependabot for `cargo` and `gradle` (grouped minor/patch) beside actions
 - [x] D2: Gradle verification metadata regenerated on Dependabot Gradle PRs
-- [ ] D3: monthly toolchain PR (Rust, NDK, Xcode)
+- [x] D3: monthly toolchain PR (Rust, NDK, Xcode)
 - [ ] D4: nightly `cargo deny` advisories on `main`, an issue on failure
 
 ---
