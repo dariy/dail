@@ -1,0 +1,134 @@
+{
+ "accounts": [
+  {
+   "email": "alex@northwind.dev",
+   "mailboxes": [
+    {
+     "path": "INBOX",
+     "special_use": "inbox",
+     "uid_validity": 1,
+     "messages": [
+      {
+       "uid": 1,
+       "flags": [],
+       "raw": "Message-ID: <m0@demo>\r\nFrom: Priya Raman <priya@lumen.io>\r\nTo: alex@northwind.dev\r\nSubject: Design review: onboarding flow v3\r\nDate: Mon, 26 Oct 2026 09:12:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHi Alex,\r\n\r\nI pushed the revised onboarding flow to Figma. The main change is that account setup now takes three steps instead of five, and the provider picker remembers the last choice.\r\n\r\nCould you take a look before Thursday's review? I'd especially like your take on the empty state for the inbox.\r\n\r\nThanks,\r\nPriya\r\n"
+      },
+      {
+       "uid": 2,
+       "flags": [
+        "\\Flagged"
+       ],
+       "raw": "Message-ID: <m1@demo>\r\nFrom: Marcus Webb <marcus@northwind.dev>\r\nTo: alex@northwind.dev\r\nSubject: Re: Q4 infrastructure budget\r\nDate: Mon, 26 Oct 2026 08:47:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nNumbers look good. I'd keep the extra build runners; CI time dropped 40% since we added them.\r\n\r\n-- Marcus\r\n"
+      },
+      {
+       "uid": 3,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m2@demo>\r\nFrom: GitHub <noreply@github.com>\r\nTo: alex@northwind.dev\r\nSubject: [northwind/dail] Release v0.9.0 published\r\nDate: Mon, 26 Oct 2026 07:30:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nA new release was published: v0.9.0.\r\n\r\nHighlights: Android app, full-text search, MCP over HTTP.\r\n"
+      },
+      {
+       "uid": 4,
+       "flags": [],
+       "raw": "Message-ID: <m3@demo>\r\nFrom: Sofia Lindqvist <sofia@fjord.se>\r\nTo: alex@northwind.dev\r\nSubject: Conference talk accepted!\r\nDate: Sun, 25 Oct 2026 18:05:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nGreat news: your talk 'Headless by design: an email client agents can drive' was accepted for RustNordic. Slides due Nov 20.\r\n\r\nSofia\r\n"
+      },
+      {
+       "uid": 5,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m4@demo>\r\nFrom: Daniel Okafor <daniel@harbor.co>\r\nTo: alex@northwind.dev\r\nSubject: Lunch on Friday?\r\nDate: Sun, 25 Oct 2026 12:20:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHey! Are you free for lunch on Friday? The new ramen place opened near the office.\r\n\r\nD.\r\n"
+      },
+      {
+       "uid": 6,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m5@demo>\r\nFrom: Hetzner Billing <billing@hetzner.example>\r\nTo: alex@northwind.dev\r\nSubject: Your invoice for October 2026\r\nDate: Sat, 24 Oct 2026 06:00:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nYour invoice is available in the console. Amount due: 23.80 EUR.\r\n"
+      },
+      {
+       "uid": 7,
+       "flags": [
+        "\\Seen",
+        "\\Answered"
+       ],
+       "raw": "Message-ID: <m6@demo>\r\nFrom: Elena Petrova <elena@quanta.ai>\r\nTo: alex@northwind.dev\r\nSubject: Re: MCP integration questions\r\nDate: Fri, 23 Oct 2026 16:44:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThanks for the quick reply. The approval flow for send_draft is exactly what our security team asked for. Can agents also read the outbox?\r\n\r\nElena\r\n"
+      },
+      {
+       "uid": 8,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m7@demo>\r\nFrom: Tom Becker <tom@becker.family>\r\nTo: alex@northwind.dev\r\nSubject: Photos from the hike\r\nDate: Fri, 23 Oct 2026 10:02:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nUploaded the photos from Saturday's hike to the shared album. The view from the ridge came out great.\r\n\r\nTom\r\n"
+      },
+      {
+       "uid": 9,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m8@demo>\r\nFrom: Rust Weekly <digest@rustweekly.example>\r\nTo: alex@northwind.dev\r\nSubject: This Week in Rust #571\r\nDate: Thu, 22 Oct 2026 14:00:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nCrate of the week, updates from the Rust project, and 14 new RFCs.\r\n"
+      },
+      {
+       "uid": 10,
+       "flags": [
+        "\\Seen",
+        "\\Flagged"
+       ],
+       "raw": "Message-ID: <m9@demo>\r\nFrom: Priya Raman <priya@lumen.io>\r\nTo: alex@northwind.dev\r\nSubject: Accessibility audit results\r\nDate: Wed, 21 Oct 2026 11:30:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThe contrast audit is green across both themes. Two focus-ring issues remain in the settings screen.\r\n\r\nPriya\r\n"
+      },
+      {
+       "uid": 11,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m10@demo>\r\nFrom: Linear <notifications@linear.example>\r\nTo: alex@northwind.dev\r\nSubject: 3 issues assigned to you\r\nDate: Tue, 20 Oct 2026 09:15:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDAIL-212 Thread view jumps on new message\r\nDAIL-215 Palette fuzzy match ranks aliases too low\r\nDAIL-219 Windows: tray icon blurry at 150%\r\n"
+      },
+      {
+       "uid": 12,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m11@demo>\r\nFrom: Marcus Webb <marcus@northwind.dev>\r\nTo: alex@northwind.dev\r\nSubject: Q4 infrastructure budget\r\nDate: Mon, 19 Oct 2026 15:22:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nAttached the Q4 draft. Main line items: build runners, the staging cluster, and backups.\r\n\r\nMarcus\r\n"
+      }
+     ]
+    },
+    {
+     "path": "Sent",
+     "special_use": "sent",
+     "uid_validity": 1,
+     "messages": [
+      {
+       "uid": 1,
+       "flags": [
+        "\\Seen"
+       ],
+       "raw": "Message-ID: <m100@demo>\r\nFrom: Alex Morgan <alex@northwind.dev>\r\nTo: Elena Petrova <elena@quanta.ai>\r\nSubject: Re: MCP integration questions\r\nDate: Fri, 23 Oct 2026 15:10:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nHi Elena, yes: outbound mail from an agent waits for approval in the GUI unless the session runs with --allow-send.\r\n"
+      }
+     ]
+    },
+    {
+     "path": "Drafts",
+     "special_use": "drafts",
+     "uid_validity": 1,
+     "messages": []
+    },
+    {
+     "path": "Archive",
+     "special_use": "archive",
+     "uid_validity": 1,
+     "messages": []
+    },
+    {
+     "path": "Projects/dail",
+     "uid_validity": 1,
+     "messages": []
+    },
+    {
+     "path": "Receipts",
+     "uid_validity": 1,
+     "messages": []
+    }
+   ]
+  }
+ ]
+}
