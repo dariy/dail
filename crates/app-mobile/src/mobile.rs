@@ -1110,6 +1110,7 @@ impl Mobile {
                 date: format::short_date(thread.last_date_ms, now),
                 unread: summary.unread > 0,
                 starred: summary.flagged,
+                pinned: summary.pinned,
                 attachments: summary.has_attachments,
                 messages: summary.messages.len(),
                 tag: (state.accounts.len() > 1 && tags > 0)
@@ -1152,6 +1153,10 @@ impl Mobile {
         }
         let ids = palette::targets(state);
         let messages = Vec::new;
+        let all_pinned = ids
+            .iter()
+            .filter_map(|t| state.threads.get(t))
+            .all(|t| listing::is_pinned(state, t));
         let actions = [
             (
                 "archive",
@@ -1193,6 +1198,26 @@ impl Mobile {
                     messages: messages(),
                 },
             ),
+            // MISC-4: unpin when every checked thread is pinned.
+            if all_pinned {
+                (
+                    "push_pin",
+                    "Unpin",
+                    Command::UnpinThreads {
+                        ids: ids.clone(),
+                        messages: messages(),
+                    },
+                )
+            } else {
+                (
+                    "push_pin",
+                    "Pin",
+                    Command::PinThreads {
+                        ids: ids.clone(),
+                        messages: messages(),
+                    },
+                )
+            },
         ]
         .into_iter()
         .map(|(icon, label, cmd)| self.button(icon, label, Act::Run(cmd)))

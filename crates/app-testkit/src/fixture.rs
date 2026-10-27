@@ -83,6 +83,10 @@ pub struct FakeMailbox {
     /// Messages, in UID order.
     #[serde(default)]
     pub messages: Vec<FakeMessage>,
+    /// Whether it keeps keywords such as `$Pinned` (`PERMANENTFLAGS` with `\*`); `false`
+    /// makes keyword stores report `KeywordsRefused` (MISC-4).
+    #[serde(default = "selectable_default", skip_serializing_if = "is_true")]
+    pub keywords: bool,
 }
 
 impl FakeMailbox {
@@ -95,6 +99,7 @@ impl FakeMailbox {
             uid_validity: 1,
             uid_next: None,
             messages: Vec::new(),
+            keywords: true,
         }
     }
 
@@ -128,6 +133,12 @@ pub struct FakeMessage {
 
 const fn selectable_default() -> bool {
     true
+}
+
+// reason: serde's `skip_serializing_if` passes a reference.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_true(value: &bool) -> bool {
+    *value
 }
 
 const BUILTIN: &[(&str, &str)] = &[("basic", include_str!("../fixtures/basic.json"))];

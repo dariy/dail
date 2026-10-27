@@ -135,6 +135,7 @@ impl Engine {
             "messages": summary.messages.len(),
             "unread": summary.unread,
             "flagged": summary.flagged,
+            "pinned": summary.pinned,
             "has_attachments": summary.has_attachments,
             "last_date_ms": thread.last_date_ms,
             "untrusted_content": {

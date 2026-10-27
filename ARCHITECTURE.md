@@ -200,7 +200,9 @@ pub struct Mailbox  { id, account, path: String, delimiter: Option<String>, role
                       uid_validity: Option<u32>, uid_next: Option<u32>, unread: u32, total: u32,
                       highest_modseq: Option<u64> /* CONDSTORE, as of the last flag resync */,
                       sync_window: Option<u32> /* newest messages to cache; 0 = all; None = settings */,
-                      history_complete: bool /* the oldest server message is cached */ }
+                      history_complete: bool /* the oldest server message is cached */,
+                      last_fetch_ms: Option<i64> /* UX-6 */,
+                      custom_keywords: Option<bool> /* Some(false): keeps no keywords, pins stay local (MISC-4) */ }
 pub struct RemoteMailbox { path, delimiter, special_use: Option<MailboxRole>, selectable } // as LISTed
 pub struct SyncStatus { pending: u32 /* sync effects in flight */, last_sync_ms: Option<i64>,
                         last_error: Option<SyncIssue { error, mailbox: Option<MailboxId>, at_ms }>,
@@ -224,7 +226,8 @@ pub struct Envelope { id, account, mailbox, uid: u32, message_id_hdr: Option<Str
                       moved_to: Option<MailboxId> }  // mailbox/uid = server location (uid 0: placeholder); shown in
                                                      // location() = moved_to.unwrap_or(mailbox)
 pub struct Thread   { id, account, messages: Vec<MessageId> /* oldest first */, last_date_ms: i64, subject: String }
-pub struct Addr     { name: Option<String>, email }   pub struct Flags { seen, flagged, answered, draft }
+pub struct Addr     { name: Option<String>, email }   pub struct Flags { seen, flagged, answered, draft,
+                      pinned /* the keyword `$Pinned`, MISC-4 */ }
 pub struct Draft    { id, account, reply_to: Option<MessageId>, message_id_hdr: String /* stable, from the draft ID */,
                       in_reply_to, references, to, cc, bcc: Vec<Addr>, subject, body_text,
                       quote: Option<Quote { message, style: Reply|Forward, header: String }>,
@@ -314,7 +317,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `IndexSearchFailed{search, error}`, `ServersDiscovered{email, imap, smtp, source}`, `DiscoveryFailed{email, error}`, `Closing`,
   `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
   `SearchResults{account, mailbox, uid_validity, search, started_ms, mailboxes, envelopes}`, `SearchFailed{account, mailbox, search, started_ms, mailboxes, error}`,
-  `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
+  `KeywordsRefused{account, path}` (MISC-4), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
   failure stays in `SyncStatus.folder_error` until a folder change succeeds — listings don't clear it), `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
 - **`Effect`** — a request to the world: `VerifyAccount{account, login, imap, smtp, secret}`, `ListMailboxes{account, imap: ImapLogin}`, `FetchEnvelopes{account, mailbox, path, imap, uid_validity?, since_uid?, limit}`,
   `ResyncFlags{account, mailbox, path, imap, uid_validity, from_uid, to_uid, changed_since?}`,
@@ -1668,6 +1671,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `set_list_filter` | View | `unread?, starred?, attachments?: bool` (given ones replace) → `{filter, threads}`; `view.filter`, saved in `[view]` as `list_filter`; `listing::visible_threads` keeps the threads passing every filter that is on (`list_threads`/`search` are not filtered); checked threads it hides are unchecked; the palette asks for words (`unread starred attachments`) | UX-7 |
 | `mark_read` / `mark_unread` | Mutation | `ids?: [ThreadId], messages?: [MessageId]` (at least one; a thread means all its messages, a message includes its copies in other folders) → `{changed, ops, cancelled}`; undo restores exactly `changed` | M3 |
 | `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
+| `pin_threads` / `unpin_threads` | Mutation | same as `star` / `unstar` (pinning a thread marks its newest message, unpinning all) → `{changed, ops, cancelled}`; `Flags.pinned`, the IMAP keyword `$Pinned` (`FlagKind::Pinned`, a `set_flag` op), so the pin syncs like a star; pinned threads come first in every list (`listing::sort_newest_first`: pinned, then newest; `list_threads` has `pinned`); `Shift+P` toggles; agents allowed. Where the server keeps no keywords (a `SELECT` whose `PERMANENTFLAGS` has neither `\\*` nor `$Pinned`) the runtime skips the keyword `STORE` and reports `KeywordsRefused{account, path}` before the op's success: the mailbox gets `custom_keywords: false`, its pins stay on the device (server flag merges keep them, no store is queued) | MISC-4 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
 | `move_threads` | Mutation | `ids?, messages?, to: MailboxId` (same account) | M3 |
 | `list_pending_ops` | Query | `account?` → `{ops: [{id, account, action: set_flag\|move\|copy, detail, state, attempts, last_error, next_attempt_ms, created_ms}]}`, oldest first | M3 |

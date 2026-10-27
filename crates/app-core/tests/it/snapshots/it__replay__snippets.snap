@@ -619,6 +619,7 @@ expression: first
                   "in_mailbox": 1,
                   "last_date_ms": 1699000001000,
                   "messages": 1,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [],
@@ -634,6 +635,7 @@ expression: first
                   "in_mailbox": 1,
                   "last_date_ms": 1699000000000,
                   "messages": 1,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [],

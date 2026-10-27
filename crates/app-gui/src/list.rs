@@ -415,8 +415,8 @@ enum Click {
 }
 
 /// The actions a row offers on hover and in its context menu: archive, trash, star or unstar,
-/// read or unread (by its current state).
-fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 4] {
+/// read or unread, pin or unpin (by its current state).
+fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5] {
     let ids = || vec![summary.thread.id];
     let star = if summary.flagged {
         (
@@ -475,6 +475,25 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 4
         ),
         star,
         read,
+        if summary.pinned {
+            (
+                Icon::PushPin,
+                "Unpin",
+                Command::UnpinThreads {
+                    ids: ids(),
+                    messages: Vec::new(),
+                },
+            )
+        } else {
+            (
+                Icon::PushPin,
+                "Pin",
+                Command::PinThreads {
+                    ids: ids(),
+                    messages: Vec::new(),
+                },
+            )
+        },
     ]
 }
 
@@ -719,6 +738,10 @@ fn row(
         }
         if summary.flagged {
             ui::icon(ui, Icon::Star, t.m.controls.icon_xs, t.text_strong, true);
+        }
+        if summary.pinned {
+            ui::icon(ui, Icon::PushPin, t.m.controls.icon_xs, t.text_strong, true)
+                .on_hover_text("Pinned");
         }
     };
     let line = child.available_width();

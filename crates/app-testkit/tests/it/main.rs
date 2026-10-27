@@ -5,6 +5,7 @@ mod compose;
 mod folders;
 mod offline;
 mod original;
+mod pins;
 mod search;
 mod testkit;
 mod triage;

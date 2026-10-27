@@ -172,6 +172,8 @@ struct Row: Codable {
     let date: String
     let unread: Bool
     let starred: Bool
+    /// Pinned to the top (MISC-4); absent when not.
+    let pinned: Bool?
     let attachments: Bool
     let messages: Int
     let tag: Int?
@@ -181,7 +183,7 @@ struct Row: Codable {
     let a11y: String
 
     enum CodingKeys: String, CodingKey {
-        case thread, action, sender, subject, snippet, date, unread, starred, attachments, messages, tag
+        case thread, action, sender, subject, snippet, date, unread, starred, pinned, attachments, messages, tag
         case selected, checked, marks, a11y
         case longPress = "long_press"
         case swipeStart = "swipe_start"

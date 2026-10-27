@@ -201,7 +201,14 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
     let labels: Vec<_> = bulk.actions.iter().map(|b| b.label.as_str()).collect();
     assert_eq!(
         labels,
-        ["Archive", "Trash", "Mark read", "Mark unread", "Star"]
+        [
+            "Archive",
+            "Trash",
+            "Mark read",
+            "Mark unread",
+            "Star",
+            "Pin"
+        ]
     );
     let sent = phone.tap(bulk.actions[4].action);
     let ids = match &sent[0] {

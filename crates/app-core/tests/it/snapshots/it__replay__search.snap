@@ -948,6 +948,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000001"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -973,6 +974,7 @@ expression: first
                     "00000000-0000-0007-0000-000000000001"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 0,
                   "untrusted_content": {
                     "from": [
@@ -1065,6 +1067,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1362,6 +1365,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000004"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1383,6 +1387,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1538,6 +1543,7 @@ expression: first
                     "00000000-0000-0006-0000-000000000002"
                   ],
                   "messages": 2,
+                  "pinned": false,
                   "unread": 1,
                   "untrusted_content": {
                     "from": [
@@ -1836,6 +1842,7 @@ expression: first
                     "00000000-0000-0013-0000-000000000001"
                   ],
                   "messages": 1,
+                  "pinned": false,
                   "unread": 0,
                   "untrusted_content": {
                     "from": [

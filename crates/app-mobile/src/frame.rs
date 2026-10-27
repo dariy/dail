@@ -265,6 +265,9 @@ pub struct Row {
     pub unread: bool,
     /// Whether a message is starred.
     pub starred: bool,
+    /// Whether it is pinned to the top (MISC-4).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
     /// Whether a message has attachments.
     pub attachments: bool,
     /// Messages in the thread.

@@ -188,7 +188,7 @@ pub fn threads_in(state: &AppState, mailbox: MailboxId) -> Vec<&Thread> {
         .map(|m| m.thread)
         .collect();
     let mut threads: Vec<&Thread> = ids.iter().filter_map(|id| state.threads.get(id)).collect();
-    sort_newest_first(&mut threads, |t| t);
+    sort_newest_first(state, &mut threads, |t| t);
     threads
 }
 
@@ -242,7 +242,7 @@ pub fn search<'a>(
             Some((thread, ordered))
         })
         .collect();
-    sort_newest_first(&mut threads, |(t, _)| t);
+    sort_newest_first(state, &mut threads, |(t, _)| t);
     threads
 }
 
@@ -324,7 +324,7 @@ pub fn unified_threads(state: &AppState) -> Vec<&Thread> {
         .map(|m| m.thread)
         .collect();
     let mut threads: Vec<&Thread> = ids.iter().filter_map(|id| state.threads.get(id)).collect();
-    sort_newest_first(&mut threads, |t| t);
+    sort_newest_first(state, &mut threads, |t| t);
     threads
 }
 
@@ -347,6 +347,8 @@ pub struct ThreadSummary<'a> {
     pub unread: usize,
     /// Whether a message is starred.
     pub flagged: bool,
+    /// Whether a message is pinned (`pin_threads`).
+    pub pinned: bool,
     /// Whether a message has attachments.
     pub has_attachments: bool,
 }
@@ -372,6 +374,7 @@ impl<'a> ThreadSummary<'a> {
             thread,
             unread: messages.iter().filter(|m| !m.flags.seen).count(),
             flagged: messages.iter().any(|m| m.flags.flagged),
+            pinned: messages.iter().any(|m| m.flags.pinned),
             has_attachments: messages.iter().any(|m| m.has_attachments),
             senders,
             messages,
@@ -387,11 +390,23 @@ impl<'a> ThreadSummary<'a> {
     }
 }
 
-fn sort_newest_first<T>(items: &mut [T], thread: impl Fn(&T) -> &Thread) {
-    items.sort_by(|a, b| {
-        let (a, b) = (thread(a), thread(b));
-        b.last_date_ms
-            .cmp(&a.last_date_ms)
-            .then_with(|| a.id.cmp(&b.id))
+/// Pinned threads first (MISC-4), then newest first; ties by ID.
+fn sort_newest_first<T>(state: &AppState, items: &mut [T], thread: impl Fn(&T) -> &Thread) {
+    items.sort_by_cached_key(|item| {
+        let thread = thread(item);
+        (
+            std::cmp::Reverse(is_pinned(state, thread)),
+            std::cmp::Reverse(thread.last_date_ms),
+            thread.id,
+        )
     });
+}
+
+/// Whether a message of `thread` is pinned (`pin_threads`).
+pub fn is_pinned(state: &AppState, thread: &Thread) -> bool {
+    thread
+        .messages
+        .iter()
+        .filter_map(|m| state.messages.get(m))
+        .any(|m| m.flags.pinned)
 }

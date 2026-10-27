@@ -2068,6 +2068,72 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Pin threads to the top of every list that shows them (a pinned thread's newest message\ngets the IMAP keyword `$Pinned`, so the pin syncs; on a server that keeps no keywords it\nstays on this device). Give `ids`, `messages` or both. Applied locally at once and on the\nserver in the background. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to pin.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to pin (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "pin_threads",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Unpin threads (every message) or single messages (see `pin_threads`). Give `ids`,\n`messages` or both. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to change.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to change (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "unpin_threads",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Archive threads or single messages: move their inbox (and junk or custom-folder) messages\nto the account's archive (Gmail: remove from INBOX, i.e. All Mail; Hostinger: the\n`Archive` folder, created if missing). Give `ids`, `messages` or both. Applied locally at\nonce and on the server in the background. Undoable.",
       "properties": {
         "args": {

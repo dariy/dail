@@ -36,14 +36,23 @@ pub enum FlagKind {
     Seen,
     /// `\Flagged`: starred.
     Flagged,
+    /// The `$Pinned` keyword: pinned (MISC-4).
+    Pinned,
 }
 
 impl FlagKind {
-    /// The IMAP system flag, e.g. `\Seen`.
+    /// Whether it is a keyword (`$Pinned`), which a server may not keep (`PERMANENTFLAGS`
+    /// without `\*`).
+    pub const fn is_keyword(self) -> bool {
+        matches!(self, Self::Pinned)
+    }
+
+    /// The IMAP flag, e.g. `\Seen` or `$Pinned`.
     pub const fn imap(self) -> &'static str {
         match self {
             Self::Seen => "\\Seen",
             Self::Flagged => "\\Flagged",
+            Self::Pinned => "$Pinned",
         }
     }
 
@@ -52,6 +61,7 @@ impl FlagKind {
         match self {
             Self::Seen => flags.seen,
             Self::Flagged => flags.flagged,
+            Self::Pinned => flags.pinned,
         }
     }
 
@@ -60,6 +70,7 @@ impl FlagKind {
         match self {
             Self::Seen => flags.seen = value,
             Self::Flagged => flags.flagged = value,
+            Self::Pinned => flags.pinned = value,
         }
     }
 }

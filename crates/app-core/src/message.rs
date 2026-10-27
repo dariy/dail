@@ -28,6 +28,9 @@ pub struct Flags {
     pub answered: bool,
     /// `\Draft`: an unsent draft.
     pub draft: bool,
+    /// The `$Pinned` keyword: pinned to the top of the lists (`pin_threads`, MISC-4).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub pinned: bool,
 }
 
 /// The flags of one UID, as reported by a flag resync.

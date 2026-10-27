@@ -183,6 +183,10 @@ pub enum CommandName {
     Star,
     /// See [`Command::Unstar`].
     Unstar,
+    /// See [`Command::PinThreads`].
+    PinThreads,
+    /// See [`Command::UnpinThreads`].
+    UnpinThreads,
     /// See [`Command::ArchiveThreads`].
     ArchiveThreads,
     /// See [`Command::TrashThreads`].
@@ -380,6 +384,8 @@ impl CommandName {
         Self::MarkUnread,
         Self::Star,
         Self::Unstar,
+        Self::PinThreads,
+        Self::UnpinThreads,
         Self::ArchiveThreads,
         Self::TrashThreads,
         Self::MoveThreads,
@@ -471,6 +477,8 @@ impl CommandName {
             Self::MarkUnread => "mark_unread",
             Self::Star => "star",
             Self::Unstar => "unstar",
+            Self::PinThreads => "pin_threads",
+            Self::UnpinThreads => "unpin_threads",
             Self::ArchiveThreads => "archive_threads",
             Self::TrashThreads => "trash_threads",
             Self::MoveThreads => "move_threads",
@@ -561,6 +569,8 @@ impl CommandName {
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
             | Self::MoveThreads
@@ -667,6 +677,8 @@ impl CommandName {
             | Self::MarkUnread
             | Self::Star
             | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
             | Self::MoveThreads
@@ -917,6 +929,14 @@ impl CommandName {
             Self::Star => CommandSpec {
                 available: has_threads,
                 ..base("Star", Category::Mail, &["s"])
+            },
+            Self::UnpinThreads => CommandSpec {
+                available: has_threads,
+                ..base("Unpin", Category::Mail, &[])
+            },
+            Self::PinThreads => CommandSpec {
+                available: has_threads,
+                ..base("Pin to top", Category::Mail, &["Shift+P"])
             },
             Self::Unstar => CommandSpec {
                 available: has_threads,
@@ -1211,6 +1231,14 @@ impl CommandName {
                 messages: vec![EXAMPLE_MESSAGE],
             },
             Self::Star => Command::Star {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::UnpinThreads => Command::UnpinThreads {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::PinThreads => Command::PinThreads {
                 ids: vec![EXAMPLE_THREAD],
                 messages: Vec::new(),
             },

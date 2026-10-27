@@ -206,8 +206,8 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
 }
 
 /// One row of the thread list, `width` columns wide: checked `✓` (else the cursor `›`), unread
-/// `●`, starred `★`, attachment `@`, sender, subject and date. Unread rows are bold, the
-/// cursor's row reversed.
+/// `●`, starred `★`, attachment `@`, sender, subject (after `▲` when pinned) and date. Unread
+/// rows are bold, the cursor's row reversed.
 pub fn thread_row(
     summary: &ThreadSummary<'_>,
     now_ms: i64,
@@ -235,6 +235,12 @@ pub fn thread_row(
     let subject = match summary.thread.subject.trim() {
         "" => "(no subject)".to_owned(),
         s => clean(s),
+    };
+    // MISC-4: pinned threads (at the top) say so before the subject.
+    let subject = if summary.pinned {
+        format!("▲ {subject}")
+    } else {
+        subject
     };
     let date = format::short_date(summary.thread.last_date_ms, now_ms);
     let sender_width = (width / 4).clamp(6, 18);

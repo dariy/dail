@@ -315,16 +315,26 @@ impl MemoryBackend {
                 Err(error) => Event::BodyFetchFailed { message, error },
             }]),
             Effect::RunRemoteOp {
-                op, imap, steps, ..
-            } => Ok(vec![match self.remote(&imap, &steps) {
-                Ok(()) => Event::RemoteOpSucceeded { op },
+                op,
+                imap,
+                steps,
+                account: imap_account,
+            } => Ok(match self.remote(&imap, &steps) {
+                Ok(refused) => refused
+                    .into_iter()
+                    .map(|path| Event::KeywordsRefused {
+                        account: imap_account,
+                        path,
+                    })
+                    .chain([Event::RemoteOpSucceeded { op }])
+                    .collect(),
                 // The fake server answered: a refusal is a rejection, not a lost connection.
-                Err(error) => Event::RemoteOpFailed {
+                Err(error) => vec![Event::RemoteOpFailed {
                     op,
                     error,
                     permanent: true,
-                },
-            }]),
+                }],
+            }),
             Effect::SaveDraft {
                 draft,
                 imap,
@@ -520,7 +530,8 @@ impl MemoryBackend {
 
     /// Fake `SELECT` + `UID STORE` (also `1:*`) / `UID MOVE` / `UID COPY`, step by step. A step whose
     /// UIDVALIDITY no longer matches fails; steps before it stay applied (as on a real server).
-    fn remote(&self, imap: &ImapLogin, steps: &[RemoteStep]) -> Result<(), String> {
+    fn remote(&self, imap: &ImapLogin, steps: &[RemoteStep]) -> Result<Vec<String>, String> {
+        let mut refused = Vec::new();
         self.verify(&imap.login, &imap.secret)?;
         let mut server = self.server.lock();
         let account = server
@@ -538,6 +549,10 @@ impl MemoryBackend {
                     value,
                 } => {
                     let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    if flag.is_keyword() && !mailbox.keywords {
+                        refused.push(path.clone());
+                        continue;
+                    }
                     let name = flag.imap();
                     for message in mailbox
                         .messages
@@ -557,6 +572,10 @@ impl MemoryBackend {
                     value,
                 } => {
                     let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    if flag.is_keyword() && !mailbox.keywords {
+                        refused.push(path.clone());
+                        continue;
+                    }
                     let name = flag.imap();
                     for message in &mut mailbox.messages {
                         message.flags.retain(|f| !f.eq_ignore_ascii_case(name));
@@ -605,7 +624,7 @@ impl MemoryBackend {
                 }
             }
         }
-        Ok(())
+        Ok(refused)
     }
 
     /// Writes attachments of a stored body into the fake file system, like

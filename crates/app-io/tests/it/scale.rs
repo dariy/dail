@@ -121,6 +121,7 @@ fn a_50k_redb_cache() {
                 sync_window: None,
                 history_complete: false,
                 last_fetch_ms: None,
+                custom_keywords: None,
                 identity: None,
             }],
             ..MailDelta::default()

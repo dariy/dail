@@ -346,6 +346,23 @@ pub fn resolve(binding: &Binding, state: &AppState) -> Option<Action> {
                 .find(|m| m.account == account && m.role == Some(role))?;
             run(Command::OpenMailbox { id: mailbox.id })
         }
+        CommandName::PinThreads => {
+            // `Shift+P` toggles: unpin when every targeted thread is pinned (MISC-4).
+            let ids = palette::targets(state);
+            if ids.is_empty() {
+                return None;
+            }
+            let all = ids
+                .iter()
+                .filter_map(|t| state.threads.get(t))
+                .all(|t| listing::is_pinned(state, t));
+            let messages = Vec::new();
+            run(if all {
+                Command::UnpinThreads { ids, messages }
+            } else {
+                Command::PinThreads { ids, messages }
+            })
+        }
         CommandName::MarkRead | CommandName::MarkUnread if binding.text == "u" => {
             // `u` toggles: read if anything targeted is unread, else unread.
             let ids = palette::targets(state);

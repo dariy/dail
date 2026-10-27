@@ -33,6 +33,8 @@ impl FlagChange {
             (FlagKind::Seen, false) => Command::MarkUnread { ids, messages },
             (FlagKind::Flagged, true) => Command::Star { ids, messages },
             (FlagKind::Flagged, false) => Command::Unstar { ids, messages },
+            (FlagKind::Pinned, true) => Command::PinThreads { ids, messages },
+            (FlagKind::Pinned, false) => Command::UnpinThreads { ids, messages },
         }
     }
 
@@ -42,6 +44,8 @@ impl FlagChange {
             (FlagKind::Seen, false) => "Mark unread",
             (FlagKind::Flagged, true) => "Star",
             (FlagKind::Flagged, false) => "Unstar",
+            (FlagKind::Pinned, true) => "Pin",
+            (FlagKind::Pinned, false) => "Unpin",
         }
     }
 }
@@ -136,7 +140,8 @@ impl Engine {
                 .threads
                 .get(id)
                 .ok_or_else(|| not_found("thread", id))?;
-            if change.flag == FlagKind::Flagged && change.value {
+            // Starring or pinning a thread marks its newest message.
+            if matches!(change.flag, FlagKind::Flagged | FlagKind::Pinned) && change.value {
                 picked.extend(thread.messages.last());
             } else {
                 picked.extend(&thread.messages);

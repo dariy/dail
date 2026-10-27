@@ -244,11 +244,12 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
     }
 }
 
-/** The star and the paper clip. */
+/** The paper clip, the star and the pin. */
 @Composable
 private fun Marks(row: Row) {
     if (row.attachments) Box(Modifier.padding(start = 4.dp)) { Glyph("attach_file") }
     if (row.starred) Box(Modifier.padding(start = 4.dp)) { Glyph("star") }
+    if (row.pinned) Box(Modifier.padding(start = 4.dp)) { Glyph("push_pin") }
 }
 
 /** The account's colour bar, with two accounts or more. */

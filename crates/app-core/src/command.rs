@@ -430,6 +430,28 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         messages: Vec<MessageId>,
     },
+    /// Pin threads to the top of every list that shows them (a pinned thread's newest message
+    /// gets the IMAP keyword `$Pinned`, so the pin syncs; on a server that keeps no keywords it
+    /// stays on this device). Give `ids`, `messages` or both. Applied locally at once and on the
+    /// server in the background. Undoable.
+    PinThreads {
+        /// Threads to pin.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to pin (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Unpin threads (every message) or single messages (see `pin_threads`). Give `ids`,
+    /// `messages` or both. Undoable.
+    UnpinThreads {
+        /// Threads to change.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to change (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
     /// Archive threads or single messages: move their inbox (and junk or custom-folder) messages
     /// to the account's archive (Gmail: remove from INBOX, i.e. All Mail; Hostinger: the
     /// `Archive` folder, created if missing). Give `ids`, `messages` or both. Applied locally at
@@ -1071,6 +1093,8 @@ impl Command {
             | Self::MarkUnread { .. }
             | Self::Star { .. }
             | Self::Unstar { .. }
+            | Self::PinThreads { .. }
+            | Self::UnpinThreads { .. }
             | Self::ArchiveThreads { .. }
             | Self::TrashThreads { .. }
             | Self::MoveThreads { .. }
@@ -1155,6 +1179,8 @@ impl Command {
             Self::MarkUnread { .. } => CommandName::MarkUnread,
             Self::Star { .. } => CommandName::Star,
             Self::Unstar { .. } => CommandName::Unstar,
+            Self::PinThreads { .. } => CommandName::PinThreads,
+            Self::UnpinThreads { .. } => CommandName::UnpinThreads,
             Self::ArchiveThreads { .. } => CommandName::ArchiveThreads,
             Self::TrashThreads { .. } => CommandName::TrashThreads,
             Self::MoveThreads { .. } => CommandName::MoveThreads,

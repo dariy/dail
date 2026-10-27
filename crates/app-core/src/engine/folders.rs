@@ -112,6 +112,7 @@ impl Engine {
                 history_complete: false,
                 identity: None,
                 last_fetch_ms: None,
+                custom_keywords: None,
             },
         );
         let mut changes = CacheChanges::default();
@@ -306,5 +307,30 @@ impl Engine {
         let mut outcome = Outcome::new(receipt);
         outcome.effects.extend(self.start_listing(account));
         outcome
+    }
+
+    /// `KeywordsRefused`: the mailbox keeps pins on the device from now on.
+    pub(super) fn ingest_keywords_refused(
+        &mut self,
+        account: AccountId,
+        path: &str,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let Some(mailbox) = self
+            .state
+            .mailboxes
+            .values_mut()
+            .find(|m| m.account == account && m.path == path)
+        else {
+            return Outcome::new(receipt);
+        };
+        if mailbox.custom_keywords == Some(false) {
+            return Outcome::new(receipt);
+        }
+        mailbox.custom_keywords = Some(false);
+        let id = mailbox.id;
+        let mut changes = CacheChanges::default();
+        changes.mailboxes.insert(id);
+        self.folder_outcome(receipt.affecting(EntityRef::Mailbox(id)), changes, None)
     }
 }

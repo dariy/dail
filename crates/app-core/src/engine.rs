@@ -311,6 +311,9 @@ impl Engine {
             Event::DraftSaveFailed { draft, error } => {
                 Ok(self.ingest_draft_saved(draft, Err(error), ctx, receipt))
             }
+            Event::KeywordsRefused { account, path } => {
+                Ok(self.ingest_keywords_refused(account, &path, receipt))
+            }
             Event::FolderManaged { account, .. } => {
                 Ok(self.ingest_folder(account, None, ctx, receipt))
             }
@@ -692,6 +695,16 @@ impl Engine {
             ),
             Command::MarkUnread { ids, messages } => self.set_flag(
                 flag_change(FlagKind::Seen, false, ids, messages),
+                ctx,
+                receipt,
+            ),
+            Command::PinThreads { ids, messages } => self.set_flag(
+                flag_change(FlagKind::Pinned, true, ids, messages),
+                ctx,
+                receipt,
+            ),
+            Command::UnpinThreads { ids, messages } => self.set_flag(
+                flag_change(FlagKind::Pinned, false, ids, messages),
                 ctx,
                 receipt,
             ),

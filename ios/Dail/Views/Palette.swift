@@ -42,7 +42,7 @@ enum Icons {
         "keyboard": "keyboard", "light_mode": "sun.max", "link": "link", "mail": "envelope",
         "mark_email_read": "envelope.open", "mark_email_unread": "envelope.badge", "menu": "line.3.horizontal",
         "more_horiz": "ellipsis", "open_in_new": "arrow.up.right.square", "person": "person",
-        "picture_as_pdf": "doc.richtext", "reply": "arrowshape.turn.up.left", "reply_all": "arrowshape.turn.up.left.2",
+        "picture_as_pdf": "doc.richtext", "push_pin": "pin", "reply": "arrowshape.turn.up.left", "reply_all": "arrowshape.turn.up.left.2",
         "report": "exclamationmark.octagon", "schedule": "clock", "search": "magnifyingglass", "send": "paperplane",
         "settings": "gearshape", "star": "star", "sync": "arrow.triangle.2.circlepath", "undo": "arrow.uturn.backward",
         "unfold_less": "arrow.down.right.and.arrow.up.left", "unfold_more": "arrow.up.left.and.arrow.down.right",

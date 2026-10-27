@@ -197,6 +197,8 @@ impl Engine {
                 for (mailbox, uids) in self.uids_by_mailbox(&located) {
                     if let Some(mailbox) = self.state.mailboxes.get(&mailbox)
                         && let Some(uid_validity) = mailbox.uid_validity
+                        // Keywords stay local where the server keeps none.
+                        && (!flag.is_keyword() || mailbox.custom_keywords != Some(false))
                     {
                         resolved.steps.push(RemoteStep::Store {
                             path: mailbox.path.clone(),
@@ -462,7 +464,11 @@ impl Engine {
             return;
         };
         let (account, local) = (envelope.account, envelope.flags);
-        for flag in [FlagKind::Seen, FlagKind::Flagged] {
+        let keywords = self.keeps_keywords(envelope.mailbox);
+        for flag in [FlagKind::Seen, FlagKind::Flagged, FlagKind::Pinned] {
+            if flag.is_keyword() && !keywords {
+                continue;
+            }
             let value = flag.get(&local);
             if flag.get(&server) != value {
                 let op = RemoteOp::SetFlag {
@@ -580,6 +586,12 @@ impl Engine {
     /// a sync does not undo a local change that has not reached the server yet.
     pub(super) fn with_pending_flags(&self, message: MessageId, flags: Flags) -> Flags {
         let mut flags = flags;
+        // A mailbox that keeps no keywords: the pin lives on the device only (MISC-4).
+        if let Some(local) = self.state.messages.get(&message)
+            && !self.keeps_keywords(local.mailbox)
+        {
+            flags.pinned = local.flags.pinned;
+        }
         for op in self.state.outbox.values() {
             if let RemoteOp::SetFlag {
                 flag,
@@ -592,5 +604,13 @@ impl Engine {
             }
         }
         flags
+    }
+
+    /// Whether `mailbox` keeps keywords such as `$Pinned` on the server (unknown counts as yes).
+    pub(super) fn keeps_keywords(&self, mailbox: MailboxId) -> bool {
+        self.state
+            .mailboxes
+            .get(&mailbox)
+            .is_none_or(|m| m.custom_keywords != Some(false))
     }
 }

@@ -30,6 +30,7 @@ mod moves;
 mod panes;
 mod pending;
 mod periodic;
+mod pins;
 mod preview;
 mod registry;
 mod replay;

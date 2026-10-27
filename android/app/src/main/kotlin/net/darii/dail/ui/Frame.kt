@@ -160,6 +160,7 @@ data class Row(
     val date: String,
     val unread: Boolean,
     val starred: Boolean,
+    val pinned: Boolean = false,
     val attachments: Boolean,
     val messages: Int,
     val tag: Int? = null,

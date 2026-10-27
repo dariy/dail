@@ -755,6 +755,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             ids,
             messages: Vec::new(),
         }),
+        CommandName::PinThreads => on_threads(state, |ids| Command::PinThreads {
+            ids,
+            messages: Vec::new(),
+        }),
+        CommandName::UnpinThreads => on_threads(state, |ids| Command::UnpinThreads {
+            ids,
+            messages: Vec::new(),
+        }),
         CommandName::ArchiveThreads => on_threads(state, |ids| Command::ArchiveThreads {
             ids,
             messages: Vec::new(),

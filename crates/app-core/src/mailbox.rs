@@ -51,6 +51,10 @@ pub struct Mailbox {
     /// this is older than `stale_secs`; UX-6).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_fetch_ms: Option<i64>,
+    /// `Some(false)` once the server refused to keep keywords here (`PERMANENTFLAGS` without
+    /// `\*`): pins stay on the device and the server's flags never clear them (MISC-4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_keywords: Option<bool>,
 }
 
 impl Mailbox {

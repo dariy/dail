@@ -169,6 +169,15 @@ pub enum Event {
         /// The draft.
         draft: DraftId,
     },
+    /// A remote op's `STORE` of a keyword (`$Pinned`) was skipped because the mailbox at `path`
+    /// keeps none (`PERMANENTFLAGS` without `\*`): pins there stay on the device (MISC-4).
+    /// Reported before the op's `RemoteOpSucceeded`.
+    KeywordsRefused {
+        /// The account.
+        account: AccountId,
+        /// The mailbox's IMAP path.
+        path: String,
+    },
     /// An [`Effect::ManageFolder`] succeeded: the account's folders are listed again.
     FolderManaged {
         /// The account.
@@ -407,6 +416,7 @@ impl Event {
             Self::DraftDeleted { .. } => "draft_deleted",
             Self::DraftDeleteFailed { .. } => "draft_delete_failed",
             Self::FolderManaged { .. } => "folder_managed",
+            Self::KeywordsRefused { .. } => "keywords_refused",
             Self::FolderFailed { .. } => "folder_failed",
             Self::MessageSent { .. } => "message_sent",
             Self::SendFailed { .. } => "send_failed",
