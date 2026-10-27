@@ -204,14 +204,14 @@ struct Placeholder: View {
     }
 }
 
-/// The About screen: what the app is, then every bundled work's licence.
+/// The About screen: what the app is, then every bundled work's licence. The title is in the top
+/// bar beside its close (MISC-13).
 struct AboutView: View {
     let about: About
 
     var body: some View {
         List {
             Section {
-                Text(about.title).font(.title3).accessibilityAddTraits(.isHeader)
                 Text(verbatim: about.text)
             }
             ForEach(about.licences, id: \.name) { licence in

@@ -240,9 +240,16 @@ fn generate(task: &str) -> Result<std::path::PathBuf> {
     Ok(ios)
 }
 
+/// The app's version for `xcodebuild`: `[workspace.package] version`, the only place it is
+/// written (`ios/project.yml` has none).
+fn marketing() -> String {
+    format!("MARKETING_VERSION={}", env!("CARGO_PKG_VERSION"))
+}
+
 /// Both XCFrameworks, the generated Xcode project, and every scheme built for the simulator.
 fn build() -> Result<()> {
     let ios = generate("ios build")?;
+    let marketing = marketing();
     for scheme in SCHEMES {
         run_in(
             &ios,
@@ -257,6 +264,7 @@ fn build() -> Result<()> {
                 "generic/platform=iOS Simulator",
                 "-derivedDataPath",
                 "../target/ios-xcode",
+                &marketing,
             ],
         )?;
     }
@@ -311,6 +319,7 @@ fn test() -> Result<()> {
     }
     let destination = format!("platform=iOS Simulator,id={device}");
     let results = results.display().to_string();
+    let marketing = marketing();
     run_in(
         &ios,
         "xcodebuild",
@@ -326,6 +335,7 @@ fn test() -> Result<()> {
             "../target/ios-xcode",
             "-resultBundlePath",
             &results,
+            &marketing,
         ],
     )?;
     writeln!(std::io::stderr().lock(), "ios test passed")?;
@@ -337,10 +347,10 @@ fn app() -> Result<()> {
     let ios = generate("ios app")?;
     let root = workspace_root()?;
     let version = env!("CARGO_PKG_VERSION");
+    let marketing = marketing();
     let dist = root.join("dist");
     std::fs::create_dir_all(&dist)
         .with_context(|| format!("failed to create {}", dist.display()))?;
-    let marketing = format!("MARKETING_VERSION={version}");
     for (scheme, product, suffix) in [("Dail", "Dail", ""), ("DailDemo", "DailDemo", "-demo")] {
         let archive = root.join(format!("target/ios-archive/{scheme}.xcarchive"));
         if archive.exists() {

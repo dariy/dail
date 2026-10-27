@@ -265,10 +265,25 @@ fn tag(value: &serde_json::Value, key: &str) -> String {
     value[key].as_str().unwrap().to_owned()
 }
 
+/// The running version lives in `Cargo.toml` only: a string that holds it (the About title) is
+/// written with `<version>` in its place, so a release bump leaves the fixtures alone. Only a whole
+/// string equal to the About title changes: a crate list's `x 0.1.0` stays.
+fn unversioned(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::String(text) if *text == app_mobile::theme::about_title() => {
+            *text = "About dail (<version>)".to_owned();
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(unversioned),
+        serde_json::Value::Object(map) => map.values_mut().for_each(unversioned),
+        _ => {}
+    }
+}
+
 /// Every fixture, by path relative to [`dir`].
 fn fixtures() -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
-    let mut put = |name: String, value: serde_json::Value| {
+    let mut put = |name: String, mut value: serde_json::Value| {
+        unversioned(&mut value);
         let text = serde_json::to_string_pretty(&value).unwrap() + "\n";
         assert!(out.insert(name.clone(), text).is_none(), "{name} twice");
     };

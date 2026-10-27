@@ -12,7 +12,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
+    # MARKETING_VERSION is not here: `cargo xtask ios` passes it to xcodebuild from Cargo.toml's
+    # `[workspace.package] version`, the one place the version is written.
     CURRENT_PROJECT_VERSION: "1"
     # libdail.a is arm64 only (devices and Apple-silicon simulators; xtask/src/ios.rs TARGETS).
     "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64

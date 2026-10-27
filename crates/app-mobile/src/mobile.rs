@@ -890,7 +890,8 @@ impl Mobile {
         if self.about {
             // MISC-3: the About screen closes from its own top bar, not only with Back.
             return TopBar {
-                title: "About".to_owned(),
+                // `× About dail (<version>)` (MISC-13).
+                title: crate::theme::about_title(),
                 subtitle: None,
                 navigation: Some(self.button("close", "Close", Act::Back)),
                 actions: Vec::new(),

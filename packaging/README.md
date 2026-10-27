@@ -17,9 +17,10 @@
 - `windows/dail.manifest`: embedded into `dail.exe` by `crates/app-cli/build.rs` (MSVC targets). Its
   `consoleAllocationPolicy` of `detached` stops Windows 11 24H2+ from opening a console when dail is started from
   Explorer, the Start menu or a shortcut, so only the GUI appears. Run from a terminal, dail still uses that terminal.
-- Versions: `cargo xtask release bump <x.y.z>` writes the version into every site (`[workspace.package]` in
-  `Cargo.toml`, which Gradle reads, and `MARKETING_VERSION` in `ios/project.yml`), refreshes `Cargo.lock` and the
-  mobile contract fixtures, and adds a `CHANGELOG.md` section (`--note <text>` fills it, else a stub).
+- Versions: the version is written in one place, `[workspace.package]` in `Cargo.toml`. Gradle reads it,
+  `cargo xtask ios` passes it to xcodebuild as `MARKETING_VERSION`, the apps get it from the binary, and the mobile
+  contract fixtures write `<version>`. `cargo xtask release bump <x.y.z>` rewrites it, refreshes `Cargo.lock` and
+  adds a `CHANGELOG.md` section (`--note <text>` fills it, else a stub).
   `cargo xtask release versions` lists the sites; `cargo xtask release next <patch|minor|major>` prints the next
   version.
 - Release on merge (MISC-9): `.github/workflows/bump.yml` runs on every push to `main` (a merged PR). It bumps the

@@ -232,7 +232,7 @@ private fun AboutScreen(
     modifier: Modifier,
 ) {
     LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        item { Text(about.title, style = MaterialTheme.typography.titleLarge) }
+        // The title is in the top bar beside its close: `× About dail (<version>)` (MISC-13).
         item { Text(about.text, Modifier.padding(vertical = 8.dp)) }
         items(about.licences, key = { it.name }) { licence ->
             Column(Modifier.padding(vertical = 8.dp)) {

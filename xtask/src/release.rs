@@ -4,9 +4,8 @@
 //! - `check-tag <vX.Y.Z>`: fails unless every version site holds the tag's version (the guard job
 //!   of `release.yml`).
 //! - `next <patch|minor|major>`: prints the version after the current one (MISC-9).
-//! - `bump <x.y.z> [--note <text>]`: writes the version into every site, refreshes `Cargo.lock` and
-//!   the mobile contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md`
-//!   section: `- <text>`, or a stub to fill in by hand.
+//! - `bump <x.y.z> [--note <text>]`: writes the version into every site, refreshes `Cargo.lock`,
+//!   and adds a `CHANGELOG.md` section: `- <text>`, or a stub to fill in by hand.
 //! - `notes`: prints the `CHANGELOG.md` section of the current version (the release notes).
 //! - `manifest`, `keygen`: see [`crate::manifest`].
 
@@ -35,11 +34,6 @@ pub(crate) const SITES: &[Site] = &[
     Site {
         path: "Cargo.toml",
         prefix: "version = \"",
-        suffix: "\"",
-    },
-    Site {
-        path: "ios/project.yml",
-        prefix: "MARKETING_VERSION: \"",
         suffix: "\"",
     },
 ];
@@ -235,14 +229,6 @@ fn bump(root: &Path, version: &str, note: Option<&str>) -> Result<()> {
     if !status.success() {
         bail!("cargo update --workspace failed with {status}");
     }
-    let status = Command::new(&cargo)
-        .current_dir(root)
-        .env("DAIL_UPDATE_CONTRACT", "1")
-        .args(["test", "-p", "app-mobile", "--test", "it", "contract"])
-        .status()?;
-    if !status.success() {
-        bail!("refreshing the contract fixtures failed with {status}");
-    }
     let mut out = std::io::stdout().lock();
     writeln!(
         out,
@@ -266,6 +252,21 @@ mod tests {
         let cargo = std::fs::read_to_string(root.join("Cargo.toml")).unwrap();
         let package = cargo.find("[workspace.package]").unwrap();
         assert!(cargo.find("version = \"").unwrap() > package);
+    }
+
+    /// The version is written once: the iOS app gets it from `cargo xtask ios` (MARKETING_VERSION
+    /// on the xcodebuild line), and the contract fixtures write `<version>`.
+    #[test]
+    fn the_version_is_written_once() {
+        let root = workspace_root().unwrap();
+        let ios = std::fs::read_to_string(root.join("ios/project.yml")).unwrap();
+        assert!(
+            !ios.contains("MARKETING_VERSION:"),
+            "ios/project.yml sets a version"
+        );
+        let about = root.join("android/app/src/test/resources/contract/frames/about.json");
+        let about = std::fs::read_to_string(about).unwrap();
+        assert!(about.contains("\"About dail (<version>)\""));
     }
 
     #[test]

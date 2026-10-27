@@ -74,7 +74,10 @@ fn about_shows_the_licences_and_back_closes_it() {
     assert!(frame.back);
     assert!(frame.fab.is_none(), "nothing floats over the licences");
     let about = frame.about.unwrap();
-    assert!(about.text.contains(env!("CARGO_PKG_VERSION")));
+    assert!(
+        about.title.contains(env!("CARGO_PKG_VERSION")),
+        "MISC-13: the version is in the title"
+    );
     let licences = about.licences;
     let names: Vec<&str> = licences.iter().map(|l| l.name.as_str()).collect();
     assert_eq!(
@@ -136,7 +139,13 @@ fn the_about_screen_has_a_close_button_in_its_top_bar() {
     let frame = phone.frame();
     assert!(frame.about.is_some());
     assert!(frame.drawer.is_none(), "the modal drawer gives way");
-    assert_eq!(frame.top_bar.title, "About");
+    assert_eq!(
+        frame.top_bar.title,
+        format!("About dail ({})", env!("CARGO_PKG_VERSION"))
+    );
+    let text = frame.about.as_ref().unwrap().text.clone();
+    assert!(text.starts_with("Email client for IMAP and SMTP accounts"));
+    assert!(!text.contains("agent") && !text.contains("keyboard"));
     let close = frame.top_bar.navigation.unwrap();
     assert_eq!(
         (close.icon.as_deref(), close.label.as_str()),
