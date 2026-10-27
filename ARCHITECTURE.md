@@ -1804,6 +1804,7 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 | HTML sanitizer | `ammonia` | "Open original"; shares `html5ever` with `html2text` |
 | Full-text index | `tantivy` 0.27 (app-io; no default features: zstd would compile C) | Body words found offline (ADR 0005) |
 | HTML parser | `html5ever` | The reader's documents (`app_io::document`); the parser `html2text` and `ammonia` use too |
+| Update signatures | `minisign-verify` (app-io), `minisign` (xtask only) | Ed25519 in minisign format, pure Rust, no dependencies on the verifying side; `app_io::update::verify_manifest` checks signature, trusted comment and version (ADR 0011) |
 | Browser | `webbrowser` (app-gui) | Opens clicked links and the original page |
 | Notifications | `zbus` 5 (Linux), `windows` 0.62 `UI_Notifications` (Windows), both app-gui | Desktop notifications; both crates already in the tree (keyring, accesskit); `notify-rust` would add `mac-notification-sys`, which compiles C |
 | Images | `image` 0.25 (app-gui; png, jpeg, gif, webp) | Inline `cid:` images; pure-Rust decoders, already in the tree via eframe |

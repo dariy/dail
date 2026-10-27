@@ -7,3 +7,4 @@ mod mime;
 mod original;
 mod scale;
 mod store;
+mod update;

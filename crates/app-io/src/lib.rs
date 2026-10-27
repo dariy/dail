@@ -10,6 +10,7 @@ pub mod mime;
 pub mod original;
 pub mod profile;
 pub mod store;
+pub mod update;
 
 pub use config::{AccountConfig, Config, ConfigStore};
 pub use profile::ProfileDirs;
