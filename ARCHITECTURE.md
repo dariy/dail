@@ -1830,7 +1830,7 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 
 **Dependency automation** (Wave 7 D, ADR 0011): Dependabot opens grouped minor/patch PRs for actions, Cargo and Gradle
 (`.github/dependabot.yml`); `gradle-verification.yml` regenerates `android/gradle/verification-metadata.xml` on
-Dependabot's Gradle PRs and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
+Dependabot's Gradle PRs into `main` and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
 (`rust-toolchain.toml`) and NDK (the workflows); `advisories.yml` runs `cargo deny check advisories` on `main` every
 night and opens or updates an issue when it fails. The gates stay cargo-deny, Gradle's verification and the licence
 allowlist; bot PRs are merged like any other.

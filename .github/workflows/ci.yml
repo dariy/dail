@@ -1,5 +1,5 @@
-# Runs the Verification Loop (AGENTS.md §6) on every push and pull request, as parallel jobs that each run
-# `cargo xtask verify <gates>`: fmt and deny once (neither depends on the OS; the deny graph covers every
+# Runs the Verification Loop (AGENTS.md §6) on pushes to main and on pull requests into main (MISC-15), as
+# parallel jobs that each run `cargo xtask verify <gates>`: fmt and deny once (neither depends on the OS; the deny graph covers every
 # target), and clippy next to test + smoke on Ubuntu and Windows. clippy only builds metadata and test builds
 # code, so one job running all three would share little more than build scripts.
 name: ci
@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   # Re-run by hand (the iOS job always runs then).
   workflow_dispatch:
 

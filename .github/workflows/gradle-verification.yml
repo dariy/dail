@@ -5,6 +5,7 @@ name: gradle-verification
 
 on:
   pull_request:
+    branches: [main]
     paths: ["android/**"]
 
 permissions:

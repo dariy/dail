@@ -695,7 +695,7 @@ shipping the rest.
 
 ### R — Release
 - [ ] MISC-8 [ci]: install `desktop-file-utils` for the AppImage step; a dry-run `release` on `main` is green
-- [ ] MISC-15 [ci]: `ci.yml` and `gradle-verification.yml` run only on PRs into `main` (and `ci.yml` on `main`)
+- [x] MISC-15 [ci]: `ci.yml` and `gradle-verification.yml` run only on PRs into `main` (and `ci.yml` on `main`)
 - [ ] MISC-9 [ci][xtask]: merge into `main` → bump job (`cargo xtask release next`, `release bump`, patch unless a
   `release:minor|major|skip` label) commits and tags `vX.Y.Z` with a GitHub App token → `release.yml`
 - [ ] MISC-16 [repo]: ruleset on `main` in `.github/rulesets/main.json` — PR required, CI checks required, no direct
