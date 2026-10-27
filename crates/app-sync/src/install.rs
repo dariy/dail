@@ -254,16 +254,19 @@ mod tests {
             dpkg_lists_dail: dpkg,
             program_files: pf.map(PathBuf::from),
         };
-        assert_eq!(
-            probe(
-                Some("/home/me/dail.AppImage"),
-                "/tmp/.mount_x/usr/bin/dail",
-                false,
-                None
-            )
-            .kind(),
-            InstallKind::Appimage
-        );
+        // An AppImage path is only absolute on Unix; Windows wants a drive.
+        if cfg!(unix) {
+            assert_eq!(
+                probe(
+                    Some("/home/me/dail.AppImage"),
+                    "/tmp/.mount_x/usr/bin/dail",
+                    false,
+                    None
+                )
+                .kind(),
+                InstallKind::Appimage
+            );
+        }
         assert_eq!(
             probe(Some("rel"), "/usr/bin/dail", true, None).kind(),
             InstallKind::Deb
