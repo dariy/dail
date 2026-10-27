@@ -133,7 +133,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   because stderr is the screen.
 - **Tests.** ratatui's `TestBackend` with a real `Engine`, like `app-gui/tests`; `insta` snapshots of the buffer at
   40×20, 80×24 and 120×40; the clock injected. Look at it under tmux:
-  `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example demo'`, then `tmux send-keys -t t j Enter` and
+  `tmux new -d -s t -x 50 -y 20 'cargo run -p app-tui --example tui-demo'`, then `tmux send-keys -t t j Enter` and
   `tmux capture-pane -p -t t`.
 
 **Out of scope** (Wave 2, for both front-ends): multi-select, collapsed quotes and signatures, HTML rendering.
@@ -157,7 +157,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] [sync] Move `Bridge` from app-gui to app-sync: it runs over a `Connection`, submits with the front-end's origin, wakes the front-end through a callback, tags each result for it, and shuts the session down only if it owns it; opening the browser stays in app-gui (`tests/it/bridge.rs` stays green)
 
 ### T1 — Terminal shell
-- [x] [tui] Scaffold `app-tui`: `Tui`, a projection like `Shell` (`draw(frame, &state)`, `input(event, &state) -> Vec<Request>`, the clock injected); test support (`TestBackend`, a real `Engine`, `insta` buffer snapshots); `examples/demo.rs` like the GUI's (memory backend, `basic` fixture, account synced; `open`, `compose`, `agent`)
+- [x] [tui] Scaffold `app-tui`: `Tui`, a projection like `Shell` (`draw(frame, &state)`, `input(event, &state) -> Vec<Request>`, the clock injected); test support (`TestBackend`, a real `Engine`, `insta` buffer snapshots); `examples/tui-demo.rs` like the GUI's (memory backend, `basic` fixture, account synced; `open`, `compose`, `agent`)
 - [x] [tui] Terminal lifecycle: raw mode, alternate screen and bracketed paste, restored on quit, on error and on panic; one input queue for keys, resizes, pastes, bridge wake-ups and a 1 s tick while a countdown or an age is shown; redraws coalesced; a dead terminal, SIGHUP or SIGTERM (console close on Windows) shuts the session down cleanly (drafts saved)
 - [x] [cli] `dail tui` (the global flags apply): attaches to the profile's owner, or owns the profile and listens; an attached TUI whose owner goes away says so and exits; without accounts it shows the `dail account add` line to run in another shell (the account then appears live); plain `dail` starts the TUI on Linux when neither `DISPLAY` nor `WAYLAND_DISPLAY` is set and it runs in a terminal; `tracing` goes to a log file
 

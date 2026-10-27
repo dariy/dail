@@ -1280,7 +1280,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   notifications — it waits on the bridge's wake-ups, never polls — shows the agent's send request in the banner and
   the requests view, and its approval goes through with origin `tui`: the owner's session schedules the send.
 - **Tests.** `app-tui/tests` draw `Tui` on ratatui's `TestBackend` over a real `Engine` (requests dispatched with
-  `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example demo [open]
+  `Origin::Tui`, replies fed back) and snapshot the screen with `insta`. `cargo run -p app-tui --example tui-demo [open]
   [compose] [agent] [palette]` opens it on the memory backend.
 
 ### 7.5 Android (`app-mobile`, `app-android`, ADR 0009)
