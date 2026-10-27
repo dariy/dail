@@ -669,6 +669,17 @@
         "rail": {
           "description": "A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).",
           "type": "boolean"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Switches between the rail and the full tree (`toggle_sidebar`), where the pane can be\neither: a landscape window that is not compact, or an expanded one (MISC-11)."
         }
       },
       "required": [

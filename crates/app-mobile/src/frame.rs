@@ -164,6 +164,10 @@ pub struct Drawer {
     pub modal: bool,
     /// A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).
     pub rail: bool,
+    /// Switches between the rail and the full tree (`toggle_sidebar`), where the pane can be
+    /// either: a landscape window that is not compact, or an expanded one (MISC-11).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<Button>,
     /// Every account's inbox, with two accounts or more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub all_inboxes: Option<DrawerItem>,

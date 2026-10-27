@@ -25,7 +25,12 @@ expression: phone.frame()
   },
   "drawer": {
     "modal": false,
-    "rail": true,
+    "rail": false,
+    "style": {
+      "icon": "chevron_left",
+      "label": "Icons only",
+      "action": 10
+    },
     "accounts": [
       {
         "name": "alice@example.com",
@@ -108,10 +113,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 10,
-        "long_press": 11,
-        "swipe_start": 12,
-        "swipe_end": 13,
+        "action": 11,
+        "long_press": 12,
+        "swipe_start": 13,
+        "swipe_end": 14,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -126,10 +131,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 14,
-        "long_press": 15,
-        "swipe_start": 16,
-        "swipe_end": 17,
+        "action": 15,
+        "long_press": 16,
+        "swipe_start": 17,
+        "swipe_end": 18,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -147,7 +152,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 18
+    "action": 19
   },
   "theme": {
     "id": "dail-light",

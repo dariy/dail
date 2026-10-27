@@ -1338,8 +1338,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and the Android libraries of the release APK, each `name version SPDX-licence`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
   `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
-  and detail. The class never dispatches a command. A landscape window that is not compact shows the sidebar as the
-  icon rail (as `toggle_sidebar` does on a wide one). A pinch on the message (`pinch{zoom_in}`, MISC-6) steps the
+  and detail. The class never dispatches a command. A landscape window that is not compact always shows the sidebar
+  (MISC-6). There and on an expanded window, the drawer's `style` button runs `toggle_sidebar`: the full tree, or
+  the icon rail while `view.sidebar_collapsed` (persisted in `[view]`, MISC-11). A pinch on the message (`pinch{zoom_in}`, MISC-6) steps the
   presenter's `pane_step`: zooming in hides the sidebar, then the list; zooming out brings them back, one step per
   gesture; the text size never changes and the step stays across threads. Kotlin's drawer sheet and rail take no window
   insets of their own (the Scaffold's padding has them), which kept the landscape drawer too wide and misaligned.

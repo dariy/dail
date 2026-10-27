@@ -7,6 +7,8 @@ struct DrawerPane: View {
 
     var body: some View {
         List {
+            // Rail ↔ full tree (MISC-11), at the top of the pane.
+            if let style = drawer.style { FrameButton(button: style, send: send) }
             if let all = drawer.allInboxes { item(all) }
             ForEach(Array(drawer.accounts.enumerated()), id: \.offset) { _, account in
                 Section {

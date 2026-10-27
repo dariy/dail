@@ -99,6 +99,7 @@ data class TopBar(
 data class Drawer(
     val modal: Boolean,
     val rail: Boolean,
+    val style: Button? = null,
     @SerialName("all_inboxes") val allInboxes: DrawerItem? = null,
     val accounts: List<DrawerAccount>,
     val footer: List<DrawerItem>,

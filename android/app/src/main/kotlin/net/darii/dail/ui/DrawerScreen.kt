@@ -85,6 +85,8 @@ private fun DrawerItems(
     send: (UiEvent) -> Unit,
 ) {
     LazyColumn(Modifier.padding(horizontal = 12.dp)) {
+        // Rail ↔ full tree (MISC-11), at the top of the pane.
+        drawer.style?.let { style -> item { ActionButton(style, send) } }
         drawer.allInboxes?.let { item -> item { DrawerEntry(item, send) } }
         drawer.accounts.forEach { account ->
             item {
@@ -165,6 +167,7 @@ private fun DrawerRail(
     val items = listOfNotNull(drawer.allInboxes) + drawer.accounts.flatMap { it.mailboxes } + drawer.footer
     NavigationRail(Modifier.fillMaxHeight().width(RAIL_WIDTH), windowInsets = WindowInsets(0)) {
         LazyColumn {
+            drawer.style?.let { style -> item { ActionButton(style, send) } }
             items(items) { item ->
                 NavigationRailItem(
                     selected = item.selected,

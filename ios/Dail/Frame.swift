@@ -120,12 +120,13 @@ struct TopBar: Codable {
 struct Drawer: Codable {
     let modal: Bool
     let rail: Bool
+    let style: ActionButton?
     let allInboxes: DrawerItem?
     let accounts: [DrawerAccount]
     let footer: [DrawerItem]
 
     enum CodingKeys: String, CodingKey {
-        case modal, rail, accounts, footer
+        case modal, rail, style, accounts, footer
         case allInboxes = "all_inboxes"
     }
 }

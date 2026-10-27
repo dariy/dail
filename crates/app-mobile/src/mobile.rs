@@ -778,14 +778,15 @@ impl Mobile {
             kinds.retain(|k| *k == PaneKind::Drawer);
             kinds.push(PaneKind::Settings);
         }
-        // A collapsed sidebar on a wide window is a rail, not gone; so is the sidebar of a
-        // landscape window that is not compact (MISC-6).
+        // A landscape window that is not compact always has the left pane (MISC-6). There, and
+        // on any expanded window, `toggle_sidebar` switches it between the full tree and an
+        // icon rail (`sidebar_collapsed`, persisted in `[view]`; MISC-11).
         let landscape = self.window.width_dp > self.window.height_dp;
-        let rail = !state.accounts.is_empty()
+        let side = !state.accounts.is_empty()
             && !modal
-            && ((class == Class::Expanded && state.view.sidebar_collapsed)
-                || (landscape && class != Class::Compact));
-        if rail && !kinds.contains(&PaneKind::Drawer) {
+            && (class == Class::Expanded || (landscape && class != Class::Compact));
+        let rail = side && state.view.sidebar_collapsed;
+        if (rail || (side && landscape)) && !kinds.contains(&PaneKind::Drawer) {
             kinds.insert(0, PaneKind::Drawer);
         }
         // A pinch gave the message more room (MISC-6).
@@ -801,7 +802,7 @@ impl Mobile {
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         // A modal drawer gives way to the About screen it opened.
         let drawer = ((modal && !self.about) || kinds.contains(&PaneKind::Drawer))
-            .then(|| self.drawer(state, modal, rail, chosen.tags.len()));
+            .then(|| self.drawer(state, modal, rail, side, chosen.tags.len()));
         let list = kinds
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
@@ -974,7 +975,14 @@ impl Mobile {
     }
 
     /// The drawer. A tap in a modal drawer also closes it (`focus_pane list`).
-    fn drawer(&mut self, state: &AppState, modal: bool, rail: bool, tags: usize) -> Drawer {
+    fn drawer(
+        &mut self,
+        state: &AppState,
+        modal: bool,
+        rail: bool,
+        side: bool,
+        tags: usize,
+    ) -> Drawer {
         let open = |cmd: Command| {
             if modal {
                 Act::Many(vec![cmd, Command::FocusPane { pane: Pane::List }])
@@ -1081,9 +1089,19 @@ impl Mobile {
                 });
             }
         }
+        // The rail ↔ full tree switch, where the pane can be either (MISC-11).
+        let style = side.then(|| {
+            let (icon, label) = if rail {
+                ("chevron_right", "Show folder names")
+            } else {
+                ("chevron_left", "Icons only")
+            };
+            self.button(icon, label, Act::Run(Command::ToggleSidebar {}))
+        });
         Drawer {
             modal,
             rail,
+            style,
             all_inboxes,
             accounts,
             footer,

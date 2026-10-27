@@ -113,12 +113,30 @@ fn a_pinch_gives_the_message_more_room_one_step_at_a_time() {
 }
 
 #[test]
-fn a_landscape_window_shows_the_sidebar_as_a_rail() {
+fn a_landscape_window_switches_the_sidebar_between_tree_and_rail() {
+    // MISC-6 keeps the left pane in landscape; MISC-11 lets the user pick its style.
     let mut phone = Phone::inbox(800, 360);
     let frame = phone.frame();
     assert_eq!(frame.layout.panes[0], PaneKind::Drawer);
-    assert!(frame.drawer.unwrap().rail, "icons only");
+    let drawer = frame.drawer.unwrap();
+    assert!(!drawer.rail, "the full tree by default");
+    let style = drawer.style.unwrap();
+    assert_eq!(style.label, "Icons only");
+    assert_eq!(phone.tap(style.action), [Command::ToggleSidebar {}]);
+    assert!(phone.state().view.sidebar_collapsed, "persisted in [view]");
+    let frame = phone.frame();
+    assert_eq!(frame.layout.panes[0], PaneKind::Drawer);
+    let drawer = frame.drawer.unwrap();
+    assert!(drawer.rail, "icons only");
+    let style = drawer.style.unwrap();
+    assert_eq!(style.label, "Show folder names");
+    phone.tap(style.action);
+    assert!(!phone.frame().drawer.unwrap().rail);
+
     let mut phone = Phone::inbox(700, 1000);
     let frame = phone.frame();
-    assert!(frame.drawer.is_none_or(|d| !d.rail), "portrait: no rail");
+    assert!(
+        frame.drawer.is_none_or(|d| !d.rail && d.style.is_none()),
+        "portrait: no rail, no switch"
+    );
 }
