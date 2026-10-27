@@ -300,7 +300,9 @@ mod tests {
         assert!(
             target.ends_with("-unknown-linux-gnu")
                 || target.ends_with("-pc-windows-msvc")
-                || target.ends_with("-apple-darwin"),
+                || target.ends_with("-apple-darwin")
+                || (cfg!(any(target_os = "android", target_os = "ios"))
+                    && target == std::env::consts::OS),
             "{target}"
         );
     }
