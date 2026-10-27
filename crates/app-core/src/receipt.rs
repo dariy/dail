@@ -114,4 +114,6 @@ pub enum EntityRef {
     View,
     /// The runtime status.
     Status,
+    /// The update state (`update`).
+    Update,
 }

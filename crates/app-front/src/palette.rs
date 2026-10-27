@@ -272,6 +272,36 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// The confirmation step of `install_update` (the About screen's *Install* starts here).
+pub fn install_update(state: &AppState) -> Flow {
+    let version = match &state.update.status {
+        app_core::UpdateStatus::Ready { release, .. } => release.version.clone(),
+        _ => String::new(),
+    };
+    ask(
+        "Install the update? dail asks to restart afterwards.",
+        AskKind::Confirm(format!("Install dail {version}")),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::InstallUpdate { confirm: true }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `set_update_policy` from `on|off [hours]`.
+fn update_policy_command(text: &str) -> Command {
+    let mut words = text.split_whitespace();
+    let checks = match words.next().map(str::to_ascii_lowercase).as_deref() {
+        Some("on" | "yes") => Some(app_core::UpdateChecks::On),
+        Some("off" | "no") => Some(app_core::UpdateChecks::Off),
+        _ => None,
+    };
+    Command::SetUpdatePolicy {
+        checks,
+        interval_hours: words.next().and_then(|w| w.parse().ok()),
+    }
+}
+
 /// "Move to…" for `ids`: asks for the target among their account's mailboxes.
 pub fn move_to(state: &AppState, ids: Vec<ThreadId>) -> Flow {
     let account = ids
@@ -1025,6 +1055,22 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::ExpandFolders => Flow::Run(Command::ExpandFolders { keys: Vec::new() }),
         CommandName::GetView => Flow::Run(Command::GetView {}),
         CommandName::CompactStore => Flow::Run(Command::CompactStore {}),
+        CommandName::CheckForUpdates => Flow::Run(Command::CheckForUpdates {}),
+        CommandName::DownloadUpdate => Flow::Run(Command::DownloadUpdate {}),
+        CommandName::InstallUpdate => install_update(state),
+        CommandName::SkipUpdateVersion => match &state.update.status {
+            app_core::UpdateStatus::Available { release } => {
+                Flow::Run(Command::SkipUpdateVersion {
+                    version: Some(release.version.clone()),
+                })
+            }
+            _ => Flow::Run(Command::SkipUpdateVersion { version: None }),
+        },
+        CommandName::SetUpdatePolicy => text(
+            "Check for updates?",
+            "on or off, then hours between checks: on 24",
+            |text| update_policy_command(&text),
+        ),
         CommandName::ListApprovals => Flow::Run(Command::ListApprovals {}),
         CommandName::ApproveRequest => ask(
             "Approve which send request?",

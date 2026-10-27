@@ -655,8 +655,8 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] R5: `cargo xtask release bump <x.y.z>` — every version site and a CHANGELOG stub; a test pins the sites
 
 ### C — Core
-- [ ] C1 [core]: `UpdateState` (idle, checking, available, downloading, ready, failed; last check; skipped version)
-- [ ] C2 [core]: `check_for_updates`, `download_update`, `install_update` (`user_only`), `skip_update_version`,
+- [x] C1 [core]: `UpdateState` (idle, checking, available, downloading, ready, failed; last check; skipped version)
+- [x] C2 [core]: `check_for_updates`, `download_update`, `install_update` (`user_only`), `skip_update_version`,
   `set_update_policy`; effects and events; version comparison in core
 - [ ] C3 [core][sync]: periodic check, due-ness from `Ctx::now_ms` (like UX-6)
 

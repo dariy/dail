@@ -287,6 +287,11 @@ impl Engine {
                 )
             }
             Event::Tick { .. }
+            | Event::UpdateHostDetected { .. }
+            | Event::UpdateChecked { .. }
+            | Event::UpdateDownloaded { .. }
+            | Event::UpdateInstalled { .. }
+            | Event::UpdateFailed { .. }
             | Event::Persisted {}
             | Event::PersistFailed { .. }
             | Event::MailboxesListed { .. }

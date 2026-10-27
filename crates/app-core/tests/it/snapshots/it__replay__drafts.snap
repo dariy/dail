@@ -153,7 +153,11 @@ expression: first
       "theme_dark": "dail-dark",
       "theme_light": "dail-light",
       "tui_colors": 0,
-      "undo_send_ms": 10000
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
     },
     "status": {
       "bodies_in_flight": [
@@ -182,6 +186,11 @@ expression: first
           "00000000-0000-0003-0000-000000000001"
         ],
         "subject": "Q3 numbers"
+      }
+    },
+    "update": {
+      "status": {
+        "state": "idle"
       }
     },
     "view": {

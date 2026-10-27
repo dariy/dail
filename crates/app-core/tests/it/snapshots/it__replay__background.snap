@@ -27,7 +27,11 @@ expression: first
       "theme_dark": "dail-dark",
       "theme_light": "dail-light",
       "tui_colors": 0,
-      "undo_send_ms": 10000
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
     },
     "status": {
       "bodies_in_flight": [],
@@ -37,6 +41,11 @@ expression: first
       "sync": {}
     },
     "threads": {},
+    "update": {
+      "status": {
+        "state": "idle"
+      }
+    },
     "view": {
       "composer": null,
       "focus": "list",
@@ -76,7 +85,11 @@ expression: first
               "theme_dark": "dail-dark",
               "theme_light": "dail-light",
               "tui_colors": 0,
-              "undo_send_ms": 10000
+              "undo_send_ms": 10000,
+              "updates": {
+                "checks": "unset",
+                "interval_hours": 24
+              }
             },
             "kind": "query",
             "name": "get_settings",
@@ -112,7 +125,11 @@ expression: first
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
                     "tui_colors": 0,
-                    "undo_send_ms": 10000
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "unset",
+                      "interval_hours": 24
+                    }
                   }
                 }
               },
@@ -184,7 +201,11 @@ expression: first
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
                     "tui_colors": 0,
-                    "undo_send_ms": 10000
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "unset",
+                      "interval_hours": 24
+                    }
                   }
                 }
               },
@@ -236,7 +257,11 @@ expression: first
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
                     "tui_colors": 0,
-                    "undo_send_ms": 10000
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "unset",
+                      "interval_hours": 24
+                    }
                   }
                 }
               },
@@ -286,7 +311,11 @@ expression: first
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
                     "tui_colors": 0,
-                    "undo_send_ms": 10000
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "unset",
+                      "interval_hours": 24
+                    }
                   }
                 }
               },
@@ -336,7 +365,11 @@ expression: first
                     "theme_dark": "dail-dark",
                     "theme_light": "dail-light",
                     "tui_colors": 0,
-                    "undo_send_ms": 10000
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "unset",
+                      "interval_hours": 24
+                    }
                   }
                 }
               },

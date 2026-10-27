@@ -251,6 +251,16 @@ pub enum CommandName {
     GetView,
     /// See [`Command::CompactStore`].
     CompactStore,
+    /// See [`Command::CheckForUpdates`].
+    CheckForUpdates,
+    /// See [`Command::DownloadUpdate`].
+    DownloadUpdate,
+    /// See [`Command::InstallUpdate`].
+    InstallUpdate,
+    /// See [`Command::SkipUpdateVersion`].
+    SkipUpdateVersion,
+    /// See [`Command::SetUpdatePolicy`].
+    SetUpdatePolicy,
     /// See [`Command::ListApprovals`].
     ListApprovals,
     /// See [`Command::ApproveRequest`].
@@ -418,6 +428,11 @@ impl CommandName {
         Self::ToggleSidebar,
         Self::GetView,
         Self::CompactStore,
+        Self::CheckForUpdates,
+        Self::DownloadUpdate,
+        Self::InstallUpdate,
+        Self::SkipUpdateVersion,
+        Self::SetUpdatePolicy,
         Self::ListApprovals,
         Self::ApproveRequest,
         Self::RejectRequest,
@@ -511,6 +526,11 @@ impl CommandName {
             Self::ToggleSidebar => "toggle_sidebar",
             Self::GetView => "get_view",
             Self::CompactStore => "compact_store",
+            Self::CheckForUpdates => "check_for_updates",
+            Self::DownloadUpdate => "download_update",
+            Self::InstallUpdate => "install_update",
+            Self::SkipUpdateVersion => "skip_update_version",
+            Self::SetUpdatePolicy => "set_update_policy",
             Self::ListApprovals => "list_approvals",
             Self::ApproveRequest => "approve_request",
             Self::RejectRequest => "reject_request",
@@ -555,6 +575,10 @@ impl CommandName {
             | Self::RenameFolder
             | Self::SetDraftFrom
             | Self::SyncNow
+            | Self::CheckForUpdates
+            | Self::DownloadUpdate
+            | Self::SkipUpdateVersion
+            | Self::SetUpdatePolicy
             | Self::SetSyncWindow
             | Self::CompactStore
             | Self::ShowImagesFrom
@@ -613,7 +637,9 @@ impl CommandName {
             | Self::CollapseFolders
             | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
-            Self::RemoveAccount | Self::DeleteFolder => CommandKind::Destructive,
+            Self::RemoveAccount | Self::DeleteFolder | Self::InstallUpdate => {
+                CommandKind::Destructive
+            }
         }
     }
 
@@ -632,7 +658,8 @@ impl CommandName {
             | Self::RestoreDraft
             | Self::SaveAttachments
             | Self::ApproveRequest
-            | Self::RejectRequest => AgentAccess::UserOnly,
+            | Self::RejectRequest
+            | Self::InstallUpdate => AgentAccess::UserOnly,
             Self::SendDraft => AgentAccess::Approval,
             Self::GetSettings
             | Self::SetSetting
@@ -711,6 +738,10 @@ impl CommandName {
             | Self::ToggleSidebar
             | Self::GetView
             | Self::CompactStore
+            | Self::CheckForUpdates
+            | Self::DownloadUpdate
+            | Self::SkipUpdateVersion
+            | Self::SetUpdatePolicy
             | Self::ListApprovals => AgentAccess::Allowed,
         }
     }
@@ -1063,6 +1094,39 @@ impl CommandName {
             Self::ToggleSidebar => base("Toggle sidebar", Category::Navigation, &["Ctrl+B", "["]),
             Self::GetView => base("Show view state", Category::Navigation, &[]),
             Self::CompactStore => base("Compact the local store", Category::App, &[]),
+            Self::CheckForUpdates => base("Check for updates", Category::App, &[]),
+            Self::DownloadUpdate => CommandSpec {
+                available: |state| {
+                    matches!(
+                        state.update.status,
+                        crate::update::UpdateStatus::Available { .. }
+                    ) && state
+                        .update
+                        .host
+                        .as_ref()
+                        .is_some_and(|h| h.install.self_updates())
+                },
+                ..base("Download update", Category::App, &[])
+            },
+            Self::InstallUpdate => CommandSpec {
+                available: |state| {
+                    matches!(
+                        state.update.status,
+                        crate::update::UpdateStatus::Ready { .. }
+                    )
+                },
+                ..base("Install update", Category::App, &[])
+            },
+            Self::SkipUpdateVersion => CommandSpec {
+                available: |state| {
+                    matches!(
+                        state.update.status,
+                        crate::update::UpdateStatus::Available { .. }
+                    )
+                },
+                ..base("Skip this version", Category::App, &[])
+            },
+            Self::SetUpdatePolicy => base("Update checks", Category::App, &[]),
             Self::ListApprovals => CommandSpec {
                 available: has_approvals,
                 ..base("Show send requests", Category::Compose, &[])
@@ -1345,6 +1409,16 @@ impl CommandName {
             Self::ToggleSidebar => Command::ToggleSidebar {},
             Self::GetView => Command::GetView {},
             Self::CompactStore => Command::CompactStore {},
+            Self::CheckForUpdates => Command::CheckForUpdates {},
+            Self::DownloadUpdate => Command::DownloadUpdate {},
+            Self::InstallUpdate => Command::InstallUpdate { confirm: true },
+            Self::SkipUpdateVersion => Command::SkipUpdateVersion {
+                version: Some("0.2.0".to_owned()),
+            },
+            Self::SetUpdatePolicy => Command::SetUpdatePolicy {
+                checks: Some(crate::update::UpdateChecks::On),
+                interval_hours: Some(24),
+            },
             Self::ListApprovals => Command::ListApprovals {},
             Self::ApproveRequest => Command::ApproveRequest {
                 id: EXAMPLE_APPROVAL,

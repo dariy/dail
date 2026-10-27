@@ -20,6 +20,7 @@ mod search;
 mod sends;
 mod sync;
 mod triage;
+mod updates;
 mod view;
 mod watch;
 
@@ -473,6 +474,21 @@ impl Engine {
                 ctx,
                 receipt,
             )),
+            Event::UpdateHostDetected { host } => {
+                Ok(self.ingest_update_host(host, ctx.now_ms, receipt))
+            }
+            Event::UpdateChecked { manifest } => {
+                Ok(self.ingest_update_checked(manifest, ctx.now_ms, receipt))
+            }
+            Event::UpdateDownloaded { version, path } => {
+                Ok(self.ingest_update_downloaded(version, path, receipt))
+            }
+            Event::UpdateInstalled { version } => {
+                Ok(self.ingest_update_installed(version, receipt))
+            }
+            Event::UpdateFailed { reason } => {
+                Ok(self.ingest_update_failed(reason, ctx.now_ms, receipt))
+            }
             Event::Persisted {} => {
                 self.state.status.persist_error = None;
                 Ok(Outcome::new(receipt.affecting(EntityRef::Status)))
@@ -632,6 +648,16 @@ impl Engine {
             Command::RemoveAccount { id, confirm } => self
                 .remove_account(id, confirm, receipt)
                 .map(Applied::plain),
+            Command::CheckForUpdates {} => self.check_for_updates(receipt).map(Applied::plain),
+            Command::DownloadUpdate {} => self.download_update(receipt).map(Applied::plain),
+            Command::InstallUpdate { confirm } => {
+                self.install_update(confirm, receipt).map(Applied::plain)
+            }
+            Command::SkipUpdateVersion { version } => self.skip_update_version(version, receipt),
+            Command::SetUpdatePolicy {
+                checks,
+                interval_hours,
+            } => self.set_update_policy(checks, interval_hours, ctx.now_ms, receipt),
             Command::SyncNow { account } => {
                 self.sync_now(account, ctx, receipt).map(Applied::plain)
             }

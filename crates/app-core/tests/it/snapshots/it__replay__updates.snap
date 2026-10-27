@@ -1,0 +1,633 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "after_triage": 0,
+      "background_interval_mins": 30,
+      "background_sync": 1,
+      "full_sync_secs": 900,
+      "history_cap": 200,
+      "initial_window": 500,
+      "list_density": 0,
+      "mark_read_after_ms": 2000,
+      "notifications": 1,
+      "poll_secs": 120,
+      "stale_secs": 60,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "on",
+        "interval_hours": 24
+      }
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "update": {
+      "host": {
+        "install": "appimage",
+        "target": "x86_64-unknown-linux-gnu",
+        "version": "0.1.0"
+      },
+      "last_check_ms": 1700000006000,
+      "next_check_ms": 1700086406000,
+      "status": {
+        "state": "installed",
+        "version": "0.2.0"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "status": {
+                "state": "idle"
+              }
+            },
+            "kind": null,
+            "name": "update_host_detected",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "after_triage": 0,
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "on",
+                      "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "running": "0.1.0"
+              },
+              "effect": "check_for_updates"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              },
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "status": {
+                "state": "idle"
+              }
+            },
+            "kind": "mutation",
+            "name": "set_update_policy",
+            "ok": true,
+            "undo_label": "Change update checks"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "at_ms": 1700086402000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000002000,
+              "next_check_ms": 1700086402000,
+              "status": {
+                "release": {
+                  "artifact": {
+                    "kind": "appimage",
+                    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    "size": 3,
+                    "target": "x86_64-unknown-linux-gnu",
+                    "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                  },
+                  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0",
+                  "published_ms": 1699990000000,
+                  "version": "0.2.0"
+                },
+                "state": "available"
+              }
+            },
+            "kind": null,
+            "name": "update_checked",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "after_triage": 0,
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "on",
+                      "interval_hours": 24,
+                      "skipped_version": "0.2.0"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              },
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000002000,
+              "next_check_ms": 1700086402000,
+              "status": {
+                "state": "idle"
+              }
+            },
+            "kind": "mutation",
+            "name": "skip_update_version",
+            "ok": true,
+            "undo_label": "Skip version 0.2.0"
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "settings",
+                  "value": {
+                    "after_triage": 0,
+                    "background_interval_mins": 30,
+                    "background_sync": 1,
+                    "full_sync_secs": 900,
+                    "history_cap": 200,
+                    "initial_window": 500,
+                    "list_density": 0,
+                    "mark_read_after_ms": 2000,
+                    "notifications": 1,
+                    "poll_secs": 120,
+                    "stale_secs": 60,
+                    "text_scale": 100,
+                    "theme": 0,
+                    "theme_dark": "dail-dark",
+                    "theme_light": "dail-light",
+                    "tui_colors": 0,
+                    "undo_send_ms": 10000,
+                    "updates": {
+                      "checks": "on",
+                      "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              },
+              {
+                "entity": "settings"
+              }
+            ],
+            "data": {
+              "undone": "Skip version 0.2.0"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "running": "0.1.0"
+              },
+              "effect": "check_for_updates"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000002000,
+              "status": {
+                "state": "checking"
+              }
+            },
+            "kind": "mutation",
+            "name": "check_for_updates",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "at_ms": 1700086406000
+              },
+              "effect": "schedule_tick"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000006000,
+              "next_check_ms": 1700086406000,
+              "status": {
+                "release": {
+                  "artifact": {
+                    "kind": "appimage",
+                    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    "size": 3,
+                    "target": "x86_64-unknown-linux-gnu",
+                    "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                  },
+                  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0",
+                  "published_ms": 1699990000000,
+                  "version": "0.2.0"
+                },
+                "state": "available"
+              }
+            },
+            "kind": null,
+            "name": "update_checked",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "artifact": {
+                  "kind": "appimage",
+                  "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                  "size": 3,
+                  "target": "x86_64-unknown-linux-gnu",
+                  "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                },
+                "version": "0.2.0"
+              },
+              "effect": "download_update"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000006000,
+              "next_check_ms": 1700086406000,
+              "status": {
+                "release": {
+                  "artifact": {
+                    "kind": "appimage",
+                    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    "size": 3,
+                    "target": "x86_64-unknown-linux-gnu",
+                    "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                  },
+                  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0",
+                  "published_ms": 1699990000000,
+                  "version": "0.2.0"
+                },
+                "state": "downloading"
+              }
+            },
+            "kind": "mutation",
+            "name": "download_update",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000006000,
+              "next_check_ms": 1700086406000,
+              "status": {
+                "path": "/profile/updates/dail-0.2.0-x86_64.AppImage",
+                "release": {
+                  "artifact": {
+                    "kind": "appimage",
+                    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    "size": 3,
+                    "target": "x86_64-unknown-linux-gnu",
+                    "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                  },
+                  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0",
+                  "published_ms": 1699990000000,
+                  "version": "0.2.0"
+                },
+                "state": "ready"
+              }
+            },
+            "kind": null,
+            "name": "update_downloaded",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "err": {
+          "command": "install_update",
+          "error": "origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "err": {
+          "command": "install_update",
+          "error": "confirmation_required"
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "install": "appimage",
+                "path": "/profile/updates/dail-0.2.0-x86_64.AppImage",
+                "version": "0.2.0"
+              },
+              "effect": "install_update"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000006000,
+              "next_check_ms": 1700086406000,
+              "status": {
+                "release": {
+                  "artifact": {
+                    "kind": "appimage",
+                    "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                    "size": 3,
+                    "target": "x86_64-unknown-linux-gnu",
+                    "url": "https://github.com/dariy/dail/releases/download/v0.2.0/dail-0.2.0-x86_64.AppImage"
+                  },
+                  "notes_url": "https://github.com/dariy/dail/releases/tag/v0.2.0",
+                  "published_ms": 1699990000000,
+                  "version": "0.2.0"
+                },
+                "state": "installing"
+              }
+            },
+            "kind": "destructive",
+            "name": "install_update",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "update"
+              }
+            ],
+            "data": {
+              "host": {
+                "install": "appimage",
+                "target": "x86_64-unknown-linux-gnu",
+                "version": "0.1.0"
+              },
+              "last_check_ms": 1700000006000,
+              "next_check_ms": 1700086406000,
+              "status": {
+                "state": "installed",
+                "version": "0.2.0"
+              }
+            },
+            "kind": null,
+            "name": "update_installed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

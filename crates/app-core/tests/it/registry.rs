@@ -81,6 +81,7 @@ fn the_agent_policy_is_pinned() {
             "remove_identity",
             "save_attachments",
             "restore_draft",
+            "install_update",
             "approve_request",
             "reject_request"
         ]

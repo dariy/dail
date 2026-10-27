@@ -42,6 +42,9 @@ pub struct AppState {
     pub settings: Settings,
     /// Runtime health that must be visible to the user and to agents.
     pub status: StatusState,
+    /// Updates of dail itself (Wave 7): the running build and where an update stands.
+    #[serde(default)]
+    pub update: crate::update::UpdateState,
     /// Counts the engine's inputs, so that a front-end can keep what it derived from a state
     /// until the next one (`listing` projections are O(n) per call). Not part of the state's
     /// value: never serialized, and equal in every comparison.
@@ -398,6 +401,8 @@ pub struct Settings {
     /// Folders hidden from the sidebar's tree (`hide_mailbox`).
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub hidden_mailboxes: BTreeSet<FolderKey>,
+    /// Update checks of dail itself (`set_update_policy`, `skip_update_version`; ADR 0011).
+    pub updates: crate::update::UpdatePolicy,
 }
 
 /// A set of key bindings.
@@ -451,6 +456,7 @@ impl Default for Settings {
             keys: BTreeMap::new(),
             pinned_mailboxes: Vec::new(),
             hidden_mailboxes: BTreeSet::new(),
+            updates: crate::update::UpdatePolicy::default(),
         }
     }
 }

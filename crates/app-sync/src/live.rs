@@ -770,7 +770,10 @@ impl LiveBackend {
                     Err(error) => Event::SendFailed { draft, error },
                 },
             ]),
-            Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
+            Effect::ScheduleTick { .. }
+            | Effect::CheckForUpdates { .. }
+            | Effect::DownloadUpdate { .. }
+            | Effect::InstallUpdate { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
                 effect: effect.name(),
             }),

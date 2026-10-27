@@ -521,7 +521,11 @@ impl MemoryBackend {
                 },
                 Err(error) => Event::SendFailed { draft, error },
             }]),
-            Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
+            // The fake update server (Wave 7 S5) answers these.
+            Effect::ScheduleTick { .. }
+            | Effect::CheckForUpdates { .. }
+            | Effect::DownloadUpdate { .. }
+            | Effect::InstallUpdate { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
                 effect: effect.name(),
             }),

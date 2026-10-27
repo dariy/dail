@@ -761,6 +761,40 @@ pub enum Command {
     /// open thread, the search, the open draft, the focused pane and whether the palette is open
     /// or the sidebar collapsed. Read-only.
     GetView {},
+    /// Check for a new version of dail now: fetch the signed release manifest from GitHub and
+    /// verify it. Sends nothing but a plain GET with `User-Agent: dail/<version>`. Works even
+    /// when periodic checks are off. The outcome appears in `update.status` (`available`,
+    /// `idle` when nothing is newer, or `failed`). Not undoable.
+    CheckForUpdates {},
+    /// Download the available update (`update.status` is `available`) to the profile's
+    /// `updates/` and verify its size and SHA-256 against the signed manifest. Desktop only: on
+    /// Android and iOS the user opens the release page. Not undoable.
+    DownloadUpdate {},
+    /// Install the downloaded update (`update.status` is `ready`): replace the running AppImage
+    /// or binary, or start the `.deb`/MSI installer, which asks for admin rights. It runs
+    /// downloaded code, so only the user can do this; agents (MCP) get `origin_not_allowed`.
+    /// Requires `confirm: true`; cannot be undone. Restart dail afterwards.
+    InstallUpdate {
+        /// Must be `true`; confirms that the install is intended.
+        #[serde(default)]
+        confirm: bool,
+    },
+    /// Skip one version: it is not offered again (a newer one is). `null` offers every version
+    /// again. Undoable.
+    SkipUpdateVersion {
+        /// The version to skip, `x.y.z` (usually `update.status.release.version`), or `null`.
+        version: Option<String>,
+    },
+    /// Change the update policy: periodic checks (`on`, `off`, or `unset` = not asked yet) and
+    /// the hours between them. Omitted fields keep their value. Undoable.
+    SetUpdatePolicy {
+        /// Periodic checks.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        checks: Option<crate::update::UpdateChecks>,
+        /// Hours between periodic checks, 1 to 720.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        interval_hours: Option<u64>,
+    },
     /// List agents' requests to send a draft that wait for the user (oldest first), each with
     /// the draft it would send. Read-only.
     ListApprovals {},
@@ -1121,6 +1155,11 @@ impl Command {
             | Self::ToggleSidebar {}
             | Self::GetView {}
             | Self::CompactStore {}
+            | Self::CheckForUpdates {}
+            | Self::DownloadUpdate {}
+            | Self::InstallUpdate { .. }
+            | Self::SkipUpdateVersion { .. }
+            | Self::SetUpdatePolicy { .. }
             | Self::ListApprovals {}
             | Self::ApproveRequest { .. }
             | Self::RejectRequest { .. } => None,
@@ -1215,6 +1254,11 @@ impl Command {
             Self::ToggleSidebar {} => CommandName::ToggleSidebar,
             Self::GetView {} => CommandName::GetView,
             Self::CompactStore {} => CommandName::CompactStore,
+            Self::CheckForUpdates {} => CommandName::CheckForUpdates,
+            Self::DownloadUpdate {} => CommandName::DownloadUpdate,
+            Self::InstallUpdate { .. } => CommandName::InstallUpdate,
+            Self::SkipUpdateVersion { .. } => CommandName::SkipUpdateVersion,
+            Self::SetUpdatePolicy { .. } => CommandName::SetUpdatePolicy,
             Self::ListApprovals {} => CommandName::ListApprovals,
             Self::ApproveRequest { .. } => CommandName::ApproveRequest,
             Self::RejectRequest { .. } => CommandName::RejectRequest,
