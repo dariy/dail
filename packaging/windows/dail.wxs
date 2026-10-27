@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The MSI of dail (Wave 7 R1), built with WiX v5 by scripts/release-windows.ps1:
+     `wix build -arch x64 -d Version=<x.y.z> -d Exe=<path to dail.exe> -o dail.msi packaging/windows/dail.wxs`.
+     A per-machine install into Program Files\dail with a Start menu shortcut. The UpgradeCode never changes, so a
+     newer MSI replaces an older one (MajorUpgrade); a downgrade is refused. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="dail" Manufacturer="dail developers" Version="$(Version)"
+           UpgradeCode="6f1c2a7e-3d8b-4e59-9a41-0d2b7c5e8f13" Scope="perMachine" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of dail is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="dail" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main">
+      <Component Directory="INSTALLFOLDER">
+        <File Id="DailExe" Source="$(Exe)" KeyPath="yes">
+          <Shortcut Name="dail" Directory="ProgramMenuFolder" Arguments="gui" WorkingDirectory="INSTALLFOLDER" />
+        </File>
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

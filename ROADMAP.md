@@ -250,7 +250,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub
   Actions matrix CI (Ubuntu + Windows) exists already
-- [ ] Packaging: AppImage and MSI — moved to Wave 7 R1. Was: a release workflow that builds all three on tags — split from the `.deb`: needs
+- [x] Packaging: AppImage and MSI — moved to Wave 7 R1 (done there). Was: a release workflow that builds all three on tags — split from the `.deb`: needs
   `appimagetool` and WiX on the CI runners, which this machine can't run or check; `cargo-dist` makes neither `.deb`
   nor AppImage, so the tool choice is open
 - [x] Crash-safe store with backups; `dail doctor` diagnostics command (durable atomic writes, daily backups of
@@ -646,7 +646,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 
 ### R — Release pipeline
 - [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy
-- [ ] R1: AppImage and MSI in `release.yml` (moves the open Wave 2 packaging item here)
+- [x] R1: AppImage and MSI in `release.yml` (moves the open Wave 2 packaging item here)
 - [ ] R2: `release.yml` on `v*` tags (dispatch kept for dry runs); a guard job checks the tag against every version site
 - [ ] R3: `cargo xtask release manifest` — `manifest.json` from the artifacts (sha256, size), signed with the key from
   the environment

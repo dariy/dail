@@ -1,5 +1,5 @@
-# Builds the release packages on demand (Actions → release → Run workflow): a zip with `dail.exe` on Windows, and a
-# tar.gz and a .deb on Ubuntu, a signed APK per ABI for Android, and the unsigned IPAs (live and demo) for iOS, each with a .sha256. They run the same scripts as a local release build (scripts/) and
+# Builds the release packages on demand (Actions → release → Run workflow): a zip and an MSI with `dail.exe` on
+# Windows, and a tar.gz, a .deb and an AppImage on Ubuntu, a signed APK per ABI for Android, and the unsigned IPAs (live and demo) for iOS, each with a .sha256. They run the same scripts as a local release build (scripts/) and
 # are uploaded as the run's artifacts.
 name: release
 
@@ -22,6 +22,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # rustup reads rust-toolchain.toml (channel + rustfmt + clippy) on the first cargo call.
       - run: rustup show active-toolchain || rustup toolchain install
+      - run: dotnet tool install --global wix --version 5.0.2
       - run: ./scripts/release-windows.ps1
         shell: pwsh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
