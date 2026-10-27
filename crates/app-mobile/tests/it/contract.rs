@@ -48,6 +48,12 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
+    // The folder tree in the iPad's portrait overlay drawer (MISC-10).
+    let mut phone = crate::drawer::nested(820, 1180);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    out.push(("drawer_tree".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenPalette {});
     out.push(("palette".to_owned(), phone.frame()));

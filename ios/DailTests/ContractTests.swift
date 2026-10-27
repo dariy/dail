@@ -26,6 +26,17 @@ final class ContractTests: XCTestCase {
         }
     }
 
+    /// The iPad's portrait drawer is an overlay that shows the folder tree (MISC-10).
+    func testThePortraitOverlayDrawerShowsTheFolderTree() throws {
+        let data = try XCTUnwrap(try fixtures("frames")["drawer_tree"])
+        let frame: Frame = try strictly("drawer_tree", data)
+        let drawer = try XCTUnwrap(frame.drawer)
+        XCTAssertTrue(drawer.modal)
+        let rows = drawer.accounts[0].mailboxes.map { "\($0.depth) \($0.label) \($0.fold?.collapsed.description ?? "-")" }
+        XCTAssertEqual(Array(rows.suffix(4)), ["0 Lists false", "1 rust -", "0 Work false", "1 Clients -"])
+        XCTAssertNotNil(drawer.accounts[0].fold)
+    }
+
     func testEveryExternalDecodesStrictly() throws {
         for (name, data) in try fixtures("externals") {
             let external: External = try strictly(name, data)

@@ -8,13 +8,13 @@ use std::collections::HashSet;
 
 use app_core::document::FoldKind;
 use app_core::{
-    AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, MailboxRole,
-    MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
+    AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, FolderKey,
+    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
 use app_front::keymap::{Action, Chord, Key, KeyState, Press, parse_chord};
-use app_front::mailbox::mailbox_name;
+use app_front::mailbox::{self, mailbox_name};
 use app_front::notice::{self, LastAction};
 use app_front::panes::{self, Slot, Width};
 use app_front::status::{self, Fix};
@@ -25,8 +25,8 @@ use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
     ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row, Snackbar,
-    TopBar,
+    DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
+    Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -950,6 +950,23 @@ impl Mobile {
         }
     }
 
+    /// The chevron of a folder or an account: `collapse_folders` or `expand_folders` for `key`.
+    /// It never closes a modal drawer.
+    fn fold(&mut self, state: &AppState, key: FolderKey, a11y: String) -> Fold {
+        let collapsed = state.view.collapsed.contains(&key);
+        let keys = vec![key];
+        let cmd = if collapsed {
+            Command::ExpandFolders { keys }
+        } else {
+            Command::CollapseFolders { keys }
+        };
+        Fold {
+            collapsed,
+            action: self.add(Act::Run(cmd)),
+            a11y,
+        }
+    }
+
     /// The drawer. A tap in a modal drawer also closes it (`focus_pane list`).
     fn drawer(&mut self, state: &AppState, modal: bool, rail: bool, tags: usize) -> Drawer {
         let open = |cmd: Command| {
@@ -972,6 +989,8 @@ impl Mobile {
             DrawerItem {
                 a11y: a11y::nav_row(&label, unread),
                 label,
+                depth: 0,
+                fold: None,
                 icon: "all_inbox".to_owned(),
                 unread,
                 selected: state.view.unified && browsing,
@@ -980,25 +999,48 @@ impl Mobile {
         });
         let mut accounts = Vec::new();
         for (index, account) in state.accounts.values().enumerate() {
+            if !mailbox::shows_account(state, account.id) {
+                continue;
+            }
+            let name = clean(&account.display_name);
+            // The folder tree, as the desktop sidebar shows it (MISC-10).
+            let nodes = mailbox::sidebar_tree(state, account.id);
             let mut mailboxes = Vec::new();
-            for mailbox in listing::mailboxes(state, Some(account.id)) {
-                let label = clean(&mailbox_name(mailbox));
-                let action = self.add(open(Command::OpenMailbox { id: mailbox.id }));
+            for node in mailbox::visible_rows(state, account.id, &nodes) {
+                let label = clean(&node.label);
+                let fold = node
+                    .is_parent()
+                    .then(|| self.fold(state, node.key.clone(), format!("{label} subfolders")));
+                let action = match (node.mailbox, &fold) {
+                    (Some(id), _) => self.add(open(Command::OpenMailbox { id })),
+                    (None, Some(fold)) => fold.action,
+                    (None, None) => continue,
+                };
                 mailboxes.push(DrawerItem {
-                    a11y: a11y::nav_row(&label, mailbox.unread),
+                    a11y: a11y::nav_row(&label, node.unread),
                     label,
-                    icon: mailbox_icon(mailbox.role).to_owned(),
-                    unread: mailbox.unread,
+                    depth: node.depth,
+                    fold,
+                    icon: mailbox_icon(node.role).to_owned(),
+                    unread: node.unread,
                     selected: !state.view.unified
-                        && state.view.mailbox == Some(mailbox.id)
+                        && node.mailbox.is_some()
+                        && state.view.mailbox == node.mailbox
                         && browsing,
                     action,
                 });
             }
+            let key = FolderKey {
+                account: account.id,
+                path: String::new(),
+            };
+            let fold =
+                (!nodes.is_empty()).then(|| self.fold(state, key, format!("{name} folders")));
             accounts.push(DrawerAccount {
-                name: clean(&account.display_name),
+                name,
                 email: clean(&account.email),
                 tag: (several && tags > 0).then(|| index % tags),
+                fold,
                 mailboxes,
             });
         }
@@ -1011,6 +1053,8 @@ impl Mobile {
             footer.push(DrawerItem {
                 a11y: label.to_owned(),
                 label: label.to_owned(),
+                depth: 0,
+                fold: None,
                 icon: icon.to_owned(),
                 unread: 0,
                 selected,
@@ -1022,6 +1066,8 @@ impl Mobile {
                 footer.push(DrawerItem {
                     a11y: "About".to_owned(),
                     label: "About".to_owned(),
+                    depth: 0,
+                    fold: None,
                     icon: "info".to_owned(),
                     unread: 0,
                     selected: self.about,

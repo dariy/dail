@@ -109,12 +109,22 @@ data class DrawerAccount(
     val name: String,
     val email: String,
     val tag: Int? = null,
+    val fold: Fold? = null,
     val mailboxes: List<DrawerItem>,
+)
+
+@Serializable
+data class Fold(
+    val collapsed: Boolean,
+    val action: ActionId,
+    val a11y: String,
 )
 
 @Serializable
 data class DrawerItem(
     val label: String,
+    val depth: Int = 0,
+    val fold: Fold? = null,
     val icon: String,
     val unread: Int,
     val selected: Boolean,
