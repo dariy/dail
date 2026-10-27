@@ -3,8 +3,11 @@
 # are uploaded as the run's artifacts.
 name: release
 
-# By hand only, so that the signing secrets never run with pull-request code (Wave 5 O).
+# A pushed `vX.Y.Z` tag builds and publishes a release (Wave 7, ADR 0011); by hand it is a dry run that builds
+# everything and publishes nothing. Never on pull requests, so the signing secrets never run with their code.
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
 
 # The jobs upload run artifacts and publish nothing, so the token stays read-only.
@@ -16,7 +19,20 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  # The tag must name the version every version site holds (`cargo xtask release check-tag`); a dry run only checks
+  # that the sites agree.
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: rustup show active-toolchain || rustup toolchain install
+      - if: startsWith(github.ref, 'refs/tags/')
+        run: cargo xtask release check-tag "$GITHUB_REF_NAME"
+      - if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: cargo xtask release versions
+
   windows:
+    needs: guard
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -32,6 +48,7 @@ jobs:
           if-no-files-found: error
 
   ubuntu:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -47,6 +64,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    needs: guard
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -87,6 +105,7 @@ jobs:
   # The unsigned IPAs, live and demo, with their .sha256 (ADR 0010, plan §6): the user re-signs them with their own
   # Apple ID. No signing secret is involved.
   ios:
+    needs: guard
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

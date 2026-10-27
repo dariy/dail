@@ -647,7 +647,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 ### R — Release pipeline
 - [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy
 - [x] R1: AppImage and MSI in `release.yml` (moves the open Wave 2 packaging item here)
-- [ ] R2: `release.yml` on `v*` tags (dispatch kept for dry runs); a guard job checks the tag against every version site
+- [x] R2: `release.yml` on `v*` tags (dispatch kept for dry runs); a guard job checks the tag against every version site
 - [ ] R3: `cargo xtask release manifest` — `manifest.json` from the artifacts (sha256, size), signed with the key from
   the environment
 - [ ] R4: `publish` job in the `release` environment (`contents: write` only there): `gh release create`, notes from

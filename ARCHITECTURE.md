@@ -1778,7 +1778,10 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 **Packaging** (`packaging/`): the desktop entry and icon (`dail`, matching the window's `app_id` and the notifications'
 `desktop-entry` hint), and `[package.metadata.deb]` on `app-cli`: `cargo deb -p app-cli` builds a `.deb` with
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
-AppImage, MSI and a release workflow are still to come (`ROADMAP.md`).
+`scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256) and
+`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
+`vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
+`xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 
 ## 12. Key dependencies
 
