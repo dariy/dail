@@ -697,7 +697,18 @@ hands both to `app_io::update::verify_manifest` with `UPDATE_PUBLIC_KEYS` → `U
 `UpdateFailed{reason}`. `DownloadUpdate{version, artifact}` empties the profile's `updates/`
 (`LiveBackend::with_updates_dir`; only the newest download is kept), streams the artifact into `<name>.part` through
 `app_io::update::ArtifactCheck` (size and SHA-256 against the manifest, failing as soon as it is too long), renames it
-to the URL's last segment and makes AppImages and binaries executable → `UpdateDownloaded{version, path}`. An
+to the URL's last segment and makes AppImages and binaries executable → `UpdateDownloaded{version, path}`. At start the CLI
+runtime of a live session ingests `UpdateHostDetected{host}` (`app_sync::install::desktop_host`: the version, the
+target triple, and the install kind from `Probe`: `$APPIMAGE` → AppImage, `/usr/bin/dail` listed by dpkg → `.deb`,
+under `%ProgramFiles%\dail` → MSI, else a plain binary), so a due periodic check starts then. `InstallUpdate{version,
+install, path}` runs `app_sync::install::STRATEGIES`: an AppImage is copied beside `$APPIMAGE` and renamed over it, a
+plain binary is swapped with `self-replace`, a `.deb` goes through `pkexec apt-get install -y <file>` (without
+`pkexec` the failure names the `sudo apt-get install` command), an MSI starts `msiexec /i <file>`; the phones never
+install → `UpdateInstalled{version}` or `UpdateFailed{reason}`. The memory backend answers the three effects from
+`app_testkit::updates::FakeUpdates`: release `0.99.0` signed by a test key (`app-io/testdata/updates/`; the secret
+key was discarded and no build trusts it), with switches that tamper with the manifest, the signature or the
+artifact. A memory session reports `app_testkit::updates::host()`. `dail update check` and
+`dail update install [--yes]` are CLI aliases for the chain. An
 `#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
 
 ## 6. Storage (`app-io`)
@@ -1819,6 +1830,7 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 | Full-text index | `tantivy` 0.27 (app-io; no default features: zstd would compile C) | Body words found offline (ADR 0005) |
 | HTML parser | `html5ever` | The reader's documents (`app_io::document`); the parser `html2text` and `ammonia` use too |
 | Update signatures | `minisign-verify` (app-io), `minisign` (xtask only) | Ed25519 in minisign format, pure Rust, no dependencies on the verifying side; `app_io::update::verify_manifest` checks signature, trusted comment and version (ADR 0011) |
+| Self-update | `self-replace` (app-sync, desktop targets only) | Replaces the running executable, also on Windows where it is locked; pure Rust (ADR 0011) |
 | Browser | `webbrowser` (app-gui) | Opens clicked links and the original page |
 | Notifications | `zbus` 5 (Linux), `windows` 0.62 `UI_Notifications` (Windows), both app-gui | Desktop notifications; both crates already in the tree (keyring, accesskit); `notify-rust` would add `mac-notification-sys`, which compiles C |
 | Images | `image` 0.25 (app-gui; png, jpeg, gif, webp) | Inline `cid:` images; pure-Rust decoders, already in the tree via eframe |

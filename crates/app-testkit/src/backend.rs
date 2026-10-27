@@ -53,6 +53,8 @@ pub struct MemoryBackend {
     changes: tokio::sync::Notify,
     /// The full-text index of stored bodies, in memory, made on first use.
     fulltext: std::sync::OnceLock<Option<app_io::fulltext::FullText>>,
+    /// The fake update server (Wave 7 S5).
+    updates: Mutex<crate::updates::FakeUpdates>,
 }
 
 impl MemoryBackend {
@@ -125,6 +127,11 @@ impl MemoryBackend {
     /// Every message the fake SMTP server accepted, in order.
     pub fn sent(&self) -> Vec<SentMail> {
         self.sent.lock().clone()
+    }
+
+    /// The fake update server: what it serves (tamper with it) and what was installed.
+    pub fn updates(&self) -> parking_lot::MutexGuard<'_, crate::updates::FakeUpdates> {
+        self.updates.lock()
     }
 
     /// Every effect executed so far, in order (including failed ones).
@@ -521,11 +528,14 @@ impl MemoryBackend {
                 },
                 Err(error) => Event::SendFailed { draft, error },
             }]),
-            // The fake update server (Wave 7 S5) answers these.
-            Effect::ScheduleTick { .. }
-            | Effect::CheckForUpdates { .. }
-            | Effect::DownloadUpdate { .. }
-            | Effect::InstallUpdate { .. } => Err(SyncError::Unsupported {
+            Effect::CheckForUpdates { running } => Ok(vec![self.updates.lock().check(&running)]),
+            Effect::DownloadUpdate { version, artifact } => {
+                Ok(vec![self.updates.lock().download(version, &artifact)])
+            }
+            Effect::InstallUpdate { version, path, .. } => {
+                Ok(vec![self.updates.lock().install(version, &path)])
+            }
+            Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
                 effect: effect.name(),
             }),

@@ -178,6 +178,14 @@ async fn open_owned(
     let audit = root.map(|root| AuditLog::new(ProfileDirs::at(root).logs_dir()));
     let session =
         Session::open_audited(backend, Arc::new(SystemClock), Arc::new(RandomSeeds), audit).await?;
+    // The running build, for update checks (ADR 0011); a due periodic check starts now.
+    let host = match global.backend {
+        BackendKind::Live => app_sync::install::desktop_host(),
+        BackendKind::Memory => app_testkit::updates::host(),
+    };
+    session
+        .ingest(app_core::Event::UpdateHostDetected { host })
+        .await?;
     let server = match (root, listen) {
         (Some(root), Listen::Yes) => Some(IpcServer::listen(root, session.client())?),
         _ => None,

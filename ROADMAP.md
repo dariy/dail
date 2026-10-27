@@ -658,15 +658,15 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] C1 [core]: `UpdateState` (idle, checking, available, downloading, ready, failed; last check; skipped version)
 - [x] C2 [core]: `check_for_updates`, `download_update`, `install_update` (`user_only`), `skip_update_version`,
   `set_update_policy`; effects and events; version comparison in core
-- [ ] C3 [core][sync]: periodic check, due-ness from `Ctx::now_ms` (like UX-6)
+- [x] C3 [core][sync]: periodic check, due-ness from `Ctx::now_ms` (like UX-6)
 
 ### S — Runtime
 - [x] S1 [sync]: HTTPS GET on `app-tls` (hyper client), redirects only to GitHub hosts
 - [x] S2 [io]: manifest parse and signature verify (pure Rust)
 - [x] S3 [sync]: download to the profile's `updates/` with sha256 check
-- [ ] S4 [sync]: installers per kind — AppImage/exe self-replace, `.deb` via `pkexec`, MSI via `msiexec`, mobile
+- [x] S4 [sync]: installers per kind — AppImage/exe self-replace, `.deb` via `pkexec`, MSI via `msiexec`, mobile
   notify only
-- [ ] S5 [tk][cli]: fake update server with a test key; smoke step; `dail update check|install`
+- [x] S5 [tk][cli]: fake update server with a test key; smoke step; `dail update check|install`
 
 ### F — Front ends
 - [ ] F1 [gui][tui]: update badge, version and check button in About, settings toggle and interval
