@@ -5,6 +5,7 @@
 //!   of `release.yml`).
 //! - `bump <x.y.z>`: writes the version into every site, refreshes `Cargo.lock` and the mobile
 //!   contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md` stub.
+//! - `manifest`, `keygen`: see [`crate::manifest`].
 
 use std::io::Write;
 use std::path::Path;
@@ -14,7 +15,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::workspace_root;
 
-pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>";
+pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>|manifest [--dist DIR]|keygen <DIR>";
 
 /// A file that spells out the release version: the version is the text between `prefix` and
 /// `suffix` on the first line that starts with `prefix` (after leading spaces). The Android
@@ -116,6 +117,10 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
                 bail!("tag {tag} does not match the version sites ({current})");
             }
             Ok(())
+        }
+        Some("manifest") => crate::manifest::run(&root, &args[1..]),
+        Some("keygen") => {
+            crate::manifest::keygen(Path::new(args.get(1).context("usage: keygen <dir>")?))
         }
         Some("bump") => bump(&root, args.get(1).context("usage: bump <x.y.z>")?),
         _ => {

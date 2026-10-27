@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the release `dail` binary and packages it as dist/dail-<version>-x86_64-unknown-linux-gnu.tar.gz and
-# dist/dail_<version>-1_amd64.deb and dist/dail-<version>-x86_64.AppImage (+ .sha256 for each). Needs cargo-deb
+# dist/dail_<version>-1_amd64.deb, dist/dail-<version>-x86_64.AppImage and the bare binary
+# dist/dail-<version>-x86_64-unknown-linux-gnu (+ .sha256 for each). Needs cargo-deb
 # (`cargo install cargo-deb --locked`) and curl; appimagetool is downloaded at a pinned version and checked by sha256.
 # Run from anywhere: `scripts/release-ubuntu.sh`. The release workflow (.github/workflows/release.yml) runs it too.
 set -euo pipefail
@@ -60,8 +61,11 @@ rm -f "$dist/$appimage"
 ARCH=x86_64 "$appimagetool" --appimage-extract-and-run --no-appstream "$appdir" "$dist/$appimage" >/dev/null
 rm -rf "$appdir"
 
+# The bare binary: what a plain-binary install replaces itself with (ADR 0011, kind `exe`).
+cp target/release/dail "$dist/$name"
+
 cd "$dist"
-for file in "$name.tar.gz" dail_*.deb "$appimage"; do
+for file in "$name.tar.gz" dail_*.deb "$appimage" "$name"; do
     sha256sum "$file" >"$file.sha256"
     echo "built $dist/$file"
 done

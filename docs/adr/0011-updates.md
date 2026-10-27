@@ -27,7 +27,8 @@ A `publish` job, in the `release` environment and the only job with `contents: w
                   "sha256": "…", "size": 0 }] }
 ```
 
-`kind` is one of `deb`, `appimage`, `msi`, `exe`, `apk-<abi>`, `ipa`.
+`kind` is one of `deb`, `appimage`, `msi`, `exe` (the bare binary: `dail` on Linux, `dail.exe` on Windows),
+`apk-<abi>`, `ipa`. The `.tar.gz`, the `.zip` and the demo IPA are release assets but not in the manifest.
 
 **Signature.** Ed25519 in minisign format. The public key is a constant in the binary. The secret key and its
 password are secrets of the `release` environment only, and are never written to logs or to disk outside the job's
