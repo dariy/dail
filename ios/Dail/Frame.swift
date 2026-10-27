@@ -501,6 +501,8 @@ struct Banner: Codable {
     let text: String
     let hint: String?
     let action: ActionButton?
+    let dismiss: ActionButton?
+    let info: Bool?
 }
 
 struct Snackbar: Codable {

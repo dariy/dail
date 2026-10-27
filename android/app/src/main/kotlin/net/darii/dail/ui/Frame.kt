@@ -486,6 +486,8 @@ data class Banner(
     val text: String,
     val hint: String? = null,
     val action: Button? = null,
+    val dismiss: Button? = null,
+    val info: Boolean = false,
 )
 
 @Serializable

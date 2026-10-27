@@ -98,6 +98,10 @@ impl Host {
             }
             BackendChoice::Memory(fixture) => (runtime.block_on(open_demo(fixture))?, None),
         };
+        if let Some(host) = update_host(platform) {
+            // The running build, for update checks (ADR 0011); a due periodic check starts now.
+            runtime.block_on(session.ingest(app_core::Event::UpdateHostDetected { host }))?;
+        }
         let outgoing = config
             .outgoing_dir
             .clone()
@@ -425,6 +429,21 @@ fn safe_names(external: External) -> External {
         },
         other => other,
     }
+}
+
+/// The running app as update checks see it: this crate's version (every version site is the
+/// same, `cargo xtask release bump`), the platform as the manifest's target, and its install kind.
+fn update_host(platform: Platform) -> Option<app_core::UpdateHost> {
+    let install = platform.install?;
+    let target = match install {
+        app_core::InstallKind::Ios => "ios",
+        _ => "android",
+    };
+    Some(app_core::UpdateHost {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        target: target.to_owned(),
+        install,
+    })
 }
 
 /// The profile's session, as `app-cli` opens it: store, keyring, servers, the full-text index

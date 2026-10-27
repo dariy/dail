@@ -92,6 +92,11 @@ fn frames() -> Vec<(String, Frame)> {
         query: "lunch".to_owned(),
     });
     out.push(("search".to_owned(), phone.frame()));
+    let mut phone = crate::updates::android_phone();
+    out.push(("update_question".to_owned(), phone.frame()));
+    phone.dispatch(app_front::updates::answer(true));
+    crate::updates::with_release(&mut phone);
+    out.push(("update_available".to_owned(), phone.frame()));
     let mut phone = Phone::new(AppState::default(), 360, 800);
     out.push(("no_accounts".to_owned(), phone.frame()));
     let about = phone.frame().top_bar.actions;

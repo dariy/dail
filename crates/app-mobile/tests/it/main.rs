@@ -17,3 +17,4 @@ mod settings;
 mod share;
 mod theme;
 mod untrusted;
+mod updates;

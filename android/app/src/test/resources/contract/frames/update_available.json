@@ -1,0 +1,90 @@
+{
+  "back": false,
+  "banner": {
+    "action": {
+      "action": 25,
+      "label": "Open"
+    },
+    "dismiss": {
+      "action": 26,
+      "label": "Skip"
+    },
+    "info": true,
+    "text": "dail 9.0.0 is available"
+  },
+  "fab": {
+    "action": 24,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 16,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 17,
+        "messages": 1,
+        "selected": false,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 19,
+        "swipe_start": 18,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 20,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 21,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 23,
+        "swipe_start": 22,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
+  "revision": 2,
+  "top_bar": {
+    "actions": [
+      {
+        "action": 15,
+        "icon": "search",
+        "label": "Search or run a command"
+      }
+    ],
+    "navigation": {
+      "action": 14,
+      "icon": "menu",
+      "label": "Mailboxes"
+    },
+    "subtitle": "synced 9h ago",
+    "title": "Inbox"
+  },
+  "wants_tick": true
+}

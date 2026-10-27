@@ -19,7 +19,7 @@ use app_front::notice::{self, LastAction};
 use app_front::panes::{self, Slot, Width};
 use app_front::status::{self, Fix};
 use app_front::text::{clean, clean_lines};
-use app_front::{a11y, compose, format, palette};
+use app_front::{a11y, compose, format, palette, updates};
 
 use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
@@ -1475,7 +1475,9 @@ impl Mobile {
     }
 
     fn banner(&mut self, state: &AppState) -> Option<Banner> {
-        let problem = status::problems(state, self.lang).into_iter().next()?;
+        let Some(problem) = status::problems(state, self.lang).into_iter().next() else {
+            return self.update_banner(state);
+        };
         let action = problem.fix.map(|fix| {
             let act = match fix {
                 Fix::Retry(account) => Act::Run(Command::SyncNow {
@@ -1494,6 +1496,52 @@ impl Mobile {
             text: clean(&problem.text),
             hint: problem.hint.map(|h| clean(&h)),
             action,
+            dismiss: None,
+            info: false,
+        })
+    }
+
+    /// Wave 7 F2/F3: the first-run question about update checks, else a new version with its
+    /// release page (the apps do not install: the user updates from there, or Obtainium does).
+    fn update_banner(&mut self, state: &AppState) -> Option<Banner> {
+        if updates::ask_first_run(state) {
+            let yes = self.add(Act::Run(updates::answer(true)));
+            let no = self.add(Act::Run(updates::answer(false)));
+            return Some(Banner {
+                text: updates::QUESTION.to_owned(),
+                hint: Some(updates::QUESTION_DETAIL.to_owned()),
+                action: Some(Button {
+                    icon: None,
+                    label: "Check".to_owned(),
+                    action: yes,
+                }),
+                dismiss: Some(Button {
+                    icon: None,
+                    label: "No thanks".to_owned(),
+                    action: no,
+                }),
+                info: true,
+            });
+        }
+        let release = updates::pending(state)?;
+        let open = self.add(Act::OpenLink(release.notes_url.clone()));
+        let skip = self.add(Act::Run(Command::SkipUpdateVersion {
+            version: Some(release.version.clone()),
+        }));
+        Some(Banner {
+            text: format!("dail {} is available", clean(&release.version)),
+            hint: None,
+            action: Some(Button {
+                icon: None,
+                label: "Open".to_owned(),
+                action: open,
+            }),
+            dismiss: Some(Button {
+                icon: None,
+                label: "Skip".to_owned(),
+                action: skip,
+            }),
+            info: true,
         })
     }
 

@@ -9,8 +9,9 @@ pub mod ffi;
 pub mod logging;
 pub mod secrets;
 
-/// iOS's credential store and logs, for `app_host::calls::open`.
+/// iOS's credential store, logs and install kind, for `app_host::calls::open`.
 pub const PLATFORM: app_host::Platform = app_host::Platform {
     secrets: secrets::store,
     logging: logging::init,
+    install: Some(app_core::InstallKind::Ios),
 };
