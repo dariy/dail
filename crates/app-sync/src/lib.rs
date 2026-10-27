@@ -12,6 +12,7 @@ pub mod executor;
 pub mod fulltext;
 pub mod https;
 pub mod imap;
+pub mod install;
 pub mod ipc;
 pub mod live;
 pub mod original;

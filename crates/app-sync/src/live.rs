@@ -805,12 +805,15 @@ impl LiveBackend {
                     },
                 }])
             }
-            Effect::ScheduleTick { .. } | Effect::InstallUpdate { .. } => {
-                Err(SyncError::Unsupported {
-                    backend: self.name(),
-                    effect: effect.name(),
-                })
-            }
+            Effect::InstallUpdate {
+                version,
+                install,
+                path,
+            } => Ok(vec![crate::install::install(version, install, path).await]),
+            Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
+                backend: self.name(),
+                effect: effect.name(),
+            }),
         }
     }
 }

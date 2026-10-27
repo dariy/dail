@@ -108,7 +108,7 @@ zeroize = "1" # wipes keys on drop (already in the tree via rustls)
 getrandom = "0.4" # the OS random source (already in the tree via uuid)
 
 # --- Network runtime (app-sync) — rustls with app-tls (ADR 0003), never ring/aws-lc/openssl ---
-tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal"] }
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal", "process"] }
 # No built-in provider: app-tls is the provider (ADR 0003).
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "logging"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "logging"] }
@@ -116,6 +116,7 @@ webpki-roots = "1"
 # Updates (ADR 0011): minisign signatures, verified in app-io, made by xtask. Pure Rust.
 minisign-verify = "0.3"
 minisign = { version = "0.10", default-features = false }
+self-replace = "1.5" # app-sync: replace the running binary with an update (ADR 0011)
 futures-util = { version = "0.3", default-features = false, features = ["std"] } # Stream combinators for async-imap responses
 async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"] }
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "hostname", "pool", "tokio1-rustls", "rustls-no-provider", "webpki-roots"] } # TLS: app-tls, installed as the default provider
