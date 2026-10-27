@@ -694,7 +694,11 @@ about the user, redirects at most 5 times and only to `github.com`, `objects.git
 `release-assets.githubusercontent.com` (`ALLOWED_HOSTS`), 30 s for the response head and 60 s per body stall.
 `CheckForUpdates{running}` GETs `releases/latest/download/manifest.json` (at most 64 KiB) and its `.minisig` and
 hands both to `app_io::update::verify_manifest` with `UPDATE_PUBLIC_KEYS` → `UpdateChecked{manifest}` or
-`UpdateFailed{reason}`. An `#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
+`UpdateFailed{reason}`. `DownloadUpdate{version, artifact}` empties the profile's `updates/`
+(`LiveBackend::with_updates_dir`; only the newest download is kept), streams the artifact into `<name>.part` through
+`app_io::update::ArtifactCheck` (size and SHA-256 against the manifest, failing as soon as it is too long), renames it
+to the URL's last segment and makes AppImages and binaries executable → `UpdateDownloaded{version, path}`. An
+`#[ignore]` test (`DAIL_IT_UPDATES=1`) GETs the release page over app-tls.
 
 ## 6. Storage (`app-io`)
 

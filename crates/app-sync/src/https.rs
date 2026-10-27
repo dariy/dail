@@ -203,6 +203,115 @@ async fn check_with(
     app_io::update::verify_manifest(&manifest, &signature, keys, running).map_err(|e| e.to_string())
 }
 
+/// The file name a download is saved under: the URL's last path segment, if it is a plain name.
+pub fn download_name(url: &str) -> String {
+    let path = url.split(['?', '#']).next().unwrap_or_default();
+    let name = path.rsplit('/').next().unwrap_or_default();
+    let plain = !name.is_empty()
+        && !name.starts_with('.')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'));
+    if plain {
+        name.to_owned()
+    } else {
+        "dail-update".to_owned()
+    }
+}
+
+/// `Effect::DownloadUpdate`: downloads `artifact` into `dir` (emptied first: only the newest
+/// download is kept), checking size and SHA-256 as it arrives. The file is written as
+/// `<name>.part` and renamed once it checks out; executables get mode 0755 on Unix.
+pub async fn download(
+    https: &Https,
+    dir: &std::path::Path,
+    version: String,
+    artifact: &app_core::UpdateArtifact,
+) -> app_core::Event {
+    match download_to(https, dir, artifact).await {
+        Ok(path) => app_core::Event::UpdateDownloaded {
+            version,
+            path: path.to_string_lossy().into_owned(),
+        },
+        Err(reason) => app_core::Event::UpdateFailed { reason },
+    }
+}
+
+async fn download_to(
+    https: &Https,
+    dir: &std::path::Path,
+    artifact: &app_core::UpdateArtifact,
+) -> Result<std::path::PathBuf, String> {
+    let response = https.open(&artifact.url).await?;
+    let mut body = response.into_body();
+    let path = dir.join(download_name(&artifact.url));
+    let part = path.with_extension("part");
+    clear_dir(dir).await?;
+    let result = write_checked(&mut body, &part, artifact).await;
+    if let Err(err) = result {
+        let _ = tokio::fs::remove_file(&part).await;
+        return Err(err);
+    }
+    tokio::fs::rename(&part, &path)
+        .await
+        .map_err(|err| format!("cannot keep the download: {err}"))?;
+    #[cfg(unix)]
+    if matches!(artifact.kind.as_str(), "appimage" | "exe") {
+        use std::os::unix::fs::PermissionsExt;
+        tokio::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .await
+            .map_err(|err| format!("cannot make the download executable: {err}"))?;
+    }
+    Ok(path)
+}
+
+/// Creates `dir` and removes the files in it.
+async fn clear_dir(dir: &std::path::Path) -> Result<(), String> {
+    tokio::fs::create_dir_all(dir)
+        .await
+        .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+    let mut entries = tokio::fs::read_dir(dir)
+        .await
+        .map_err(|err| err.to_string())?;
+    while let Some(entry) = entries.next_entry().await.map_err(|err| err.to_string())? {
+        if entry.file_type().await.is_ok_and(|t| t.is_file()) {
+            let _ = tokio::fs::remove_file(entry.path()).await;
+        }
+    }
+    Ok(())
+}
+
+/// Streams `body` into `part` through an [`app_io::update::ArtifactCheck`].
+pub async fn write_checked<B>(
+    body: &mut B,
+    part: &std::path::Path,
+    artifact: &app_core::UpdateArtifact,
+) -> Result<(), String>
+where
+    B: hyper::body::Body<Data = Bytes> + Unpin,
+    B::Error: std::fmt::Display,
+{
+    use tokio::io::AsyncWriteExt;
+    let mut file = tokio::fs::File::create(part)
+        .await
+        .map_err(|err| format!("cannot write {}: {err}", part.display()))?;
+    let mut check = app_io::update::ArtifactCheck::new(artifact);
+    loop {
+        let frame = tokio::time::timeout(IDLE_TIMEOUT, body.frame())
+            .await
+            .map_err(|_| "the download stalled".to_owned())?;
+        let Some(frame) = frame else { break };
+        let frame = frame.map_err(|err| err.to_string())?;
+        if let Ok(data) = frame.into_data() {
+            check.update(&data).map_err(|e| e.to_string())?;
+            file.write_all(&data).await.map_err(|err| err.to_string())?;
+        }
+    }
+    file.flush().await.map_err(|err| err.to_string())?;
+    file.sync_all().await.map_err(|err| err.to_string())?;
+    check.finish().map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -257,6 +366,56 @@ mod tests {
         assert!(request.contains("user-agent: dail/0.1.0\r\n"), "{request}");
         assert!(request.contains("host: github.com\r\n"), "{request}");
         assert!(!request.contains("cookie"), "{request}");
+    }
+
+    #[test]
+    fn downloads_keep_plain_names() {
+        assert_eq!(
+            download_name("https://github.com/d/d/releases/download/v1/dail-1.0.0-x86_64.AppImage"),
+            "dail-1.0.0-x86_64.AppImage"
+        );
+        assert_eq!(download_name("https://x.org/a/b.msi?sig=..%2f"), "b.msi");
+        assert_eq!(download_name("https://x.org/a/..%2f.."), "dail-update");
+        assert_eq!(download_name("https://x.org/"), "dail-update");
+        assert_eq!(download_name("https://x.org/.hidden"), "dail-update");
+    }
+
+    /// SHA-256 of `payload`.
+    const PAYLOAD_SHA256: &str = "239f59ed55e737c77147cf55ad0c1b030b6d7ee748a7426952f9b852d5a935e5";
+
+    fn payload_artifact() -> app_core::UpdateArtifact {
+        app_core::UpdateArtifact {
+            target: "t".to_owned(),
+            kind: "exe".to_owned(),
+            url: "https://github.com/x/dail".to_owned(),
+            sha256: PAYLOAD_SHA256.to_owned(),
+            size: 7,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_download_is_checked_as_it_is_written() {
+        let dir = std::env::temp_dir().join(format!("dail-https-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let part = dir.join("dail.part");
+        let artifact = payload_artifact();
+
+        let mut body = http_body_util::Full::new(Bytes::from_static(b"payload"));
+        write_checked(&mut body, &part, &artifact).await.unwrap();
+        assert_eq!(std::fs::read(&part).unwrap(), b"payload");
+
+        let mut body = http_body_util::Full::new(Bytes::from_static(b"paylOad"));
+        let err = write_checked(&mut body, &part, &artifact)
+            .await
+            .unwrap_err();
+        assert!(err.contains("sha256"), "{err}");
+
+        let mut body = http_body_util::Full::new(Bytes::from_static(b"payload and more"));
+        let err = write_checked(&mut body, &part, &artifact)
+            .await
+            .unwrap_err();
+        assert!(err.contains("bytes"), "{err}");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The live release page answers over app-tls (ADR 0011: a TLS change at GitHub shows here).

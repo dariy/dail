@@ -83,6 +83,11 @@ impl ProfileDirs {
         self.root.join("logs")
     }
 
+    /// `updates/`: the newest downloaded update of dail (ADR 0011).
+    pub fn updates_dir(&self) -> PathBuf {
+        self.root.join("updates")
+    }
+
     /// `lock`: single-instance lock (M7).
     pub fn lock_file(&self) -> PathBuf {
         self.root.join("lock")

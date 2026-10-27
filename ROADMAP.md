@@ -663,7 +663,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 ### S — Runtime
 - [x] S1 [sync]: HTTPS GET on `app-tls` (hyper client), redirects only to GitHub hosts
 - [x] S2 [io]: manifest parse and signature verify (pure Rust)
-- [ ] S3 [sync]: download to the profile's `updates/` with sha256 check
+- [x] S3 [sync]: download to the profile's `updates/` with sha256 check
 - [ ] S4 [sync]: installers per kind — AppImage/exe self-replace, `.deb` via `pkexec`, MSI via `msiexec`, mobile
   notify only
 - [ ] S5 [tk][cli]: fake update server with a test key; smoke step; `dail update check|install`

@@ -162,7 +162,8 @@ async fn open_owned(
                 Arc::new(KeyringSecrets),
                 Arc::new(NetVerifier::new()?),
                 Arc::new(NetImap::new()?),
-            );
+            )
+            .with_updates_dir(dirs.updates_dir());
             // Without an index, search still matches headers and asks the servers.
             match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {
                 Ok(index) => Arc::new(backend.with_fulltext(Arc::new(index))),
