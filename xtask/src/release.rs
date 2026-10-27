@@ -3,8 +3,10 @@
 //! - `versions`: prints every version site and the version it holds; fails if they differ.
 //! - `check-tag <vX.Y.Z>`: fails unless every version site holds the tag's version (the guard job
 //!   of `release.yml`).
-//! - `bump <x.y.z>`: writes the version into every site, refreshes `Cargo.lock` and the mobile
-//!   contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md` stub.
+//! - `next <patch|minor|major>`: prints the version after the current one (MISC-9).
+//! - `bump <x.y.z> [--note <text>]`: writes the version into every site, refreshes `Cargo.lock` and
+//!   the mobile contract fixtures (the About frame shows the version), and adds a `CHANGELOG.md`
+//!   section: `- <text>`, or a stub to fill in by hand.
 //! - `notes`: prints the `CHANGELOG.md` section of the current version (the release notes).
 //! - `manifest`, `keygen`: see [`crate::manifest`].
 
@@ -16,7 +18,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::workspace_root;
 
-pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|bump <x.y.z>|notes|manifest [--dist DIR]|keygen <DIR>";
+pub(crate) const USAGE: &str = "cargo xtask release versions|check-tag <vX.Y.Z>|next <patch|minor|major>|bump <x.y.z> [--note <text>]|notes|manifest [--dist DIR]|keygen <DIR>";
 
 /// A file that spells out the release version: the version is the text between `prefix` and
 /// `suffix` on the first line that starts with `prefix` (after leading spaces). The Android
@@ -133,7 +135,22 @@ pub(crate) fn run(args: &[String]) -> Result<()> {
             writeln!(out, "{notes}")?;
             Ok(())
         }
-        Some("bump") => bump(&root, args.get(1).context("usage: bump <x.y.z>")?),
+        Some("next") => {
+            let part = args.get(1).context("usage: next <patch|minor|major>")?;
+            let next = next(&current_version(&root)?, part)?;
+            let mut out = std::io::stdout().lock();
+            writeln!(out, "{next}")?;
+            Ok(())
+        }
+        Some("bump") => {
+            let version = args.get(1).context("usage: bump <x.y.z> [--note <text>]")?;
+            let note = match args.get(2).map(String::as_str) {
+                None => None,
+                Some("--note") => Some(args.get(3).context("--note needs a text")?.as_str()),
+                Some(other) => bail!("unknown bump argument {other}"),
+            };
+            bump(&root, version, note)
+        }
         _ => {
             let mut err = std::io::stderr().lock();
             writeln!(err, "usage: {USAGE}")?;
@@ -152,7 +169,35 @@ pub(crate) fn notes(changelog: &str, version: &str) -> Option<String> {
     (!body.is_empty() && body != "-").then_some(body)
 }
 
-fn bump(root: &Path, version: &str) -> Result<()> {
+/// The version after `current` (`x.y.z`): `patch` → `x.y.z+1`, `minor` → `x.y+1.0`, `major` →
+/// `x+1.0.0`.
+pub(crate) fn next(current: &str, part: &str) -> Result<String> {
+    if !is_version(current) {
+        bail!("{current} is not x.y.z");
+    }
+    let mut n = [0u32; 3];
+    for (slot, text) in n.iter_mut().zip(current.split('.')) {
+        *slot = text.parse()?;
+    }
+    let [major, minor, patch] = n;
+    Ok(match part {
+        "patch" => format!("{major}.{minor}.{}", patch + 1),
+        "minor" => format!("{major}.{}.0", minor + 1),
+        "major" => format!("{}.0.0", major + 1),
+        other => bail!("{other} is not patch, minor or major"),
+    })
+}
+
+/// One changelog line from `note`: whitespace runs (newlines included) become one space, so a
+/// note can't add a heading of its own.
+fn changelog_line(note: Option<&str>) -> String {
+    let text = note.map_or_else(String::new, |n| {
+        n.split_whitespace().collect::<Vec<_>>().join(" ")
+    });
+    format!("- {text}")
+}
+
+fn bump(root: &Path, version: &str, note: Option<&str>) -> Result<()> {
     if !is_version(version) {
         bail!("{version} is not x.y.z");
     }
@@ -178,7 +223,8 @@ fn bump(root: &Path, version: &str) -> Result<()> {
         } else {
             head
         };
-        std::fs::write(&changelog, format!("{head}{heading}\n\n- \n\n{rest}"))?;
+        let line = changelog_line(note);
+        std::fs::write(&changelog, format!("{head}{heading}\n\n{line}\n\n{rest}"))?;
     }
 
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
@@ -246,6 +292,25 @@ mod tests {
         let root = workspace_root().unwrap();
         let changelog = std::fs::read_to_string(root.join("CHANGELOG.md")).unwrap();
         assert!(notes(&changelog, &current_version(&root).unwrap()).is_some());
+    }
+
+    #[test]
+    fn next_increments_one_part() {
+        assert_eq!(next("0.1.0", "patch").unwrap(), "0.1.1");
+        assert_eq!(next("0.1.9", "patch").unwrap(), "0.1.10");
+        assert_eq!(next("0.1.3", "minor").unwrap(), "0.2.0");
+        assert_eq!(next("1.4.3", "major").unwrap(), "2.0.0");
+        assert!(next("0.1.0", "skip").is_err());
+        assert!(next("0.1", "patch").is_err());
+    }
+
+    #[test]
+    fn changelog_line_is_one_line() {
+        assert_eq!(changelog_line(None), "- ");
+        assert_eq!(
+            changelog_line(Some("Fix  the\n## 9.9.9\nrelease")),
+            "- Fix the ## 9.9.9 release"
+        );
     }
 
     #[test]

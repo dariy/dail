@@ -1,0 +1,73 @@
+# A merge into main releases the next version (MISC-9): the bump job computes it (patch, or the merged PR's
+# `release:minor` / `release:major` label; `release:skip` releases nothing), runs `cargo xtask release bump` with the
+# PR title as the changelog line, commits `workspace: release vX.Y.Z` to main and pushes the tag `vX.Y.Z`, which
+# starts release.yml. It pushes with a GitHub App token: pushes made with GITHUB_TOKEN start no workflows, and the
+# App is the only actor on the bypass list of the main ruleset (.github/rulesets/main.json, MISC-16).
+name: bump
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Two merges in a row give two versions, in order; a queued run is never cancelled.
+concurrency:
+  group: release-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    # Its own commit lands on main too: never bump that one.
+    if: ${{ !startsWith(github.event.head_commit.message, 'workspace: release v') }}
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Find the merged PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] // {}')"
+          labels="$(jq -r '[.labels[]?.name] | join(" ")' <<<"$pr")"
+          part=patch
+          case " $labels " in
+            *" release:skip "*) part=skip ;;
+            *" release:major "*) part=major ;;
+            *" release:minor "*) part=minor ;;
+          esac
+          echo "part=$part" >>"$GITHUB_OUTPUT"
+          # The title is free text: it travels in a file, never through an expression.
+          jq -r '.title // "Maintenance release."' <<<"$pr" >"$RUNNER_TEMP/note.txt"
+      - name: Create the App token
+        if: steps.pr.outputs.part != 'skip'
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.DAIL_RELEASE_APP_ID }}
+          private-key: ${{ secrets.DAIL_RELEASE_APP_KEY }}
+      # The tip of main, not the merge commit: an earlier run may have pushed a bump since.
+      - if: steps.pr.outputs.part != 'skip'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          token: ${{ steps.app.outputs.token }}
+      - if: steps.pr.outputs.part != 'skip'
+        run: rustup show active-toolchain || rustup toolchain install
+      - name: Bump, commit and tag
+        if: steps.pr.outputs.part != 'skip'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          PART: ${{ steps.pr.outputs.part }}
+        run: |
+          next="$(cargo xtask release next "$PART")"
+          cargo xtask release bump "$next" --note "$(cat "$RUNNER_TEMP/note.txt")"
+          bot="$APP_SLUG[bot]"
+          id="$(gh api "users/$bot" --jq .id)"
+          git config user.name "$bot"
+          git config user.email "$id+$bot@users.noreply.github.com"
+          git commit -am "workspace: release v$next"
+          git tag "v$next"
+          git push --atomic origin HEAD:main "v$next"

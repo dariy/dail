@@ -8,7 +8,7 @@
   `dist/dail-<version>-x86_64.msi` (WiX v5, `windows/dail.wxs`); `scripts/release-ubuntu.sh` makes
   `dist/dail-<version>-x86_64-unknown-linux-gnu.tar.gz` (binary, desktop entry, icon), the `.deb` (needs cargo-deb)
   and `dist/dail-<version>-x86_64.AppImage` (`linux/AppRun`; appimagetool 1.9.0 is downloaded and checked by
-  sha256), each with a `.sha256`. The `release` workflow
+  sha256; it runs `desktop-file-validate`, from `desktop-file-utils`), each with a `.sha256`. The `release` workflow
   (`.github/workflows/release.yml`) runs on a pushed `vX.Y.Z` tag, after a guard job checks the tag against every
   version site (`cargo xtask release check-tag`); started by hand from the Actions tab it is a dry run that uploads
   `dist/` as run artifacts only. On a tag, the `publish` job (environment `release`, the only job with
@@ -19,7 +19,16 @@
   Explorer, the Start menu or a shortcut, so only the GUI appears. Run from a terminal, dail still uses that terminal.
 - Versions: `cargo xtask release bump <x.y.z>` writes the version into every site (`[workspace.package]` in
   `Cargo.toml`, which Gradle reads, and `MARKETING_VERSION` in `ios/project.yml`), refreshes `Cargo.lock` and the
-  mobile contract fixtures, and adds a `CHANGELOG.md` stub. `cargo xtask release versions` lists the sites.
+  mobile contract fixtures, and adds a `CHANGELOG.md` section (`--note <text>` fills it, else a stub).
+  `cargo xtask release versions` lists the sites; `cargo xtask release next <patch|minor|major>` prints the next
+  version.
+- Release on merge (MISC-9): `.github/workflows/bump.yml` runs on every push to `main` (a merged PR). It bumps the
+  patch version, or the minor / major one if the PR has the label `release:minor` / `release:major` (`release:skip`
+  releases nothing), with the PR title as the changelog line, commits `workspace: release vX.Y.Z` to `main` and pushes
+  the tag, which starts `release.yml`. It pushes with a GitHub App token, because pushes made with `GITHUB_TOKEN` start
+  no workflows. One-time setup: create a GitHub App owned by the repository owner with *Contents: read and write*,
+  install it on the repository, and store its ID and private key as `DAIL_RELEASE_APP_ID` and `DAIL_RELEASE_APP_KEY`
+  in the `release` environment's secrets. Create the labels `release:minor`, `release:major` and `release:skip`.
 - Update manifest (ADR 0011): `cargo xtask release manifest [--dist dist]` writes `dist/manifest.json` (target, kind,
   URL, sha256 and size of each installable artifact) and `dist/manifest.json.minisig`, signed with the minisign key in
   `DAIL_UPDATE_SIGNING_KEY` (the text of the secret key file) and `DAIL_UPDATE_SIGNING_PASSWORD`. The trusted comment
