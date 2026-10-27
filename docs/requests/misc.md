@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-14 in Wave 8. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -15,12 +15,14 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-6 | Mobile: pinch resizes the message pane; landscape sidebar as icons; fix Android landscape alignment | M | app-mobile, android/, ios/ | 2026-10-26 |
 | MISC-7 | Mobile: close button on the open message | S | app-mobile, android/, ios/ | 2026-10-26 |
 | MISC-8 | Release: the ubuntu job fails on `main` (`desktop-file-validate` missing) | S | .github/workflows/release.yml | 2026-10-27 |
-| MISC-9 | Release: every release increments the app version | M | .github/workflows/, xtask | 2026-10-27 |
-| MISC-10 | Android: folder tree in the left pane | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-9 | Release: a merged PR releases a new, incremented version | M | .github/workflows/, xtask | 2026-10-27 |
+| MISC-10 | Mobile: folder tree in the left pane (Android, iPad portrait drawer) | S | app-mobile, android/, ios/ | 2026-10-27 |
 | MISC-11 | Mobile: landscape left pane switches between icon rail and icon + text tree | S | app-mobile, android/, ios/ | 2026-10-27 |
 | MISC-12 | iOS: About cannot be closed and covers the other panes | S | ios/, app-mobile | 2026-10-27 |
 | MISC-13 | Mobile: About title with the version, mobile description | S | app-mobile, android/, ios/ | 2026-10-27 |
 | MISC-14 | Mobile: maximize the message pane | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-15 | CI: run only on PRs into `main` and on `main` | S | .github/workflows/ | 2026-10-27 |
+| MISC-16 | Repository: protect `main` (PRs only, merged by admins) | S | repository settings, docs | 2026-10-27 |
 
 ## Details
 
@@ -134,30 +136,35 @@ The `release` run of 2026-10-27 (run 40566169189, `workflow_dispatch` on `main`)
 - **Done when:** a dry-run `release` dispatch on `main` is green in every job (read it with `gh run view`).
 - **Open questions:** none.
 
-### MISC-9 — Release: every release increments the app version
+### MISC-9 — Release: a merged PR releases a new, incremented version
 
-Every release so far is `0.1.0`. A release must carry a new version without hand edits.
+Every release so far is `0.1.0`. Merging a PR into `main` must publish a release with a higher version, without hand
+edits. Pushes to `main` other than merges cannot happen (MISC-16).
 
-- **Decision (default, change if the user objects):** a `prepare-release` `workflow_dispatch` with input
-  `bump: patch | minor | major` (default `patch`). It reads the current version, runs
-  `cargo xtask release bump <next>` (R5: every version site + CHANGELOG stub; Android `versionCode` must grow too),
-  commits `workspace: release vX.Y.Z` to `main` and pushes the tag `vX.Y.Z`, which starts `release.yml` (R2). The
-  guard job stays. A new `cargo xtask release next <patch|minor|major>` prints the next version (unit-tested).
-- **Constraints:** the push needs a token that triggers workflows (a GitHub App token or deploy key in the `release`
-  environment; `GITHUB_TOKEN` pushes do not start other workflows). Branch protection on `main` must allow it, or
-  the job opens a PR and the tag is pushed on merge — check the repository settings when picked.
-- **Done when:** a dispatch produces `v0.1.1` end to end, and the in-app update check (Wave 7) offers it to `0.1.0`.
+- **Decision:** a workflow on `push` to `main` (the merge commit) computes the next version, runs
+  `cargo xtask release bump <next>` (R5: every version site + CHANGELOG stub; Android `versionCode` grows), commits
+  `workspace: release vX.Y.Z [skip ci]`, pushes the commit and the tag `vX.Y.Z`; the tag starts `release.yml` (R2,
+  guard job kept). The bump is `patch` by default; a PR label `release:minor` / `release:major` (or `release:skip`
+  for docs-only merges) overrides it. A new `cargo xtask release next <patch|minor|major>` prints the next version
+  (unit-tested). The bump job must not trigger itself (skip its own commits).
+- **Constraints:** the bump commit and tag are pushed with a GitHub App token (or deploy key) held in the `release`
+  environment: `GITHUB_TOKEN` pushes start no workflows, and the App must be on the bypass list of the `main`
+  ruleset (MISC-16), as the only actor allowed to push to `main` directly. Concurrency group so two merges in a row
+  produce two versions in order.
+- **Done when:** merging a PR produces `v0.1.1` end to end, and the in-app update check (Wave 7) offers it to `0.1.0`.
 
-### MISC-10 — Android: folder tree in the left pane
+### MISC-10 — Mobile: folder tree in the left pane
 
 The desktop sidebar is a folder tree since UX-2 (with collapse, UX-3). The Android left pane is still a flat list.
+On iPad in portrait the left pane opens as a detached (overlay) window; it must show the same tree.
 Show the same tree: nested folders indented under their parent, a chevron to collapse/expand that sends
 `collapse_folders` / `expand_folders` (persisted, UX-1).
 
 - **Commands:** none new; reuse `app_front`'s tree projection in the `app-mobile` sidebar frame (rows get `depth`,
   `has_children`, `collapsed`).
 - **Touches:** `app-mobile` (sidebar frame), `android/` (`ui/DailScreen.kt`), `ios/` (same frame, so the iPad drawer
-  gets it too); contract frames and snapshots.
+  portrait overlay and the landscape pane get it too); contract frames and snapshots.
+- **Done when:** the iPad portrait overlay shows the tree in a `DailTests` check on an iPad simulator (CI `ios` job).
 - **Open questions:** none.
 
 ### MISC-11 — Mobile: landscape left pane, icon rail or icon + text tree
@@ -205,4 +212,27 @@ bar), and to restore it. Pinch (MISC-6) is not discoverable enough.
 - **Commands:** none expected; it is the largest pane step of MISC-6 in the presenter (persists across threads, as
   MISC-6 decided).
 - **Touches:** `app-mobile`, `android/`, `ios/`; contract frames.
+- **Open questions:** none.
+
+### MISC-15 — CI: run only on PRs into `main` and on `main`
+
+`ci.yml` has `pull_request:` without a branch filter, so it runs for PRs into any branch;
+`gradle-verification.yml` likewise. Limit both to `pull_request: branches: [main]`; `ci.yml` keeps
+`push: branches: [main]` and `workflow_dispatch`. Scheduled workflows (`advisories`, `toolchain`) and `release.yml`
+(tags) are unchanged. Update AGENTS.md §6 / ARCHITECTURE.md where they describe the triggers.
+
+- **Open questions:** none.
+
+### MISC-16 — Repository: protect `main`
+
+Nobody pushes to `main` directly; changes arrive by PR, and only admins / the owner can merge.
+
+- **Decision:** a repository ruleset on `main` (`gh api repos/{owner}/{repo}/rulesets`): block deletion and force
+  pushes, require a pull request, require the `ci` status checks (the job names of `ci.yml`), restrict who can
+  update `main` with the bypass list = repository admins + the release App of MISC-9 (the App only for its bump
+  commit). Store the ruleset JSON in `.github/rulesets/main.json` and apply it with a documented `gh api` command,
+  so the setting is reviewable.
+- **Order:** apply after MISC-9's App exists, or the release bump cannot push. Applying it is an outward-facing
+  repository change: confirm with the user before running the `gh api` call.
+- **Done when:** `git push origin main` from a non-bypass actor is rejected, and a PR merge by an admin works.
 - **Open questions:** none.
