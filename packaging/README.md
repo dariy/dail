@@ -26,6 +26,6 @@
   is `version:<x.y.z>`.
 - Signing key: `DAIL_UPDATE_SIGNING_PASSWORD=… cargo xtask release keygen <dir>` makes an encrypted pair. The secret key
   and its password go into the `release` environment's secrets only, never into the repository; keep an offline copy.
-  The public key (last line of `dail-update.pub`) is `UPDATE_PUBLIC_KEY` in `crates/app-io/src/update.rs`.
+  The public key (last line of `dail-update.pub`) is in `UPDATE_PUBLIC_KEYS` in `crates/app-io/src/update.rs`.
   Rotation: ship a release whose binary trusts both the old and the new public key, signed with the old key; from the
   next release on, sign with the new key and drop the old one. A leaked key is rotated the same way, at once.

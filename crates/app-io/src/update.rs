@@ -6,10 +6,9 @@ use app_core::{UpdateArtifact, UpdateManifest};
 use sha2::{Digest, Sha256};
 
 /// The minisign public keys (base64, the last line of a `.pub` file) whose signatures dail
-/// accepts. More than one only while a key is rotated (`packaging/README.md`). Empty until the
-/// release key is generated with `cargo xtask release keygen`: until then every manifest is
-/// refused, which fails closed.
-pub const UPDATE_PUBLIC_KEYS: &[&str] = &[];
+/// accepts. More than one only while a key is rotated (`packaging/README.md`).
+pub const UPDATE_PUBLIC_KEYS: &[&str] =
+    &["RWQ8vjNgI4X+qKF7RpNc9uj3D5JQpd3dhQcBlFGIIVxFQiDWtapw8iRk"];
 
 /// The largest manifest accepted, in bytes.
 pub const MAX_MANIFEST_BYTES: usize = 64 * 1024;
