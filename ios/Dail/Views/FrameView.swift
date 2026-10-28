@@ -16,11 +16,14 @@ struct FrameView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             if let fab = frame.fab, frame.snackbar == nil {
+                // A round icon button; VoiceOver reads its name (MISC-21).
                 SwiftUI.Button { send(.tap(fab.action)) } label: {
-                    Label(fab.label, systemImage: Icons.symbol(fab.icon) ?? "square.and.pencil")
-                        .padding(.horizontal, 18).padding(.vertical, 14)
-                        .background(palette.role("primary_container", Color.accentColor.opacity(0.2)), in: Capsule())
+                    Image(systemName: Icons.symbol(fab.icon) ?? "square.and.pencil")
+                        .font(.title2)
+                        .frame(width: 56, height: 56)
+                        .background(palette.role("primary_container", Color.accentColor.opacity(0.2)), in: Circle())
                 }
+                .accessibilityLabel(fab.label)
                 .padding(20)
             }
         }

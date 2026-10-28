@@ -10,22 +10,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +107,21 @@ private fun FrameScaffold(
         },
         floatingActionButton = {
             frame.fab?.let { fab ->
-                ExtendedFloatingActionButton(onClick = { send(UiEvent.Tap(fab.action)) }) { Text(fab.label) }
+                // A round icon button; its name is read by TalkBack and shown on long press (MISC-21).
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(fab.label) } },
+                    state = rememberTooltipState(),
+                ) {
+                    FloatingActionButton(
+                        onClick = { send(UiEvent.Tap(fab.action)) },
+                        modifier = Modifier.semantics { contentDescription = fab.label },
+                        shape = CircleShape,
+                    ) {
+                        val glyph = fab.icon?.let { LocalChrome.current.icons[it] }
+                        if (glyph != null) Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE) else Text(fab.label)
+                    }
+                }
             }
         },
         bottomBar = {
