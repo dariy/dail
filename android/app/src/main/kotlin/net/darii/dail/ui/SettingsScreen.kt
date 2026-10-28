@@ -31,7 +31,9 @@ fun SettingsPane(
 ) {
     Column(Modifier.fillMaxSize()) {
         val selected = page.tabs.indexOfFirst { it.selected }.coerceAtLeast(0)
-        PrimaryScrollableTabRow(selectedTabIndex = selected) {
+        // The first tab's label, the captions and the rows on the text keyline (MISC-24); a tab's
+        // label sits TAB_PADDING inside it.
+        PrimaryScrollableTabRow(selectedTabIndex = selected, edgePadding = Keylines.TEXT_START - TAB_PADDING) {
             page.tabs.forEach { tab ->
                 Tab(
                     selected = tab.selected,
@@ -40,7 +42,7 @@ fun SettingsPane(
                 )
             }
         }
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+        LazyColumn(Modifier.fillMaxSize().padding(start = Keylines.TEXT_START, end = Keylines.END)) {
             page.groups.forEach { group ->
                 item(key = "group:${group.title}") {
                     Column(Modifier.padding(top = 16.dp, bottom = 4.dp)) {
@@ -89,3 +91,6 @@ private fun SettingRowView(
         }
     }
 }
+
+/** Material's horizontal padding inside a tab. */
+private val TAB_PADDING = 16.dp

@@ -74,6 +74,7 @@ struct SettingsPane: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: Metrics.textStart - Self.buttonPadding, bottom: 4, trailing: 0))
             }
             ForEach(Array(page.groups.enumerated()), id: \.offset) { _, group in
                 Section {
@@ -105,13 +106,20 @@ struct SettingsPane: View {
                                 }
                             }
                         }
+                        .listRowInsets(Self.rowInsets)
                     }
                 } header: {
-                    Text(verbatim: group.title)
+                    Text(verbatim: group.title).listRowInsets(Self.rowInsets)
                 } footer: {
-                    if let hint = group.hint { Text(verbatim: hint) }
+                    if let hint = group.hint { Text(verbatim: hint).listRowInsets(Self.rowInsets) }
                 }
             }
         }
+        .listStyle(.plain)
     }
+
+    /// The tabs, captions and rows start on the text keyline (MISC-24).
+    private static let rowInsets = EdgeInsets(top: 8, leading: Metrics.textStart, bottom: 8, trailing: Metrics.end)
+    /// The label's inset inside a bordered button.
+    private static let buttonPadding: CGFloat = 12
 }
