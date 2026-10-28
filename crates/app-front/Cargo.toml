@@ -14,7 +14,9 @@ workspace = true
 [dependencies]
 app-core.workspace = true
 nucleo-matcher.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
 app-testkit.workspace = true
+insta.workspace = true

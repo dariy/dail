@@ -1,0 +1,37 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "List contacts",
+    sections: [
+        Section {
+            title: None,
+            fields: [],
+            rows: [
+                ResultRow {
+                    title: "Carol",
+                    detail: Some(
+                        "carol@example.org",
+                    ),
+                    meta: Some(
+                        "1× · Nov 14",
+                    ),
+                    marks: [],
+                    command: None,
+                },
+                ResultRow {
+                    title: "Bob",
+                    detail: Some(
+                        "bob@example.org",
+                    ),
+                    meta: Some(
+                        "1× · Nov 14",
+                    ),
+                    marks: [],
+                    command: None,
+                },
+            ],
+        },
+    ],
+}

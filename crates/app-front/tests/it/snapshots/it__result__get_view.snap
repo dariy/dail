@@ -1,0 +1,43 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show view state",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "Composer",
+                    value: "00000000-0000-01fa-0000-000000000000",
+                },
+                Field {
+                    label: "Focus",
+                    value: "list",
+                },
+                Field {
+                    label: "Mailbox",
+                    value: "00000000-0000-0005-0000-000000000000",
+                },
+                Field {
+                    label: "Palette open",
+                    value: "no",
+                },
+                Field {
+                    label: "Selected",
+                    value: "00000000-0000-0007-0000-000000000002",
+                },
+                Field {
+                    label: "Sidebar collapsed",
+                    value: "no",
+                },
+                Field {
+                    label: "Thread",
+                    value: "00000000-0000-0007-0000-000000000002",
+                },
+            ],
+            rows: [],
+        },
+    ],
+}

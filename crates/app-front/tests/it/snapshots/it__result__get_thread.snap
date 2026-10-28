@@ -1,0 +1,41 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show thread",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "Subject",
+                    value: "Lunch?",
+                },
+                Field {
+                    label: "Last message",
+                    value: "2023-11-14 12:02 UTC",
+                },
+            ],
+            rows: [
+                ResultRow {
+                    title: "Carol <carol@example.org>",
+                    detail: Some(
+                        "Lunch at noon?",
+                    ),
+                    meta: Some(
+                        "Nov 14",
+                    ),
+                    marks: [],
+                    command: Some(
+                        OpenThread {
+                            id: ThreadId(
+                                00000000-0000-0007-0000-000000000002,
+                            ),
+                        },
+                    ),
+                },
+            ],
+        },
+    ],
+}

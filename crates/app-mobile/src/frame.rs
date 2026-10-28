@@ -877,15 +877,64 @@ pub struct PaletteRow {
     pub action: ActionId,
 }
 
-/// A query's result as text, read-only. Email content in it is untrusted data.
+/// A query's result, read-only: a view people read (`sections`), or its raw JSON (`lines`) after
+/// *Raw data* (MISC-22). Email content in it is untrusted data.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ResultView {
     /// The command's title.
     pub title: String,
     /// Says that it is read-only and untrusted.
     pub note: String,
-    /// The result (pretty JSON), line by line.
+    /// The view, top to bottom; empty while raw.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sections: Vec<ResultSection>,
+    /// The result (pretty JSON), line by line; only while raw.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub lines: Vec<String>,
+    /// *Raw data*, or *View* while raw.
+    pub raw: Button,
     /// Closes it.
     pub close: Button,
+}
+
+/// A group of a result's fields and rows under an optional caption.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultSection {
+    /// The caption.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Labelled values.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fields: Vec<ResultField>,
+    /// Rows, drawn in the list's style.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rows: Vec<ResultRow>,
+}
+
+/// A labelled value of a result.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultField {
+    /// The label; empty for a line of text alone.
+    pub label: String,
+    /// The value.
+    pub value: String,
+}
+
+/// A row of a result: a thread, a mailbox, a contact, a pending change, a check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ResultRow {
+    /// The first line.
+    pub title: String,
+    /// The second line.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    /// The trailing text (a date, counts).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<String>,
+    /// `unread`, `starred`, `pinned`, `attachment`, `passed`, `failed` or `pending`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub marks: Vec<String>,
+    /// A tap closes the result and opens the thread or the mailbox.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub action: Option<ActionId>,
 }

@@ -2,13 +2,17 @@ package net.darii.dail.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -132,7 +136,10 @@ private fun PaletteRowItem(
     }
 }
 
-/** A query's result: read-only lines under the note that it is untrusted. */
+/**
+ * A query's result under the note that it is untrusted: sections of labelled fields and rows in
+ * the list's style, or the raw JSON after *Raw data* (MISC-22).
+ */
 @Composable
 fun ResultScreen(
     result: ResultView,
@@ -143,7 +150,8 @@ fun ResultScreen(
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ActionButton(result.close, send)
-                Text(result.title, style = MaterialTheme.typography.titleMedium)
+                Text(result.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                ActionButton(result.raw, send)
             }
             Text(
                 result.note,
@@ -152,14 +160,94 @@ fun ResultScreen(
                 color = MaterialTheme.colorScheme.onTertiaryContainer,
             )
             HorizontalDivider()
-            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                result.sections.forEach { section ->
+                    section.title?.let { title ->
+                        item {
+                            Text(
+                                title,
+                                Modifier.padding(start = Keylines.TEXT_START, top = 16.dp, bottom = 4.dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    items(section.fields) { field -> ResultFieldRow(field) }
+                    items(section.rows) { row ->
+                        ResultRowView(row, send)
+                        HorizontalDivider()
+                    }
+                }
                 items(result.lines) { line ->
-                    Text(line, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        line,
+                        Modifier.padding(horizontal = 12.dp),
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }
     }
 }
+
+@Composable
+private fun ResultFieldRow(field: ResultField) {
+    Row(Modifier.fillMaxWidth().padding(start = Keylines.TEXT_START, end = Keylines.END, top = 4.dp, bottom = 4.dp)) {
+        if (field.label.isNotEmpty()) {
+            Text(
+                field.label,
+                Modifier.width(RESULT_LABEL_WIDTH),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(field.value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/** A result's row, drawn as the list draws a thread: the marks in the icon column, the text on the keyline. */
+@Composable
+private fun ResultRowView(
+    row: ResultRow,
+    send: (UiEvent) -> Unit,
+) {
+    val tap = row.action
+    val unread = "unread" in row.marks
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .then(if (tap != null) Modifier.clickable { send(UiEvent.Tap(tap)) } else Modifier)
+            .padding(end = Keylines.END, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(Keylines.TEXT_START), contentAlignment = Alignment.Center) {
+            when {
+                "failed" in row.marks -> Glyph("close")
+                "passed" in row.marks -> Glyph("check")
+                "pending" in row.marks -> Glyph("schedule")
+                unread -> Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.secondary, CircleShape))
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                row.title,
+                fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            row.detail?.let {
+                Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+        if ("attachment" in row.marks) Glyph("attach_file")
+        if ("starred" in row.marks) Glyph("star")
+        if ("pinned" in row.marks) Glyph("push_pin")
+        row.meta?.let { Text(it, Modifier.padding(start = 8.dp), style = MaterialTheme.typography.labelSmall) }
+    }
+}
+
+private val RESULT_LABEL_WIDTH = 112.dp
 
 /** Text with its search words marked (`app_mobile::frame::Piece`). */
 @Composable

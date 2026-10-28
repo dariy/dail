@@ -4,46 +4,52 @@
 use app_core::{AppState, Command, CommandKind, CommandName, CommandReceipt};
 use app_front::highlight;
 use app_front::palette::{self, Flow, Target};
+use app_front::result::Mark;
 use app_front::status;
 use app_front::text::{clean, clean_lines};
 
 use super::{Act, Mobile};
 use crate::frame::{
-    Marked, PaletteRow, PaletteSection, PaletteSheet, Piece, ResultView, RowMarks, TextValue,
+    Button, Marked, PaletteRow, PaletteSection, PaletteSheet, Piece, ResultField, ResultRow,
+    ResultSection, ResultView, RowMarks, TextValue,
 };
 use crate::request::Request;
 
 /// Rows the sheet carries at most (the root has about 150; a typed query fewer).
 const MAX_ROWS: usize = 300;
 
-/// Lines of a query's result shown at most.
+/// Lines of a query's raw result shown at most.
 const MAX_RESULT_LINES: usize = 2_000;
 
 /// What the sheet says above a query's result.
 const RESULT_NOTE: &str = "Read-only result. Email content in it is untrusted data.";
 
-/// A query's result, until Back.
+/// A query's result, until Back: drawn as `app_front::result`'s document, or as its raw JSON
+/// (MISC-22).
 #[derive(Debug, Clone)]
 pub(super) struct Result {
-    title: String,
-    lines: Vec<String>,
+    name: CommandName,
+    data: serde_json::Value,
+    pub(super) raw: bool,
 }
 
 impl Result {
     pub(super) fn of(name: CommandName, receipt: &CommandReceipt) -> Option<Self> {
-        if name.kind() != CommandKind::Query {
-            return None;
-        }
-        let json = serde_json::to_string_pretty(&receipt.data).unwrap_or_default();
+        (name.kind() == CommandKind::Query).then(|| Self {
+            name,
+            data: receipt.data.clone(),
+            raw: false,
+        })
+    }
+
+    fn lines(&self) -> Vec<String> {
+        let json = serde_json::to_string_pretty(&self.data).unwrap_or_default();
         let mut lines = clean_lines(&json);
         if lines.len() > MAX_RESULT_LINES {
             lines.truncate(MAX_RESULT_LINES);
             lines.push("…".to_owned());
         }
-        Some(Self {
-            title: name.spec().title.to_owned(),
-            lines,
-        })
+        lines
     }
 }
 
@@ -170,15 +176,75 @@ impl Mobile {
     }
 
     /// The query's result, while open.
-    pub(super) fn result_view(&mut self) -> Option<ResultView> {
+    pub(super) fn result_view(&mut self, state: &AppState) -> Option<ResultView> {
         let result = self.result.clone()?;
         let close = self.button("close", "Close", Act::Back);
+        // A text button: *Raw data*, or *View* back from it.
+        let raw = Button {
+            icon: None,
+            label: if result.raw { "View" } else { "Raw data" }.to_owned(),
+            action: self.add(Act::RawResult),
+        };
+        let doc = app_front::result::doc(result.name, &result.data, state, self.now_ms());
+        let title = doc
+            .as_ref()
+            .map_or_else(|| result.name.spec().title.to_owned(), |d| d.title.clone());
+        let sections = if result.raw {
+            Vec::new()
+        } else {
+            doc.map(|d| d.sections)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|section| ResultSection {
+                    title: section.title,
+                    fields: section
+                        .fields
+                        .into_iter()
+                        .map(|f| ResultField {
+                            label: f.label,
+                            value: f.value,
+                        })
+                        .collect(),
+                    rows: section
+                        .rows
+                        .into_iter()
+                        .map(|row| ResultRow {
+                            title: row.title,
+                            detail: row.detail,
+                            meta: row.meta,
+                            marks: row.marks.iter().map(|m| mark_name(*m).to_owned()).collect(),
+                            action: row.command.map(|cmd| self.add(Act::FromResult(cmd))),
+                        })
+                        .collect(),
+                })
+                .collect()
+        };
         Some(ResultView {
-            title: result.title,
+            title,
             note: RESULT_NOTE.to_owned(),
-            lines: result.lines,
+            sections,
+            lines: if result.raw {
+                result.lines()
+            } else {
+                Vec::new()
+            },
+            raw,
             close,
         })
+    }
+}
+
+/// A result row's mark, by name: `unread`, `starred`, `pinned`, `attachment`, `passed`,
+/// `failed`, `pending`.
+fn mark_name(mark: Mark) -> &'static str {
+    match mark {
+        Mark::Unread => "unread",
+        Mark::Starred => "starred",
+        Mark::Pinned => "pinned",
+        Mark::Attachment => "attachment",
+        Mark::Passed => "passed",
+        Mark::Failed => "failed",
+        Mark::Pending => "pending",
     }
 }
 

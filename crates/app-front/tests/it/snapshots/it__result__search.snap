@@ -1,0 +1,58 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Search mail",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "Query",
+                    value: "a",
+                },
+                Field {
+                    label: "Threads",
+                    value: "2",
+                },
+            ],
+            rows: [
+                ResultRow {
+                    title: "Carol <carol@example.org>",
+                    detail: Some(
+                        "Lunch?",
+                    ),
+                    meta: Some(
+                        "Nov 14",
+                    ),
+                    marks: [],
+                    command: Some(
+                        OpenThread {
+                            id: ThreadId(
+                                00000000-0000-0007-0000-000000000002,
+                            ),
+                        },
+                    ),
+                },
+                ResultRow {
+                    title: "Bob <bob@example.org>",
+                    detail: Some(
+                        "Q3 numbers",
+                    ),
+                    meta: Some(
+                        "Nov 14",
+                    ),
+                    marks: [],
+                    command: Some(
+                        OpenThread {
+                            id: ThreadId(
+                                00000000-0000-0007-0000-000000000000,
+                            ),
+                        },
+                    ),
+                },
+            ],
+        },
+    ],
+}

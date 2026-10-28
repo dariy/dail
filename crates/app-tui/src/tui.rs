@@ -664,6 +664,15 @@ impl Tui {
                 KeyCode::Up => result.scroll_by(-1),
                 KeyCode::Char(' ') | KeyCode::PageDown => result.scroll_by(result.page()),
                 KeyCode::Char('b') | KeyCode::PageUp => result.scroll_by(-result.page()),
+                KeyCode::Char('r') => result.toggle_raw(),
+                KeyCode::Tab => result.select(true),
+                KeyCode::BackTab => result.select(false),
+                KeyCode::Enter => {
+                    if let Some(cmd) = result.chosen() {
+                        self.result = None;
+                        return vec![Request::user(cmd)];
+                    }
+                }
                 KeyCode::Esc | KeyCode::Char('q' | '?') | KeyCode::Backspace => self.result = None,
                 _ => {}
             }
@@ -860,7 +869,7 @@ impl Tui {
     }
 
     /// Takes the results of earlier requests; returns follow-up requests.
-    pub fn replies(&mut self, replies: Vec<Reply>, _state: &AppState) -> Vec<Request> {
+    pub fn replies(&mut self, replies: Vec<Reply>, state: &AppState) -> Vec<Request> {
         let mut out = Vec::new();
         for reply in replies {
             match reply.tag {
@@ -894,7 +903,12 @@ impl Tui {
                     } else if let Ok(Ok(receipt)) = &reply.result
                         && reply.name.kind() == app_core::CommandKind::Query
                     {
-                        self.result = Some(ResultView::new(reply.name.spec().title, &receipt.data));
+                        self.result = Some(ResultView::new(
+                            reply.name,
+                            &receipt.data,
+                            state,
+                            self.now_ms(),
+                        ));
                     }
                     // A new draft (compose, reply, forward) opens in the composer, as in the GUI.
                     if let Ok(Ok(receipt)) = &reply.result

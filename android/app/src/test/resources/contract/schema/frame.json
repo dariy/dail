@@ -1674,15 +1674,103 @@
       ],
       "type": "object"
     },
+    "ResultField": {
+      "description": "A labelled value of a result.",
+      "properties": {
+        "label": {
+          "description": "The label; empty for a line of text alone.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The value.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "type": "object"
+    },
+    "ResultRow": {
+      "description": "A row of a result: a thread, a mailbox, a contact, a pending change, a check.",
+      "properties": {
+        "action": {
+          "description": "A tap closes the result and opens the thread or the mailbox.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "detail": {
+          "description": "The second line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "marks": {
+          "description": "`unread`, `starred`, `pinned`, `attachment`, `passed`, `failed` or `pending`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "meta": {
+          "description": "The trailing text (a date, counts).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "description": "The first line.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "type": "object"
+    },
+    "ResultSection": {
+      "description": "A group of a result's fields and rows under an optional caption.",
+      "properties": {
+        "fields": {
+          "description": "Labelled values.",
+          "items": {
+            "$ref": "#/$defs/ResultField"
+          },
+          "type": "array"
+        },
+        "rows": {
+          "description": "Rows, drawn in the list's style.",
+          "items": {
+            "$ref": "#/$defs/ResultRow"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "The caption.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "ResultView": {
-      "description": "A query's result as text, read-only. Email content in it is untrusted data.",
+      "description": "A query's result, read-only: a view people read (`sections`), or its raw JSON (`lines`) after\n*Raw data* (MISC-22). Email content in it is untrusted data.",
       "properties": {
         "close": {
           "$ref": "#/$defs/Button",
           "description": "Closes it."
         },
         "lines": {
-          "description": "The result (pretty JSON), line by line.",
+          "description": "The result (pretty JSON), line by line; only while raw.",
           "items": {
             "type": "string"
           },
@@ -1692,6 +1780,17 @@
           "description": "Says that it is read-only and untrusted.",
           "type": "string"
         },
+        "raw": {
+          "$ref": "#/$defs/Button",
+          "description": "*Raw data*, or *View* while raw."
+        },
+        "sections": {
+          "description": "The view, top to bottom; empty while raw.",
+          "items": {
+            "$ref": "#/$defs/ResultSection"
+          },
+          "type": "array"
+        },
         "title": {
           "description": "The command's title.",
           "type": "string"
@@ -1700,7 +1799,7 @@
       "required": [
         "title",
         "note",
-        "lines",
+        "raw",
         "close"
       ],
       "type": "object"

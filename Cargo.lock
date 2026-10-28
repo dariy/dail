@@ -347,7 +347,9 @@ version = "0.1.2"
 dependencies = [
  "app-core",
  "app-testkit",
+ "insta",
  "nucleo-matcher",
+ "serde",
  "serde_json",
 ]
 

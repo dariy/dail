@@ -629,12 +629,35 @@ struct PaletteRow: Codable {
     let action: ActionId
 }
 
-/// A query's result, read-only; email content in it is untrusted data.
+/// A query's result, read-only: a view (`sections`), or its raw JSON (`lines`) after *Raw data*
+/// (MISC-22). Email content in it is untrusted data.
 struct ResultView: Codable {
     let title: String
     let note: String
-    let lines: [String]
+    let sections: [ResultSection]?
+    let lines: [String]?
+    let raw: ActionButton
     let close: ActionButton
+}
+
+struct ResultSection: Codable {
+    let title: String?
+    let fields: [ResultField]?
+    let rows: [ResultRow]?
+}
+
+struct ResultField: Codable {
+    let label: String
+    let value: String
+}
+
+/// A result's row; a tap on one with an `action` opens its thread or mailbox.
+struct ResultRow: Codable {
+    let title: String
+    let detail: String?
+    let meta: String?
+    let marks: [String]?
+    let action: ActionId?
 }
 
 /// A notification Rust decided on (`app_mobile::Notification`); `open` and the acts go back verbatim.

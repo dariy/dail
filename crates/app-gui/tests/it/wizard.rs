@@ -83,7 +83,12 @@ fn a_failed_login_can_be_retried_with_another_password() {
             error: "IMAP LOGIN failed: authentication failed".into(),
         },
     );
-    h.get_by_label_contains("authentication failed");
+    // The wizard and the test's result window (MISC-22) both say why.
+    assert!(
+        h.query_all_by_label_contains("authentication failed")
+            .next()
+            .is_some()
+    );
     button(&h, "Try another password");
     h.run();
     assert_eq!(

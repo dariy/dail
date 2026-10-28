@@ -20,7 +20,7 @@ fn dispatch(engine: &mut Engine, seed: u128, cmd: Command) -> app_core::CommandR
 
 /// A state where every command has something to act on: an open thread, a pending op, an open
 /// draft with an attachment, a scheduled send and an agent's send request.
-fn rich_state() -> AppState {
+pub(crate) fn rich_state() -> AppState {
     let state = synced_state();
     let (inbox, threads) = inbox_of(&state);
     let account = *state.accounts.keys().next().unwrap();

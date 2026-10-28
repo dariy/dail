@@ -596,11 +596,39 @@ data class PaletteRow(
     val action: ActionId,
 )
 
-/** A query's result, read-only; email content in it is untrusted data. */
+/**
+ * A query's result, read-only: a view (`sections`), or its raw JSON (`lines`) after *Raw data*
+ * (MISC-22). Email content in it is untrusted data.
+ */
 @Serializable
 data class ResultView(
     val title: String,
     val note: String,
-    val lines: List<String>,
+    val sections: List<ResultSection> = emptyList(),
+    val lines: List<String> = emptyList(),
+    val raw: Button,
     val close: Button,
+)
+
+@Serializable
+data class ResultSection(
+    val title: String? = null,
+    val fields: List<ResultField> = emptyList(),
+    val rows: List<ResultRow> = emptyList(),
+)
+
+@Serializable
+data class ResultField(
+    val label: String,
+    val value: String,
+)
+
+/** A result's row; a tap on one with an `action` opens its thread or mailbox. */
+@Serializable
+data class ResultRow(
+    val title: String,
+    val detail: String? = null,
+    val meta: String? = null,
+    val marks: List<String> = emptyList(),
+    val action: Int? = null,
 )
