@@ -74,7 +74,12 @@ fun ListPane(
                 item(key = "server") {
                     Text(
                         server,
-                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                        Modifier.fillMaxWidth().padding(
+                            start = Keylines.TEXT_START,
+                            end = Keylines.END,
+                            top = 6.dp,
+                            bottom = 6.dp,
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -113,7 +118,10 @@ private fun ReportScrolling(
 @Composable
 private fun EmptyList(text: String?) {
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(32.dp),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = Keylines.TEXT_START, end = Keylines.TEXT_START, top = 32.dp, bottom = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -141,6 +149,7 @@ fun ThreadRow(
         }
     val weight = if (row.unread) FontWeight.SemiBold else FontWeight.Normal
     val subject = row.marks?.let { marked(it.subject) } ?: AnnotatedString(row.subject)
+    val vertical = if (density == Density.Compact) 6.dp else 10.dp
     Row(
         modifier
             .combinedClickable(
@@ -149,15 +158,24 @@ fun ThreadRow(
             ).fillMaxWidth()
             .background(background)
             .semantics(mergeDescendants = true) { contentDescription = row.a11y }
-            .padding(horizontal = 12.dp, vertical = if (density == Density.Compact) 6.dp else 10.dp),
+            .padding(end = Keylines.END, top = vertical, bottom = vertical),
         verticalAlignment = if (density == Density.Compact) Alignment.CenterVertically else Alignment.Top,
     ) {
-        Tag(row.tag)
-        Box(Modifier.width(UNREAD_GUTTER).padding(top = if (density == Density.Compact) 0.dp else 6.dp)) {
-            if (row.checked) {
-                Glyph("check_box")
-            } else if (row.unread) {
-                Box(Modifier.size(8.dp).background(colors.secondary, CircleShape))
+        // The colour bar at the edge, the dot or check box centred in the icon column, the text on
+        // the text keyline (MISC-20).
+        Box(Modifier.width(Keylines.TEXT_START)) {
+            Tag(row.tag)
+            Box(
+                Modifier
+                    .padding(start = Keylines.ICON_START)
+                    .size(Keylines.ICON_SIZE),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (row.checked) {
+                    Glyph("check_box")
+                } else if (row.unread) {
+                    Box(Modifier.size(8.dp).background(colors.secondary, CircleShape))
+                }
             }
         }
         Column(Modifier.weight(1f)) {
@@ -261,7 +279,6 @@ private fun Tag(tag: Int?) {
     val color = tag?.let { LocalChrome.current.tag(it) } ?: Color.Transparent
     Box(
         Modifier
-            .padding(end = 4.dp)
             .size(TAG_WIDTH, TAG_HEIGHT)
             .background(color, RoundedCornerShape(2.dp)),
     )
@@ -279,6 +296,5 @@ private fun Placeholder(density: Density) {
     Box(Modifier.fillMaxWidth().height(height).background(MaterialTheme.colorScheme.surface))
 }
 
-private val UNREAD_GUTTER = 20.dp
 private val TAG_WIDTH = 3.dp
 private val TAG_HEIGHT = 32.dp

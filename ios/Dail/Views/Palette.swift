@@ -4,11 +4,16 @@ import SwiftUI
 struct Palette {
     let content: [String: Color]
     let chrome: [String: Color]
+    let tags: [Color]
 
     init(theme: FrameTheme?) {
         content = (theme?.content ?? [:]).compactMapValues(Color.init(rgba:))
         chrome = (theme?.chrome ?? [:]).compactMapValues(Color.init(rgba:))
+        tags = (theme?.tags ?? []).compactMap(Color.init(rgba:))
     }
+
+    /// An account's colour (`Row.tag`), as Kotlin's `Chrome.tag`.
+    func tag(_ index: Int) -> Color { tags.indices.contains(index) ? tags[index] : .clear }
 
     func role(_ name: String, _ fallback: Color) -> Color { content[name] ?? fallback }
     func chrome(_ name: String, _ fallback: Color) -> Color { chrome[name] ?? fallback }

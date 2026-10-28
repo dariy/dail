@@ -103,7 +103,12 @@ struct TopBarView: View {
                 Spacer()
                 ForEach(Array(bulk.actions.enumerated()), id: \.offset) { _, button in FrameButton(button: button, send: send) }
             } else {
-                if let navigation = frame.topBar.navigation { FrameButton(button: navigation, send: send) }
+                // The navigation button in a fixed slot, so the title starts on the text keyline (MISC-20).
+                if let navigation = frame.topBar.navigation {
+                    FrameButton(button: navigation, send: send)
+                        .frame(width: Metrics.iconSize)
+                        .padding(.trailing, Metrics.textStart - Metrics.iconStart - Metrics.iconSize - 16)
+                }
                 VStack(alignment: .leading, spacing: 0) {
                     Text(frame.topBar.title).font(.headline).lineLimit(1)
                         .accessibilityAddTraits(.isHeader)
@@ -115,7 +120,7 @@ struct TopBarView: View {
                 }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
+        .padding(.horizontal, Metrics.iconStart).padding(.vertical, 10)
         .foregroundStyle(palette.chrome("text_strong", Color.primary))
         .background(palette.chrome("base", Color(uiColor: .secondarySystemBackground)))
     }
