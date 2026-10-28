@@ -152,7 +152,7 @@ pub enum Command {
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 
 ## 6. Verification Loop (Gatekeeper Protocol)
-Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`, on pull requests into `main`, pushes to `main` and by hand) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `ios` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
+Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`, on pull requests into `main`, pushes to `main` but the release bump commit, and by hand) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `ios` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
 
 1. `cargo fmt --all --check`
 2. `cargo deny check`

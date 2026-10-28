@@ -23,7 +23,8 @@
   adds a `CHANGELOG.md` section (`--note <text>` fills it, else a stub).
   `cargo xtask release versions` lists the sites; `cargo xtask release next <patch|minor|major>` prints the next
   version.
-- Release on merge (MISC-9): `.github/workflows/bump.yml` runs on every push to `main` (a merged PR). It bumps the
+- Release on merge (MISC-9): `.github/workflows/bump.yml` runs after `ci` passes on a push to `main` (a merged PR;
+  `workflow_run`), so a merge that breaks `main` is not released, and `ci` skips the bump's own commit. It bumps the
   patch version, or the minor / major one if the PR has the label `release:minor` / `release:major` (`release:skip`
   releases nothing), with the PR title as the changelog line, commits `workspace: release vX.Y.Z` to `main` and pushes
   the tag, which starts `release.yml`. It pushes with a GitHub App token, because pushes made with `GITHUB_TOKEN` start

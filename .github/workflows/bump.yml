@@ -1,12 +1,16 @@
-# A merge into main releases the next version (MISC-9): the bump job computes it (patch, or the merged PR's
+# A merge into main releases the next version (MISC-9), once ci is green on it: main runs ci → bump → release, so a
+# merge that breaks main is never released. The bump job computes the version (patch, or the merged PR's
 # `release:minor` / `release:major` label; `release:skip` releases nothing), runs `cargo xtask release bump` with the
 # PR title as the changelog line, commits `workspace: release vX.Y.Z` to main and pushes the tag `vX.Y.Z`, which
 # starts release.yml. It pushes with a GitHub App token: pushes made with GITHUB_TOKEN start no workflows, and the
 # App is the only actor on the bypass list of the main ruleset (.github/rulesets/main.json, MISC-16).
 name: bump
 
+# After ci on main, never beside it. workflow_run starts this file as it is on main.
 on:
-  push:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
     branches: [main]
 
 permissions:
@@ -19,8 +23,12 @@ concurrency:
 
 jobs:
   bump:
-    # Its own commit lands on main too: never bump that one.
-    if: "${{ !startsWith(github.event.head_commit.message, 'workspace: release v') }}"
+    # Only a green ci of a push to main (not a dispatch, not a PR), and never for the bump's own commit (ci skips it,
+    # and a run whose jobs all skip still counts as a success).
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && !startsWith(github.event.workflow_run.head_commit.message, 'workspace: release v') }}
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -28,8 +36,10 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ github.token }}
+          # The commit ci tested; GITHUB_SHA is main's tip when this run started.
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] // {}')"
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[0] // {}')"
           labels="$(jq -r '[.labels[]?.name] | join(" ")' <<<"$pr")"
           part="patch"
           case " $labels " in
@@ -55,6 +65,8 @@ jobs:
         with:
           ref: main
           token: ${{ steps.app.outputs.token }}
+          # Every tag, for the "already released" check below.
+          fetch-depth: 0
       - if: steps.pr.outputs.part != 'skip'
         run: rustup show active-toolchain || rustup toolchain install
       - name: Bump, commit and tag
@@ -63,7 +75,14 @@ jobs:
           GH_TOKEN: ${{ steps.app.outputs.token }}
           APP_SLUG: ${{ steps.app.outputs.app-slug }}
           PART: ${{ steps.pr.outputs.part }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          # A re-run of a green ci, or a ci that finished after a later merge's bump: a tag already holds the commit.
+          released="$(git tag --list 'v*' --contains "$HEAD_SHA")"
+          if [ -n "$released" ]; then
+            echo "$HEAD_SHA is already in $(echo "$released" | head -n 1); nothing to release"
+            exit 0
+          fi
           next="$(cargo xtask release next "$PART")"
           cargo xtask release bump "$next" --note "$(cat "$RUNNER_TEMP/note.txt")"
           bot="${APP_SLUG}[bot]"
