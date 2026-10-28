@@ -84,10 +84,12 @@ private fun DrawerItems(
     drawer: Drawer,
     send: (UiEvent) -> Unit,
 ) {
+    // Every row reserves the chevron's column when some folder has folders below it (MISC-23).
+    val gutter = drawer.accounts.any { account -> account.mailboxes.any { it.fold != null } }
     LazyColumn(Modifier.padding(horizontal = 12.dp)) {
         // Rail ↔ full tree (MISC-11), at the top of the pane.
         drawer.style?.let { style -> item { ActionButton(style, send) } }
-        drawer.allInboxes?.let { item -> item { DrawerEntry(item, send) } }
+        drawer.allInboxes?.let { item -> item { DrawerEntry(item, gutter, send) } }
         drawer.accounts.forEach { account ->
             item {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -113,27 +115,34 @@ private fun DrawerItems(
                     account.fold?.let { fold -> Chevron(fold, send) }
                 }
             }
-            items(account.mailboxes) { item -> DrawerEntry(item, send) }
+            items(account.mailboxes) { item -> DrawerEntry(item, gutter, send) }
         }
         item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
-        items(drawer.footer) { item -> DrawerEntry(item, send) }
+        items(drawer.footer) { item -> DrawerEntry(item, gutter, send) }
     }
 }
 
 @Composable
 private fun DrawerEntry(
     item: DrawerItem,
+    gutter: Boolean,
     send: (UiEvent) -> Unit,
 ) {
-    // The folder tree (MISC-10): indented by depth, with a chevron before a folder that has
-    // folders below it.
+    // The folder tree (MISC-10): a chevron before a folder that has folders below it. With a
+    // `gutter`, every row keeps the chevron's column, so the titles of one level line up; each
+    // level indents half an icon (MISC-23).
     NavigationDrawerItem(
         label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         selected = item.selected,
         onClick = { send(UiEvent.Tap(item.action)) },
         icon = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                item.fold?.let { fold -> Chevron(fold, send) }
+                val fold = item.fold
+                if (fold != null) {
+                    Chevron(fold, send)
+                } else if (gutter) {
+                    Spacer(Modifier.width(CHEVRON_SIZE))
+                }
                 Glyph(item.icon)
             }
         },
@@ -188,7 +197,9 @@ fun Glyph(name: String) {
 }
 
 private val DRAWER_WIDTH = 280.dp
-private val INDENT = 16.dp
+
+/** Half the 24 dp icon (MISC-23). */
+private val INDENT = 12.dp
 private val CHEVRON_SIZE = 32.dp
 private val RAIL_WIDTH = 80.dp
 private val TAG_WIDTH = 4.dp
