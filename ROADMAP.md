@@ -739,7 +739,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
   queries), *Raw data* one tap away
 - [x] MISC-23 [kt][ios]: folder tree alignment — the chevron column reserved on every row, half an icon of indent
   per level
-- [ ] MISC-24 [kt][ios]: settings content on the title's keyline
+- [x] MISC-24 [kt][ios]: settings content on the title's keyline
 
 ---
 
