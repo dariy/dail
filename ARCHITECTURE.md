@@ -1829,8 +1829,10 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
-`bump.yml` makes the tag: every merge into `main` bumps the version (patch unless a `release:minor|major|skip` label),
-commits it and pushes `vX.Y.Z` with a GitHub App token (MISC-9, `packaging/README.md`).
+`bump.yml` makes the tag: after `ci` passes on a merge into `main` (`workflow_run`), it bumps the version (patch unless
+a `release:minor|major|skip` label), commits it and pushes `vX.Y.Z` with a GitHub App token, so `main` runs
+ci → bump → release; `ci` skips the bump commit, and a commit a tag already holds is not released again (MISC-9,
+`packaging/README.md`).
 `main` is protected by the ruleset in `.github/rulesets/main.json` (MISC-16): PRs only, CI's jobs required, and only
 admins and the release App may update it.
 
