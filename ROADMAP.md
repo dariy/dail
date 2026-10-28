@@ -732,7 +732,8 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
   right goes back; pulling past its top or bottom turns to the previous or next conversation; `Reader.previous` /
   `next` carry a peek (sender, subject, date)
 - [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
-  oversized JPEGs downscaled, EXIF orientation; PDF pages by `hayro` in `app_io::pdf` (ADR 0012); iOS preview
+  oversized JPEGs downscaled, EXIF orientation; PDF pages and zoom tiles by `hayro` (upstream `main` + a vendored
+  `hayro-postscript` fix) in `app_io::pdf` (ADR 0012); Android viewer adapted from pdfcraft-android; iOS preview
   through `dail_blob`
 - [x] MISC-20 [kt][ios]: list rows on the top bar's keylines (icon column 16–40, text at 56), constants in
   `Keylines.kt` / `Metrics.swift`

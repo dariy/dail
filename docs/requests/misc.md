@@ -378,27 +378,36 @@ Swift never calls `dail_blob`.
     fit, not refused, and the decoder stays within `MAX_ALLOC` (for JPEG a DCT-scaled decode, such as
     `jpeg-decoder`'s `scale`; choose when picked, pure Rust). EXIF orientation is applied (`image`'s
     `ImageDecoder::orientation`).
-  - PDF in pure Rust with `hayro` (`#![forbid(unsafe_code)]`), not Android's `PdfRenderer` (PDFium, C++) or iOS's
-    PDFKit: an attacker's PDF is parsed only by memory-safe code, as images and HTML already are, by one renderer for
-    both apps that `cargo test` covers. A new `app_io::pdf` beside `images`: the page count and sizes, and a page
-    rasterized at a given width to RGBA (the images' format). Limits on pages, pixels per page (`MAX_SIDE`), memory
-    and time. Rendering runs on a blocking task, so an error or a panic shows "This page could not be shown." with
-    *Save*. No links, forms, JavaScript or remote loads.
-  - `app-host`: `BlobRequest` gains a PDF's pages and a PDF page at a width. `app-mobile`: `PreviewKind::Pdf`.
-  - Zoom in both apps: pinch, double tap (fit ↔ 2.5×), pan while zoomed. PDF pages scroll vertically, with
-    "page n of m". Past the bitmap's resolution the host asks for the visible page again at the zoomed width (at most
-    `MAX_SIDE`). *Save* stays the only way to another app.
+  - PDF in pure Rust with `hayro` (ADR 0012), not Android's `PdfRenderer` (PDFium, C++) or iOS's PDFKit
+    (CoreGraphics, the FORCEDENTRY JBIG2 history): both run C/C++ parsers with a code-execution history inside
+    dail's process, while hayro's known bugs are crashes and hangs. An attacker's PDF is parsed only by memory-safe
+    code, as images and HTML already are, by one renderer for both apps that `cargo test` covers. hayro comes from
+    upstream `main` at a reviewed commit (a git dependency) with a vendored `hayro-postscript` that fixes a stack
+    overflow on long `<<`/`>>` runs; back to crates.io once a release has the fixes. A new `app_io::pdf` beside
+    `images`: the page count and sizes, and a page or a tile of it rasterized at a given width to RGBA (the images'
+    format). Limits on bytes, pages, pixels (`MAX_SIDE`, `MAX_ZOOM_WIDTH`, `TILE_MAX`), memory and time. Rendering
+    runs on a blocking task, so an error or a panic shows "This page could not be shown." with *Save*. No links,
+    forms, JavaScript or remote loads.
+  - `app-host`: `BlobRequest` gains a PDF's pages and a PDF page at a width, with an optional tile.
+    `app-mobile`: `PreviewKind::Pdf` and `Preview.failed`.
+  - Zoom in both apps: pinch, double tap (fit ↔ 2.5×), pan while zoomed. Pinch zooms the whole document; PDF pages
+    scroll vertically, with "Page n of m". Past the base image's resolution the app asks for tiles of the visible
+    area at the zoomed width, so text stays sharp at depth. *Save* stays the only way to another app.
+  - Android's viewer is adapted from pdfcraft-android (`DocLayout`, `PageCanvas`, `PageImages`; MIT, © ArtCraft Team
+    and the PdfCraft contributors); the notice goes into the adapted files and About. pdfcraft's engine crates are
+    not used.
   - iOS: `Native.swift` and `Host.swift` call `dail_blob`. The preview draws images, text and PDF pages with the same
     zoom, in place of the placeholder.
-  - ADR 0012 comes first: `hayro` against the system renderers (safety, quality, speed, app size), the limits, and
-    the licences of any fonts `hayro` embeds (they go into About). `cargo deny` must pass the new tree.
+  - ADR 0012 comes first: `hayro` against the system renderers (safety, quality, speed, app size), the limits, the
+    unsafe code in its tree, and the licences of the fonts and CMaps `hayro` embeds (they go into About).
+    `cargo deny` must pass the new tree.
 - **Touches:** `app-io` (`images.rs`, new `pdf.rs`), `app-host` (`config.rs` `BlobRequest`, `host.rs` `blob`),
   `app-mobile` (`mobile/reader.rs` `preview_kind`, `frame.rs`, `theme.rs` licences), `android/`
   (`ui/PreviewScreen.kt`), `ios/` (`Native.swift`, `Host.swift`, a preview view), workspace dependencies,
   `deny.toml` if needed, `docs/adr/0012-*.md`.
 - **Done when:** `app-io` tests: a generated 6000 × 4000 JPEG decodes to at most 4096 px a side within `MAX_ALLOC`; a
   JPEG with EXIF orientation 6 comes out upright; a generated one-page PDF renders at the asked width with ink on
-  it; a truncated or malformed PDF is an error, not a panic or a hang. A contract fixture for a PDF preview frame.
+  it; a truncated or malformed PDF is an error, not a panic or a hang; a CMap with a long `<<` run does not abort. A contract fixture for a PDF preview frame.
   Both apps open a camera JPG and a PDF and zoom them with pinch and double tap.
 - **Open questions:** none (the renderer was decided on 2026-10-28: pure Rust).
 
