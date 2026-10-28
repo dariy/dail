@@ -716,8 +716,8 @@ The requests of 2026-10-28. Details, decisions and open questions are in
 host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and MISC-19 (ADR 0012 first).
 
 **Exit criteria**
-- On a phone the open message is a sheet that rises from the bottom and closes with a drag down; the list under it
-  keeps its place. Swiping between conversations slides the pages.
+- On a phone the open message is a page that slides in from the right; a swipe right goes back, and the list under it
+  keeps its place. Pulling past a message's top or bottom turns to the previous or next conversation, with a peek.
 - Camera JPGs (large ones downscaled, EXIF-rotated) and PDFs open in the app and zoom; PDF pages are rendered by
   memory-safe Rust.
 - No palette query shows raw JSON unless asked, on any front end (Android, iOS, GUI, TUI).
@@ -726,9 +726,11 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 
 ### M — Mobile
 - [x] MISC-17 [mobile][kt][ios]: the open message is a sheet over the list on compact windows (`layout.sheet`):
-  slides up on open, a drag down closes it (`close_thread`), the list keeps its scroll position
-- [ ] MISC-18 [mobile][kt][ios]: swiping between conversations slides the pages; `Reader.previous` / `next` carry a
-  peek (sender, subject, date)
+  slides up on open, a drag down closes it (`close_thread`), the list keeps its scroll position. Superseded by
+  MISC-18's page
+- [ ] MISC-18 [mobile][kt][ios]: the open message is a page from the right on compact windows (`layout.page`), a swipe
+  right goes back; pulling past its top or bottom turns to the previous or next conversation; `Reader.previous` /
+  `next` carry a peek (sender, subject, date)
 - [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
   oversized JPEGs downscaled, EXIF orientation; PDF pages by `hayro` in `app_io::pdf` (ADR 0012); iOS preview
   through `dail_blob`

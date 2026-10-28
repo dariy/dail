@@ -174,20 +174,20 @@ fn the_message_pane_maximizes_and_restores() {
 }
 
 #[test]
-fn a_phone_shows_the_message_as_a_sheet_over_the_list() {
-    // MISC-17: the list stays (and keeps its place); the message rises over it.
+fn a_phone_shows_the_message_as_a_page_over_the_list() {
+    // MISC-18: the list stays (and keeps its place); the message slides in over it.
     let mut phone = Phone::inbox(360, 800);
     let list_title = phone.frame().top_bar.title;
     let (_, threads) = inbox_of(phone.state());
     phone.dispatch(Command::OpenThread { id: threads[0] });
     let frame = phone.frame();
     assert_eq!(frame.layout.panes, [PaneKind::List]);
-    assert_eq!(frame.layout.sheet, Some(PaneKind::Reader));
+    assert_eq!(frame.layout.page, Some(PaneKind::Reader));
     assert!(frame.list.is_some() && frame.reader.is_some());
     assert_eq!(frame.top_bar.title, list_title, "the list's top bar");
-    assert!(frame.fab.is_none(), "no floating button under the sheet");
-    assert!(frame.back, "Back closes the sheet");
-    // The sheet's close (a drag down) is the ×: `close_thread`.
+    assert!(frame.fab.is_none(), "no floating button under the page");
+    assert!(frame.back, "Back closes the page");
+    // The page's close (a swipe right) is the ×: `close_thread`.
     let close = frame.reader.unwrap().close;
     assert_eq!(
         phone.tap(close.action).first().map(Command::command_name),
@@ -199,7 +199,7 @@ fn a_phone_shows_the_message_as_a_sheet_over_the_list() {
         let mut phone = Phone::inbox(width, 800);
         phone.dispatch(Command::OpenThread { id: threads[0] });
         let frame = phone.frame();
-        assert!(frame.layout.sheet.is_none());
+        assert!(frame.layout.page.is_none());
         assert!(frame.layout.panes.contains(&PaneKind::Reader));
     }
 }

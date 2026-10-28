@@ -127,10 +127,13 @@ pub struct Layout {
     pub class: Class,
     /// The panes on screen, left to right.
     pub panes: Vec<PaneKind>,
-    /// A pane drawn as a full-height sheet over the panes and the top bar: the open message on a
-    /// compact window (`reader`, MISC-17). A drag down closes it (its `close`).
+    /// A pane drawn as a page over the panes and the top bar: the open message on a compact
+    /// window (`reader`, MISC-18). It slides in from the right, and a swipe right takes it away
+    /// (its `close`). The panes beneath keep their place. The snackbar, a modal drawer, the link
+    /// dialog and what takes the panes' place (`about`, `setup`, `palette`, `result`, `preview`)
+    /// show over it; it waits under them, in place.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sheet: Option<PaneKind>,
+    pub page: Option<PaneKind>,
 }
 
 /// Something to tap: an icon or a text button.

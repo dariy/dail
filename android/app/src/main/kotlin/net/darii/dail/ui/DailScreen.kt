@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -74,12 +75,27 @@ private fun FrameScreen(
     send: (UiEvent) -> Unit,
 ) {
     BackHandler(enabled = frame.back) { send(UiEvent.Back) }
-    val sheet = frame.reader?.takeIf { frame.layout.sheet == PaneKind.Reader }
+    val page = frame.reader?.takeIf { frame.layout.page == PaneKind.Reader }
+    // What takes the panes' place shows over the page, which waits under it (MISC-18).
+    val covered =
+        frame.about != null ||
+            frame.setup != null ||
+            frame.palette != null ||
+            frame.result != null ||
+            frame.preview != null ||
+            frame.drawer?.modal == true
+    val onPage = page != null && !covered
     Box(Modifier.fillMaxSize()) {
-        // Under the sheet the list keeps its place, hidden from TalkBack (MISC-17).
-        val under = if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier
-        Box(under) { ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send) } }
-        sheet?.let { ReaderSheet(it, send) }
+        // Under the page the list keeps its place, hidden from TalkBack.
+        val under = if (onPage) Modifier.clearAndSetSemantics {} else Modifier
+        Box(under) { ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send, snackbar = !onPage) } }
+        ReaderPage(page, covered, overList = frame.layout.panes == listOf(PaneKind.List), send)
+        // Over the page: the undo of what was just done there.
+        if (onPage) {
+            frame.snackbar?.let {
+                FrameSnackbar(it, send, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+            }
+        }
     }
     frame.link?.let { LinkDialog(it, send) }
 }
@@ -89,6 +105,7 @@ private fun FrameScreen(
 private fun FrameScaffold(
     frame: Frame,
     send: (UiEvent) -> Unit,
+    snackbar: Boolean,
 ) {
     Scaffold(
         topBar = {
@@ -131,14 +148,7 @@ private fun FrameScaffold(
                 }
             }
         },
-        bottomBar = {
-            frame.snackbar?.let { snackbar ->
-                Snackbar(
-                    Modifier.padding(12.dp),
-                    action = { snackbar.action?.let { ActionButton(it, send) } },
-                ) { Text(snackbar.text) }
-            }
-        },
+        bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier) } },
     ) { padding ->
         frame.about?.let { about ->
             AboutScreen(about, Modifier.padding(padding))
@@ -181,6 +191,19 @@ private fun FrameScaffold(
             }
         }
     }
+}
+
+/** What just happened, with its undo. */
+@Composable
+private fun FrameSnackbar(
+    snackbar: net.darii.dail.ui.Snackbar,
+    send: (UiEvent) -> Unit,
+    modifier: Modifier,
+) {
+    Snackbar(
+        modifier.padding(12.dp),
+        action = { snackbar.action?.let { ActionButton(it, send) } },
+    ) { Text(snackbar.text) }
 }
 
 /** The first problem and its fix (`app_front::status`), or news (`info`): a new version. */

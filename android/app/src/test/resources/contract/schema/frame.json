@@ -1020,14 +1020,7 @@
           "$ref": "#/$defs/Class",
           "description": "The window class."
         },
-        "panes": {
-          "description": "The panes on screen, left to right.",
-          "items": {
-            "$ref": "#/$defs/PaneKind"
-          },
-          "type": "array"
-        },
-        "sheet": {
+        "page": {
           "anyOf": [
             {
               "$ref": "#/$defs/PaneKind"
@@ -1036,7 +1029,14 @@
               "type": "null"
             }
           ],
-          "description": "A pane drawn as a full-height sheet over the panes and the top bar: the open message on a\ncompact window (`reader`, MISC-17). A drag down closes it (its `close`)."
+          "description": "A pane drawn as a page over the panes and the top bar: the open message on a compact\nwindow (`reader`, MISC-18). It slides in from the right, and a swipe right takes it away\n(its `close`). The panes beneath keep their place. The snackbar, a modal drawer, the link\ndialog and what takes the panes' place (`about`, `setup`, `palette`, `result`, `preview`)\nshow over it; it waits under them, in place."
+        },
+        "panes": {
+          "description": "The panes on screen, left to right.",
+          "items": {
+            "$ref": "#/$defs/PaneKind"
+          },
+          "type": "array"
         }
       },
       "required": [

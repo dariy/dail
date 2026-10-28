@@ -24,7 +24,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-15 | CI: run only on PRs into `main` and on `main` | S | .github/workflows/ | 2026-10-27 |
 | MISC-16 | Repository: protect `main` (PRs only, merged by admins) | S | repository settings, docs | 2026-10-27 |
 | MISC-17 | Mobile: the open message is a sheet; a drag down closes it | M | app-mobile, android/, ios/ | 2026-10-28 |
-| MISC-18 | Mobile: swiping between conversations slides the pages | M | app-mobile, android/, ios/ | 2026-10-28 |
+| MISC-18 | Mobile: the message is a page; pulling past its ends turns the conversation | M | app-mobile, android/, ios/ | 2026-10-28 |
 | MISC-19 | Mobile: JPG and PDF attachments shown in the app, with zoom | L | app-io, app-host, app-mobile, android/, ios/, docs/adr | 2026-10-28 |
 | MISC-20 | Mobile: the message list lines up with the menu icon and the title | S | android/, ios/ | 2026-10-28 |
 | MISC-21 | Mobile: Compose as an icon button | S | android/, ios/ | 2026-10-28 |
@@ -132,6 +132,8 @@ message: only the message list is left (plus the left pane, if the layout shows 
 - **Touches:** `app-mobile` (`frame.rs`: a `close` button on the message frame; `mobile.rs`: its event), `android/`
   (`ui/DailScreen.kt`), `ios/` (SwiftUI message view); contract frames and snapshots.
 - **Open questions:** none.
+- **Later (2026-10-28):** MISC-18 brings the swipe right back on phones: the message is a page there, and a swipe
+  right closes it. The × stays.
 
 ### MISC-8 — Release: the ubuntu job fails on `main`
 
@@ -273,29 +275,89 @@ down must close it.
   top bar and no floating button; medium and expanded frames are unchanged. On Android and iOS a drag down closes the
   message and the list is where it was.
 - **Open questions:** none.
+- **Superseded in part (2026-10-28):** MISC-18 replaces the sheet with a page that slides in from the right and
+  goes back with a swipe right (`layout.page`). The list keeping its place, hiding it from TalkBack and VoiceOver,
+  no floating button, and the motion rules carry over.
 
-### MISC-18 — Mobile: swiping between conversations slides the pages
+### MISC-18 — Mobile: the message is a page; pulling past its ends turns the conversation
 
 MISC-5 made a horizontal swipe on the message go to the previous or next conversation. Today the swipe acts only
 when the finger lifts: the next conversation then replaces the old one in place, with no motion. The change must
 animate like turning a page.
 
-- **Commands:** none (the swipe still runs the previous / next action of the frame).
+Before it was built, the phone's navigation model was chosen (2026-10-28) between two:
+
+1. **Panes in a row** (folders, list, message). The message slides in from the right, a swipe right goes back, and
+   vertical swipes turn the conversation.
+2. **The list as the base.** The message is a sheet from the bottom (MISC-17), a drag down closes it, and horizontal
+   swipes turn the conversation.
+
+The first won, amended.
+
+- **Why.** No formal standard covers mail-client screens, but the platforms' guidelines do:
+  - Apple's HIG keeps sheets for "a simple task" ("for complex or prolonged user flows, consider alternatives to
+    sheets"). For a hierarchy it expects a Back button, with a swipe from the side as its shortcut.
+  - Material 3's list-detail layout shows the detail in place of the list on a compact window, and Back returns to
+    the list.
+  - NN/g: "Do not use a bottom sheet to replace typical page-to-page user flows."
+
+  No major client reads mail in a sheet: Gmail, Outlook, Apple Mail, Proton and Thunderbird open a page. Paging
+  sideways fights the system's Back: K-9 users on Pixels hit the edge Back while swiping between messages, and
+  iOS 26 goes back on a swipe right anywhere.
+
+  `app_front::panes` already shows one pane of the same row on narrow windows (as in the TUI), and the desktop shows
+  three. That is one spatial model at every width, so a resize (foldables, split screen, iPad windows) only changes
+  how many panes show.
+
+  Sources: [HIG: Sheets](https://developer.apple.com/design/human-interface-guidelines/sheets),
+  [HIG: Gestures](https://developer.apple.com/design/human-interface-guidelines/gestures),
+  [Android: list-detail](https://developer.android.com/develop/ui/compose/layouts/adaptive/list-detail),
+  [NN/g: Bottom sheets](https://www.nngroup.com/articles/bottom-sheet/),
+  [K-9: swipe vs Back](https://forum.k9mail.app/t/new-message-swipe-conflicts-with-pixel-previous-screen-functionality/5907),
+  [NetNewsWire: iOS 26 back swipe](https://discourse.netnewswire.com/t/ios-26-swipe-anywhere-to-go-back/92).
+- **Commands:** none. The swipe right runs the reader's close (`close_thread`), and a pull runs the frame's previous
+  or next action (`open_thread`).
 - **Decisions:**
-  - Presenter: `Reader.previous` and `next` carry a peek of the neighbour (sender, subject, date, cleaned as the list
-    rows are), so the page that slides in shows real content during the drag. The exact frame shape is chosen when
-    picked; TalkBack and VoiceOver keep their custom actions.
-  - Hosts: the page follows the finger. Released past a third of the width, or flung, the old page slides out and the
-    peek slides in; the full conversation replaces the peek when its frame arrives. Otherwise the page springs back.
-    With no neighbour on that side, the drag resists (rubber band) and springs back.
-  - Only a previous / next change slides. Opening from the list, or a frame that drops the conversation (archived,
-    moved), does not.
-  - Content wider than the screen still scrolls first (MISC-5). Pinch (MISC-6) is unchanged. Reduce Motion:
-    a cross-fade instead of the slide.
-- **Touches:** `app-mobile` (`mobile/reader.rs` `neighbours`, `frame.rs`), `android/` (`ui/ReaderScreen.kt`), `ios/`
-  (`Views/ReaderPane.swift`); contract fixtures.
-- **Done when:** a presenter test: the peeks are there and cleaned (`tests/it/untrusted.rs` covers them), and absent
-  at the ends of the list. On both apps a swipe slides the pages, and a short drag springs back.
+  - **Presenter.** On a compact window an open thread keeps `layout.panes = [list]` and carries the message as
+    `layout.page = reader` (MISC-17's `sheet`, renamed). `Reader.previous` and `next` become
+    `Neighbour { open, sender, subject, date }`:
+    - `open` is the button: `open_thread`, and TalkBack's and VoiceOver's custom action.
+    - `sender`, `subject` and `date` are the neighbour's peek, built by the same helper as the list rows, so they
+      are cleaned as the rows are.
+    - A neighbour is absent at the ends of the list.
+  - **The page.** It slides in from the right over the list and the top bar (250 ms).
+    - A horizontal drag anywhere follows the finger. Past a third of the width, or flung right, the page slides out
+      and closes the message. Otherwise it springs back.
+    - A block's own horizontal scroll goes first. The dominant axis decides against the body's scroll.
+    - A frame that drops the page over the list (the ×, Back, a thread that goes away) slides it out too.
+    - The list keeps its scroll position and is hidden from TalkBack and VoiceOver. VoiceOver's escape gesture
+      closes the page.
+    - The snackbar, a modal drawer, the link dialog and what takes the panes' place (About, the setup, the palette,
+      a result, a preview) show over the page, which waits under them in place. (Under MISC-17's sheet they were
+      hidden.)
+  - **Turning.**
+    - At the bottom of the body, pulling further up shows the next conversation's peek. Only a drag counts, never a
+      fling's momentum. Past about 96 dp/pt the peek says "Release to open".
+    - Released there, the page slides up and out, the peek slides in, and the full conversation replaces it when
+      its frame arrives.
+    - At the top, a pull down does the same for the previous conversation.
+    - Short of the threshold the page springs back. With no neighbour, the system's own overscroll shows.
+  - **No swipe-left action pane for now.** Android's right-edge Back gesture is there, and the actions stay visible
+    under the subject. The ˄˅ buttons stay undrawn (MISC-5); `Neighbour.open` keeps them one host change away.
+  - **Medium and expanded windows** keep the message as a pane beside the list. The pull works there, and a
+    horizontal swipe does nothing.
+  - **Reduce Motion / animations off.** The page appears and goes without the slide, and the turn is a cross-fade.
+- **Touches:**
+  - `app-mobile`: `frame.rs` (`Layout`, `Reader`, `Neighbour`), `mobile.rs` (the row text), `mobile/reader.rs`
+    (`neighbours`).
+  - `android/`: `ui/ReaderPage.kt`, `ui/ReaderScreen.kt`, `ui/DailScreen.kt`, `ui/Frame.kt`.
+  - `ios/`: `Views/ReaderPane.swift`, `Views/FrameView.swift`, `Frame.swift`.
+  - The contract fixtures and the `thread_360x800` snapshot.
+- **Done when:**
+  - Presenter tests: a compact window gives panes `[list]` and page `reader`; the peeks equal the list rows and are
+    absent at the ends; `tests/it/untrusted.rs` walks a poisoned peek.
+  - On both apps: the page slides in, a swipe right goes back to the list where it was, a short drag springs back,
+    and a pull past either end turns the conversation.
 - **Open questions:** none.
 
 ### MISC-19 — Mobile: JPG and PDF attachments shown in the app, with zoom

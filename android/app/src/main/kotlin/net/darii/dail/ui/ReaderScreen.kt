@@ -54,29 +54,35 @@ import androidx.compose.ui.unit.dp
  * body's blocks, attachments, *Links (N)*). A link's tap only sends its action: the presenter
  * shows the full target first ([LinkDialog]).
  *
- * A horizontal swipe goes to the next (left) or previous (right) conversation (MISC-5); TalkBack
- * offers the same as custom actions. Content wider than the screen scrolls first: its own
+ * Beside the list, a horizontal swipe goes to the next (left) or previous (right) conversation
+ * (MISC-5); on a page ([swipe] false) a swipe right goes back instead (MISC-18). TalkBack offers
+ * both conversations as custom actions. Content wider than the screen scrolls first: its own
  * horizontal scroll consumes the drag, so the swipe only starts at its edge.
  */
 @Composable
 fun ReaderPane(
     reader: Reader,
     send: (UiEvent) -> Unit,
+    swipe: Boolean = true,
 ) {
     val current by rememberUpdatedState(reader)
     val sendNow by rememberUpdatedState(send)
-    val swipe =
-        Modifier.pointerInput(Unit) {
-            var dx = 0f
-            detectHorizontalDragGestures(
-                onDragStart = { dx = 0f },
-                onDragEnd = {
-                    val target = if (dx < 0) current.next else current.previous
-                    if (kotlin.math.abs(dx) > SWIPE_DISTANCE.toPx()) target?.let { sendNow(UiEvent.Tap(it.action)) }
-                },
-            ) { change, amount ->
-                change.consume()
-                dx += amount
+    val pager =
+        if (!swipe) {
+            Modifier
+        } else {
+            Modifier.pointerInput(Unit) {
+                var dx = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { dx = 0f },
+                    onDragEnd = {
+                        val target = if (dx < 0) current.next else current.previous
+                        if (kotlin.math.abs(dx) > SWIPE_DISTANCE.toPx()) target?.let { sendNow(UiEvent.Tap(it.action)) }
+                    },
+                ) { change, amount ->
+                    change.consume()
+                    dx += amount
+                }
             }
         }
     // MISC-6: a pinch steps the pane layout (two fingers; one-finger drags stay the swipe's).
@@ -115,7 +121,7 @@ fun ReaderPane(
         Modifier
             .fillMaxSize()
             .then(pinch)
-            .then(swipe)
+            .then(pager)
             .semantics { customActions = actions }
             .padding(horizontal = 16.dp),
     ) {

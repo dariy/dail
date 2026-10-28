@@ -821,8 +821,8 @@ impl Mobile {
                 kinds.retain(|k| *k != PaneKind::List);
             }
         }
-        // On a phone the open message is a sheet over the list, which keeps its place (MISC-17).
-        let sheet = (class == Class::Compact && kinds == [PaneKind::Reader]).then(|| {
+        // On a phone the open message is a page over the list, which keeps its place (MISC-18).
+        let page = (class == Class::Compact && kinds == [PaneKind::Reader]).then(|| {
             kinds = vec![PaneKind::List];
             PaneKind::Reader
         });
@@ -839,7 +839,7 @@ impl Mobile {
         let list = kinds
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
-        let mut reader = if kinds.contains(&PaneKind::Reader) || sheet.is_some() {
+        let mut reader = if kinds.contains(&PaneKind::Reader) || page.is_some() {
             self.reader(state)
         } else {
             None
@@ -864,7 +864,7 @@ impl Mobile {
             None
         };
         let fab = (!self.about
-            && sheet.is_none()
+            && page.is_none()
             && self.setup.is_none()
             && !state.accounts.is_empty()
             && !kinds.contains(&PaneKind::Composer)
@@ -907,7 +907,7 @@ impl Mobile {
             layout: Layout {
                 class,
                 panes: kinds,
-                sheet,
+                page,
             },
             top_bar,
             drawer,
