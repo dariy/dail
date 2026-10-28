@@ -210,10 +210,19 @@ data class Reader(
     val close: Button,
     val maximize: Button? = null,
     val actions: List<Button>,
-    val previous: Button? = null,
-    val next: Button? = null,
+    val previous: Neighbour? = null,
+    val next: Neighbour? = null,
     val position: String? = null,
     val messages: List<ReaderMessage>,
+)
+
+/** A conversation beside the open one in the list, and its peek (MISC-18). */
+@Serializable
+data class Neighbour(
+    val open: Button,
+    val sender: String,
+    val subject: String,
+    val date: String,
 )
 
 @Serializable

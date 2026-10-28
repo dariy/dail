@@ -80,6 +80,10 @@ fun ReaderPage(
             }
         }
 
+        fun settle() {
+            scope.launch { if (still) slide.snapTo(0f) else slide.animateTo(0f, spring()) }
+        }
+
         fun release(velocity: Float) {
             scope.launch {
                 if (slide.value > width / 3 || velocity > fling) {
@@ -88,13 +92,9 @@ fun ReaderPage(
                     // A close the presenter ignored (from a frame already replaced) must not leave
                     // the message open off screen: it comes back.
                     delay(STUCK_MS)
-                    if (opened) {
-                        if (still) slide.snapTo(0f) else slide.animateTo(0f, spring())
-                    }
-                } else if (still) {
-                    slide.snapTo(0f)
+                    if (opened) settle()
                 } else {
-                    slide.animateTo(0f, spring())
+                    settle()
                 }
             }
         }
@@ -108,7 +108,8 @@ fun ReaderPage(
                         x = 0f
                     },
                     onDragEnd = { release(tracker.calculateVelocity().x) },
-                    onDragCancel = { release(0f) },
+                    // A drag the system took (a second finger, the Back gesture) never closes.
+                    onDragCancel = { settle() },
                 ) { change, dx ->
                     change.consume()
                     // The page moves under the finger: track it where the screen is still.
@@ -129,7 +130,7 @@ fun ReaderPage(
                 .then(swipe),
             shadowElevation = 8.dp,
         ) {
-            Box(Modifier.navigationBarsPadding()) { ReaderPane(shown, send, swipe = false) }
+            Box(Modifier.navigationBarsPadding()) { ReaderPane(shown, send) }
         }
     }
 }

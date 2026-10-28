@@ -7,16 +7,16 @@
 //! through `app_front::text`.
 
 use app_core::document::{Block, FoldKind, Span};
-use app_core::{AppState, BodyState, Command, CommandName, MessageId, listing};
+use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
 use app_front::text::{clean, clean_lines};
 use app_front::{fold, format, highlight, palette};
 
-use super::{Act, Mobile};
+use super::{Act, Mobile, RowText};
 use crate::event::{External, SaveFile};
 use crate::frame::{
-    Attachment, Button, DocBlock, DocCell, DocSpan, ImagesBar, InlineImage, LinkSheet, Preview,
-    PreviewKind, Reader, ReaderMessage,
+    Attachment, Button, DocBlock, DocCell, DocSpan, ImagesBar, InlineImage, LinkSheet, Neighbour,
+    Preview, PreviewKind, Reader, ReaderMessage,
 };
 use crate::request::Request;
 
@@ -515,7 +515,7 @@ impl Mobile {
         &mut self,
         state: &AppState,
         thread: app_core::ThreadId,
-    ) -> (Option<Button>, Option<Button>, Option<String>) {
+    ) -> (Option<Neighbour>, Option<Neighbour>, Option<String>) {
         let rows = self.rows.get(state);
         let Some(at) = rows.iter().position(|r| *r == thread) else {
             return (None, None, None);
@@ -523,21 +523,29 @@ impl Mobile {
         let total = rows.len();
         let previous = at.checked_sub(1).and_then(|i| rows.get(i)).copied();
         let next = rows.get(at + 1).copied();
-        let previous = previous.map(|id| {
-            self.button(
-                "expand_less",
-                "Previous conversation",
-                Act::Run(Command::OpenThread { id }),
-            )
-        });
-        let next = next.map(|id| {
-            self.button(
-                "expand_more",
-                "Next conversation",
-                Act::Run(Command::OpenThread { id }),
-            )
-        });
+        let previous = previous
+            .and_then(|id| self.neighbour(state, id, "expand_less", "Previous conversation"));
+        let next =
+            next.and_then(|id| self.neighbour(state, id, "expand_more", "Next conversation"));
         (previous, next, Some(format!("{} of {total}", at + 1)))
+    }
+
+    /// A conversation beside the open one: what opens it, and its peek as its list row shows it.
+    fn neighbour(
+        &mut self,
+        state: &AppState,
+        id: app_core::ThreadId,
+        icon: &str,
+        label: &str,
+    ) -> Option<Neighbour> {
+        let thread = state.threads.get(&id)?;
+        let text = RowText::of(&ThreadSummary::of(state, thread), thread, self.now_ms());
+        Some(Neighbour {
+            open: self.button(icon, label, Act::Run(Command::OpenThread { id })),
+            sender: text.sender,
+            subject: text.subject,
+            date: text.date,
+        })
     }
 
     /// The sheet of the tapped link, while open.

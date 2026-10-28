@@ -2,8 +2,8 @@
 //! targets, attachment names and Content-IDs carrying `ESC ]52;…` (set the clipboard), `ESC [2J`,
 //! C1 controls, `\r` and U+202E (right-to-left override) leave none of them in any string of any
 //! frame (line breaks stay only where a body has them), at every window class: the list, the
-//! drawer, the reader, the link dialog, a preview, the palette, a query's result and a reply's
-//! composer. Only U+FFFD shows where they were.
+//! drawer, the reader, a neighbour's peek, the link dialog, a preview, the palette, a query's result
+//! and a reply's composer. Only U+FFFD shows where they were.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
@@ -183,6 +183,32 @@ fn no_frame_carries_unsafe_characters() {
         assert!(frame.preview.is_some());
         assert_clean(&frame, "a preview");
         phone.event(UiEvent::Back);
+
+        // The poisoned thread as the peek of the thread beside it (MISC-18).
+        let rows: Vec<ThreadId> = phone
+            .frame()
+            .list
+            .unwrap()
+            .rows
+            .iter()
+            .map(|r| r.thread)
+            .collect();
+        let at = rows.iter().position(|t| *t == thread).unwrap();
+        let beside = if at > 0 { rows[at - 1] } else { rows[at + 1] };
+        phone.dispatch(Command::OpenThread { id: beside });
+        let frame = phone.frame();
+        let reader = frame.reader.as_ref().unwrap();
+        let peek = if at > 0 {
+            &reader.next
+        } else {
+            &reader.previous
+        };
+        assert!(
+            peek.as_ref().unwrap().subject.contains('\u{fffd}'),
+            "the poisoned peek"
+        );
+        assert_clean(&frame, "a neighbour's peek");
+        phone.dispatch(Command::OpenThread { id: thread });
 
         // The poisoned thread among the palette's recent threads.
         phone.dispatch(Command::OpenPalette {});

@@ -1425,10 +1425,16 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
-  palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list:
-  no pager bar, a horizontal swipe on the body beside the list (left: next, right: previous; content wider than the
-  screen scrolls first; on a phone's page a swipe right goes back instead, MISC-18) and TalkBack/VoiceOver custom
-  actions (MISC-5); `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).
+  palette at `move_threads`' step) and reply.
+  - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
+    `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
+    as they are.
+  - **Turning.** There is no pager bar. A pull past the end of the body shows the next conversation's peek, and a
+    pull past its top the previous one's. Released past about 80 dp/pt, the body slides out, the peek slides in,
+    and the conversation's frame replaces it. Only a drag pulls, never a fling's momentum.
+  - **Animations off / Reduce Motion:** a cross-fade instead of the slide.
+  - **Screen readers:** TalkBack and VoiceOver offer both conversations as custom actions.
+  - `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).
 - **Attachments and pictures.** An expanded message lists its attachments (not the inline parts): a tap opens
   `preview` over the panes, a picture (`kind: image`, the host's `blob` `image` request decoded by `app_io::images`),
   text (`kind: text`, not HTML: `blob`'s `text` request, which answers `app_mobile::preview_text` — UTF-8, at most

@@ -1162,6 +1162,34 @@
       "format": "uuid",
       "type": "string"
     },
+    "Neighbour": {
+      "description": "A conversation beside the open one in the list (MISC-18).",
+      "properties": {
+        "date": {
+          "description": "Its newest message's date, short, as its list row shows it.",
+          "type": "string"
+        },
+        "open": {
+          "$ref": "#/$defs/Button",
+          "description": "Opens it (`open_thread`): what a pull past that end does, and TalkBack's and VoiceOver's\ncustom action."
+        },
+        "sender": {
+          "description": "Its senders, as its list row shows them: the peek drawn while it slides in.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Its subject, as its list row shows it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "open",
+        "sender",
+        "subject",
+        "date"
+      ],
+      "type": "object"
+    },
     "OutgoingFile": {
       "description": "A file attached to the open draft.",
       "properties": {
@@ -1502,13 +1530,13 @@
         "next": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Button"
+              "$ref": "#/$defs/Neighbour"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The conversation below it in the list, if any: a swipe to the left (MISC-5; no button)."
+          "description": "The conversation below it in the list, if any: a pull past the end of the body turns to\nit (MISC-18; no button)."
         },
         "position": {
           "description": "Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).",
@@ -1520,13 +1548,13 @@
         "previous": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Button"
+              "$ref": "#/$defs/Neighbour"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The conversation above it in the list, if any: a swipe to the right (MISC-5; no button)."
+          "description": "The conversation above it in the list, if any: a pull past the top of the body turns to\nit (MISC-18; no button)."
         },
         "subject": {
           "description": "Its subject.",

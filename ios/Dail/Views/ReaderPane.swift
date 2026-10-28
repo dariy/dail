@@ -3,42 +3,87 @@ import SwiftUI
 /// The open thread, as Kotlin's `ReaderScreen.kt`: the actions, then each message, collapsed or with
 /// its body. Bodies are `DocBlock`s Rust made from the text or the cleaned HTML; Swift draws them as
 /// text and never loads anything: remote images stay off, links go through the link sheet.
+///
+/// Pulling past the end of the body shows the next conversation's peek, and past its top the
+/// previous one's (MISC-18). Released beyond `turn`, the body slides out, the peek slides in, and the
+/// conversation's frame replaces it; short of it, the bounce takes it back. The finger's release
+/// decides, so a fling's momentum never turns. With Reduce Motion the conversations cross-fade.
+/// VoiceOver gets both conversations as named actions.
 struct ReaderPane: View {
     let reader: Reader
     let send: (UiEvent) -> Void
-    /// Whether a horizontal swipe turns to the next or previous conversation (MISC-5). A page's
-    /// swipe right goes back instead (MISC-18).
-    var swipes = true
+    @Environment(\.accessibilityReduceMotion) private var still
+    /// How far the body is pulled past its top (> 0) or its end (< 0), in points.
+    @State private var pull: CGFloat = 0
+    /// The conversation a released pull turns to, while its peek slides in from `way` (-1 below,
+    /// 1 above), and the turn's number.
+    @State private var turning: Neighbour?
+    @State private var way: CGFloat = 0
+    @State private var turns = 0
+    /// The body's slide while it turns.
+    @State private var shift: CGFloat = 0
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
-                    if let maximize = reader.maximize { FrameButton(button: maximize, send: send) }
-                    FrameButton(button: reader.close, send: send)
-                }
-                HStack(spacing: 20) {
-                    ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
-                        FrameButton(button: button, send: send)
+        GeometryReader { geometry in
+            let height = geometry.size.height
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(verbatim: reader.subject).font(.title2).accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
+                        if let maximize = reader.maximize { FrameButton(button: maximize, send: send) }
+                        FrameButton(button: reader.close, send: send)
+                    }
+                    HStack(spacing: 20) {
+                        ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
+                            FrameButton(button: button, send: send)
+                        }
+                    }
+                    ForEach(Array(reader.messages.enumerated()), id: \.offset) { _, message in
+                        MessageView(message: message, send: send)
+                        Divider()
                     }
                 }
-                ForEach(Array(reader.messages.enumerated()), id: \.offset) { _, message in
-                    MessageView(message: message, send: send)
-                    Divider()
+                .padding()
+                .background(GeometryReader { content in
+                    Color.clear.preference(
+                        key: ReaderPullKey.self, value: Self.pull(content.frame(in: .named("reader")), height))
+                })
+            }
+            .coordinateSpace(name: "reader")
+            .scrollBounceBehavior(.always, axes: .vertical)
+            .onPreferenceChange(ReaderPullKey.self) { value in if turning == nil { pull = value } }
+            // A new conversation starts at its top.
+            .id(reader.thread)
+            .transition(.opacity)
+            .offset(y: shift)
+            .overlay(alignment: pull < 0 ? .bottom : .top) {
+                // The gap a pull opens shows who is there.
+                if turning == nil, let peek = pull < 0 ? reader.next : (pull > 0 ? reader.previous : nil) {
+                    PeekView(peek: peek, ready: abs(pull) > Self.turn)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: abs(pull))
+                        .clipped()
                 }
             }
-            .padding()
+            .overlay {
+                if let turning {
+                    PeekView(peek: turning, ready: false)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(uiColor: .systemBackground))
+                        .offset(y: shift - way * height)
+                }
+            }
+            .clipped()
+            .simultaneousGesture(DragGesture(minimumDistance: 10).onEnded { _ in release(height) })
         }
-        // MISC-5: beside the list a horizontal swipe goes to the next (left) or previous (right)
-        // conversation; VoiceOver gets the same as named actions.
-        .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
-            let dx = drag.translation.width
-            guard abs(dx) > 72, abs(dx) > abs(drag.translation.height) else { return }
-            if let target = dx < 0 ? reader.next : reader.previous { send(.tap(target.action)) }
-        }, including: swipes ? .all : .subviews)
+        .animation(still ? .easeInOut(duration: 0.2) : nil, value: reader.thread)
+        .onChange(of: reader.thread) {
+            turning = nil
+            shift = 0
+            pull = 0
+        }
         // MISC-6: a pinch steps the pane layout, one step per gesture.
         .simultaneousGesture(MagnifyGesture().onEnded { pinch in
             let scale = pinch.magnification
@@ -46,10 +91,10 @@ struct ReaderPane: View {
         })
         .accessibilityActions {
             if let previous = reader.previous {
-                SwiftUI.Button(previous.label) { send(.tap(previous.action)) }
+                SwiftUI.Button(previous.open.label) { send(.tap(previous.open.action)) }
             }
             if let next = reader.next {
-                SwiftUI.Button(next.label) { send(.tap(next.action)) }
+                SwiftUI.Button(next.open.label) { send(.tap(next.open.action)) }
             }
         }
         // `dail-action:<id>` is how a link span reaches its action; nothing else is opened.
@@ -60,6 +105,65 @@ struct ReaderPane: View {
             return .handled
         })
     }
+
+    /// When the finger lifts: turns to the neighbour a pull past `turn` shows.
+    private func release(_ height: CGFloat) {
+        guard turning == nil, abs(pull) > Self.turn,
+              let target = pull < 0 ? reader.next : reader.previous else { return }
+        if still {
+            send(.tap(target.open.action))
+            return
+        }
+        way = pull < 0 ? -1 : 1
+        turning = target
+        turns += 1
+        let mine = turns
+        withAnimation(.easeIn(duration: 0.25)) { shift = way * height }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { send(.tap(target.open.action)) }
+        // A turn the presenter ignored (from a frame already replaced) must not leave the body off
+        // screen: it comes back.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.25) {
+            guard turning != nil, turns == mine else { return }
+            turning = nil
+            withAnimation(.spring) { shift = 0 }
+        }
+    }
+
+    /// How far the body (`frame`, in the scroll view's space) is pulled past its top (> 0) or its
+    /// end (< 0) in a viewport `height` tall; 0 in between.
+    static func pull(_ frame: CGRect, _ height: CGFloat) -> CGFloat {
+        if frame.minY > 1 { return frame.minY }
+        let past = min(frame.height, height) - frame.maxY
+        return past > 1 ? -past : 0
+    }
+
+    /// The pull that turns the conversation.
+    static let turn: CGFloat = 80
+}
+
+/// A neighbour's peek (MISC-18): which way, then its subject, senders and date as its list row
+/// shows them.
+private struct PeekView: View {
+    let peek: Neighbour
+    let ready: Bool
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Label(ready ? "Release to open" : peek.open.label,
+                  systemImage: Icons.symbol(peek.open.icon) ?? "chevron.up.chevron.down")
+                .font(.footnote).foregroundStyle(.secondary)
+            Text(verbatim: peek.subject).font(.headline).lineLimit(2).multilineTextAlignment(.center)
+            Text(verbatim: "\(peek.sender) · \(peek.date)").font(.footnote).lineLimit(1)
+        }
+        .padding(.horizontal)
+        .accessibilityHidden(true)
+    }
+}
+
+/// How far the reader's body is pulled past an end (`ReaderPane.pull`).
+private struct ReaderPullKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 struct MessageView: View {
@@ -205,7 +309,7 @@ struct ReaderPage: View {
             let width = max(geometry.size.width, 1)
             ZStack {
                 Color.black.opacity(0.32 * (1 - offset / width)).ignoresSafeArea().allowsHitTesting(false)
-                ReaderPane(reader: reader, send: send, swipes: false)
+                ReaderPane(reader: reader, send: send)
                     .background(Color(uiColor: .systemBackground))
                     .shadow(radius: offset > 0 ? 8 : 0)
                     .offset(x: offset)
