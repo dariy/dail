@@ -251,7 +251,7 @@
     ],
     "navigation": {
       "action": 72,
-      "icon": "back",
+      "icon": "arrow_back",
       "label": "Back"
     },
     "subtitle": "synced 9h ago",

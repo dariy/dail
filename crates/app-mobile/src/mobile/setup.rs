@@ -532,7 +532,11 @@ impl Mobile {
                 }
             },
         }
-        let back = self.setup_button(back_label, SetupAct::Back);
+        let mut back = self.setup_button(back_label, SetupAct::Back);
+        if back_label == "Back" {
+            // A left arrow, as every other Back (Cancel and Close stay words).
+            back.icon = Some("arrow_back".to_owned());
+        }
         SetupSheet {
             title: title.to_owned(),
             step,

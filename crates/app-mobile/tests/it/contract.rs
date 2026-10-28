@@ -384,3 +384,37 @@ fn the_events_cover_the_schema() {
     let variants = schema["oneOf"].as_array().map_or(0, Vec::len);
     assert_eq!(events().len(), variants);
 }
+
+/// Every icon a frame names has a glyph in the theme's icon font: a name without one draws as
+/// its label on Android (the "Back" text button) and as a fallback symbol on iOS.
+#[test]
+fn every_icon_in_the_frames_has_a_glyph() {
+    fn icons(value: &serde_json::Value, out: &mut Vec<String>) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for (key, value) in map {
+                    match (key.as_str(), value) {
+                        // The theme's own table maps names to glyphs: not a use.
+                        ("theme", _) => {}
+                        ("icon", serde_json::Value::String(name)) => out.push(name.clone()),
+                        _ => icons(value, out),
+                    }
+                }
+            }
+            serde_json::Value::Array(items) => items.iter().for_each(|v| icons(v, out)),
+            _ => {}
+        }
+    }
+    let glyphs: Vec<&str> = app_theme::Icon::ALL.iter().map(|i| i.name()).collect();
+    let mut missing = Vec::new();
+    for (name, frame) in frames() {
+        let mut used = Vec::new();
+        icons(&serde_json::to_value(frame).unwrap(), &mut used);
+        missing.extend(
+            used.into_iter()
+                .filter(|icon| !glyphs.contains(&icon.as_str()))
+                .map(|icon| format!("{name}: {icon}")),
+        );
+    }
+    assert!(missing.is_empty(), "icons without a glyph: {missing:?}");
+}

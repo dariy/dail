@@ -74,6 +74,12 @@ pub enum Icon {
     DarkMode,
     ChevronRight,
     ChevronLeft,
+    /// A left arrow: back to the previous screen.
+    ArrowBack,
+    /// Maximize a pane (MISC-14).
+    OpenInFull,
+    /// Restore the panes after [`Icon::OpenInFull`].
+    CloseFullscreen,
     /// A check mark (✓).
     Check,
     /// The drawer (three lines; the phone's *Mailboxes* button, MISC-2).
@@ -86,7 +92,7 @@ pub enum Icon {
 
 impl Icon {
     /// Every icon.
-    pub const ALL: [Self; 57] = [
+    pub const ALL: [Self; 60] = [
         Self::Mail,
         Self::Edit,
         Self::Inbox,
@@ -140,6 +146,9 @@ impl Icon {
         Self::DarkMode,
         Self::ChevronRight,
         Self::ChevronLeft,
+        Self::ArrowBack,
+        Self::OpenInFull,
+        Self::CloseFullscreen,
         Self::Check,
         Self::Menu,
         Self::Info,
@@ -202,6 +211,9 @@ impl Icon {
             Self::DarkMode => '\u{e51c}',
             Self::ChevronRight => '\u{e5cc}',
             Self::ChevronLeft => '\u{e5cb}',
+            Self::ArrowBack => '\u{e5c4}',
+            Self::OpenInFull => '\u{f1ce}',
+            Self::CloseFullscreen => '\u{f1cf}',
             Self::Check => '\u{e668}',
             Self::Menu => '\u{e5d2}',
             Self::Info => '\u{e88e}',
@@ -265,6 +277,9 @@ impl Icon {
             Self::DarkMode => "dark_mode",
             Self::ChevronRight => "chevron_right",
             Self::ChevronLeft => "chevron_left",
+            Self::ArrowBack => "arrow_back",
+            Self::OpenInFull => "open_in_full",
+            Self::CloseFullscreen => "close_fullscreen",
             Self::Check => "check",
             Self::Menu => "menu",
             Self::Info => "info",

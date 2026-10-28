@@ -98,7 +98,7 @@
     },
     "maximize": {
       "action": 31,
-      "icon": "unfold_more",
+      "icon": "open_in_full",
       "label": "Maximize message"
     },
     "messages": [

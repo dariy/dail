@@ -26,6 +26,7 @@
     ],
     "back": {
       "action": 38,
+      "icon": "arrow_back",
       "label": "Back"
     },
     "busy": false,

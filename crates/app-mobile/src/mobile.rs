@@ -829,9 +829,9 @@ impl Mobile {
             && (crowded || maximized)
         {
             reader.maximize = Some(if maximized {
-                self.button("unfold_less", "Restore panes", Act::Maximize)
+                self.button("close_fullscreen", "Restore panes", Act::Maximize)
             } else {
-                self.button("unfold_more", "Maximize message", Act::Maximize)
+                self.button("open_in_full", "Maximize message", Act::Maximize)
             });
         }
         let composer = if kinds.contains(&PaneKind::Composer) {
@@ -938,7 +938,7 @@ impl Mobile {
         let navigation = match one {
             _ if state.accounts.is_empty() => None,
             Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer | PaneKind::Settings) => {
-                Some(self.button("back", "Back", Act::Back))
+                Some(self.button("arrow_back", "Back", Act::Back))
             }
             Some(PaneKind::List) | None if !kinds.contains(&PaneKind::Drawer) => Some(self.button(
                 "menu",
