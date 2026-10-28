@@ -20,7 +20,7 @@ concurrency:
 jobs:
   bump:
     # Its own commit lands on main too: never bump that one.
-    if: ${{ !startsWith(github.event.head_commit.message, 'workspace: release v') }}
+    if: "${{ !startsWith(github.event.head_commit.message, 'workspace: release v') }}"
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -31,7 +31,7 @@ jobs:
         run: |
           pr="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0] // {}')"
           labels="$(jq -r '[.labels[]?.name] | join(" ")' <<<"$pr")"
-          part=patch
+          part="patch"
           case " $labels " in
             *" release:skip "*) part=skip ;;
             *" release:major "*) part=major ;;
@@ -64,7 +64,7 @@ jobs:
         run: |
           next="$(cargo xtask release next "$PART")"
           cargo xtask release bump "$next" --note "$(cat "$RUNNER_TEMP/note.txt")"
-          bot="$APP_SLUG[bot]"
+          bot="${APP_SLUG}[bot]"
           id="$(gh api "users/$bot" --jq .id)"
           git config user.name "$bot"
           git config user.email "$id+$bot@users.noreply.github.com"
