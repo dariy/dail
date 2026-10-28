@@ -114,8 +114,8 @@ and `Palette`, the state of an open palette without drawing: query, cursor, seco
 commands to submit or keeps the next step), `text` (the sanitizer for untrusted text: `is_unsafe`, `clean`,
 `clean_lines`; control and bidi characters become U+FFFD), `a11y` (the accessible names of thread and nav rows, read
 by AccessKit and TalkBack) and `panes` (which panes show for a width class: `Slot`, `Width`, `choose`; the TUI maps
-columns onto it). `app_io::images` decodes untrusted images with the shared limits (PNG, JPEG, GIF, WebP; 4096 px a
-side, 96 MiB) into RGBA; `app-sync` re-exports it as `app_sync::images` for the GUI, which does not depend on `app-io`.
+columns onto it). `app_io::images` decodes untrusted images with the shared limits (PNG, JPEG, GIF, WebP; larger than 4096 px a
+side decoded downscaled to fit, JPEGs DCT-scaled by `jpeg-decoder`; 96 MiB; upright by EXIF orientation) into RGBA; `app-sync` re-exports it as `app_sync::images` for the GUI, which does not depend on `app-io`.
 
 `app-mobile` and `app-android` (ADR 0009, Wave 4) are the Android front-end. `app-mobile` (← app-core, app-front,
 app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen models ("frames") and touch events into
@@ -981,7 +981,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   whether its pictures are hidden, with *Show images from …* / *Hide images from …* (`show_images_from` /
   `hide_images_from`). The shell's `images::Images` cache asks for each image once (`External::LoadImage{blob, cid}`);
   `Bridge::load_image` reads the part with `SessionClient::inline_part` and decodes it on a blocking thread
-  (`images::decode`: the `image` crate, PNG/JPEG/GIF/WebP sniffed from the bytes, at most 4096 px per side and 96 MiB),
+  (`images::decode`: the `image` crate, PNG/JPEG/GIF/WebP sniffed from the bytes, downscaled to at most 4096 px per side, 96 MiB, upright by EXIF),
   and the texture is drawn in place of the alt text. A plain-text body (or a front-end without documents, like the TUI)
   shows the text. "Open original" writes
   a sanitized HTML file to temp and opens the system browser.
@@ -1800,7 +1800,7 @@ canonical form, which parses back to the same `Query`.
 | Agent exfiltrates local files | `attach_file` takes any readable path. The file leaves the machine when the draft is sent (agent sends need approval; the card lists attachments with their paths) and when the draft is saved to its account's Drafts mailbox, on a server only the user sets up (`add_account`/`update_account` are user only). An agent can't hand the engine a draft with a forged attachment check: `restore_draft` is user only, and it checks every attachment again anyway |
 | Agent mass-deletes | No permanent delete in the MVP besides `remove_account` (agents may run it: `Destructive`, needs `confirm`, MCP `destructiveHint`); trash is undoable |
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
-| Tracking pixels / remote content | Never fetched; links shown with real target. `show_images_from` (agents may run it) only lets the reader draw parts carried in the message itself (`cid:`), decoded off the UI thread with size limits (PNG, JPEG, GIF, WebP; 4096 px per side) |
+| Tracking pixels / remote content | Never fetched; links shown with real target. `show_images_from` (agents may run it) only lets the reader draw parts carried in the message itself (`cid:`), decoded off the UI thread with size limits (PNG, JPEG, GIF, WebP; downscaled to 4096 px per side) |
 | Terminal escape injection (TUI) | Email text and agents' drafts are drawn through one sanitizer (controls, ESC, DEL, bidi overrides replaced; `app-tui/tests/it/untrusted.rs`); no OSC 8 links, no window title, no browser or file dialog (they would open on the SSH host) |
 | MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki roots, no plaintext, no "accept invalid certs" setting |
 | Malicious update | The manifest is accepted only with a valid minisign signature from the built-in key, a trusted comment naming its version, and a version newer than the running one; an artifact only with the manifest's size and sha256; `install_update` is user only and needs `confirm`; checks are off until the user turns them on and send no identifiers (ADR 0011) |
@@ -1895,7 +1895,7 @@ allowlist; bot PRs are merged like any other.
 | Self-update | `self-replace` (app-sync, desktop targets only) | Replaces the running executable, also on Windows where it is locked; pure Rust (ADR 0011) |
 | Browser | `webbrowser` (app-gui) | Opens clicked links and the original page |
 | Notifications | `zbus` 5 (Linux), `windows` 0.62 `UI_Notifications` (Windows), both app-gui | Desktop notifications; both crates already in the tree (keyring, accesskit); `notify-rust` would add `mac-notification-sys`, which compiles C |
-| Images | `image` 0.25 (app-gui; png, jpeg, gif, webp) | Inline `cid:` images; pure-Rust decoders, already in the tree via eframe |
+| Images | `image` 0.25 (app-io; png, jpeg, gif, webp), `jpeg-decoder` 0.3 (`platform_independent`) | Inline `cid:` images and attachment previews; pure-Rust decoders; `jpeg-decoder` decodes JPEGs over 4096 px DCT-scaled (forbids unsafe) |
 | Store | `redb` | Pure-Rust embedded ACID KV; no `-sys` |
 | Secrets | `keyring` 4 | Secret Service via zbus (pure Rust) / Windows Credential Manager |
 | MCP | `rmcp` | Official Rust SDK; schemars 1.x |
