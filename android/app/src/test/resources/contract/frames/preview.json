@@ -2,10 +2,10 @@
   "back": true,
   "layout": {
     "class": "compact",
+    "page": "reader",
     "panes": [
       "list"
-    ],
-    "sheet": "reader"
+    ]
   },
   "list": {
     "checked": 0,

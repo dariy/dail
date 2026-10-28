@@ -6,8 +6,9 @@ import SwiftUI
 struct ReaderPane: View {
     let reader: Reader
     let send: (UiEvent) -> Void
-    /// Told whether the body is scrolled to its top (the sheet's drag down, MISC-17).
-    var atTop: ((Bool) -> Void)?
+    /// Whether a horizontal swipe turns to the next or previous conversation (MISC-5). A page's
+    /// swipe right goes back instead (MISC-18).
+    var swipes = true
 
     var body: some View {
         ScrollView {
@@ -30,20 +31,14 @@ struct ReaderPane: View {
                 }
             }
             .padding()
-            .background(GeometryReader { geometry in
-                Color.clear.preference(
-                    key: ReaderTopKey.self, value: geometry.frame(in: .named("reader")).minY >= -1)
-            })
         }
-        .coordinateSpace(name: "reader")
-        .onPreferenceChange(ReaderTopKey.self) { top in atTop?(top) }
-        // MISC-5: a horizontal swipe goes to the next (left) or previous (right) conversation;
-        // VoiceOver gets the same as named actions.
+        // MISC-5: beside the list a horizontal swipe goes to the next (left) or previous (right)
+        // conversation; VoiceOver gets the same as named actions.
         .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
             let dx = drag.translation.width
             guard abs(dx) > 72, abs(dx) > abs(drag.translation.height) else { return }
             if let target = dx < 0 ? reader.next : reader.previous { send(.tap(target.action)) }
-        })
+        }, including: swipes ? .all : .subviews)
         // MISC-6: a pinch steps the pane layout, one step per gesture.
         .simultaneousGesture(MagnifyGesture().onEnded { pinch in
             let scale = pinch.magnification
@@ -189,67 +184,68 @@ struct BlockView: View {
     }
 }
 
-/// Whether the reader's body is scrolled to its top.
-private struct ReaderTopKey: PreferenceKey {
-    static let defaultValue = true
-    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value && nextValue() }
-}
-
-/// The open message on a compact window: a full-height sheet over the list and the top bar, below
-/// the status bar, as Kotlin's `ReaderSheet.kt` (MISC-17). It slides up on open. A drag down
-/// follows the finger, from the grab handle at any time and from the body once it is scrolled to
-/// its top; the dominant axis decides against the conversation swipe. Released past a quarter of
-/// the height, or flung, it slides away and sends the reader's close (`close_thread`); otherwise it
-/// springs back. With Reduce Motion it appears and goes without the slide.
-struct ReaderSheet: View {
+/// The open message on a compact window: a page over the list and the top bar, below the status
+/// bar, as Kotlin's `ReaderPage.kt` (MISC-18). It slides in from the right (the frame view's
+/// transition). A horizontal drag follows the finger; the dominant axis decides against the body's
+/// scroll. Released past a third of the width, or flung, it slides away and sends the reader's
+/// close (`close_thread`); otherwise it springs back. While a screen that takes the panes' place is
+/// up (`covered`) it waits unseen, in place. VoiceOver's escape gesture closes it. With Reduce
+/// Motion it appears and goes without the slide.
+struct ReaderPage: View {
     let reader: Reader
+    let covered: Bool
     let send: (UiEvent) -> Void
     @Environment(\.accessibilityReduceMotion) private var still
-    @State private var offset: CGFloat?
-    @State private var atTop = true
+    @State private var offset: CGFloat = 0
+    /// Whether the drag in progress moves the page (horizontal) or not (vertical), once decided.
+    @State private var sliding: Bool?
 
     var body: some View {
         GeometryReader { geometry in
-            let height = geometry.size.height
-            VStack(spacing: 0) {
-                Capsule().fill(Color.secondary).frame(width: 32, height: 4).padding(.vertical, 10)
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .gesture(drag(height, always: true))
-                    .accessibilityHidden(true)
-                ReaderPane(reader: reader, send: send, atTop: { atTop = $0 })
-            }
-            .background(Color(uiColor: .systemBackground))
-            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
-            .shadow(radius: 8)
-            .offset(y: offset ?? (still ? 0 : height))
-            .simultaneousGesture(drag(height, always: false))
-            .onAppear {
-                if still { offset = 0 } else {
-                    offset = height
-                    withAnimation(.easeOut(duration: 0.25)) { offset = 0 }
-                }
+            let width = max(geometry.size.width, 1)
+            ZStack {
+                Color.black.opacity(0.32 * (1 - offset / width)).ignoresSafeArea().allowsHitTesting(false)
+                ReaderPane(reader: reader, send: send, swipes: false)
+                    .background(Color(uiColor: .systemBackground))
+                    .shadow(radius: offset > 0 ? 8 : 0)
+                    .offset(x: offset)
+                    .simultaneousGesture(swipe(width))
             }
         }
+        .opacity(covered ? 0 : 1)
+        .allowsHitTesting(!covered)
+        .accessibilityHidden(covered)
+        .accessibilityAction(.escape) { send(.tap(reader.close.action)) }
     }
 
-    private func drag(_ height: CGFloat, always: Bool) -> some Gesture {
-        DragGesture(minimumDistance: 12)
+    private func swipe(_ width: CGFloat) -> some Gesture {
+        // Global coordinates: the page moves under the finger.
+        DragGesture(minimumDistance: 12, coordinateSpace: .global)
             .onChanged { drag in
                 let t = drag.translation
-                guard t.height > 0, abs(t.height) > abs(t.width), always || atTop else { return }
-                offset = t.height
+                if sliding == nil { sliding = abs(t.width) > abs(t.height) }
+                guard sliding == true else { return }
+                offset = max(0, t.width)
             }
             .onEnded { drag in
-                guard let current = offset, current > 0 else { return }
-                let flung = drag.predictedEndTranslation.height - drag.translation.height > 200
-                if current > height / 4 || flung {
+                defer { sliding = nil }
+                guard sliding == true, offset > 0 else { return }
+                let flung = drag.predictedEndTranslation.width - drag.translation.width > 200
+                if offset > width / 3 || flung {
                     if still {
                         send(.tap(reader.close.action))
                     } else {
-                        withAnimation(.easeIn(duration: 0.2)) { offset = height }
+                        withAnimation(.easeIn(duration: 0.2)) { offset = width }
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { send(.tap(reader.close.action)) }
                     }
+                    // A close the presenter ignored (from a frame already replaced) must not leave
+                    // the message open off screen: it comes back.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                        guard offset > 0 else { return }
+                        if still { offset = 0 } else { withAnimation(.spring) { offset = 0 } }
+                    }
+                } else if still {
+                    offset = 0
                 } else {
                     withAnimation(.spring) { offset = 0 }
                 }

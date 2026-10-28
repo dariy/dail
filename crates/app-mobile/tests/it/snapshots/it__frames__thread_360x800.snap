@@ -9,7 +9,7 @@ expression: phone.frame()
     "panes": [
       "list"
     ],
-    "sheet": "reader"
+    "page": "reader"
   },
   "top_bar": {
     "title": "Inbox",

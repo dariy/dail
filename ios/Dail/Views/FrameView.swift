@@ -7,6 +7,7 @@ struct FrameView: View {
     let frame: Frame
     let palette: Palette
     let send: (UiEvent) -> Void
+    @Environment(\.accessibilityReduceMotion) private var still
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,13 +28,19 @@ struct FrameView: View {
                 .padding(20)
             }
         }
+        // Under the page the list keeps its place, hidden from VoiceOver (MISC-18).
+        .accessibilityHidden(onPage)
+        .overlay {
+            if let reader = pageReader {
+                ReaderPage(reader: reader, covered: covered, send: send)
+                    .transition(still ? .identity : .move(edge: .trailing))
+            }
+        }
+        // It slides in and out over the list; it goes at once when something else replaces it.
+        .animation(still || frame.layout.panes != [.list] ? nil : .easeOut(duration: 0.25), value: pageReader != nil)
+        // Over the page: the undo of what was just done there.
         .overlay(alignment: .bottom) {
             if let snackbar = frame.snackbar { SnackbarView(snackbar: snackbar, send: send) }
-        }
-        // Under the sheet the list keeps its place, hidden from VoiceOver (MISC-17).
-        .accessibilityHidden(sheetReader != nil)
-        .overlay {
-            if let reader = sheetReader { ReaderSheet(reader: reader, send: send) }
         }
         .sheet(isPresented: modalDrawer) {
             if let drawer = frame.drawer { DrawerPane(drawer: drawer, send: send) }
@@ -86,8 +93,15 @@ struct FrameView: View {
         }
     }
 
-    /// The open message drawn as a sheet over the panes (compact windows, MISC-17).
-    private var sheetReader: Reader? { frame.layout.sheet == .reader ? frame.reader : nil }
+    /// The open message drawn as a page over the panes (compact windows, MISC-18).
+    private var pageReader: Reader? { frame.layout.page == .reader ? frame.reader : nil }
+
+    /// What takes the panes' place shows over the page, which waits under it, in place.
+    private var covered: Bool {
+        frame.about != nil || frame.setup != nil || frame.palette != nil || frame.result != nil || frame.preview != nil
+    }
+
+    private var onPage: Bool { pageReader != nil && !covered }
 
     /// The drawer of compact windows is a sheet; dismissing it is Back, as on Android.
     private var modalDrawer: Binding<Bool> {

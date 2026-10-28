@@ -1426,8 +1426,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
   palette at `move_threads`' step) and reply; `previous`/`next` open the neighbouring conversations of the list:
-  no pager bar, a horizontal swipe on the body (left: next, right: previous; content wider than the screen scrolls
-  first) and TalkBack/VoiceOver custom actions (MISC-5); `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).
+  no pager bar, a horizontal swipe on the body beside the list (left: next, right: previous; content wider than the
+  screen scrolls first; on a phone's page a swipe right goes back instead, MISC-18) and TalkBack/VoiceOver custom
+  actions (MISC-5); `position` (`2 of 14`) stays in the frame but is not drawn. Back closes the link dialog or the preview, then the thread (the `Escape` binding).
 - **Attachments and pictures.** An expanded message lists its attachments (not the inline parts): a tap opens
   `preview` over the panes, a picture (`kind: image`, the host's `blob` `image` request decoded by `app_io::images`),
   text (`kind: text`, not HTML: `blob`'s `text` request, which answers `app_mobile::preview_text` — UTF-8, at most
@@ -1474,14 +1475,22 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   (cozy, compact, preview) and carry the account's tag with two accounts or more; `refreshing` is true while a sync
   runs (`!status::can_sync`), and the list has an empty text per case. `tests/it/list.rs` has an ignored measurement,
   `scale_a_frame_over_100k_threads` (`--release --ignored`): with the listing cached a frame takes well under 8 ms.
-- **The message sheet** (MISC-17). On a compact window an open thread keeps `layout.panes = [list]` and carries
-  the message as `layout.sheet = reader`: the list's top bar, no floating button, Back closes it. Hosts draw a
-  full-height sheet over the panes and the top bar (below the status bar; `ReaderSheet.kt`, `ReaderSheet` in
-  `ReaderPane.swift`) with a grab handle. It slides up (250 ms); a drag down from the handle, or from the body once
-  the body is at its top, follows the finger, and past a quarter of the height or a fling sends the reader's close
-  (`close_thread`); otherwise it springs back. The list under it keeps its scroll position and is hidden from
-  TalkBack and VoiceOver. With animations off / Reduce Motion it appears without the slide. Medium and expanded
-  windows keep the message as a pane.
+- **The message page** (MISC-18; it replaced MISC-17's sheet).
+  - **The frame.** On a compact window an open thread keeps `layout.panes = [list]` and carries the message as
+    `layout.page = reader`. The top bar is the list's, there is no floating button, and Back closes the page.
+  - **Drawing.** Hosts draw a page over the panes and the top bar, below the status bar (`ReaderPage.kt`, and
+    `ReaderPage` in `ReaderPane.swift`). It slides in from the right in 250 ms.
+  - **The swipe back.** A horizontal drag anywhere on the page follows the finger. A block's own horizontal scroll
+    goes first, and the dominant axis decides against the body's scroll. Past a third of the width, or with a
+    fling, the page sends the reader's close (`close_thread`); otherwise it springs back.
+  - **Leaving.** A frame that drops the page over the list slides it out. One that puts something else there (the
+    composer) removes it at once.
+  - **The list beneath** keeps its scroll position and is hidden from TalkBack and VoiceOver. VoiceOver's escape
+    gesture closes the page.
+  - **What shows over it:** the snackbar, a modal drawer, the link dialog, and the screens that take the panes'
+    place (about, setup, palette, result, preview). The page waits under them, in place.
+  - **Animations off / Reduce Motion:** the page appears without the slide.
+  - Medium and expanded windows keep the message as a pane.
 - **Keylines** (MISC-20). Both apps lay the panes on the top bar's two keylines, constants in one place per app
   (`android/…/ui/Keylines.kt`, `ios/Dail/Views/Metrics.swift`): the icon column (the menu icon, 16 to 40 dp/pt from
   the edge) and the text keyline (the title's start, 56 dp/pt; iOS gives the navigation button a fixed 24 pt slot at

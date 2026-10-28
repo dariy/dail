@@ -78,8 +78,8 @@ enum class PaneKind {
 data class Layout(
     @SerialName("class") val windowClass: WindowClass,
     val panes: List<PaneKind>,
-    /** A pane drawn as a full-height sheet over the panes and the top bar (MISC-17). */
-    val sheet: PaneKind? = null,
+    /** A pane drawn as a page over the panes and the top bar, from the right (MISC-18). */
+    val page: PaneKind? = null,
 )
 
 @Serializable
