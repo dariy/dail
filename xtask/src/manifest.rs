@@ -107,6 +107,34 @@ fn password() -> Option<String> {
         .filter(|p| !p.is_empty())
 }
 
+/// The secret key as minisign reads it: a comment line, then the base64 key. A secret pasted into a
+/// form often loses that shape (v0.1.1's publish job failed on it), so this also takes the key
+/// line alone, or both lines joined by a space, with blank lines and `\r` anywhere.
+fn secret_key_file(text: &str) -> Result<String> {
+    let lines: Vec<&str> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    let key = match lines.as_slice() {
+        [_, key, ..] => *key,
+        // The comment and the key joined: the key is the last word (base64 has no spaces).
+        [line] if line.starts_with("untrusted comment:") => line
+            .split_whitespace()
+            .last()
+            .filter(|word| !word.ends_with(':'))
+            .with_context(|| "the signing key has a comment line but no key".to_owned())?,
+        [key] => *key,
+        [] => bail!(
+            "the signing key is empty: put the whole minisign secret key file \
+             (`untrusted comment: …` and the key line) in DAIL_UPDATE_SIGNING_KEY"
+        ),
+    };
+    Ok(format!(
+        "untrusted comment: dail update signing key\n{key}\n"
+    ))
+}
+
 /// The minisign signature of `data`, with the trusted comment `version:<version>`.
 pub(crate) fn sign(
     secret_box: &str,
@@ -114,7 +142,8 @@ pub(crate) fn sign(
     data: &[u8],
     version: &str,
 ) -> Result<String> {
-    let sk_box = minisign::SecretKeyBox::from_string(secret_box)
+    let secret_box = secret_key_file(secret_box)?;
+    let sk_box = minisign::SecretKeyBox::from_string(&secret_box)
         .map_err(|e| anyhow::anyhow!("the signing key does not parse: {e}"))?;
     let sk = match password {
         Some(password) => sk_box.into_secret_key(Some(password)),
@@ -276,6 +305,38 @@ mod tests {
             false,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn the_signing_key_survives_a_pasted_secret() {
+        let password = "pw".to_owned();
+        let pair = minisign::KeyPair::generate_encrypted_keypair(Some(password.clone())).unwrap();
+        let file = pair.sk.to_box(None).unwrap().to_string();
+        let mut lines = file.lines().filter(|l| !l.is_empty());
+        let (comment, key) = (lines.next().unwrap(), lines.next().unwrap());
+        for pasted in [
+            file.clone(),
+            key.to_owned(),
+            format!("{comment} {key}"),
+            format!("\r\n{comment}\r\n\r\n{key}\r\n"),
+            format!("  {key}  \n"),
+        ] {
+            let signature = sign(&pasted, Some(password.clone()), b"m", "1.2.3");
+            assert!(signature.is_ok(), "{pasted:?}: {signature:?}");
+            let signature = signature.unwrap();
+            let sig_box = minisign::SignatureBox::from_string(&signature).unwrap();
+            minisign::verify(
+                &pair.pk,
+                &sig_box,
+                std::io::Cursor::new(b"m"),
+                true,
+                false,
+                false,
+            )
+            .unwrap();
+        }
+        assert!(sign("", Some(password.clone()), b"m", "1.2.3").is_err());
+        assert!(sign("untrusted comment:", Some(password), b"m", "1.2.3").is_err());
     }
 
     fn sha_hex(data: &[u8]) -> String {
