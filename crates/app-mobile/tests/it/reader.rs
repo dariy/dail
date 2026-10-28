@@ -271,7 +271,7 @@ fn the_toolbar_toggles_star_and_read_and_walks_the_list() {
     ));
     let next = reader(&phone.frame()).next.clone().unwrap();
     assert_eq!(
-        phone.tap(next.action),
+        phone.tap(next.open.action),
         [Command::OpenThread { id: threads[1] }]
     );
     let frame = phone.frame();
@@ -281,6 +281,44 @@ fn the_toolbar_toggles_star_and_read_and_walks_the_list() {
     for label in ["Archive", "Trash", "Move…", "Reply"] {
         button(reader(&frame), label);
     }
+}
+
+#[test]
+fn neighbours_carry_the_peek_of_their_list_rows() {
+    // MISC-18: what a pull shows of a conversation is what its list row shows.
+    let (mut phone, threads) = open(0, vec![plain_body("hi")]);
+    let frame = phone.frame();
+    let row = |frame: &Frame, id: ThreadId| {
+        let rows = &frame.list.as_ref().unwrap().rows;
+        let row = rows.iter().find(|r| r.thread == id).unwrap();
+        (row.sender.clone(), row.subject.clone(), row.date.clone())
+    };
+    let r = reader(&frame);
+    assert!(r.previous.is_none(), "nothing above the first row");
+    let next = r.next.clone().unwrap();
+    assert_eq!(next.open.label, "Next conversation");
+    assert_eq!(
+        (next.sender.clone(), next.subject.clone(), next.date.clone()),
+        row(&frame, threads[1])
+    );
+    assert_eq!(
+        phone.tap(next.open.action),
+        [Command::OpenThread { id: threads[1] }]
+    );
+
+    let frame = phone.frame();
+    let r = reader(&frame);
+    assert!(r.next.is_none(), "nothing below the last row");
+    let previous = r.previous.clone().unwrap();
+    assert_eq!(previous.open.label, "Previous conversation");
+    assert_eq!(
+        (previous.sender, previous.subject, previous.date),
+        row(&frame, threads[0])
+    );
+    assert_eq!(
+        phone.tap(previous.open.action),
+        [Command::OpenThread { id: threads[0] }]
+    );
 }
 
 #[test]

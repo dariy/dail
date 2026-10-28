@@ -1,12 +1,16 @@
 package net.darii.dail.ui
 
+import android.provider.Settings
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -14,9 +18,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
@@ -25,13 +31,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -43,49 +65,119 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.sign
 
 /**
  * The open thread: the toolbar and the messages, collapsed (sender and snippet) or expanded (the
  * body's blocks, attachments, *Links (N)*). A link's tap only sends its action: the presenter
  * shows the full target first ([LinkDialog]).
  *
- * Beside the list, a horizontal swipe goes to the next (left) or previous (right) conversation
- * (MISC-5); on a page ([swipe] false) a swipe right goes back instead (MISC-18). TalkBack offers
- * both conversations as custom actions. Content wider than the screen scrolls first: its own
- * horizontal scroll consumes the drag, so the swipe only starts at its edge.
+ * Pulling past the end of the body shows the next conversation's peek, and past its top the
+ * previous one's (MISC-18). Only a drag pulls, at half resistance, never a fling's momentum.
+ * Released beyond [TURN], the body slides out, the peek slides in, and the conversation's frame
+ * replaces it; short of it, the body springs back. TalkBack offers both conversations as custom
+ * actions.
  */
 @Composable
 fun ReaderPane(
     reader: Reader,
     send: (UiEvent) -> Unit,
-    swipe: Boolean = true,
 ) {
     val current by rememberUpdatedState(reader)
     val sendNow by rememberUpdatedState(send)
-    val pager =
-        if (!swipe) {
-            Modifier
-        } else {
-            Modifier.pointerInput(Unit) {
-                var dx = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { dx = 0f },
-                    onDragEnd = {
-                        val target = if (dx < 0) current.next else current.previous
-                        if (kotlin.math.abs(dx) > SWIPE_DISTANCE.toPx()) target?.let { sendNow(UiEvent.Tap(it.action)) }
-                    },
-                ) { change, amount ->
-                    change.consume()
-                    dx += amount
+    val context = LocalContext.current
+    val still =
+        remember {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        }
+    val turnAt = with(LocalDensity.current) { TURN.toPx() }
+    val scope = rememberCoroutineScope()
+    // How far the body is pulled past its top (> 0) or its end (< 0), in pixels.
+    var pull by remember { mutableFloatStateOf(0f) }
+    // The conversation a released pull turns to, while its peek slides in.
+    var turning by remember { mutableStateOf<Neighbour?>(null) }
+    var height by remember { mutableFloatStateOf(0f) }
+    // A new conversation starts at its top.
+    val list = remember(reader.thread) { LazyListState() }
+    LaunchedEffect(reader.thread) {
+        turning = null
+        pull = 0f
+    }
+
+    fun settle() {
+        scope.launch { animate(pull, 0f, animationSpec = spring()) { value, _ -> pull = value } }
+    }
+
+    fun release() {
+        if (turning != null || pull == 0f) return
+        val target = if (pull < 0f) current.next else current.previous
+        if (target == null || abs(pull) <= turnAt) return settle()
+        turning = target
+        scope.launch {
+            if (!still) animate(pull, sign(pull) * height, animationSpec = tween(TURN_MS)) { value, _ -> pull = value }
+            sendNow(UiEvent.Tap(target.open.action))
+            // A turn the presenter ignored (from a frame already replaced) must not leave the body
+            // off screen: it comes back.
+            delay(STUCK_MS)
+            if (turning === target) {
+                turning = null
+                settle()
+            }
+        }
+    }
+    val paging =
+        remember {
+            object : NestedScrollConnection {
+                // While pulled, a drag back shrinks the pull before the body scrolls.
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    val back = (pull < 0f && available.y > 0f) || (pull > 0f && available.y < 0f)
+                    if (source != NestedScrollSource.UserInput || turning != null || !back) return Offset.Zero
+                    val used = if (pull < 0f) minOf(available.y, -2 * pull) else maxOf(available.y, -2 * pull)
+                    pull += used / 2
+                    return Offset(0f, used)
+                }
+
+                // What the body could not scroll at an end pulls, towards a conversation there.
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource,
+                ): Offset {
+                    if (source != NestedScrollSource.UserInput || turning != null) return Offset.Zero
+                    val there =
+                        when {
+                            available.y < 0f -> current.next
+                            available.y > 0f -> current.previous
+                            else -> null
+                        }
+                    val against = (pull < 0f && available.y > 0f) || (pull > 0f && available.y < 0f)
+                    if (there == null || against) return Offset.Zero
+                    pull += available.y / 2
+                    return Offset(0f, available.y)
+                }
+
+                // The finger lifted: a pull turns or springs back, and its fling is spent.
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (pull == 0f) return Velocity.Zero
+                    release()
+                    return available
                 }
             }
         }
-    // MISC-6: a pinch steps the pane layout (two fingers; one-finger drags stay the swipe's).
+    // MISC-6: a pinch steps the pane layout (two fingers; one-finger drags stay the body's).
     val pinch =
         Modifier.pointerInput(Unit) {
             awaitEachGesture {
@@ -103,41 +195,93 @@ fun ReaderPane(
             }
         }
     val actions =
-        listOfNotNull(
-            reader.previous?.let { b ->
-                CustomAccessibilityAction(b.label) {
-                    send(UiEvent.Tap(b.action))
-                    true
-                }
-            },
-            reader.next?.let { b ->
-                CustomAccessibilityAction(b.label) {
-                    send(UiEvent.Tap(b.action))
-                    true
-                }
-            },
-        )
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .then(pinch)
-            .then(pager)
-            .semantics { customActions = actions }
-            .padding(horizontal = 16.dp),
-    ) {
-        item(key = "subject") {
-            // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(reader.subject, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
-                reader.maximize?.let { ActionButton(it, send) }
-                ActionButton(reader.close, send)
+        listOfNotNull(reader.previous, reader.next).map { neighbour ->
+            CustomAccessibilityAction(neighbour.open.label) {
+                send(UiEvent.Tap(neighbour.open.action))
+                true
             }
         }
-        item(key = "toolbar") { Toolbar(reader, send) }
-        items(reader.messages, key = { it.message }) { message ->
-            MessageCard(message, send)
-            HorizontalDivider()
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clipToBounds()
+            .onSizeChanged { height = it.height.toFloat() }
+            .nestedScroll(paging),
+    ) {
+        LazyColumn(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { translationY = pull }
+                .then(pinch)
+                .semantics { customActions = actions }
+                .padding(horizontal = 16.dp),
+            state = list,
+        ) {
+            item(key = "subject") {
+                // MISC-7: the × closes the message; MISC-14: maximize / restore beside it.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(reader.subject, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                    reader.maximize?.let { ActionButton(it, send) }
+                    ActionButton(reader.close, send)
+                }
+            }
+            item(key = "toolbar") { Toolbar(reader, send) }
+            items(reader.messages, key = { it.message }) { message ->
+                MessageCard(message, send)
+                HorizontalDivider()
+            }
         }
+        // The gap a pull opens shows who is there; while turning it grows into the whole pane.
+        val shown =
+            turning ?: when {
+                pull < 0f -> reader.next
+                pull > 0f -> reader.previous
+                else -> null
+            }
+        shown?.let { neighbour ->
+            val gap = with(LocalDensity.current) { abs(pull).toDp() }
+            Box(
+                Modifier
+                    .align(if (pull < 0f) Alignment.BottomCenter else Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(gap)
+                    .clipToBounds(),
+                contentAlignment = Alignment.Center,
+            ) { Peek(neighbour, ready = turning == null && abs(pull) > turnAt) }
+        }
+    }
+}
+
+/** A neighbour's peek (MISC-18): which way, then its subject, senders and date as its list row. */
+@Composable
+private fun Peek(
+    neighbour: Neighbour,
+    ready: Boolean,
+) {
+    Column(
+        Modifier.padding(horizontal = 16.dp).clearAndSetSemantics {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            neighbour.open.icon?.let { Glyph(it) }
+            Text(
+                if (ready) "Release to open" else neighbour.open.label,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
+        Text(
+            neighbour.subject,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            "${neighbour.sender} · ${neighbour.date}",
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -383,8 +527,14 @@ fun LinkDialog(
     )
 }
 
-/** How far a horizontal drag must go to change the conversation. */
-private val SWIPE_DISTANCE = 72.dp
+/** How far a pull past an end must go to turn the conversation (MISC-18). */
+private val TURN = 80.dp
+
+/** How long the body takes to slide out when it turns. */
+private const val TURN_MS = 250
+
+/** How long a turn waits for the presenter's frame before the body comes back. */
+private const val STUCK_MS = 1000L
 
 /** How far a pinch must zoom (or its inverse) to step the layout. */
 private const val PINCH_IN = 1.15f

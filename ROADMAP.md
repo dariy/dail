@@ -728,7 +728,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 - [x] MISC-17 [mobile][kt][ios]: the open message is a sheet over the list on compact windows (`layout.sheet`):
   slides up on open, a drag down closes it (`close_thread`), the list keeps its scroll position. Superseded by
   MISC-18's page
-- [ ] MISC-18 [mobile][kt][ios]: the open message is a page from the right on compact windows (`layout.page`), a swipe
+- [x] MISC-18 [mobile][kt][ios]: the open message is a page from the right on compact windows (`layout.page`), a swipe
   right goes back; pulling past its top or bottom turns to the previous or next conversation; `Reader.previous` /
   `next` carry a peek (sender, subject, date)
 - [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;

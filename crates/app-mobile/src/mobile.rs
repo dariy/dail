@@ -9,7 +9,8 @@ use std::collections::HashSet;
 use app_core::document::FoldKind;
 use app_core::{
     AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, FolderKey,
-    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
+    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, Thread, ThreadId, ThreadSummary,
+    listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -120,6 +121,32 @@ impl RowCache {
             self.revision = Some(revision);
         }
         &self.ids
+    }
+}
+
+/// What a thread's list row says of it, cleaned: its senders, its subject and its newest date.
+/// A neighbour's peek in the reader says the same (MISC-18).
+struct RowText {
+    sender: String,
+    subject: String,
+    date: String,
+}
+
+impl RowText {
+    fn of(summary: &ThreadSummary, thread: &Thread, now: i64) -> Self {
+        let sender = format::names(&summary.senders);
+        Self {
+            sender: if sender.is_empty() {
+                "(no sender)".to_owned()
+            } else {
+                clean(&sender)
+            },
+            subject: match thread.subject.trim() {
+                "" => "(no subject)".to_owned(),
+                s => clean(s),
+            },
+            date: format::short_date(thread.last_date_ms, now),
+        }
     }
 }
 
@@ -1232,7 +1259,7 @@ impl Mobile {
                 ids: vec![thread.id],
                 messages: Vec::new(),
             }));
-            let sender = format::names(&summary.senders);
+            let text = RowText::of(&summary, thread, now);
             let snippet = summary
                 .messages
                 .last()
@@ -1249,14 +1276,10 @@ impl Mobile {
                 long_press,
                 swipe_start,
                 swipe_end,
-                sender: if sender.is_empty() {
-                    "(no sender)".to_owned()
-                } else {
-                    clean(&sender)
-                },
-                subject: clean(subject),
+                sender: text.sender,
+                subject: text.subject,
                 snippet: clean(snippet),
-                date: format::short_date(thread.last_date_ms, now),
+                date: text.date,
                 unread: summary.unread > 0,
                 starred: summary.flagged,
                 pinned: summary.pinned,

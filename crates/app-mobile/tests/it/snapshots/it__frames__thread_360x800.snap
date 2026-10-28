@@ -114,9 +114,14 @@ expression: phone.frame()
       }
     ],
     "next": {
-      "icon": "expand_more",
-      "label": "Next conversation",
-      "action": 17
+      "open": {
+        "icon": "expand_more",
+        "label": "Next conversation",
+        "action": 17
+      },
+      "sender": "Bob",
+      "subject": "Q3 numbers",
+      "date": "Nov 14"
     },
     "position": "1 of 2",
     "messages": [

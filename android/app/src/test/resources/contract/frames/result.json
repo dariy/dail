@@ -106,9 +106,14 @@
       }
     ],
     "next": {
-      "action": 162,
-      "icon": "expand_more",
-      "label": "Next conversation"
+      "date": "Nov 14",
+      "open": {
+        "action": 162,
+        "icon": "expand_more",
+        "label": "Next conversation"
+      },
+      "sender": "Bob",
+      "subject": "Q3 numbers"
     },
     "position": "1 of 2",
     "subject": "Lunch?",

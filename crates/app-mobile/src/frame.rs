@@ -372,17 +372,33 @@ pub struct Reader {
     pub maximize: Option<Button>,
     /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
-    /// The conversation above it in the list, if any: a swipe to the right (MISC-5; no button).
+    /// The conversation above it in the list, if any: a pull past the top of the body turns to
+    /// it (MISC-18; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub previous: Option<Button>,
-    /// The conversation below it in the list, if any: a swipe to the left (MISC-5; no button).
+    pub previous: Option<Neighbour>,
+    /// The conversation below it in the list, if any: a pull past the end of the body turns to
+    /// it (MISC-18; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub next: Option<Button>,
+    pub next: Option<Neighbour>,
     /// Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<String>,
     /// Its messages, oldest first.
     pub messages: Vec<ReaderMessage>,
+}
+
+/// A conversation beside the open one in the list (MISC-18).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Neighbour {
+    /// Opens it (`open_thread`): what a pull past that end does, and TalkBack's and VoiceOver's
+    /// custom action.
+    pub open: Button,
+    /// Its senders, as its list row shows them: the peek drawn while it slides in.
+    pub sender: String,
+    /// Its subject, as its list row shows it.
+    pub subject: String,
+    /// Its newest message's date, short, as its list row shows it.
+    pub date: String,
 }
 
 /// A message of the open thread.

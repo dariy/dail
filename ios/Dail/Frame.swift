@@ -241,10 +241,18 @@ struct Reader: Codable {
     let close: ActionButton
     let maximize: ActionButton?
     let actions: [ActionButton]
-    let previous: ActionButton?
-    let next: ActionButton?
+    let previous: Neighbour?
+    let next: Neighbour?
     let position: String?
     let messages: [ReaderMessage]
+}
+
+/// A conversation beside the open one in the list, and its peek (MISC-18).
+struct Neighbour: Codable {
+    let open: ActionButton
+    let sender: String
+    let subject: String
+    let date: String
 }
 
 struct ReaderMessage: Codable {

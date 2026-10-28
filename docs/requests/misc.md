@@ -100,6 +100,8 @@ message body goes to the previous or next thread in the list, as those buttons d
   viewport (an image, a wide table), a horizontal drag scrolls the content first; once its edge is reached, the
   continued drag changes the thread.
 - **Open questions:** none.
+- **Replaced (2026-10-28):** MISC-18 turns the conversation with a pull past the top or the end of the body. On a
+  phone's page a swipe right goes back.
 
 ### MISC-6 — Mobile: pinch resizes the message pane; landscape sidebar as icons; fix Android landscape alignment
 
@@ -337,7 +339,7 @@ The first won, amended.
       hidden.)
   - **Turning.**
     - At the bottom of the body, pulling further up shows the next conversation's peek. Only a drag counts, never a
-      fling's momentum. Past about 96 dp/pt the peek says "Release to open".
+      fling's momentum. Past about 80 dp/pt the peek says "Release to open".
     - Released there, the page slides up and out, the peek slides in, and the full conversation replaces it when
       its frame arrives.
     - At the top, a pull down does the same for the previous conversation.
