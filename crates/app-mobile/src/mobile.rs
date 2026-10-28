@@ -1006,11 +1006,21 @@ impl Mobile {
         side: bool,
         tags: usize,
     ) -> Drawer {
+        // A mailbox opened while the settings page is up leaves it, or the page would stay in
+        // place of the list with no way back but Back (iOS has none).
+        let leave_settings = state.view.settings.is_some();
         let open = |cmd: Command| {
+            let mut cmds = Vec::new();
+            if leave_settings && !matches!(cmd, Command::OpenSettings { .. }) {
+                cmds.push(Command::CloseSettings {});
+            }
+            cmds.push(cmd);
             if modal {
-                Act::Many(vec![cmd, Command::FocusPane { pane: Pane::List }])
-            } else {
-                Act::Run(cmd)
+                cmds.push(Command::FocusPane { pane: Pane::List });
+            }
+            match <[Command; 1]>::try_from(cmds) {
+                Ok([cmd]) => Act::Run(cmd),
+                Err(cmds) => Act::Many(cmds),
             }
         };
         let browsing = state.view.search.is_none() && state.view.settings.is_none();

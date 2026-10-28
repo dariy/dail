@@ -279,3 +279,30 @@ fn the_account_chevron_folds_every_folder() {
     assert!(drawer.accounts[0].mailboxes.is_empty());
     assert!(drawer.accounts[0].fold.as_ref().unwrap().collapsed);
 }
+
+#[test]
+fn a_mailbox_from_the_drawer_leaves_the_settings_page() {
+    for width in [360, 1280] {
+        let mut phone = Phone::inbox(width, 800);
+        phone.dispatch(Command::OpenSettings { section: None });
+        phone.dispatch(Command::FocusPane {
+            pane: Pane::Sidebar,
+        });
+        let drawer = phone.frame().drawer.unwrap();
+        let sent = drawer.accounts[0]
+            .mailboxes
+            .iter()
+            .find(|m| m.icon == "send")
+            .unwrap()
+            .action;
+        let commands = phone.tap(sent);
+        assert_eq!(commands[0], Command::CloseSettings {}, "{width}");
+        assert!(matches!(commands[1], Command::OpenMailbox { .. }));
+        let frame = phone.frame();
+        assert!(
+            frame.settings.is_none(),
+            "{width}: the settings page is gone"
+        );
+        assert_eq!(frame.list.unwrap().title, "Sent");
+    }
+}
