@@ -694,20 +694,52 @@ shipping the rest.
 - Mobile items pass `cargo xtask verify android` and CI's `ios` job (read with `gh run view`, never assumed).
 
 ### R — Release
-- [ ] MISC-8 [ci]: install `desktop-file-utils` for the AppImage step; a dry-run `release` on `main` is green
+- [x] MISC-8 [ci]: install `desktop-file-utils` for the AppImage step; a dry-run `release` on `main` is green
 - [x] MISC-15 [ci]: `ci.yml` and `gradle-verification.yml` run only on PRs into `main` (and `ci.yml` on `main`)
-- [ ] MISC-9 [ci][xtask]: merge into `main` → bump job (`cargo xtask release next`, `release bump`, patch unless a
+- [x] MISC-9 [ci][xtask]: merge into `main` → bump job (`cargo xtask release next`, `release bump`, patch unless a
   `release:minor|major|skip` label) commits and tags `vX.Y.Z` with a GitHub App token → `release.yml`
-- [ ] MISC-16 [repo]: ruleset on `main` in `.github/rulesets/main.json` — PR required, CI checks required, no direct
+- [x] MISC-16 [repo]: ruleset on `main` in `.github/rulesets/main.json` — PR required, CI checks required, no direct
   pushes; bypass: admins and the release App. Confirm with the user before applying
 
 ### M — Mobile
-- [ ] MISC-10 [mobile][kt][ios]: folder tree in the left pane (depth, collapse via `collapse_folders`/`expand_folders`)
-- [ ] MISC-11 [core][io][mobile][kt][ios]: landscape left pane toggles icon rail ↔ icon + text; persisted view
+- [x] MISC-10 [mobile][kt][ios]: folder tree in the left pane (depth, collapse via `collapse_folders`/`expand_folders`)
+- [x] MISC-11 [core][io][mobile][kt][ios]: landscape left pane toggles icon rail ↔ icon + text; persisted view
   preference (`View` command, agents `any`)
-- [ ] MISC-12 [ios]: About closes (close action drawn, view stack follows the frame); `DailTests` UI test
-- [ ] MISC-13 [mobile][kt][ios]: About shows `× About dail (<version>)` and a mobile description
-- [ ] MISC-14 [mobile][kt][ios]: maximize / restore button for the message pane
+- [x] MISC-12 [ios]: About closes (close action drawn, view stack follows the frame); `DailTests` UI test
+- [x] MISC-13 [mobile][kt][ios]: About shows `× About dail (<version>)` and a mobile description
+- [x] MISC-14 [mobile][kt][ios]: maximize / restore button for the message pane
+
+## Wave 9 — Mobile UX: "it slides, zooms and lines up"
+
+The requests of 2026-10-28. Details, decisions and open questions are in
+[`docs/requests/misc.md`](docs/requests/misc.md) (MISC-17 to MISC-24). Every item covers Android and iOS. Build the
+host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and MISC-19 (ADR 0012 first).
+
+**Exit criteria**
+- On a phone the open message is a sheet that rises from the bottom and closes with a drag down; the list under it
+  keeps its place. Swiping between conversations slides the pages.
+- Camera JPGs (large ones downscaled, EXIF-rotated) and PDFs open in the app and zoom; PDF pages are rendered by
+  memory-safe Rust.
+- No palette query shows raw JSON unless asked, on any front end (Android, iOS, GUI, TUI).
+- The list, the drawer's tree and the settings page sit on the top bar's keylines on both platforms.
+- Mobile items pass `cargo xtask verify android` and CI's `ios` job (read with `gh run view`, never assumed).
+
+### M — Mobile
+- [ ] MISC-17 [mobile][kt][ios]: the open message is a sheet over the list on compact windows (`layout.sheet`):
+  slides up on open, a drag down closes it (`close_thread`), the list keeps its scroll position
+- [ ] MISC-18 [mobile][kt][ios]: swiping between conversations slides the pages; `Reader.previous` / `next` carry a
+  peek (sender, subject, date)
+- [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
+  oversized JPEGs downscaled, EXIF orientation; PDF pages by `hayro` in `app_io::pdf` (ADR 0012); iOS preview
+  through `dail_blob`
+- [ ] MISC-20 [kt][ios]: list rows on the top bar's keylines (icon column 16–40, text at 56), constants in
+  `Keylines.kt` / `Metrics.swift`
+- [ ] MISC-21 [kt][ios]: Compose as a round icon button; the accessible name stays "Compose"
+- [ ] MISC-22 [front][mobile][kt][ios][gui][tui]: query results as views (`app_front::result`, exhaustive over the
+  queries), *Raw data* one tap away
+- [ ] MISC-23 [kt][ios]: folder tree alignment — the chevron column reserved on every row, half an icon of indent
+  per level
+- [ ] MISC-24 [kt][ios]: settings content on the title's keyline
 
 ---
 
