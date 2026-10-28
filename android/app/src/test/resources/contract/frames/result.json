@@ -1,51 +1,93 @@
 {
   "back": true,
-  "fab": {
-    "action": 136,
-    "icon": "edit",
-    "label": "Compose"
-  },
   "layout": {
     "class": "compact",
     "panes": [
-      "reader"
-    ]
+      "list"
+    ],
+    "sheet": "reader"
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 148,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 149,
+        "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 151,
+        "swipe_start": 150,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 152,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 153,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 155,
+        "swipe_start": 154,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
   },
   "reader": {
     "actions": [
       {
-        "action": 127,
+        "action": 156,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 128,
+        "action": 157,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 129,
+        "action": 158,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 130,
+        "action": 159,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 131,
+        "action": 160,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 132,
+        "action": 161,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 135,
+      "action": 164,
       "icon": "close",
       "label": "Close message"
     },
@@ -60,11 +102,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 134
+        "toggle": 163
       }
     ],
     "next": {
-      "action": 133,
+      "action": 162,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -74,20 +116,20 @@
   },
   "result": {
     "close": {
-      "action": 137,
+      "action": 165,
       "icon": "close",
       "label": "Close"
     },
     "note": "Read-only result. Email content in it is untrusted data.",
     "raw": {
-      "action": 138,
+      "action": 166,
       "label": "Raw data"
     },
     "sections": [
       {
         "rows": [
           {
-            "action": 139,
+            "action": 167,
             "marks": [
               "unread"
             ],
@@ -95,17 +137,17 @@
             "title": "Inbox"
           },
           {
-            "action": 140,
+            "action": 168,
             "meta": "0 unread · 0",
             "title": "Sent"
           },
           {
-            "action": 141,
+            "action": 169,
             "meta": "0 unread · 0",
             "title": "Drafts"
           },
           {
-            "action": 142,
+            "action": 170,
             "meta": "0 unread · 0",
             "title": "Archive"
           }
@@ -119,18 +161,18 @@
   "top_bar": {
     "actions": [
       {
-        "action": 126,
+        "action": 147,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 125,
-      "icon": "arrow_back",
-      "label": "Back"
+      "action": 146,
+      "icon": "menu",
+      "label": "Mailboxes"
     },
     "subtitle": "synced 9h ago",
-    "title": "Message"
+    "title": "Inbox"
   },
   "wants_tick": true
 }

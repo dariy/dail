@@ -30,6 +30,11 @@ struct FrameView: View {
         .overlay(alignment: .bottom) {
             if let snackbar = frame.snackbar { SnackbarView(snackbar: snackbar, send: send) }
         }
+        // Under the sheet the list keeps its place, hidden from VoiceOver (MISC-17).
+        .accessibilityHidden(sheetReader != nil)
+        .overlay {
+            if let reader = sheetReader { ReaderSheet(reader: reader, send: send) }
+        }
         .sheet(isPresented: modalDrawer) {
             if let drawer = frame.drawer { DrawerPane(drawer: drawer, send: send) }
         }
@@ -80,6 +85,9 @@ struct FrameView: View {
             if let settings = frame.settings { SettingsPane(page: settings, send: send) }
         }
     }
+
+    /// The open message drawn as a sheet over the panes (compact windows, MISC-17).
+    private var sheetReader: Reader? { frame.layout.sheet == .reader ? frame.reader : nil }
 
     /// The drawer of compact windows is a sheet; dismissing it is Back, as on Android.
     private var modalDrawer: Binding<Bool> {

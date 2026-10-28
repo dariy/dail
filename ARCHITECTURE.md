@@ -1474,6 +1474,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   (cozy, compact, preview) and carry the account's tag with two accounts or more; `refreshing` is true while a sync
   runs (`!status::can_sync`), and the list has an empty text per case. `tests/it/list.rs` has an ignored measurement,
   `scale_a_frame_over_100k_threads` (`--release --ignored`): with the listing cached a frame takes well under 8 ms.
+- **The message sheet** (MISC-17). On a compact window an open thread keeps `layout.panes = [list]` and carries
+  the message as `layout.sheet = reader`: the list's top bar, no floating button, Back closes it. Hosts draw a
+  full-height sheet over the panes and the top bar (below the status bar; `ReaderSheet.kt`, `ReaderSheet` in
+  `ReaderPane.swift`) with a grab handle. It slides up (250 ms); a drag down from the handle, or from the body once
+  the body is at its top, follows the finger, and past a quarter of the height or a fling sends the reader's close
+  (`close_thread`); otherwise it springs back. The list under it keeps its scroll position and is hidden from
+  TalkBack and VoiceOver. With animations off / Reduce Motion it appears without the slide. Medium and expanded
+  windows keep the message as a pane.
 - **Keylines** (MISC-20). Both apps lay the panes on the top bar's two keylines, constants in one place per app
   (`android/…/ui/Keylines.kt`, `ios/Dail/Views/Metrics.swift`): the icon column (the menu icon, 16 to 40 dp/pt from
   the edge) and the text keyline (the title's start, 56 dp/pt; iOS gives the navigation button a fixed 24 pt slot at

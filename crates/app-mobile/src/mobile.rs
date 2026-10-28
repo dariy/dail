@@ -821,6 +821,11 @@ impl Mobile {
                 kinds.retain(|k| *k != PaneKind::List);
             }
         }
+        // On a phone the open message is a sheet over the list, which keeps its place (MISC-17).
+        let sheet = (class == Class::Compact && kinds == [PaneKind::Reader]).then(|| {
+            kinds = vec![PaneKind::List];
+            PaneKind::Reader
+        });
         let maximized = self.pane_step >= 2 && kinds == [PaneKind::Reader];
         let mut top_bar = self.top_bar(state, &kinds);
         if maximized {
@@ -834,7 +839,7 @@ impl Mobile {
         let list = kinds
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
-        let mut reader = if kinds.contains(&PaneKind::Reader) {
+        let mut reader = if kinds.contains(&PaneKind::Reader) || sheet.is_some() {
             self.reader(state)
         } else {
             None
@@ -859,6 +864,7 @@ impl Mobile {
             None
         };
         let fab = (!self.about
+            && sheet.is_none()
             && self.setup.is_none()
             && !state.accounts.is_empty()
             && !kinds.contains(&PaneKind::Composer)
@@ -901,6 +907,7 @@ impl Mobile {
             layout: Layout {
                 class,
                 panes: kinds,
+                sheet,
             },
             top_bar,
             drawer,

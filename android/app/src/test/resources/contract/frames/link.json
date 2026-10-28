@@ -1,69 +1,111 @@
 {
   "back": true,
-  "fab": {
-    "action": 48,
-    "icon": "edit",
-    "label": "Compose"
-  },
   "layout": {
     "class": "compact",
     "panes": [
-      "reader"
-    ]
+      "list"
+    ],
+    "sheet": "reader"
   },
   "link": {
     "close": {
-      "action": 51,
+      "action": 72,
       "icon": "close",
       "label": "Close"
     },
     "copy": {
-      "action": 50,
+      "action": 71,
       "icon": "content_copy",
       "label": "Copy"
     },
     "open": {
-      "action": 49,
+      "action": 70,
       "icon": "open_in_new",
       "label": "Open"
     },
     "url": "https://example.org/q3"
   },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 49,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 50,
+        "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 52,
+        "swipe_start": 51,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 53,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 54,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 56,
+        "swipe_start": 55,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
   "reader": {
     "actions": [
       {
-        "action": 35,
+        "action": 57,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 36,
+        "action": 58,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 37,
+        "action": 59,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 38,
+        "action": 60,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 39,
+        "action": 61,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 40,
+        "action": 62,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 47,
+      "action": 69,
       "icon": "close",
       "label": "Close message"
     },
@@ -87,7 +129,7 @@
               },
               {
                 "bold": true,
-                "link": 43,
+                "link": 65,
                 "text": "the report"
               },
               {
@@ -162,7 +204,7 @@
             "blocks": [],
             "expanded": false,
             "label": "Signature",
-            "toggle": 44,
+            "toggle": 66,
             "type": "fold"
           }
         ],
@@ -173,14 +215,14 @@
           "shown": false,
           "text": "Pictures in this message are hidden.",
           "toggle": {
-            "action": 46,
+            "action": 68,
             "icon": "visibility",
             "label": "Show images from carol@example.org"
           }
         },
         "links": [
           {
-            "action": 45,
+            "action": 67,
             "icon": "link",
             "label": "https://example.org/q3"
           }
@@ -188,11 +230,11 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Q3 numbers See the report",
         "to": "alice@example.com",
-        "toggle": 42
+        "toggle": 64
       }
     ],
     "next": {
-      "action": 41,
+      "action": 63,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -204,18 +246,18 @@
   "top_bar": {
     "actions": [
       {
-        "action": 34,
+        "action": 48,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 33,
-      "icon": "arrow_back",
-      "label": "Back"
+      "action": 47,
+      "icon": "menu",
+      "label": "Mailboxes"
     },
     "subtitle": "synced 9h ago",
-    "title": "Message"
+    "title": "Inbox"
   },
   "wants_tick": true
 }

@@ -1,7 +1,7 @@
 //! Frames over the `basic` fixture as JSON snapshots, at a phone's, a small tablet's and a large
 //! tablet's size.
 
-use app_core::{Command, Pane};
+use app_core::{Command, CommandName, Pane};
 use app_mobile::frame::PaneKind;
 use app_mobile::{Class, UiEvent};
 
@@ -171,4 +171,35 @@ fn the_message_pane_maximizes_and_restores() {
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenThread { id: threads[0] });
     assert!(phone.frame().reader.unwrap().maximize.is_none());
+}
+
+#[test]
+fn a_phone_shows_the_message_as_a_sheet_over_the_list() {
+    // MISC-17: the list stays (and keeps its place); the message rises over it.
+    let mut phone = Phone::inbox(360, 800);
+    let list_title = phone.frame().top_bar.title;
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+    let frame = phone.frame();
+    assert_eq!(frame.layout.panes, [PaneKind::List]);
+    assert_eq!(frame.layout.sheet, Some(PaneKind::Reader));
+    assert!(frame.list.is_some() && frame.reader.is_some());
+    assert_eq!(frame.top_bar.title, list_title, "the list's top bar");
+    assert!(frame.fab.is_none(), "no floating button under the sheet");
+    assert!(frame.back, "Back closes the sheet");
+    // The sheet's close (a drag down) is the ×: `close_thread`.
+    let close = frame.reader.unwrap().close;
+    assert_eq!(
+        phone.tap(close.action).first().map(Command::command_name),
+        Some(CommandName::CloseThread)
+    );
+
+    // Medium and expanded windows keep the message as a pane.
+    for width in [700, 1280] {
+        let mut phone = Phone::inbox(width, 800);
+        phone.dispatch(Command::OpenThread { id: threads[0] });
+        let frame = phone.frame();
+        assert!(frame.layout.sheet.is_none());
+        assert!(frame.layout.panes.contains(&PaneKind::Reader));
+    }
 }

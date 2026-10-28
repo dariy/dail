@@ -1,19 +1,61 @@
 {
   "back": true,
-  "fab": {
-    "action": 104,
-    "icon": "edit",
-    "label": "Compose"
-  },
   "layout": {
     "class": "compact",
     "panes": [
-      "reader"
-    ]
+      "list"
+    ],
+    "sheet": "reader"
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 102,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 103,
+        "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 105,
+        "swipe_start": 104,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 106,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 107,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 109,
+        "swipe_start": 108,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
   },
   "palette": {
     "close": {
-      "action": 109,
+      "action": 123,
       "icon": "close",
       "label": "Close"
     },
@@ -27,22 +69,22 @@
       {
         "rows": [
           {
-            "action": 105,
+            "action": 119,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 106,
+            "action": 120,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 107,
+            "action": 121,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 108,
+            "action": 122,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -54,38 +96,38 @@
   "reader": {
     "actions": [
       {
-        "action": 95,
+        "action": 110,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 96,
+        "action": 111,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 97,
+        "action": 112,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 98,
+        "action": 113,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 99,
+        "action": 114,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 100,
+        "action": 115,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 103,
+      "action": 118,
       "icon": "close",
       "label": "Close message"
     },
@@ -100,11 +142,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 102
+        "toggle": 117
       }
     ],
     "next": {
-      "action": 101,
+      "action": 116,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -116,18 +158,18 @@
   "top_bar": {
     "actions": [
       {
-        "action": 94,
+        "action": 101,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 93,
-      "icon": "arrow_back",
-      "label": "Back"
+      "action": 100,
+      "icon": "menu",
+      "label": "Mailboxes"
     },
     "subtitle": "synced 9h ago",
-    "title": "Message"
+    "title": "Inbox"
   },
   "wants_tick": true
 }

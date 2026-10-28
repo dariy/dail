@@ -34,6 +34,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -73,7 +74,13 @@ private fun FrameScreen(
     send: (UiEvent) -> Unit,
 ) {
     BackHandler(enabled = frame.back) { send(UiEvent.Back) }
-    ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send) }
+    val sheet = frame.reader?.takeIf { frame.layout.sheet == PaneKind.Reader }
+    Box(Modifier.fillMaxSize()) {
+        // Under the sheet the list keeps its place, hidden from TalkBack (MISC-17).
+        val under = if (sheet != null) Modifier.clearAndSetSemantics {} else Modifier
+        Box(under) { ModalDrawer(frame.drawer, send) { FrameScaffold(frame, send) } }
+        sheet?.let { ReaderSheet(it, send) }
+    }
     frame.link?.let { LinkDialog(it, send) }
 }
 

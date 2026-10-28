@@ -1026,6 +1026,17 @@
             "$ref": "#/$defs/PaneKind"
           },
           "type": "array"
+        },
+        "sheet": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaneKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "A pane drawn as a full-height sheet over the panes and the top bar: the open message on a\ncompact window (`reader`, MISC-17). A drag down closes it (its `close`)."
         }
       },
       "required": [

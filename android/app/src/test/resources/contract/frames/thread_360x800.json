@@ -1,51 +1,93 @@
 {
   "back": true,
-  "fab": {
-    "action": 23,
-    "icon": "edit",
-    "label": "Compose"
-  },
   "layout": {
     "class": "compact",
     "panes": [
-      "reader"
-    ]
+      "list"
+    ],
+    "sheet": "reader"
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 14,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 15,
+        "messages": 1,
+        "selected": true,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 17,
+        "swipe_start": 16,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 18,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 19,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 21,
+        "swipe_start": 20,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
   },
   "reader": {
     "actions": [
       {
-        "action": 14,
+        "action": 22,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 15,
+        "action": 23,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 16,
+        "action": 24,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 17,
+        "action": 25,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 18,
+        "action": 26,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 19,
+        "action": 27,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 22,
+      "action": 30,
       "icon": "close",
       "label": "Close message"
     },
@@ -60,11 +102,11 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 21
+        "toggle": 29
       }
     ],
     "next": {
-      "action": 20,
+      "action": 28,
       "icon": "expand_more",
       "label": "Next conversation"
     },
@@ -83,11 +125,11 @@
     ],
     "navigation": {
       "action": 12,
-      "icon": "arrow_back",
-      "label": "Back"
+      "icon": "menu",
+      "label": "Mailboxes"
     },
     "subtitle": "synced 9h ago",
-    "title": "Message"
+    "title": "Inbox"
   },
   "wants_tick": true
 }
