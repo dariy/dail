@@ -97,9 +97,11 @@ enum PaneKind: String, Codable { case drawer, list, reader, composer, settings }
 struct FrameLayout: Codable {
     let windowClass: WindowClass
     let panes: [PaneKind]
+    /// A pane drawn as a full-height sheet over the panes and the top bar (MISC-17).
+    let sheet: PaneKind?
 
     enum CodingKeys: String, CodingKey {
-        case panes
+        case panes, sheet
         case windowClass = "class"
     }
 }

@@ -19,7 +19,8 @@ fn a_tap_on_a_row_opens_its_thread() {
     let frame = phone.frame();
     assert_eq!(frame.reader.unwrap().thread, threads[0]);
     assert!(frame.back, "Back closes the thread");
-    assert!(frame.list.is_none(), "one pane on a phone");
+    // On a phone the message is a sheet over the list, which stays (MISC-17).
+    assert!(frame.list.is_some(), "the list under the sheet");
 }
 
 #[test]

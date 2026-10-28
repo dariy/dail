@@ -127,6 +127,10 @@ pub struct Layout {
     pub class: Class,
     /// The panes on screen, left to right.
     pub panes: Vec<PaneKind>,
+    /// A pane drawn as a full-height sheet over the panes and the top bar: the open message on a
+    /// compact window (`reader`, MISC-17). A drag down closes it (its `close`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sheet: Option<PaneKind>,
 }
 
 /// Something to tap: an icon or a text button.

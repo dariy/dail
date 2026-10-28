@@ -725,7 +725,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 - Mobile items pass `cargo xtask verify android` and CI's `ios` job (read with `gh run view`, never assumed).
 
 ### M — Mobile
-- [ ] MISC-17 [mobile][kt][ios]: the open message is a sheet over the list on compact windows (`layout.sheet`):
+- [x] MISC-17 [mobile][kt][ios]: the open message is a sheet over the list on compact windows (`layout.sheet`):
   slides up on open, a drag down closes it (`close_thread`), the list keeps its scroll position
 - [ ] MISC-18 [mobile][kt][ios]: swiping between conversations slides the pages; `Reader.previous` / `next` carry a
   peek (sender, subject, date)
