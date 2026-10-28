@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -23,6 +23,14 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-14 | Mobile: maximize the message pane | S | app-mobile, android/, ios/ | 2026-10-27 |
 | MISC-15 | CI: run only on PRs into `main` and on `main` | S | .github/workflows/ | 2026-10-27 |
 | MISC-16 | Repository: protect `main` (PRs only, merged by admins) | S | repository settings, docs | 2026-10-27 |
+| MISC-17 | Mobile: the open message is a sheet; a drag down closes it | M | app-mobile, android/, ios/ | 2026-10-28 |
+| MISC-18 | Mobile: swiping between conversations slides the pages | M | app-mobile, android/, ios/ | 2026-10-28 |
+| MISC-19 | Mobile: JPG and PDF attachments shown in the app, with zoom | L | app-io, app-host, app-mobile, android/, ios/, docs/adr | 2026-10-28 |
+| MISC-20 | Mobile: the message list lines up with the menu icon and the title | S | android/, ios/ | 2026-10-28 |
+| MISC-21 | Mobile: Compose as an icon button | S | android/, ios/ | 2026-10-28 |
+| MISC-22 | Palette: query results as views, not raw JSON | M | app-front, app-mobile, app-gui, app-tui, android/, ios/ | 2026-10-28 |
+| MISC-23 | Mobile: folder tree alignment (one column per level, half-icon indent) | S | android/, ios/ | 2026-10-28 |
+| MISC-24 | Mobile: settings content on the title's left edge | S | android/, ios/ | 2026-10-28 |
 
 ## Details
 
@@ -235,4 +243,211 @@ Nobody pushes to `main` directly; changes arrive by PR, and only admins / the ow
 - **Order:** apply after MISC-9's App exists, or the release bump cannot push. Applying it is an outward-facing
   repository change: confirm with the user before running the `gh api` call.
 - **Done when:** `git push origin main` from a non-bypass actor is rejected, and a PR merge by an admin works.
+- **Open questions:** none.
+
+### MISC-17 — Mobile: the open message is a sheet; a drag down closes it
+
+On a phone (a compact window, one pane), opening a message swaps the list for the message and the top bar for
+"← Message". Nothing moves: the message is simply there. When it closes, the list is built again and comes back
+scrolled to the top. The open message must behave as a panel that rises from the bottom over the list, and a drag
+down must close it.
+
+- **Commands:** none (the panel closes with `close_thread`, as the × of MISC-7 does).
+- **Decisions:**
+  - Compact windows only. On medium and expanded windows the message stays a pane beside the list, and a maximized
+    message (MISC-14) keeps its buttons.
+  - Presenter: on a compact window with an open thread, the frame keeps the list pane (`layout.panes = [list]`) and
+    carries the message as a sheet over it (a new optional `layout.sheet`, `reader`). The top bar is the list's. No
+    floating button while the sheet is up. Back closes the sheet, as it closes the message now.
+  - Hosts: a full-height sheet over the panes and the top bar (below the status bar), with a grab handle above the
+    subject row. It slides up on open (about 250 ms). A drag down follows the finger: from the handle or the subject
+    row at any time, from the body only when the body is scrolled to its top (the body's own scroll comes first).
+    Released past a quarter of the height, or flung down, it closes (the × action) and slides down; otherwise it
+    springs back. The list under the sheet keeps its scroll position and is hidden from TalkBack and VoiceOver.
+  - With the system's "remove animations" or Reduce Motion, the sheet appears and goes without the slide.
+  - The horizontal swipe of MISC-5 / MISC-18 and this vertical drag: the dominant axis decides.
+- **Touches:** `app-mobile` (`frame.rs` `Layout`, `mobile.rs` `frame()`), `android/` (`ui/DailScreen.kt`,
+  `ui/ReaderScreen.kt`), `ios/` (`Views/FrameView.swift`, `Views/ReaderPane.swift`); contract fixtures
+  (`DAIL_UPDATE_CONTRACT=1`) and the `thread_360x800` snapshot.
+- **Done when:** a presenter test: on a compact window an open thread gives panes `[list]`, sheet `reader`, the list's
+  top bar and no floating button; medium and expanded frames are unchanged. On Android and iOS a drag down closes the
+  message and the list is where it was.
+- **Open questions:** none.
+
+### MISC-18 — Mobile: swiping between conversations slides the pages
+
+MISC-5 made a horizontal swipe on the message go to the previous or next conversation. Today the swipe acts only
+when the finger lifts: the next conversation then replaces the old one in place, with no motion. The change must
+animate like turning a page.
+
+- **Commands:** none (the swipe still runs the previous / next action of the frame).
+- **Decisions:**
+  - Presenter: `Reader.previous` and `next` carry a peek of the neighbour (sender, subject, date, cleaned as the list
+    rows are), so the page that slides in shows real content during the drag. The exact frame shape is chosen when
+    picked; TalkBack and VoiceOver keep their custom actions.
+  - Hosts: the page follows the finger. Released past a third of the width, or flung, the old page slides out and the
+    peek slides in; the full conversation replaces the peek when its frame arrives. Otherwise the page springs back.
+    With no neighbour on that side, the drag resists (rubber band) and springs back.
+  - Only a previous / next change slides. Opening from the list, or a frame that drops the conversation (archived,
+    moved), does not.
+  - Content wider than the screen still scrolls first (MISC-5). Pinch (MISC-6) is unchanged. Reduce Motion:
+    a cross-fade instead of the slide.
+- **Touches:** `app-mobile` (`mobile/reader.rs` `neighbours`, `frame.rs`), `android/` (`ui/ReaderScreen.kt`), `ios/`
+  (`Views/ReaderPane.swift`); contract fixtures.
+- **Done when:** a presenter test: the peeks are there and cleaned (`tests/it/untrusted.rs` covers them), and absent
+  at the ends of the list. On both apps a swipe slides the pages, and a short drag springs back.
+- **Open questions:** none.
+
+### MISC-19 — Mobile: JPG and PDF attachments shown in the app, with zoom
+
+JPG and PDF attachments must open inside dail and zoom in and out.
+
+Today Android shows an attached image fitted to the screen, without zoom. An image larger than 4096 px on a side is
+refused ("Loading or not a picture dail can show."), and that is many photos from current phones (12 MP, 4032 ×
+3024, still fits; 24 MP and more does not). EXIF orientation is ignored, so a portrait photo can show sideways. A PDF
+shows "dail does not show this kind of file". iOS draws every attachment as a placeholder (name, type and size):
+Swift never calls `dail_blob`.
+
+- **Commands:** none.
+- **Decisions:**
+  - Images (`app_io::images`, shared with inline pictures): an image larger than `MAX_SIDE` is decoded downscaled to
+    fit, not refused, and the decoder stays within `MAX_ALLOC` (for JPEG a DCT-scaled decode, such as
+    `jpeg-decoder`'s `scale`; choose when picked, pure Rust). EXIF orientation is applied (`image`'s
+    `ImageDecoder::orientation`).
+  - PDF in pure Rust with `hayro` (`#![forbid(unsafe_code)]`), not Android's `PdfRenderer` (PDFium, C++) or iOS's
+    PDFKit: an attacker's PDF is parsed only by memory-safe code, as images and HTML already are, by one renderer for
+    both apps that `cargo test` covers. A new `app_io::pdf` beside `images`: the page count and sizes, and a page
+    rasterized at a given width to RGBA (the images' format). Limits on pages, pixels per page (`MAX_SIDE`), memory
+    and time. Rendering runs on a blocking task, so an error or a panic shows "This page could not be shown." with
+    *Save*. No links, forms, JavaScript or remote loads.
+  - `app-host`: `BlobRequest` gains a PDF's pages and a PDF page at a width. `app-mobile`: `PreviewKind::Pdf`.
+  - Zoom in both apps: pinch, double tap (fit ↔ 2.5×), pan while zoomed. PDF pages scroll vertically, with
+    "page n of m". Past the bitmap's resolution the host asks for the visible page again at the zoomed width (at most
+    `MAX_SIDE`). *Save* stays the only way to another app.
+  - iOS: `Native.swift` and `Host.swift` call `dail_blob`. The preview draws images, text and PDF pages with the same
+    zoom, in place of the placeholder.
+  - ADR 0012 comes first: `hayro` against the system renderers (safety, quality, speed, app size), the limits, and
+    the licences of any fonts `hayro` embeds (they go into About). `cargo deny` must pass the new tree.
+- **Touches:** `app-io` (`images.rs`, new `pdf.rs`), `app-host` (`config.rs` `BlobRequest`, `host.rs` `blob`),
+  `app-mobile` (`mobile/reader.rs` `preview_kind`, `frame.rs`, `theme.rs` licences), `android/`
+  (`ui/PreviewScreen.kt`), `ios/` (`Native.swift`, `Host.swift`, a preview view), workspace dependencies,
+  `deny.toml` if needed, `docs/adr/0012-*.md`.
+- **Done when:** `app-io` tests: a generated 6000 × 4000 JPEG decodes to at most 4096 px a side within `MAX_ALLOC`; a
+  JPEG with EXIF orientation 6 comes out upright; a generated one-page PDF renders at the asked width with ink on
+  it; a truncated or malformed PDF is an error, not a panic or a hang. A contract fixture for a PDF preview frame.
+  Both apps open a camera JPG and a PDF and zoom them with pinch and double tap.
+- **Open questions:** none (the renderer was decided on 2026-10-28: pure Rust).
+
+### MISC-20 — Mobile: the message list lines up with the menu icon and the title
+
+The message list must line up with the top bar: with the menu (burger) icon or with the "Inbox" title.
+
+Today on Android a row starts 12 dp in, then the account's colour bar (7 dp) and a 20 dp gutter for the unread dot,
+so the sender starts at about 39 dp. The top bar's menu icon is at 16–40 dp and its title at about 56 dp (Material's
+top app bar), so the text lines up with neither. On iOS the rows use the system list insets, and the text starts at
+about 32–36 pt. The title's position depends on the width of the navigation button's symbol.
+
+- **Commands:** none.
+- **Decisions:**
+  - Two keylines, the same in the top bar and in the panes: the icon column (the menu icon, 16 to 40 dp/pt from the
+    edge) and the text keyline (the title's start, 56 dp/pt). In the list, the unread dot or the check box is centred
+    in the icon column. Sender, subject and snippet start on the text keyline. The account's colour bar sits at the
+    very edge. The server line, the empty state and the placeholders follow the keylines too.
+  - iOS's top bar puts the navigation button in a fixed 24 pt slot at 16 pt, so its title starts at 56 pt too.
+  - The keylines are constants in one place per app (`Keylines.kt`, `Metrics.swift`), described in ARCHITECTURE.md's
+    mobile section. MISC-23 and MISC-24 use them. In multi-pane windows they count from the pane's edge.
+- **Touches:** `android/` (`ui/ListScreen.kt`, a new `ui/Keylines.kt`), `ios/` (`Views/FrameView.swift` `TopBarView`,
+  `Views/ListPane.swift`, a new `Views/Metrics.swift`).
+- **Done when:** on a 360 × 800 emulator and an iPhone simulator, the first letter of the first sender is under the
+  first letter of "Inbox" (±1 dp/pt) and the unread dot is under the menu icon's centre (screenshots).
+- **Open questions:** none.
+
+### MISC-21 — Mobile: Compose as an icon button
+
+The floating button says "Compose" in text: an extended button on Android, a capsule with the icon and the word on
+iOS. It must be an icon only.
+
+- **Commands:** none; the frame already carries the `edit` icon.
+- **Decisions:** a round button with the pen icon. The accessible name stays "Compose" (TalkBack, VoiceOver), and
+  Android shows it as a tooltip on long press.
+- **Touches:** `android/` (`ui/DailScreen.kt`), `ios/` (`Views/FrameView.swift`).
+- **Done when:** both apps draw the icon alone, and TalkBack and VoiceOver read "Compose".
+- **Open questions:** none.
+
+### MISC-22 — Palette: query results as views, not raw JSON
+
+A query chosen in the palette (*Show message*, *Show thread*, *List threads*, *Search mail*, *List mailboxes*, *List
+contacts*, *Show pending changes*, *Show send requests*, *Show settings*, *Show view state*, *Test account
+connection*, *Find the mail servers of an address*) shows its receipt as pretty JSON, read-only. That is true on every
+front end: mobile (`app-mobile` `mobile/sheet.rs`), the GUI (`shell.rs` `show_result`) and the TUI (`palette.rs`).
+Each must show as a view people read, with taps that go somewhere. Asked for mobile; the desktop is in scope too
+(decided on 2026-10-28), so no front end shows raw JSON unless the user asks for it.
+
+- **Commands:** none; taps run existing `View` commands.
+- **Decisions:**
+  - A new `app_front::result` (toolkit-free, shared by the GUI, the TUI and mobile, ADR 0004) builds a `ResultDoc`
+    from the command's name, the receipt's data and the state: sections of rows (title, detail, meta, marks, an
+    optional command a tap runs) and labelled fields. An exhaustive `match` over the query commands (no `_ =>`), so a
+    new query does not compile without its view. Data the view does not know falls back to labelled fields, never
+    braces.
+  - *Show message*: From, To, Cc, Date, Subject, mailbox, size, flags, Message-ID and attachments, then *Open
+    conversation* (`open_thread`).
+  - *Show thread*, *List threads*, *Search mail*: rows drawn as the list draws them (senders, subject, date, unread,
+    star, pin, clip). A tap opens the conversation (`open_thread`).
+  - *List mailboxes*: the folder tree with unread and total counts and the sync window. A tap opens the mailbox
+    (`open_mailbox`).
+  - *List contacts*, *Show pending changes*, *Show send requests*: rows (name and address, counts, last date; what,
+    where, attempts, last error; the request).
+  - *Show settings*, *Show view state*: grouped labelled fields.
+  - *Test account connection*, *Find the mail servers*: a checklist (IMAP and SMTP, each ✓ or ✗ with the server's
+    answer), and the servers found.
+  - *Raw data* keeps the JSON one tap away, for whoever wants what an agent sees.
+  - Untrusted content: every string goes through `app_front::text::clean`. Nothing is interpreted, links are not
+    live, and nothing remote loads. The note still says that email content is untrusted.
+  - Mobile: `ResultView` gains sections, fields and the *Raw data* toggle (presenter state), with `lines` only while
+    raw. Kotlin and Swift draw the rows in the list's style. The GUI's result window and the TUI's result view draw
+    the same document.
+- **Touches:** `app-front` (new `result.rs`), `app-mobile` (`mobile/sheet.rs`, `frame.rs`), `android/` (the result
+  screen in `ui/DailScreen.kt`), `ios/` (`ResultPane` in `Views/FrameView.swift`), `app-gui` (`shell.rs`), `app-tui`
+  (`palette.rs`); `insta` snapshots, contract fixtures.
+- **Done when:** an `insta` snapshot per query command over the demo state in `app-front`. *Show message* and *List
+  threads* from the palette show views on Android, iOS, the GUI and the TUI, with no JSON unless *Raw data*. An
+  untrusted-content test covers the document (control and bidi characters are cleaned). The parity walks still pass.
+- **Open questions:** none.
+
+### MISC-23 — Mobile: folder tree alignment
+
+In the drawer's folder tree (MISC-10), a folder with subfolders has a chevron before its icon. A folder without
+subfolders has none, so its icon starts where a parent's chevron is.
+
+1. **One level, one column.** When leaves and parents are on the same level, their titles must line up. Today a
+   leaf's title starts a chevron's width (Android 32 dp, iOS 24 pt) left of a parent's: leaves start under the `>`.
+2. **Half an icon per level.** A child folder's icon must sit half an icon right of its parent's icon. Today each
+   level indents 16 dp/pt from the row's start, so a child without subfolders sits left of its parent's icon
+   (Android 16 dp, iOS 8 pt) and a child with subfolders 16 dp/pt right of it.
+
+- **Commands:** none; the frame already carries `depth` and `fold` (MISC-10).
+- **Decisions:** every folder row reserves the chevron's column when the account has a folder with subfolders, as the
+  desktop sidebar does (`app-gui/src/sidebar.rs`, `gutter`). Each level indents half an icon (12 dp/pt for the
+  24 dp/pt icon). *All inboxes* and the footer (*Settings*, *About*, *Add account*) keep their icons in the top
+  level's icon column. The chevron keeps its touch target. The account row and the icon rail are unchanged.
+- **Touches:** `android/` (`ui/DrawerScreen.kt`), `ios/` (`Views/DrawerPane.swift`).
+- **Done when:** in the demo app with `Work`, `Work/Clients` and `Lists/rust` created (palette *Create folder*), on
+  both platforms (screenshots): the titles of one level start on one line, leaves and parents alike, and each child's
+  icon starts half an icon right of its parent's.
+- **Open questions:** none.
+
+### MISC-24 — Mobile: settings content on the title's left edge
+
+The settings page's content must line up with its title, "Settings". Today on Android the section tabs start at
+Material's 52 dp edge (their labels at about 68 dp), and the captions and rows at 16 dp, while the title starts at
+about 56 dp after the back arrow. On iOS the grouped list's insets put the rows at about 32–40 pt.
+
+- **Commands:** none.
+- **Decisions:** the first tab's label, the captions, the rows, their hints, and the chips and buttons that wrap below
+  them all start on the text keyline (MISC-20). On a one-pane window that is the title's start; beside the drawer,
+  the same distance from the pane's edge.
+- **Touches:** `android/` (`ui/SettingsScreen.kt`), `ios/` (`SettingsPane` in `Views/SetupView.swift`).
+- **Done when:** on a phone (screenshots, both platforms) the first letters of the first tab, of each caption and of
+  each row are under the "S" of "Settings" (±1 dp/pt).
 - **Open questions:** none.
