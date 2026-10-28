@@ -1,0 +1,24 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show pending changes",
+    sections: [
+        Section {
+            title: None,
+            fields: [],
+            rows: [
+                ResultRow {
+                    title: "set flag seen",
+                    detail: None,
+                    meta: Some(
+                        "queued · 0 attempts",
+                    ),
+                    marks: [],
+                    command: None,
+                },
+            ],
+        },
+    ],
+}

@@ -1,0 +1,27 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Find the mail servers of an address",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "Address",
+                    value: "me@example.org",
+                },
+                Field {
+                    label: "Domain",
+                    value: "example.org",
+                },
+                Field {
+                    label: "State",
+                    value: "Looking…",
+                },
+            ],
+            rows: [],
+        },
+    ],
+}

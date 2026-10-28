@@ -1,0 +1,65 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show message",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "From",
+                    value: "Carol <carol@example.org>",
+                },
+                Field {
+                    label: "To",
+                    value: "alice@example.com",
+                },
+                Field {
+                    label: "Date",
+                    value: "2023-11-14 12:02 UTC",
+                },
+                Field {
+                    label: "Subject",
+                    value: "Lunch?",
+                },
+                Field {
+                    label: "Mailbox",
+                    value: "Inbox",
+                },
+                Field {
+                    label: "Size",
+                    value: "163 B",
+                },
+                Field {
+                    label: "Flags",
+                    value: "read",
+                },
+                Field {
+                    label: "Message-ID",
+                    value: "lunch@example.org",
+                },
+                Field {
+                    label: "Attachments",
+                    value: "none",
+                },
+            ],
+            rows: [
+                ResultRow {
+                    title: "Open conversation",
+                    detail: None,
+                    meta: None,
+                    marks: [],
+                    command: Some(
+                        OpenThread {
+                            id: ThreadId(
+                                00000000-0000-0007-0000-000000000002,
+                            ),
+                        },
+                    ),
+                },
+            ],
+        },
+    ],
+}

@@ -181,14 +181,49 @@ fn a_query_shows_its_result_read_only() {
     let frame = phone.frame();
     let result = frame.result.as_ref().expect("the result shows");
     assert!(result.note.contains("untrusted"));
+    // A view, not JSON (MISC-22): the mailboxes as rows that open them.
+    assert!(result.lines.is_empty());
+    let rows: Vec<_> = result.sections.iter().flat_map(|s| &s.rows).collect();
+    assert!(rows.iter().any(|r| r.title == "Inbox"), "{rows:?}");
+    // *Raw data* shows the JSON, *View* goes back.
+    let raw = result.raw.action;
+    assert!(phone.tap(raw).is_empty());
+    let frame = phone.frame();
+    let result = frame.result.as_ref().unwrap();
+    assert!(result.sections.is_empty());
     assert!(
         result.lines.iter().any(|l| l.contains("INBOX")),
         "{:?}",
         result.lines
     );
+    assert_eq!(result.raw.label, "View");
     assert!(frame.back);
     phone.take();
     assert!(phone.event(UiEvent::Back).is_empty());
+    assert!(phone.frame().result.is_none());
+}
+
+#[test]
+fn a_result_row_opens_its_mailbox() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenPalette {});
+    typed(&mut phone, CommandName::ListMailboxes.spec().title);
+    let frame = phone.frame();
+    let (_, first) = rows(&frame)[0].clone();
+    phone.tap(first);
+    let frame = phone.frame();
+    let result = frame.result.as_ref().unwrap();
+    let row = result
+        .sections
+        .iter()
+        .flat_map(|s| &s.rows)
+        .find(|r| r.title == "Sent")
+        .unwrap();
+    let got = phone.tap(row.action.unwrap());
+    assert_eq!(
+        got.first().map(Command::command_name),
+        Some(CommandName::OpenMailbox)
+    );
     assert!(phone.frame().result.is_none());
 }
 

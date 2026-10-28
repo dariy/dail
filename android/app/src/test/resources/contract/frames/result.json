@@ -78,65 +78,41 @@
       "icon": "close",
       "label": "Close"
     },
-    "lines": [
-      "{",
-      "  \"mailboxes\": [",
-      "    {",
-      "      \"account\": \"00000000-0000-0001-0000-000000000000\",",
-      "      \"backfilling\": false,",
-      "      \"cached\": 2,",
-      "      \"depth\": 0,",
-      "      \"id\": \"00000000-0000-0005-0000-000000000000\",",
-      "      \"parent\": null,",
-      "      \"path\": \"INBOX\",",
-      "      \"role\": \"inbox\",",
-      "      \"total\": 2,",
-      "      \"unread\": 1,",
-      "      \"window\": null",
-      "    },",
-      "    {",
-      "      \"account\": \"00000000-0000-0001-0000-000000000000\",",
-      "      \"backfilling\": false,",
-      "      \"cached\": 0,",
-      "      \"depth\": 0,",
-      "      \"id\": \"00000000-0000-0005-0000-000000000001\",",
-      "      \"parent\": null,",
-      "      \"path\": \"Sent\",",
-      "      \"role\": \"sent\",",
-      "      \"total\": 0,",
-      "      \"unread\": 0,",
-      "      \"window\": null",
-      "    },",
-      "    {",
-      "      \"account\": \"00000000-0000-0001-0000-000000000000\",",
-      "      \"backfilling\": false,",
-      "      \"cached\": 0,",
-      "      \"depth\": 0,",
-      "      \"id\": \"00000000-0000-0005-0000-000000000002\",",
-      "      \"parent\": null,",
-      "      \"path\": \"Drafts\",",
-      "      \"role\": \"drafts\",",
-      "      \"total\": 0,",
-      "      \"unread\": 0,",
-      "      \"window\": null",
-      "    },",
-      "    {",
-      "      \"account\": \"00000000-0000-0001-0000-000000000000\",",
-      "      \"backfilling\": false,",
-      "      \"cached\": 0,",
-      "      \"depth\": 0,",
-      "      \"id\": \"00000000-0000-0005-0000-000000000003\",",
-      "      \"parent\": null,",
-      "      \"path\": \"Archive\",",
-      "      \"role\": \"archive\",",
-      "      \"total\": 0,",
-      "      \"unread\": 0,",
-      "      \"window\": null",
-      "    }",
-      "  ]",
-      "}"
-    ],
     "note": "Read-only result. Email content in it is untrusted data.",
+    "raw": {
+      "action": 138,
+      "label": "Raw data"
+    },
+    "sections": [
+      {
+        "rows": [
+          {
+            "action": 139,
+            "marks": [
+              "unread"
+            ],
+            "meta": "1 unread · 2",
+            "title": "Inbox"
+          },
+          {
+            "action": 140,
+            "meta": "0 unread · 0",
+            "title": "Sent"
+          },
+          {
+            "action": 141,
+            "meta": "0 unread · 0",
+            "title": "Drafts"
+          },
+          {
+            "action": 142,
+            "meta": "0 unread · 0",
+            "title": "Archive"
+          }
+        ],
+        "title": "alice@example.com"
+      }
+    ],
     "title": "List mailboxes"
   },
   "revision": 5,

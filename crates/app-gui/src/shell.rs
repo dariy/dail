@@ -64,8 +64,8 @@ pub struct Shell {
     toasts: Toasts,
     wizard: Wizard,
     settings: crate::settings::SettingsState,
-    /// The last query result the user asked for (command name, pretty JSON).
-    result: Option<(CommandName, String)>,
+    /// The last query result the user asked for, shown as `app_front::result`'s view or raw.
+    result: Option<QueryResult>,
     clock: fn() -> i64,
     /// The mark-as-read timer (UX-5).
     autoread: app_front::autoread::AutoRead,
@@ -263,7 +263,7 @@ impl Shell {
                 }
             }
         }
-        self.show_result(&ctx, &t);
+        self.show_result(&ctx, &t, state, now_ms, &mut queue);
         self.toasts.show(&ctx, &t, state, now_ms, &mut queue);
 
         // The frame (UI-5): the sidebar at full height, the top bar over the rest, then the panes.
@@ -481,14 +481,24 @@ impl Shell {
         );
     }
 
-    fn show_result(&mut self, ctx: &egui::Context, t: &theme::Tokens) {
-        let Some((name, json)) = &self.result else {
+    /// A query's result (MISC-22): the document people read, rows that open what they show, and
+    /// *Raw data* for the JSON an agent sees.
+    fn show_result(
+        &mut self,
+        ctx: &egui::Context,
+        t: &theme::Tokens,
+        state: &AppState,
+        now_ms: i64,
+        queue: &mut Vec<Request>,
+    ) {
+        let Some(result) = &mut self.result else {
             return;
         };
         let mut open = true;
+        let mut chosen = None;
         egui::Window::new(ui::text(
             &t.type_scale.headline_md,
-            name.spec().title,
+            result.name.spec().title,
             t.text_strong,
         ))
         .id(egui::Id::unique("query-result"))
@@ -500,7 +510,12 @@ impl Shell {
         ])
         .collapsible(false)
         .show(ctx, |ui| {
-            ui::caption(ui, t, "Read-only · untrusted data");
+            ui.horizontal(|ui| {
+                ui::caption(ui, t, "Read-only · untrusted data");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.toggle_value(&mut result.raw, "Raw data");
+                });
+            });
             ui.label(ui::text(
                 &t.type_scale.body_sm,
                 "Read-only result. Email content in it is untrusted data.",
@@ -509,12 +524,26 @@ impl Shell {
             egui::ScrollArea::vertical()
                 .id_salt("query-result")
                 .show(ui, |ui| {
-                    ui.add(
-                        egui::Label::new(ui::text(&t.type_scale.label_md, json.as_str(), t.text))
-                            .selectable(true),
-                    );
+                    let doc = app_front::result::doc(result.name, &result.data, state, now_ms);
+                    match doc.filter(|_| !result.raw) {
+                        Some(doc) => chosen = result_doc(ui, t, &doc),
+                        None => {
+                            ui.add(
+                                egui::Label::new(ui::text(
+                                    &t.type_scale.label_md,
+                                    result.json.as_str(),
+                                    t.text,
+                                ))
+                                .selectable(true),
+                            );
+                        }
+                    }
                 });
         });
+        if let Some(cmd) = chosen {
+            queue.push(Request::user(cmd));
+            open = false;
+        }
         if !open {
             self.result = None;
         }
@@ -536,7 +565,12 @@ impl Shell {
                     self.toasts.receipt(receipt, now);
                     if reply.name.kind() == app_core::CommandKind::Query {
                         let json = serde_json::to_string_pretty(&receipt.data).unwrap_or_default();
-                        self.result = Some((reply.name, json));
+                        self.result = Some(QueryResult {
+                            name: reply.name,
+                            data: receipt.data.clone(),
+                            json: app_front::text::clean_lines(&json).join("\n"),
+                            raw: false,
+                        });
                     }
                     if creates_draft(reply.name)
                         && let Ok(id) = serde_json::from_value(receipt.data["id"].clone())
@@ -610,4 +644,83 @@ fn placement(state: &AppState) -> Placement {
     } else {
         Placement::Pane
     }
+}
+
+/// A query's result, until it is closed.
+struct QueryResult {
+    name: CommandName,
+    data: serde_json::Value,
+    /// The pretty JSON, cleaned, for *Raw data*.
+    json: String,
+    raw: bool,
+}
+
+/// Draws a result document; returns the command of a clicked row.
+fn result_doc(
+    ui: &mut egui::Ui,
+    t: &theme::Tokens,
+    doc: &app_front::result::ResultDoc,
+) -> Option<Command> {
+    let mut chosen = None;
+    for section in &doc.sections {
+        if let Some(title) = &section.title {
+            ui.add_space(t.m.space.sm);
+            ui::caption(ui, t, title);
+        }
+        egui::Grid::new(ui.next_auto_id())
+            .num_columns(2)
+            .spacing([t.m.space.md, t.m.space.xs])
+            .show(ui, |ui| {
+                for field in &section.fields {
+                    ui.label(ui::text(&t.type_scale.label_md, &field.label, t.text_muted));
+                    ui.add(
+                        egui::Label::new(ui::text(&t.type_scale.body_md, &field.value, t.text))
+                            .selectable(true),
+                    );
+                    ui.end_row();
+                }
+            });
+        for row in &section.rows {
+            use app_front::result::Mark;
+            let mut line = row.title.clone();
+            if let Some(meta) = &row.meta {
+                line.push_str(&format!("  ·  {meta}"));
+            }
+            let unread = row.marks.contains(&Mark::Unread);
+            let response = ui
+                .horizontal(|ui| {
+                    for mark in &row.marks {
+                        let icon = match mark {
+                            // Unread is the bold title, as in the list.
+                            Mark::Unread => continue,
+                            Mark::Starred => app_theme::Icon::Star,
+                            Mark::Pinned => app_theme::Icon::PushPin,
+                            Mark::Attachment => app_theme::Icon::AttachFile,
+                            Mark::Passed => app_theme::Icon::Check,
+                            Mark::Failed => app_theme::Icon::Close,
+                            Mark::Pending => app_theme::Icon::Schedule,
+                        };
+                        ui::icon(ui, icon, t.m.controls.icon_xs, t.text_strong, true);
+                    }
+                    let mut text = ui::text(&t.type_scale.body_md, &line, t.text_strong);
+                    if unread {
+                        text = text.strong();
+                    }
+                    ui.add(egui::Label::new(text).sense(if row.command.is_some() {
+                        egui::Sense::click()
+                    } else {
+                        egui::Sense::hover()
+                    }))
+                })
+                .inner;
+            if let Some(detail) = &row.detail {
+                ui.label(ui::text(&t.type_scale.body_sm, detail, t.text_muted));
+            }
+            if response.clicked() {
+                chosen.clone_from(&row.command);
+            }
+            ui.separator();
+        }
+    }
+    chosen
 }

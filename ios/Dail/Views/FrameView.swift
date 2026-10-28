@@ -173,28 +173,81 @@ struct SnackbarView: View {
     }
 }
 
-/// A query's result, read-only; email content in it is untrusted data, shown as plain text.
+/// A query's result under the note that it is untrusted: sections of labelled fields and rows in
+/// the list's style, or the raw JSON after *Raw data* (MISC-22). All of it is plain text.
 struct ResultPane: View {
     let result: ResultView
     let send: (UiEvent) -> Void
 
     var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
+                FrameButton(button: result.close, send: send)
                 Text(result.title).font(.title3)
                 Spacer()
-                FrameButton(button: result.close, send: send)
+                FrameButton(button: result.raw, send: send)
             }
-            Text(result.note).font(.footnote)
-            ScrollView {
-                LazyVStack(alignment: .leading) {
-                    ForEach(Array(result.lines.enumerated()), id: \.offset) { _, line in
-                        Text(verbatim: line).font(.body.monospaced()).textSelection(.enabled)
+            .padding()
+            Text(result.note).font(.footnote).padding(.horizontal)
+            List {
+                ForEach(Array((result.sections ?? []).enumerated()), id: \.offset) { _, section in
+                    Section {
+                        ForEach(Array((section.fields ?? []).enumerated()), id: \.offset) { _, field in
+                            HStack(alignment: .firstTextBaseline) {
+                                if !field.label.isEmpty {
+                                    Text(verbatim: field.label).font(.caption).foregroundStyle(.secondary)
+                                        .frame(width: 112, alignment: .leading)
+                                }
+                                Text(verbatim: field.value).textSelection(.enabled)
+                            }
+                            .listRowInsets(EdgeInsets(top: 4, leading: Metrics.textStart, bottom: 4, trailing: Metrics.end))
+                        }
+                        ForEach(Array((section.rows ?? []).enumerated()), id: \.offset) { _, row in
+                            rowView(row)
+                        }
+                    } header: {
+                        if let title = section.title { Text(verbatim: title) }
                     }
                 }
+                ForEach(Array((result.lines ?? []).enumerated()), id: \.offset) { _, line in
+                    Text(verbatim: line).font(.body.monospaced()).textSelection(.enabled)
+                }
             }
+            .listStyle(.plain)
         }
-        .padding()
+    }
+
+    @ViewBuilder private func rowView(_ row: ResultRow) -> some View {
+        let marks = row.marks ?? []
+        let unread = marks.contains("unread")
+        HStack(spacing: 0) {
+            Group {
+                if marks.contains("failed") {
+                    Image(systemName: "xmark.circle").foregroundStyle(.red).accessibilityLabel("Failed")
+                } else if marks.contains("passed") {
+                    Image(systemName: "checkmark.circle").foregroundStyle(.green).accessibilityLabel("Passed")
+                } else if marks.contains("pending") {
+                    Image(systemName: "clock").accessibilityLabel("Pending")
+                } else {
+                    Circle().fill(unread ? Color.accentColor : .clear).frame(width: 8, height: 8)
+                }
+            }
+            .frame(width: Metrics.textStart)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: row.title).lineLimit(1).fontWeight(unread ? .semibold : .regular)
+                if let detail = row.detail { Text(verbatim: detail).font(.footnote).lineLimit(2) }
+            }
+            Spacer()
+            if marks.contains("attachment") { Image(systemName: "paperclip").font(.caption) }
+            if marks.contains("starred") { Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow) }
+            if marks.contains("pinned") { Image(systemName: "pin.fill").font(.caption) }
+            if let meta = row.meta { Text(verbatim: meta).font(.caption).foregroundStyle(.secondary) }
+        }
+        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: Metrics.end))
+        .contentShape(Rectangle())
+        .onTapGesture { if let action = row.action { send(.tap(action)) } }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(row.action == nil ? [] : .isButton)
     }
 }
 

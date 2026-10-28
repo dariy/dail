@@ -1,0 +1,99 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show settings",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "After triage",
+                    value: "0",
+                },
+                Field {
+                    label: "Background interval mins",
+                    value: "30",
+                },
+                Field {
+                    label: "Background sync",
+                    value: "1",
+                },
+                Field {
+                    label: "Full sync secs",
+                    value: "900",
+                },
+                Field {
+                    label: "History cap",
+                    value: "200",
+                },
+                Field {
+                    label: "Initial window",
+                    value: "500",
+                },
+                Field {
+                    label: "List density",
+                    value: "0",
+                },
+                Field {
+                    label: "Mark read after ms",
+                    value: "2000",
+                },
+                Field {
+                    label: "Notifications",
+                    value: "1",
+                },
+                Field {
+                    label: "Poll secs",
+                    value: "120",
+                },
+                Field {
+                    label: "Stale secs",
+                    value: "60",
+                },
+                Field {
+                    label: "Text scale",
+                    value: "100",
+                },
+                Field {
+                    label: "Theme",
+                    value: "0",
+                },
+                Field {
+                    label: "Theme dark",
+                    value: "dail-dark",
+                },
+                Field {
+                    label: "Theme light",
+                    value: "dail-light",
+                },
+                Field {
+                    label: "Tui colors",
+                    value: "0",
+                },
+                Field {
+                    label: "Undo send ms",
+                    value: "10000",
+                },
+            ],
+            rows: [],
+        },
+        Section {
+            title: Some(
+                "Updates",
+            ),
+            fields: [
+                Field {
+                    label: "Checks",
+                    value: "unset",
+                },
+                Field {
+                    label: "Interval hours",
+                    value: "24",
+                },
+            ],
+            rows: [],
+        },
+    ],
+}

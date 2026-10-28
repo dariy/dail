@@ -8,6 +8,7 @@ mod autoread;
 mod body;
 mod keys;
 mod palette;
+mod result;
 mod status;
 mod tree;
 mod updates;

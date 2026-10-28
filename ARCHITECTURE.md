@@ -851,7 +851,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   *Move to…* offers the thread's account only —, threads, drafts, accounts, pending ops, settings, panes,
   attachments, free text, and a confirmation for `remove_account`). `add_account` opens the account wizard,
   `update_draft` opens the draft in the composer; `open_palette` and `restore_draft` are not offered. Query results
-  (`get_settings`, `search`, …) open in a read-only window. Commands chosen lately rank higher (frecency, kept for the
+  (`get_settings`, `search`, …) open in a read-only window as `app_front::result`'s document (MISC-22: sections of
+  labelled fields and rows; a row that shows a thread or a mailbox opens it), with a *Raw data* toggle for the JSON.
+  `app_front::result::doc` builds it from the command, the receipt's data and the state for the GUI, the TUI and
+  mobile alike; every string goes through `text::clean`, data a view does not know falls back to labelled fields,
+  and `app-front/tests/it/result.rs` snapshots every query over the demo state and fails if a query has no view. Commands chosen lately rank higher (frecency, kept for the
   session in `app_front::palette::Palette`: a count halved every 8 choices; first with an empty query, and among the
   best five matches unless the query starts the best title), and the highlighted command's first doc-comment sentence
   (`Palette::help`, what agents read as the tool description) shows under the list, in the TUI too. `app-front/tests/it/palette.rs` walks every registry command
@@ -1194,8 +1198,9 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   (title, detail from 60 columns, and the command's key that a plain terminal delivers, `keys::hint`). ↑/↓ (Ctrl+P/N,
   PageUp/PageDown) move, Enter chooses, Esc steps back or closes, Backspace edits and on an empty query stands in for
   Esc, Ctrl+U clears; a paste goes into the query. `add_account` opens the account setup. Query results
-  (`get_settings`, `search`, …) open in a scrollable read-only view (`ResultView`) marked as untrusted data, closed
-  with `q`, Esc or Backspace. `app-tui/tests/it/palette.rs` walks every registry command through the TUI palette by
+  (`get_settings`, `search`, …) open in a scrollable read-only view (`ResultView`) marked as untrusted data: the
+  `app_front::result` document as text (Tab / Shift+Tab move between the rows that open something, Enter opens one),
+  `r` for the raw JSON; closed with `q`, Esc or Backspace. `app-tui/tests/it/palette.rs` walks every registry command through the TUI palette by
   keys (the TUI half of the palette parity).
 - **Status line** (`view::status`, a projection like the GUI's bar, fitted to the width, most important first): the
   countdown *Sending in N s · z cancels* of a send this TUI scheduled, the latest notice (a rejected command's title
@@ -1442,7 +1447,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   changes when the presenter replaces it (a step, a choice, a close). A row's tap is `Palette::choose`: the commands
   go out as the user's, or the sheet moves to the second step (`prompt`, `Filter…` or a free-text hint). Back leaves
   the step, then closes the palette (`close_palette`). A key binding or a button that needs an argument (the reader's
-  *Move…*) opens it at that step; `add_account` and `set_password` open the account setup. A user's `Query` command answers in `result`: its receipt as pretty JSON, cleaned, read-only, under
+  *Move…*) opens it at that step; `add_account` and `set_password` open the account setup. A user's `Query` command answers in `result`: the `app_front::result` document (`sections` of `fields` and `rows`;
+  a row's `action` closes the result and opens its thread or mailbox), or after its `raw` button (*Raw data* / *View*)
+  the receipt as pretty JSON in `lines`, cleaned, read-only, under
   *Read-only result. Email content in it is untrusted data.*; Back closes it. While a search is open, rows carry
   `marks` (their subject and snippet cut at `app_front::highlight` words) and the list's `server` says *Searching the
   server…* or the newest server search's failure. `tests/it/palette.rs` walks every registry command through the sheet

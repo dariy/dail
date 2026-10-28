@@ -124,6 +124,11 @@ fn query_results_open_in_a_window() {
     assert_eq!(sent, [Command::GetSettings {}, Command::ClosePalette {}]);
     h.run();
     h.get_by_label("Show settings");
+    // A view, not JSON (MISC-22); *Raw data* shows the JSON.
+    h.get_by_label("Undo send ms");
+    assert!(h.query_by_label_contains("\"undo_send_ms\"").is_none());
+    h.get_by_label("Raw data").click();
+    h.run();
     h.get_by_label_contains("\"undo_send_ms\": 10000");
 }
 

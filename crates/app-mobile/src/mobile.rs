@@ -92,6 +92,10 @@ enum Act {
     RemoveAccount(AccountId),
     /// Open a screen of the system's settings.
     System(crate::event::SystemScreen),
+    /// Switch a query's result between its view and its raw JSON (MISC-22).
+    RawResult,
+    /// A row of a query's result: close the result and run its command.
+    FromResult(Command),
 }
 
 /// The window, as the host last configured it.
@@ -537,6 +541,16 @@ impl Mobile {
         }
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
+            Act::RawResult => {
+                if let Some(result) = &mut self.result {
+                    result.raw = !result.raw;
+                }
+                Vec::new()
+            }
+            Act::FromResult(cmd) => {
+                self.result = None;
+                vec![Request::user(cmd)]
+            }
             Act::Many(cmds) => cmds.into_iter().map(Request::user).collect(),
             Act::Back => self.back(state),
             Act::Maximize => {
@@ -863,7 +877,7 @@ impl Mobile {
         let about = self.about.then(crate::theme::about);
         let setup = self.setup_sheet(state);
         let palette = self.palette_sheet(state);
-        let result = self.result_view();
+        let result = self.result_view(state);
         if reader.is_none() {
             self.link = None;
             self.preview = None;

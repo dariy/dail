@@ -83,6 +83,11 @@ fn query_results_open_read_only_and_close_with_q() {
     );
     let screen = t.screen();
     assert!(screen.contains("untrusted data"), "{screen}");
+    // A view, not JSON (MISC-22); `r` shows the raw data.
+    assert!(screen.contains("Poll secs"), "{screen}");
+    assert!(!screen.contains("\"poll_secs\""), "{screen}");
+    t.key(KeyCode::Char('r'));
+    let screen = t.screen();
     assert!(screen.contains("\"poll_secs\": 120"), "{screen}");
     t.key(KeyCode::Char('q'));
     assert!(!t.screen().contains("untrusted data"));

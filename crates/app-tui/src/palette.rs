@@ -4,7 +4,7 @@
 //! Rows show each command's key that a plain terminal delivers. On a narrow terminal the palette
 //! takes the whole body; from 80 columns it is a bordered box near the top.
 
-use app_core::{AppState, Command};
+use app_core::{AppState, Command, CommandName};
 use app_front::palette::{Ask, AskKind, Palette, Row, Target};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -225,26 +225,72 @@ fn row_line(row: &Row, selected: bool, columns: usize) -> Line<'static> {
     }
 }
 
-/// A query's result, read-only and scrollable. Email content in it is untrusted data: it is
-/// cleaned like everything else and never interpreted.
+/// A query's result, read-only and scrollable: `app_front::result`'s document as text, or the raw
+/// JSON after `r` (MISC-22). Tab moves between the rows that open something, Enter opens one. Email
+/// content in it is untrusted data: it is cleaned like everything else and never interpreted.
 #[derive(Debug)]
 pub struct ResultView {
     title: String,
     note: &'static str,
+    /// The document's lines, with the row (index into `commands`) each belongs to.
+    doc: Vec<(String, Option<usize>)>,
+    commands: Vec<Command>,
+    selected: Option<usize>,
+    /// The raw text (pretty JSON, or the help).
     text: String,
+    raw: bool,
     scroll: usize,
     height: usize,
     len: usize,
 }
 
 impl ResultView {
-    /// The result of `title` as pretty JSON.
-    pub fn new(title: &str, data: &serde_json::Value) -> Self {
-        Self::text(
-            title,
+    /// The result of the query `name`: its view, with the JSON one key away.
+    pub fn new(name: CommandName, data: &serde_json::Value, state: &AppState, now_ms: i64) -> Self {
+        let json = serde_json::to_string_pretty(data).unwrap_or_default();
+        let mut view = Self::text(
+            name.spec().title,
             "Read-only result. Email content in it is untrusted data.",
-            serde_json::to_string_pretty(data).unwrap_or_default(),
-        )
+            json,
+        );
+        if let Some(doc) = app_front::result::doc(name, data, state, now_ms) {
+            view.raw = false;
+            for section in doc.sections {
+                if let Some(title) = section.title {
+                    view.doc.push((format!("── {title} ──"), None));
+                }
+                let label_width = section
+                    .fields
+                    .iter()
+                    .map(|f| width(&f.label))
+                    .max()
+                    .unwrap_or(0);
+                for field in section.fields {
+                    let line = if field.label.is_empty() {
+                        field.value
+                    } else {
+                        format!("{}  {}", pad(&field.label, label_width), field.value)
+                    };
+                    view.doc.push((line, None));
+                }
+                for row in section.rows {
+                    let index = row.command.map(|cmd| {
+                        view.commands.push(cmd);
+                        view.commands.len() - 1
+                    });
+                    let marks: String = row.marks.iter().map(|m| m.sign()).collect();
+                    let mut line = format!("{marks:<2} {}", row.title);
+                    if let Some(meta) = row.meta {
+                        line.push_str(&format!("  · {meta}"));
+                    }
+                    view.doc.push((line, index));
+                    if let Some(detail) = row.detail {
+                        view.doc.push((format!("   {detail}"), index));
+                    }
+                }
+            }
+        }
+        view
     }
 
     /// A read-only text, e.g. the help.
@@ -252,11 +298,45 @@ impl ResultView {
         Self {
             title: title.to_owned(),
             note,
+            doc: Vec::new(),
+            commands: Vec::new(),
+            selected: None,
             text,
+            raw: true,
             scroll: 0,
             height: 0,
             len: 0,
         }
+    }
+
+    /// Switches between the view and the raw JSON.
+    pub fn toggle_raw(&mut self) {
+        if !self.doc.is_empty() {
+            self.raw = !self.raw;
+            self.scroll = 0;
+        }
+    }
+
+    /// Moves the selection to the next (`forward`) or previous row that opens something.
+    pub fn select(&mut self, forward: bool) {
+        let n = self.commands.len();
+        if n == 0 || self.raw {
+            return;
+        }
+        self.selected = Some(match (self.selected, forward) {
+            (None, true) => 0,
+            (None, false) => n - 1,
+            (Some(i), true) => (i + 1) % n,
+            (Some(i), false) => (i + n - 1) % n,
+        });
+    }
+
+    /// The selected row's command (Enter).
+    pub fn chosen(&self) -> Option<Command> {
+        self.selected
+            .and_then(|i| self.commands.get(i))
+            .cloned()
+            .filter(|_| !self.raw)
     }
 
     /// Scrolls by `rows`.
@@ -289,26 +369,46 @@ impl ResultView {
             lines.insert(0, Line::from(Span::styled(clean(&self.title), bold())));
         }
         let head = lines.len();
-        let body: Vec<String> = clean_lines(&self.text)
-            .iter()
-            .flat_map(|l| wrap(l, columns))
-            .collect();
+        let body: Vec<Line> = if self.raw {
+            clean_lines(&self.text)
+                .iter()
+                .flat_map(|l| wrap(l, columns))
+                .map(Line::from)
+                .collect()
+        } else {
+            self.doc
+                .iter()
+                .flat_map(|(text, row)| {
+                    let on = row.is_some() && *row == self.selected;
+                    clean_lines(text)
+                        .iter()
+                        .flat_map(|l| wrap(l, columns))
+                        .map(move |l| {
+                            if on {
+                                Line::from(Span::styled(l, reverse()))
+                            } else {
+                                Line::from(l)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        };
         self.height = usize::from(inner.height).saturating_sub(head + 1);
         self.len = body.len();
         self.scroll = self.scroll.min(self.len.saturating_sub(self.height));
-        lines.extend(
-            body.into_iter()
-                .skip(self.scroll)
-                .take(self.height)
-                .map(Line::from),
-        );
+        lines.extend(body.into_iter().skip(self.scroll).take(self.height));
         while lines.len() + 1 < usize::from(inner.height) {
             lines.push(Line::from(""));
         }
-        lines.push(Line::from(Span::styled(
-            "↑↓ Space b scroll · q or Esc close",
-            dim(),
-        )));
+        let hint = if self.doc.is_empty() {
+            "↑↓ Space b scroll · q or Esc close"
+        } else if self.raw {
+            "↑↓ Space b scroll · r view · q or Esc close"
+        } else {
+            "↑↓ scroll · Tab Enter open · r raw data · q or Esc close"
+        };
+        lines.push(Line::from(Span::styled(hint, dim())));
         frame.render_widget(Paragraph::new(lines), inner);
     }
 }

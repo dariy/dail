@@ -1,0 +1,26 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show send requests",
+    sections: [
+        Section {
+            title: None,
+            fields: [],
+            rows: [
+                ResultRow {
+                    title: "Hi",
+                    detail: Some(
+                        "To carol@example.org",
+                    ),
+                    meta: Some(
+                        "08:00",
+                    ),
+                    marks: [],
+                    command: None,
+                },
+            ],
+        },
+    ],
+}

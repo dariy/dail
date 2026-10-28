@@ -1,0 +1,43 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Test account connection",
+    sections: [
+        Section {
+            title: Some(
+                "alice@example.com",
+            ),
+            fields: [],
+            rows: [
+                ResultRow {
+                    title: "IMAP",
+                    detail: Some(
+                        "Testing…",
+                    ),
+                    meta: Some(
+                        "imap.hostinger.com:993",
+                    ),
+                    marks: [
+                        Pending,
+                    ],
+                    command: None,
+                },
+                ResultRow {
+                    title: "SMTP",
+                    detail: Some(
+                        "Testing…",
+                    ),
+                    meta: Some(
+                        "smtp.hostinger.com:465",
+                    ),
+                    marks: [
+                        Pending,
+                    ],
+                    command: None,
+                },
+            ],
+        },
+    ],
+}
