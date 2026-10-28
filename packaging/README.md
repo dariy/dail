@@ -28,8 +28,9 @@
   releases nothing), with the PR title as the changelog line, commits `workspace: release vX.Y.Z` to `main` and pushes
   the tag, which starts `release.yml`. It pushes with a GitHub App token, because pushes made with `GITHUB_TOKEN` start
   no workflows. One-time setup: create a GitHub App owned by the repository owner with *Contents: read and write*,
-  install it on the repository, and store its ID and private key as `DAIL_RELEASE_APP_ID` and `DAIL_RELEASE_APP_KEY`
-  in the `release` environment's secrets. Create the labels `release:minor`, `release:major` and `release:skip`.
+  install it on the repository, and store its numeric ID as the variable `RELEASE_APP_ID` and its private key as
+  the secret `RELEASE_APP_PRIVATE_KEY`, both in the `release` environment (which also needs `main` in its deployment
+  branches). The environment's required reviewers approve each bump. Create the labels `release:minor`, `release:major` and `release:skip`.
 - Update manifest (ADR 0011): `cargo xtask release manifest [--dist dist]` writes `dist/manifest.json` (target, kind,
   URL, sha256 and size of each installable artifact) and `dist/manifest.json.minisig`, signed with the minisign key in
   `DAIL_UPDATE_SIGNING_KEY` (the text of the secret key file) and `DAIL_UPDATE_SIGNING_PASSWORD`. The trusted comment

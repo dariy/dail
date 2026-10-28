@@ -45,8 +45,10 @@ jobs:
         id: app
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.DAIL_RELEASE_APP_ID }}
-          private-key: ${{ secrets.DAIL_RELEASE_APP_KEY }}
+          # The numeric App ID (an environment variable, not a secret). `client-id` would need the
+          # App's Client ID instead; `app-id` still works, with a deprecation warning.
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       # The tip of main, not the merge commit: an earlier run may have pushed a bump since.
       - if: steps.pr.outputs.part != 'skip'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
