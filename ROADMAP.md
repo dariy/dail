@@ -732,7 +732,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 - [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
   oversized JPEGs downscaled, EXIF orientation; PDF pages by `hayro` in `app_io::pdf` (ADR 0012); iOS preview
   through `dail_blob`
-- [ ] MISC-20 [kt][ios]: list rows on the top bar's keylines (icon column 16–40, text at 56), constants in
+- [x] MISC-20 [kt][ios]: list rows on the top bar's keylines (icon column 16–40, text at 56), constants in
   `Keylines.kt` / `Metrics.swift`
 - [ ] MISC-21 [kt][ios]: Compose as a round icon button; the accessible name stays "Compose"
 - [ ] MISC-22 [front][mobile][kt][ios][gui][tui]: query results as views (`app_front::result`, exhaustive over the

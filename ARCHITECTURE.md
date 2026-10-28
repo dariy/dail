@@ -1467,6 +1467,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   (cozy, compact, preview) and carry the account's tag with two accounts or more; `refreshing` is true while a sync
   runs (`!status::can_sync`), and the list has an empty text per case. `tests/it/list.rs` has an ignored measurement,
   `scale_a_frame_over_100k_threads` (`--release --ignored`): with the listing cached a frame takes well under 8 ms.
+- **Keylines** (MISC-20). Both apps lay the panes on the top bar's two keylines, constants in one place per app
+  (`android/…/ui/Keylines.kt`, `ios/Dail/Views/Metrics.swift`): the icon column (the menu icon, 16 to 40 dp/pt from
+  the edge) and the text keyline (the title's start, 56 dp/pt; iOS gives the navigation button a fixed 24 pt slot at
+  16 pt so its title starts there too). In the list the account's colour bar sits at the very edge, the unread dot or
+  check box is centred in the icon column, and sender, subject, snippet, the server line, the empty state and the
+  placeholders start on the text keyline. In multi-pane windows the keylines count from the pane's edge.
 - **Tests.** `app-mobile/tests/it` run `Mobile` over a real `Engine` with the `basic` fixture (requests dispatched with
   `Origin::Gui`, replies fed back) and snapshot frames as `insta` JSON at 360×800, 700×1000 and 1280×800 dp.
   `cargo run -p app-mobile --example frames [width height]` prints the demo's frames.

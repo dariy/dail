@@ -18,11 +18,13 @@ struct ListPane: View {
                         Image(systemName: "tray").font(.largeTitle)
                         if let text = list.server ?? list.empty { Text(verbatim: text).multilineTextAlignment(.center) }
                     }
-                    .padding(.top, 96).frame(maxWidth: .infinity)
+                    .padding(.top, 96).padding(.horizontal, Metrics.textStart).frame(maxWidth: .infinity)
                 }
             } else {
                 List {
-                    if let server = list.server { Text(verbatim: server).font(.caption) }
+                    if let server = list.server {
+                        Text(verbatim: server).font(.caption).listRowInsets(Self.textInsets)
+                    }
                     ForEach(0..<list.total, id: \.self) { index in
                         row(index)
                             .onAppear { visible.insert(index); report() }
@@ -39,7 +41,8 @@ struct ListPane: View {
         let position = index - list.offset
         if position >= 0, position < list.rows.count {
             let row = list.rows[position]
-            ThreadRowView(row: row, density: list.density)
+            ThreadRowView(row: row, density: list.density, palette: palette)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: Metrics.end))
                 .contentShape(Rectangle())
                 .onTapGesture { send(.tap(row.action)) }
                 .onLongPressGesture { send(.longPress(row.longPress)) }
@@ -62,8 +65,12 @@ struct ListPane: View {
                 .accessibilityAction(named: "Select") { send(.longPress(row.longPress)) }
         } else {
             Text(" ").frame(height: list.density == .compact ? 24 : 56).redacted(reason: .placeholder)
+                .listRowInsets(Self.textInsets)
         }
     }
+
+    /// Rows of text alone (the server line, placeholders) start on the text keyline (MISC-20).
+    private static let textInsets = EdgeInsets(top: 4, leading: Metrics.textStart, bottom: 4, trailing: Metrics.end)
 
     /// Sends `scrolled` whenever the first visible row or the number of visible rows changes.
     private func report() {
@@ -79,10 +86,25 @@ struct ListPane: View {
 struct ThreadRowView: View {
     let row: Row
     let density: Density
+    var palette: Palette?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle().fill(row.unread ? Color.accentColor : .clear).frame(width: 8, height: 8).padding(.top, 6)
+        HStack(alignment: .top, spacing: 0) {
+            // The colour bar at the edge, the dot or check box centred in the icon column, the text
+            // on the text keyline (MISC-20).
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 2).fill(tagColor).frame(width: 3, height: 32)
+                Group {
+                    if row.checked {
+                        Image(systemName: "checkmark.square.fill")
+                    } else {
+                        Circle().fill(row.unread ? Color.accentColor : .clear).frame(width: 8, height: 8)
+                    }
+                }
+                .frame(width: Metrics.iconSize, height: Metrics.iconSize)
+                .padding(.leading, Metrics.iconStart)
+            }
+            .frame(width: Metrics.textStart, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(verbatim: row.sender).lineLimit(1)
@@ -104,6 +126,11 @@ struct ThreadRowView: View {
             }
         }
         .padding(.vertical, density == .compact ? 2 : 6)
+    }
+
+    private var tagColor: Color {
+        guard let tag = row.tag, let palette else { return .clear }
+        return palette.tag(tag)
     }
 
     /// The text with the search words in bold.
