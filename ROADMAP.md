@@ -680,6 +680,35 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - [x] D3: monthly toolchain PR (Rust, NDK, Xcode)
 - [x] D4: nightly `cargo deny` advisories on `main`, an issue on failure
 
+## Wave 8 — Mobile polish and release hygiene: "it releases itself, and the phone feels finished"
+
+The requests of 2026-10-27. Details, decisions and open questions are in
+[`docs/requests/misc.md`](docs/requests/misc.md) (MISC-8 to MISC-16). Do the release items first: they unblock
+shipping the rest.
+
+**Exit criteria**
+- CI runs only on PRs into `main` and on `main`; `main` accepts no direct pushes; merging a PR publishes a release
+  with a higher version, green in every job.
+- The mobile left pane is a folder tree; landscape switches between icon rail and icon + text; the message pane can be
+  maximized; About closes on both platforms and shows the version.
+- Mobile items pass `cargo xtask verify android` and CI's `ios` job (read with `gh run view`, never assumed).
+
+### R — Release
+- [ ] MISC-8 [ci]: install `desktop-file-utils` for the AppImage step; a dry-run `release` on `main` is green
+- [x] MISC-15 [ci]: `ci.yml` and `gradle-verification.yml` run only on PRs into `main` (and `ci.yml` on `main`)
+- [ ] MISC-9 [ci][xtask]: merge into `main` → bump job (`cargo xtask release next`, `release bump`, patch unless a
+  `release:minor|major|skip` label) commits and tags `vX.Y.Z` with a GitHub App token → `release.yml`
+- [ ] MISC-16 [repo]: ruleset on `main` in `.github/rulesets/main.json` — PR required, CI checks required, no direct
+  pushes; bypass: admins and the release App. Confirm with the user before applying
+
+### M — Mobile
+- [ ] MISC-10 [mobile][kt][ios]: folder tree in the left pane (depth, collapse via `collapse_folders`/`expand_folders`)
+- [ ] MISC-11 [core][io][mobile][kt][ios]: landscape left pane toggles icon rail ↔ icon + text; persisted view
+  preference (`View` command, agents `any`)
+- [ ] MISC-12 [ios]: About closes (close action drawn, view stack follows the frame); `DailTests` UI test
+- [ ] MISC-13 [mobile][kt][ios]: About shows `× About dail (<version>)` and a mobile description
+- [ ] MISC-14 [mobile][kt][ios]: maximize / restore button for the message pane
+
 ---
 
 ## Roadmap — future waves (unordered within themes)

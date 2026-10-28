@@ -2,7 +2,10 @@
 //! rail after `toggle_sidebar`); *All inboxes*, the accounts' colour tags, *Settings* and *Add
 //! account*.
 
-use app_core::{Command, Pane, ProviderPreset, SettingsSection};
+// reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
+#![allow(clippy::unwrap_used)]
+
+use app_core::{Command, Event, Pane, ProviderPreset, RemoteMailbox, SettingsSection};
 use app_mobile::UiEvent;
 use app_mobile::frame::PaneKind;
 
@@ -146,4 +149,160 @@ fn settings_keep_the_drawer_on_wide_windows() {
     let frame = phone.frame();
     assert_eq!(frame.layout.panes, [PaneKind::Drawer, PaneKind::Settings]);
     assert!(frame.drawer.unwrap().footer[0].selected);
+}
+
+/// The inbox, with `Work`, `Work/Clients` and `Lists/rust` listed beside the fixture's folders
+/// (`Lists` itself is never listed: a parent the drawer can fold but not open).
+pub fn nested(width_dp: u32, height_dp: u32) -> Phone {
+    let mut phone = Phone::inbox(width_dp, height_dp);
+    let state = phone.state();
+    let account = *state.accounts.keys().next().unwrap();
+    let mut listed: Vec<RemoteMailbox> = state
+        .mailboxes
+        .values()
+        .map(|m| RemoteMailbox {
+            path: m.path.clone(),
+            delimiter: Some("/".into()),
+            special_use: m.role,
+            selectable: true,
+        })
+        .collect();
+    for path in ["Work", "Work/Clients", "Lists/rust"] {
+        listed.push(RemoteMailbox {
+            path: path.into(),
+            delimiter: Some("/".into()),
+            special_use: None,
+            selectable: true,
+        });
+    }
+    phone.ingest(Event::MailboxesListed {
+        account,
+        mailboxes: listed,
+    });
+    phone
+}
+
+/// The drawer rows of the first account as `(label, depth, collapsed)`.
+fn rows(phone: &mut Phone) -> Vec<(String, usize, Option<bool>)> {
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    phone.frame().drawer.unwrap().accounts[0]
+        .mailboxes
+        .iter()
+        .map(|m| {
+            (
+                m.label.clone(),
+                m.depth,
+                m.fold.as_ref().map(|f| f.collapsed),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn the_drawer_shows_the_folder_tree() {
+    let mut phone = nested(360, 800);
+    let rows = rows(&mut phone);
+    let rows: Vec<_> = rows.iter().map(|(l, d, f)| (l.as_str(), *d, *f)).collect();
+    // The role folders first, flat; then the others nested by path, sorted.
+    assert_eq!(rows[0], ("Inbox", 0, None));
+    assert!(rows.ends_with(&[
+        ("Lists", 0, Some(false)),
+        ("rust", 1, None),
+        ("Work", 0, Some(false)),
+        ("Clients", 1, None),
+    ]));
+}
+
+#[test]
+fn a_chevron_collapses_and_expands_a_folder_without_closing_the_drawer() {
+    let mut phone = nested(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    let drawer = phone.frame().drawer.unwrap();
+    let work = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == "Work")
+        .unwrap();
+    let commands = phone.tap(work.fold.as_ref().unwrap().action);
+    assert!(matches!(&commands[..], [Command::CollapseFolders { keys }] if keys[0].path == "Work"));
+    let drawer = phone.frame().drawer.expect("the drawer stays open");
+    let labels: Vec<&str> = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .map(|m| m.label.as_str())
+        .collect();
+    assert!(labels.contains(&"Work") && !labels.contains(&"Clients"));
+    let work = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == "Work")
+        .unwrap();
+    assert!(work.fold.as_ref().unwrap().collapsed);
+    let commands = phone.tap(work.fold.as_ref().unwrap().action);
+    assert!(matches!(&commands[..], [Command::ExpandFolders { .. }]));
+    assert!(rows(&mut phone).iter().any(|r| r.0 == "Clients"));
+}
+
+#[test]
+fn a_parent_that_cannot_be_opened_folds_on_tap() {
+    let mut phone = nested(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    let drawer = phone.frame().drawer.unwrap();
+    let lists = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == "Lists")
+        .unwrap();
+    assert_eq!(lists.action, lists.fold.as_ref().unwrap().action);
+}
+
+#[test]
+fn the_account_chevron_folds_every_folder() {
+    let mut phone = nested(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    let drawer = phone.frame().drawer.unwrap();
+    let fold = drawer.accounts[0].fold.clone().unwrap();
+    assert!(!fold.collapsed);
+    let commands = phone.tap(fold.action);
+    assert!(
+        matches!(&commands[..], [Command::CollapseFolders { keys }] if keys[0].path.is_empty())
+    );
+    let drawer = phone.frame().drawer.unwrap();
+    assert!(drawer.accounts[0].mailboxes.is_empty());
+    assert!(drawer.accounts[0].fold.as_ref().unwrap().collapsed);
+}
+
+#[test]
+fn a_mailbox_from_the_drawer_leaves_the_settings_page() {
+    for width in [360, 1280] {
+        let mut phone = Phone::inbox(width, 800);
+        phone.dispatch(Command::OpenSettings { section: None });
+        phone.dispatch(Command::FocusPane {
+            pane: Pane::Sidebar,
+        });
+        let drawer = phone.frame().drawer.unwrap();
+        let sent = drawer.accounts[0]
+            .mailboxes
+            .iter()
+            .find(|m| m.icon == "send")
+            .unwrap()
+            .action;
+        let commands = phone.tap(sent);
+        assert_eq!(commands[0], Command::CloseSettings {}, "{width}");
+        assert!(matches!(commands[1], Command::OpenMailbox { .. }));
+        let frame = phone.frame();
+        assert!(
+            frame.settings.is_none(),
+            "{width}: the settings page is gone"
+        );
+        assert_eq!(frame.list.unwrap().title, "Sent");
+    }
 }

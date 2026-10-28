@@ -8,13 +8,13 @@ use std::collections::HashSet;
 
 use app_core::document::FoldKind;
 use app_core::{
-    AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, MailboxRole,
-    MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
+    AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, FolderKey,
+    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, ThreadId, ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
 use app_front::keymap::{Action, Chord, Key, KeyState, Press, parse_chord};
-use app_front::mailbox::mailbox_name;
+use app_front::mailbox::{self, mailbox_name};
 use app_front::notice::{self, LastAction};
 use app_front::panes::{self, Slot, Width};
 use app_front::status::{self, Fix};
@@ -25,8 +25,8 @@ use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
     ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row, Snackbar,
-    TopBar,
+    DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
+    Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -58,6 +58,8 @@ enum Act {
     Compose,
     /// Open the About screen.
     About,
+    /// Maximize the message pane, or restore the panes (MISC-14).
+    Maximize,
     /// Add a suggested contact to a recipient field.
     Suggest(Field, Addr),
     /// Expand or fold the composer's quote.
@@ -528,10 +530,20 @@ impl Mobile {
         else {
             return Vec::new();
         };
+        // About is over everything: a command from elsewhere (a mailbox in the drawer) moves on
+        // from it, or the panes would change unseen beneath it (MISC-12).
+        if matches!(act, Act::Run(_) | Act::Many(_)) {
+            self.about = false;
+        }
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
             Act::Many(cmds) => cmds.into_iter().map(Request::user).collect(),
             Act::Back => self.back(state),
+            Act::Maximize => {
+                // The largest pinch step (MISC-6), or back to none; it stays across threads.
+                self.pane_step = if self.pane_step >= 2 { 0 } else { 2 };
+                Vec::new()
+            }
             Act::About => {
                 self.about = true;
                 Vec::new()
@@ -773,16 +785,19 @@ impl Mobile {
             kinds.retain(|k| *k == PaneKind::Drawer);
             kinds.push(PaneKind::Settings);
         }
-        // A collapsed sidebar on a wide window is a rail, not gone; so is the sidebar of a
-        // landscape window that is not compact (MISC-6).
+        // A landscape window that is not compact always has the left pane (MISC-6). There, and
+        // on any expanded window, `toggle_sidebar` switches it between the full tree and an
+        // icon rail (`sidebar_collapsed`, persisted in `[view]`; MISC-11).
         let landscape = self.window.width_dp > self.window.height_dp;
-        let rail = !state.accounts.is_empty()
+        let side = !state.accounts.is_empty()
             && !modal
-            && ((class == Class::Expanded && state.view.sidebar_collapsed)
-                || (landscape && class != Class::Compact));
-        if rail && !kinds.contains(&PaneKind::Drawer) {
+            && (class == Class::Expanded || (landscape && class != Class::Compact));
+        let rail = side && state.view.sidebar_collapsed;
+        if (rail || (side && landscape)) && !kinds.contains(&PaneKind::Drawer) {
             kinds.insert(0, PaneKind::Drawer);
         }
+        // Whether there is anything beside the message to hide (MISC-14).
+        let crowded = kinds.contains(&PaneKind::Reader) && kinds.len() > 1;
         // A pinch gave the message more room (MISC-6).
         if kinds.contains(&PaneKind::Reader) {
             if self.pane_step >= 1 {
@@ -792,19 +807,33 @@ impl Mobile {
                 kinds.retain(|k| *k != PaneKind::List);
             }
         }
-        let top_bar = self.top_bar(state, &kinds);
+        let maximized = self.pane_step >= 2 && kinds == [PaneKind::Reader];
+        let mut top_bar = self.top_bar(state, &kinds);
+        if maximized {
+            // Minimal: the message has the room; its own bar keeps its actions.
+            top_bar.actions.clear();
+        }
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         // A modal drawer gives way to the About screen it opened.
         let drawer = ((modal && !self.about) || kinds.contains(&PaneKind::Drawer))
-            .then(|| self.drawer(state, modal, rail, chosen.tags.len()));
+            .then(|| self.drawer(state, modal, rail, side, chosen.tags.len()));
         let list = kinds
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
-        let reader = if kinds.contains(&PaneKind::Reader) {
+        let mut reader = if kinds.contains(&PaneKind::Reader) {
             self.reader(state)
         } else {
             None
         };
+        if let Some(reader) = reader.as_mut()
+            && (crowded || maximized)
+        {
+            reader.maximize = Some(if maximized {
+                self.button("close_fullscreen", "Restore panes", Act::Maximize)
+            } else {
+                self.button("open_in_full", "Maximize message", Act::Maximize)
+            });
+        }
         let composer = if kinds.contains(&PaneKind::Composer) {
             self.composer(state)
         } else {
@@ -885,7 +914,8 @@ impl Mobile {
         if self.about {
             // MISC-3: the About screen closes from its own top bar, not only with Back.
             return TopBar {
-                title: "About".to_owned(),
+                // `× About dail (<version>)` (MISC-13).
+                title: crate::theme::about_title(),
                 subtitle: None,
                 navigation: Some(self.button("close", "Close", Act::Back)),
                 actions: Vec::new(),
@@ -908,7 +938,7 @@ impl Mobile {
         let navigation = match one {
             _ if state.accounts.is_empty() => None,
             Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer | PaneKind::Settings) => {
-                Some(self.button("back", "Back", Act::Back))
+                Some(self.button("arrow_back", "Back", Act::Back))
             }
             Some(PaneKind::List) | None if !kinds.contains(&PaneKind::Drawer) => Some(self.button(
                 "menu",
@@ -950,13 +980,47 @@ impl Mobile {
         }
     }
 
+    /// The chevron of a folder or an account: `collapse_folders` or `expand_folders` for `key`.
+    /// It never closes a modal drawer.
+    fn fold(&mut self, state: &AppState, key: FolderKey, a11y: String) -> Fold {
+        let collapsed = state.view.collapsed.contains(&key);
+        let keys = vec![key];
+        let cmd = if collapsed {
+            Command::ExpandFolders { keys }
+        } else {
+            Command::CollapseFolders { keys }
+        };
+        Fold {
+            collapsed,
+            action: self.add(Act::Run(cmd)),
+            a11y,
+        }
+    }
+
     /// The drawer. A tap in a modal drawer also closes it (`focus_pane list`).
-    fn drawer(&mut self, state: &AppState, modal: bool, rail: bool, tags: usize) -> Drawer {
+    fn drawer(
+        &mut self,
+        state: &AppState,
+        modal: bool,
+        rail: bool,
+        side: bool,
+        tags: usize,
+    ) -> Drawer {
+        // A mailbox opened while the settings page is up leaves it, or the page would stay in
+        // place of the list with no way back but Back (iOS has none).
+        let leave_settings = state.view.settings.is_some();
         let open = |cmd: Command| {
+            let mut cmds = Vec::new();
+            if leave_settings && !matches!(cmd, Command::OpenSettings { .. }) {
+                cmds.push(Command::CloseSettings {});
+            }
+            cmds.push(cmd);
             if modal {
-                Act::Many(vec![cmd, Command::FocusPane { pane: Pane::List }])
-            } else {
-                Act::Run(cmd)
+                cmds.push(Command::FocusPane { pane: Pane::List });
+            }
+            match <[Command; 1]>::try_from(cmds) {
+                Ok([cmd]) => Act::Run(cmd),
+                Err(cmds) => Act::Many(cmds),
             }
         };
         let browsing = state.view.search.is_none() && state.view.settings.is_none();
@@ -972,6 +1036,8 @@ impl Mobile {
             DrawerItem {
                 a11y: a11y::nav_row(&label, unread),
                 label,
+                depth: 0,
+                fold: None,
                 icon: "all_inbox".to_owned(),
                 unread,
                 selected: state.view.unified && browsing,
@@ -980,25 +1046,48 @@ impl Mobile {
         });
         let mut accounts = Vec::new();
         for (index, account) in state.accounts.values().enumerate() {
+            if !mailbox::shows_account(state, account.id) {
+                continue;
+            }
+            let name = clean(&account.display_name);
+            // The folder tree, as the desktop sidebar shows it (MISC-10).
+            let nodes = mailbox::sidebar_tree(state, account.id);
             let mut mailboxes = Vec::new();
-            for mailbox in listing::mailboxes(state, Some(account.id)) {
-                let label = clean(&mailbox_name(mailbox));
-                let action = self.add(open(Command::OpenMailbox { id: mailbox.id }));
+            for node in mailbox::visible_rows(state, account.id, &nodes) {
+                let label = clean(&node.label);
+                let fold = node
+                    .is_parent()
+                    .then(|| self.fold(state, node.key.clone(), format!("{label} subfolders")));
+                let action = match (node.mailbox, &fold) {
+                    (Some(id), _) => self.add(open(Command::OpenMailbox { id })),
+                    (None, Some(fold)) => fold.action,
+                    (None, None) => continue,
+                };
                 mailboxes.push(DrawerItem {
-                    a11y: a11y::nav_row(&label, mailbox.unread),
+                    a11y: a11y::nav_row(&label, node.unread),
                     label,
-                    icon: mailbox_icon(mailbox.role).to_owned(),
-                    unread: mailbox.unread,
+                    depth: node.depth,
+                    fold,
+                    icon: mailbox_icon(node.role).to_owned(),
+                    unread: node.unread,
                     selected: !state.view.unified
-                        && state.view.mailbox == Some(mailbox.id)
+                        && node.mailbox.is_some()
+                        && state.view.mailbox == node.mailbox
                         && browsing,
                     action,
                 });
             }
+            let key = FolderKey {
+                account: account.id,
+                path: String::new(),
+            };
+            let fold =
+                (!nodes.is_empty()).then(|| self.fold(state, key, format!("{name} folders")));
             accounts.push(DrawerAccount {
-                name: clean(&account.display_name),
+                name,
                 email: clean(&account.email),
                 tag: (several && tags > 0).then(|| index % tags),
+                fold,
                 mailboxes,
             });
         }
@@ -1011,6 +1100,8 @@ impl Mobile {
             footer.push(DrawerItem {
                 a11y: label.to_owned(),
                 label: label.to_owned(),
+                depth: 0,
+                fold: None,
                 icon: icon.to_owned(),
                 unread: 0,
                 selected,
@@ -1022,6 +1113,8 @@ impl Mobile {
                 footer.push(DrawerItem {
                     a11y: "About".to_owned(),
                     label: "About".to_owned(),
+                    depth: 0,
+                    fold: None,
                     icon: "info".to_owned(),
                     unread: 0,
                     selected: self.about,
@@ -1029,9 +1122,19 @@ impl Mobile {
                 });
             }
         }
+        // The rail ↔ full tree switch, where the pane can be either (MISC-11).
+        let style = side.then(|| {
+            let (icon, label) = if rail {
+                ("chevron_right", "Show folder names")
+            } else {
+                ("chevron_left", "Icons only")
+            };
+            self.button(icon, label, Act::Run(Command::ToggleSidebar {}))
+        });
         Drawer {
             modal,
             rail,
+            style,
             all_inboxes,
             accounts,
             footer,

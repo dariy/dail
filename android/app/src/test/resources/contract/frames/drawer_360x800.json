@@ -4,6 +4,11 @@
     "accounts": [
       {
         "email": "alice@example.com",
+        "fold": {
+          "a11y": "alice@example.com folders",
+          "action": 7,
+          "collapsed": false
+        },
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
@@ -44,7 +49,7 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 7,
+        "action": 8,
         "icon": "settings",
         "label": "Settings",
         "selected": false,
@@ -52,7 +57,7 @@
       },
       {
         "a11y": "About",
-        "action": 8,
+        "action": 9,
         "icon": "info",
         "label": "About",
         "selected": false,
@@ -60,7 +65,7 @@
       },
       {
         "a11y": "Add account",
-        "action": 9,
+        "action": 10,
         "icon": "add",
         "label": "Add account",
         "selected": false,
@@ -71,7 +76,7 @@
     "rail": false
   },
   "fab": {
-    "action": 18,
+    "action": 19,
     "icon": "edit",
     "label": "Compose"
   },
@@ -89,37 +94,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 10,
+        "action": 11,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 11,
+        "long_press": 12,
         "messages": 1,
         "selected": false,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 13,
-        "swipe_start": 12,
+        "swipe_end": 14,
+        "swipe_start": 13,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 14,
+        "action": 15,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 15,
+        "long_press": 16,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 17,
-        "swipe_start": 16,
+        "swipe_end": 18,
+        "swipe_start": 17,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -176,6 +181,7 @@
       "add": "",
       "all_inbox": "",
       "archive": "",
+      "arrow_back": "",
       "attach_file": "",
       "check": "",
       "check_box": "",
@@ -183,6 +189,7 @@
       "chevron_left": "",
       "chevron_right": "",
       "close": "",
+      "close_fullscreen": "",
       "cloud_off": "",
       "content_copy": "",
       "contrast": "",
@@ -210,6 +217,7 @@
       "mark_email_unread": "",
       "menu": "",
       "more_horiz": "",
+      "open_in_full": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",

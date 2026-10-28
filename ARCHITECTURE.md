@@ -1338,9 +1338,11 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and the Android libraries of the release APK, each `name version SPDX-licence`); Back closes it, and no command runs. Every string from mail goes through `app_front::text::clean`.
 - **Window classes** (Material's, by width): compact < 600 dp, medium 600–839, expanded ≥ 840, mapped onto
   `app_front::panes::Width` (narrow, medium, wide): one pane as the TUI below 80 columns, list and detail, drawer list
-  and detail. The class never dispatches a command. A landscape window that is not compact shows the sidebar as the
-  icon rail (as `toggle_sidebar` does on a wide one). A pinch on the message (`pinch{zoom_in}`, MISC-6) steps the
-  presenter's `pane_step`: zooming in hides the sidebar, then the list; zooming out brings them back, one step per
+  and detail. The class never dispatches a command. A landscape window that is not compact always shows the sidebar
+  (MISC-6). There and on an expanded window, the drawer's `style` button runs `toggle_sidebar`: the full tree, or
+  the icon rail while `view.sidebar_collapsed` (persisted in `[view]`, MISC-11). A pinch on the message (`pinch{zoom_in}`, MISC-6) steps the
+  presenter's `pane_step` (the reader's `maximize` button, MISC-14, jumps to the last step and back, and leaves a bare
+  top bar): zooming in hides the sidebar, then the list; zooming out brings them back, one step per
   gesture; the text size never changes and the step stays across threads. Kotlin's drawer sheet and rail take no window
   insets of their own (the Scaffold's padding has them), which kept the landscape drawer too wide and misaligned.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
@@ -1822,14 +1824,19 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 **Packaging** (`packaging/`): the desktop entry and icon (`dail`, matching the window's `app_id` and the notifications'
 `desktop-entry` hint), and `[package.metadata.deb]` on `app-cli`: `cargo deb -p app-cli` builds a `.deb` with
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
-`scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256) and
+`scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256; it needs
+`desktop-file-validate` from `desktop-file-utils`) and
 `scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
+`bump.yml` makes the tag: every merge into `main` bumps the version (patch unless a `release:minor|major|skip` label),
+commits it and pushes `vX.Y.Z` with a GitHub App token (MISC-9, `packaging/README.md`).
+`main` is protected by the ruleset in `.github/rulesets/main.json` (MISC-16): PRs only, CI's jobs required, and only
+admins and the release App may update it.
 
 **Dependency automation** (Wave 7 D, ADR 0011): Dependabot opens grouped minor/patch PRs for actions, Cargo and Gradle
 (`.github/dependabot.yml`); `gradle-verification.yml` regenerates `android/gradle/verification-metadata.xml` on
-Dependabot's Gradle PRs and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
+Dependabot's Gradle PRs into `main` and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
 (`rust-toolchain.toml`) and NDK (the workflows); `advisories.yml` runs `cargo deny check advisories` on `main` every
 night and opens or updates an issue when it fails. The gates stay cargo-deny, Gradle's verification and the licence
 allowlist; bot PRs are merged like any other.

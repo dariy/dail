@@ -81,6 +81,11 @@ expression: phone.frame()
       "label": "Close message",
       "action": 19
     },
+    "maximize": {
+      "icon": "open_in_full",
+      "label": "Maximize message",
+      "action": 20
+    },
     "actions": [
       {
         "icon": "archive",
@@ -137,7 +142,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 20
+    "action": 21
   },
   "theme": {
     "id": "dail-light",
@@ -331,6 +336,7 @@ expression: phone.frame()
       "add": "",
       "all_inbox": "",
       "archive": "",
+      "arrow_back": "",
       "attach_file": "",
       "check": "",
       "check_box": "",
@@ -338,6 +344,7 @@ expression: phone.frame()
       "chevron_left": "",
       "chevron_right": "",
       "close": "",
+      "close_fullscreen": "",
       "cloud_off": "",
       "content_copy": "",
       "contrast": "",
@@ -365,6 +372,7 @@ expression: phone.frame()
       "mark_email_unread": "",
       "menu": "",
       "more_horiz": "",
+      "open_in_full": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",

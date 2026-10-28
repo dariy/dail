@@ -32,7 +32,8 @@ extension Color {
 enum Icons {
     static let symbols: [String: String] = [
         "add": "plus", "all_inbox": "tray.2", "archive": "archivebox", "attach_file": "paperclip",
-        "back": "chevron.backward", "check": "checkmark", "check_box": "checkmark.square",
+        "arrow_back": "arrow.backward", "open_in_full": "arrow.up.left.and.arrow.down.right",
+        "close_fullscreen": "arrow.down.right.and.arrow.up.left", "check": "checkmark", "check_box": "checkmark.square",
         "check_box_outline_blank": "square", "chevron_left": "chevron.left", "chevron_right": "chevron.right",
         "close": "xmark", "cloud_off": "icloud.slash", "content_copy": "doc.on.doc", "contrast": "circle.lefthalf.filled",
         "dark_mode": "moon", "delete": "trash", "description": "doc.text", "dock_to_left": "sidebar.left",

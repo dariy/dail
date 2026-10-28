@@ -48,6 +48,12 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
+    // The folder tree in the iPad's portrait overlay drawer (MISC-10).
+    let mut phone = crate::drawer::nested(820, 1180);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    out.push(("drawer_tree".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenPalette {});
     out.push(("palette".to_owned(), phone.frame()));
@@ -259,10 +265,25 @@ fn tag(value: &serde_json::Value, key: &str) -> String {
     value[key].as_str().unwrap().to_owned()
 }
 
+/// The running version lives in `Cargo.toml` only: a string that holds it (the About title) is
+/// written with `<version>` in its place, so a release bump leaves the fixtures alone. Only a whole
+/// string equal to the About title changes: a crate list's `x 0.1.0` stays.
+fn unversioned(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::String(text) if *text == app_mobile::theme::about_title() => {
+            *text = "About dail (<version>)".to_owned();
+        }
+        serde_json::Value::Array(items) => items.iter_mut().for_each(unversioned),
+        serde_json::Value::Object(map) => map.values_mut().for_each(unversioned),
+        _ => {}
+    }
+}
+
 /// Every fixture, by path relative to [`dir`].
 fn fixtures() -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
-    let mut put = |name: String, value: serde_json::Value| {
+    let mut put = |name: String, mut value: serde_json::Value| {
+        unversioned(&mut value);
         let text = serde_json::to_string_pretty(&value).unwrap() + "\n";
         assert!(out.insert(name.clone(), text).is_none(), "{name} twice");
     };
@@ -362,4 +383,38 @@ fn the_events_cover_the_schema() {
     let schema = serde_json::to_value(schemars::schema_for!(UiEvent)).unwrap();
     let variants = schema["oneOf"].as_array().map_or(0, Vec::len);
     assert_eq!(events().len(), variants);
+}
+
+/// Every icon a frame names has a glyph in the theme's icon font: a name without one draws as
+/// its label on Android (the "Back" text button) and as a fallback symbol on iOS.
+#[test]
+fn every_icon_in_the_frames_has_a_glyph() {
+    fn icons(value: &serde_json::Value, out: &mut Vec<String>) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for (key, value) in map {
+                    match (key.as_str(), value) {
+                        // The theme's own table maps names to glyphs: not a use.
+                        ("theme", _) => {}
+                        ("icon", serde_json::Value::String(name)) => out.push(name.clone()),
+                        _ => icons(value, out),
+                    }
+                }
+            }
+            serde_json::Value::Array(items) => items.iter().for_each(|v| icons(v, out)),
+            _ => {}
+        }
+    }
+    let glyphs: Vec<&str> = app_theme::Icon::ALL.iter().map(|i| i.name()).collect();
+    let mut missing = Vec::new();
+    for (name, frame) in frames() {
+        let mut used = Vec::new();
+        icons(&serde_json::to_value(frame).unwrap(), &mut used);
+        missing.extend(
+            used.into_iter()
+                .filter(|icon| !glyphs.contains(&icon.as_str()))
+                .map(|icon| format!("{name}: {icon}")),
+        );
+    }
+    assert!(missing.is_empty(), "icons without a glyph: {missing:?}");
 }

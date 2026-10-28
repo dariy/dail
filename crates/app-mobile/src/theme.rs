@@ -150,6 +150,11 @@ pub fn frame_theme(theme: &Theme) -> FrameTheme {
     }
 }
 
+/// The About screen's title, with the running version: `About dail (0.1.0)`.
+pub fn about_title() -> String {
+    format!("About dail ({})", env!("CARGO_PKG_VERSION"))
+}
+
 /// The About screen.
 pub fn about() -> About {
     let mut licences: Vec<Licence> = fonts::fonts()
@@ -173,12 +178,12 @@ pub fn about() -> About {
         text: include_str!("../licences/android-libraries.txt").to_owned(),
     });
     About {
-        title: "About dail".to_owned(),
+        title: about_title(),
+        // The phone has no MCP server and no keyboard-first use: neither is said here (MISC-13).
         text: format!(
-            "dail {}, a keyboard-driven, agent-controllable email client ({}). The app bundles \
-             these typefaces, icons, Rust crates and Android libraries under their licences \
-             (SPDX identifiers: name, version, licence).",
-            env!("CARGO_PKG_VERSION"),
+            "Email client for IMAP and SMTP accounts ({}). The app bundles these typefaces, \
+             icons, Rust crates and Android libraries under their licences (SPDX identifiers: \
+             name, version, licence).",
             env!("CARGO_PKG_LICENSE")
         ),
         licences,

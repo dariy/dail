@@ -70,7 +70,7 @@ fun SetupScreen(
             sheet.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (sheet.busy) CircularProgressIndicator()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { send(UiEvent.Tap(sheet.back.action)) }) { Text(sheet.back.label) }
+                ActionButton(sheet.back, send)
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                     sheet.actions.forEachIndexed { index, button ->
                         if (index == sheet.actions.lastIndex) {

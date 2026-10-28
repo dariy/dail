@@ -14,7 +14,7 @@ expression: phone.frame()
     "title": "Message",
     "subtitle": "synced 9h ago",
     "navigation": {
-      "icon": "back",
+      "icon": "arrow_back",
       "label": "Back",
       "action": 1
     },
@@ -284,6 +284,7 @@ expression: phone.frame()
       "add": "",
       "all_inbox": "",
       "archive": "",
+      "arrow_back": "",
       "attach_file": "",
       "check": "",
       "check_box": "",
@@ -291,6 +292,7 @@ expression: phone.frame()
       "chevron_left": "",
       "chevron_right": "",
       "close": "",
+      "close_fullscreen": "",
       "cloud_off": "",
       "content_copy": "",
       "contrast": "",
@@ -318,6 +320,7 @@ expression: phone.frame()
       "mark_email_unread": "",
       "menu": "",
       "more_horiz": "",
+      "open_in_full": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",

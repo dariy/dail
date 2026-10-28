@@ -40,8 +40,9 @@ struct FrameView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if let sheet = frame.about {
-            Placeholder(title: sheet.title, text: sheet.text)
+        if let about = frame.about {
+            // Shown only while the frame has it; the top bar above carries its close (MISC-12).
+            AboutView(about: about)
         } else if let result = frame.result {
             ResultPane(result: result, send: send)
         } else if let sheet = frame.setup {
@@ -200,5 +201,25 @@ struct Placeholder: View {
             Text(verbatim: text).font(.footnote)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// The About screen: what the app is, then every bundled work's licence. The title is in the top
+/// bar beside its close (MISC-13).
+struct AboutView: View {
+    let about: About
+
+    var body: some View {
+        List {
+            Section {
+                Text(verbatim: about.text)
+            }
+            ForEach(about.licences, id: \.name) { licence in
+                DisclosureGroup(licence.name) {
+                    Text(verbatim: licence.text).font(.footnote.monospaced()).textSelection(.enabled)
+                }
+            }
+        }
+        .accessibilityIdentifier("about")
     }
 }

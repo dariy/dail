@@ -2,7 +2,8 @@
 # Builds the release `dail` binary and packages it as dist/dail-<version>-x86_64-unknown-linux-gnu.tar.gz and
 # dist/dail_<version>-1_amd64.deb, dist/dail-<version>-x86_64.AppImage and the bare binary
 # dist/dail-<version>-x86_64-unknown-linux-gnu (+ .sha256 for each). Needs cargo-deb
-# (`cargo install cargo-deb --locked`) and curl; appimagetool is downloaded at a pinned version and checked by sha256.
+# (`cargo install cargo-deb --locked`), curl and desktop-file-validate (`apt install desktop-file-utils`, which
+# appimagetool runs on the desktop entry); appimagetool is downloaded at a pinned version and checked by sha256.
 # Run from anywhere: `scripts/release-ubuntu.sh`. The release workflow (.github/workflows/release.yml) runs it too.
 set -euo pipefail
 
@@ -11,6 +12,10 @@ cd "$root"
 
 if ! cargo deb --version >/dev/null 2>&1; then
     echo "error: cargo-deb is missing; install it with: cargo install cargo-deb --locked" >&2
+    exit 1
+fi
+if ! command -v desktop-file-validate >/dev/null 2>&1; then
+    echo "error: desktop-file-validate is missing; install it with: sudo apt install desktop-file-utils" >&2
     exit 1
 fi
 

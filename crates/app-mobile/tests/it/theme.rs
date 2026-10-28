@@ -74,7 +74,10 @@ fn about_shows_the_licences_and_back_closes_it() {
     assert!(frame.back);
     assert!(frame.fab.is_none(), "nothing floats over the licences");
     let about = frame.about.unwrap();
-    assert!(about.text.contains(env!("CARGO_PKG_VERSION")));
+    assert!(
+        about.title.contains(env!("CARGO_PKG_VERSION")),
+        "MISC-13: the version is in the title"
+    );
     let licences = about.licences;
     let names: Vec<&str> = licences.iter().map(|l| l.name.as_str()).collect();
     assert_eq!(
@@ -136,7 +139,13 @@ fn the_about_screen_has_a_close_button_in_its_top_bar() {
     let frame = phone.frame();
     assert!(frame.about.is_some());
     assert!(frame.drawer.is_none(), "the modal drawer gives way");
-    assert_eq!(frame.top_bar.title, "About");
+    assert_eq!(
+        frame.top_bar.title,
+        format!("About dail ({})", env!("CARGO_PKG_VERSION"))
+    );
+    let text = frame.about.as_ref().unwrap().text.clone();
+    assert!(text.starts_with("Email client for IMAP and SMTP accounts"));
+    assert!(!text.contains("agent") && !text.contains("keyboard"));
     let close = frame.top_bar.navigation.unwrap();
     assert_eq!(
         (close.icon.as_deref(), close.label.as_str()),
@@ -144,4 +153,30 @@ fn the_about_screen_has_a_close_button_in_its_top_bar() {
     );
     assert!(phone.tap(close.action).is_empty());
     assert!(phone.frame().about.is_none(), "closed");
+}
+
+#[test]
+fn a_mailbox_opened_from_the_drawer_closes_about() {
+    // A wide window: the drawer stays beside About (MISC-12).
+    let mut phone = Phone::inbox(1280, 800);
+    let drawer = phone.frame().drawer.unwrap();
+    let about = drawer
+        .footer
+        .iter()
+        .find(|i| i.label == "About")
+        .unwrap()
+        .action;
+    phone.tap(about);
+    let drawer = phone.frame().drawer.unwrap();
+    let sent = drawer.accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.icon == "send")
+        .unwrap()
+        .action;
+    let commands = phone.tap(sent);
+    assert!(matches!(commands[..], [Command::OpenMailbox { .. }]));
+    let frame = phone.frame();
+    assert!(frame.about.is_none(), "About gives way to the mailbox");
+    assert_eq!(frame.list.unwrap().title, "Sent");
 }

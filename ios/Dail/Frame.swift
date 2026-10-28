@@ -120,12 +120,13 @@ struct TopBar: Codable {
 struct Drawer: Codable {
     let modal: Bool
     let rail: Bool
+    let style: ActionButton?
     let allInboxes: DrawerItem?
     let accounts: [DrawerAccount]
     let footer: [DrawerItem]
 
     enum CodingKeys: String, CodingKey {
-        case modal, rail, accounts, footer
+        case modal, rail, style, accounts, footer
         case allInboxes = "all_inboxes"
     }
 }
@@ -134,16 +135,40 @@ struct DrawerAccount: Codable {
     let name: String
     let email: String
     let tag: Int?
+    let fold: Fold?
     let mailboxes: [DrawerItem]
+}
+
+struct Fold: Codable {
+    let collapsed: Bool
+    let action: ActionId
+    let a11y: String
 }
 
 struct DrawerItem: Codable {
     let label: String
+    let depth: Int
+    let fold: Fold?
     let icon: String
     let unread: Int
     let selected: Bool
     let action: ActionId
     let a11y: String
+
+    enum CodingKeys: String, CodingKey { case label, depth, fold, icon, unread, selected, action, a11y }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        label = try c.decode(String.self, forKey: .label)
+        // Absent at the top level of the folder tree (MISC-10).
+        depth = try c.decodeIfPresent(Int.self, forKey: .depth) ?? 0
+        fold = try c.decodeIfPresent(Fold.self, forKey: .fold)
+        icon = try c.decode(String.self, forKey: .icon)
+        unread = try c.decode(Int.self, forKey: .unread)
+        selected = try c.decode(Bool.self, forKey: .selected)
+        action = try c.decode(ActionId.self, forKey: .action)
+        a11y = try c.decode(String.self, forKey: .a11y)
+    }
 }
 
 enum Density: String, Codable { case cozy, compact, preview }
@@ -212,6 +237,7 @@ struct Reader: Codable {
     let thread: String
     let subject: String
     let close: ActionButton
+    let maximize: ActionButton?
     let actions: [ActionButton]
     let previous: ActionButton?
     let next: ActionButton?

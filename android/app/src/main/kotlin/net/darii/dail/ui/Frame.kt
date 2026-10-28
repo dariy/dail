@@ -99,6 +99,7 @@ data class TopBar(
 data class Drawer(
     val modal: Boolean,
     val rail: Boolean,
+    val style: Button? = null,
     @SerialName("all_inboxes") val allInboxes: DrawerItem? = null,
     val accounts: List<DrawerAccount>,
     val footer: List<DrawerItem>,
@@ -109,12 +110,22 @@ data class DrawerAccount(
     val name: String,
     val email: String,
     val tag: Int? = null,
+    val fold: Fold? = null,
     val mailboxes: List<DrawerItem>,
+)
+
+@Serializable
+data class Fold(
+    val collapsed: Boolean,
+    val action: ActionId,
+    val a11y: String,
 )
 
 @Serializable
 data class DrawerItem(
     val label: String,
+    val depth: Int = 0,
+    val fold: Fold? = null,
     val icon: String,
     val unread: Int,
     val selected: Boolean,
@@ -195,6 +206,7 @@ data class Reader(
     val thread: String,
     val subject: String,
     val close: Button,
+    val maximize: Button? = null,
     val actions: List<Button>,
     val previous: Button? = null,
     val next: Button? = null,

@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -14,6 +14,15 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-5 | Mobile: swipe the message body to go to the previous/next thread | S | app-mobile, android/, ios/ | 2026-10-26 |
 | MISC-6 | Mobile: pinch resizes the message pane; landscape sidebar as icons; fix Android landscape alignment | M | app-mobile, android/, ios/ | 2026-10-26 |
 | MISC-7 | Mobile: close button on the open message | S | app-mobile, android/, ios/ | 2026-10-26 |
+| MISC-8 | Release: the ubuntu job fails on `main` (`desktop-file-validate` missing) | S | .github/workflows/release.yml | 2026-10-27 |
+| MISC-9 | Release: a merged PR releases a new, incremented version | M | .github/workflows/, xtask | 2026-10-27 |
+| MISC-10 | Mobile: folder tree in the left pane (Android, iPad portrait drawer) | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-11 | Mobile: landscape left pane switches between icon rail and icon + text tree | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-12 | iOS: About cannot be closed and covers the other panes | S | ios/, app-mobile | 2026-10-27 |
+| MISC-13 | Mobile: About title with the version, mobile description | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-14 | Mobile: maximize the message pane | S | app-mobile, android/, ios/ | 2026-10-27 |
+| MISC-15 | CI: run only on PRs into `main` and on `main` | S | .github/workflows/ | 2026-10-27 |
+| MISC-16 | Repository: protect `main` (PRs only, merged by admins) | S | repository settings, docs | 2026-10-27 |
 
 ## Details
 
@@ -114,4 +123,116 @@ message: only the message list is left (plus the left pane, if the layout shows 
   `View` command clears the selected thread, add one (kind `View`, all agents).
 - **Touches:** `app-mobile` (`frame.rs`: a `close` button on the message frame; `mobile.rs`: its event), `android/`
   (`ui/DailScreen.kt`), `ios/` (SwiftUI message view); contract frames and snapshots.
+- **Open questions:** none.
+
+### MISC-8 — Release: the ubuntu job fails on `main`
+
+The `release` run of 2026-10-27 (run 40566169189, `workflow_dispatch` on `main`) fails in the `ubuntu` job after the
+`.deb` is built: `desktop-file-validate command is missing, please install it` (appimagetool validates the
+`.desktop` file). The run of 2026-10-25 (40160816747) failed too; 2026-10-20 passed.
+
+- **Fix:** install `desktop-file-utils` in the ubuntu job (beside the other apt packages), or in the AppImage script's
+  prerequisites check so a local build reports it too. Add it to the documented release prerequisites.
+- **Done when:** a dry-run `release` dispatch on `main` is green in every job (read it with `gh run view`).
+- **Open questions:** none.
+
+### MISC-9 — Release: a merged PR releases a new, incremented version
+
+Every release so far is `0.1.0`. Merging a PR into `main` must publish a release with a higher version, without hand
+edits. Pushes to `main` other than merges cannot happen (MISC-16).
+
+- **Decision:** a workflow on `push` to `main` (the merge commit) computes the next version, runs
+  `cargo xtask release bump <next>` (R5: every version site + CHANGELOG stub; Android `versionCode` grows), commits
+  `workspace: release vX.Y.Z [skip ci]`, pushes the commit and the tag `vX.Y.Z`; the tag starts `release.yml` (R2,
+  guard job kept). The bump is `patch` by default; a PR label `release:minor` / `release:major` (or `release:skip`
+  for docs-only merges) overrides it. A new `cargo xtask release next <patch|minor|major>` prints the next version
+  (unit-tested). The bump job must not trigger itself (skip its own commits).
+- **Constraints:** the bump commit and tag are pushed with a GitHub App token (or deploy key) held in the `release`
+  environment: `GITHUB_TOKEN` pushes start no workflows, and the App must be on the bypass list of the `main`
+  ruleset (MISC-16), as the only actor allowed to push to `main` directly. Concurrency group so two merges in a row
+  produce two versions in order.
+- **Done when:** merging a PR produces `v0.1.1` end to end, and the in-app update check (Wave 7) offers it to `0.1.0`.
+
+### MISC-10 — Mobile: folder tree in the left pane
+
+The desktop sidebar is a folder tree since UX-2 (with collapse, UX-3). The Android left pane is still a flat list.
+On iPad in portrait the left pane opens as a detached (overlay) window; it must show the same tree.
+Show the same tree: nested folders indented under their parent, a chevron to collapse/expand that sends
+`collapse_folders` / `expand_folders` (persisted, UX-1).
+
+- **Commands:** none new; reuse `app_front`'s tree projection in the `app-mobile` sidebar frame (rows get `depth`,
+  `has_children`, `collapsed`).
+- **Touches:** `app-mobile` (sidebar frame), `android/` (`ui/DailScreen.kt`), `ios/` (same frame, so the iPad drawer
+  portrait overlay and the landscape pane get it too); contract frames and snapshots.
+- **Done when:** the iPad portrait overlay shows the tree in a `DailTests` check on an iPad simulator (CI `ios` job).
+- **Open questions:** none.
+
+### MISC-11 — Mobile: landscape left pane, icon rail or icon + text tree
+
+MISC-6 made the landscape left pane an icon rail. The user must be able to switch it between *icons only* and
+*icons + text* (the full tree, MISC-10). Android and iOS.
+
+- **Commands:** a persisted view preference. Prefer a `View` command (agents `any`) such as `set_sidebar_style
+  { style: "icons" | "full" }` stored in `[view]` (UX-1), so it survives a restart; decide when picked whether the
+  desktop uses it too (it may ignore it).
+- **UI:** a toggle button at the top or bottom of the rail (expand / collapse chevron) and an entry in the palette.
+- **Touches:** `app-core` (if the command is added), `app-io` (`[view]`), `app-mobile`, `android/`, `ios/`.
+- **Open questions:** none.
+
+### MISC-12 — iOS: About cannot be closed
+
+On iOS, when About is open there is no way to close it, and the other panes seem to open underneath it. MISC-3 added
+a close button in the About top bar; on iOS it is missing or not reachable, and About stays on top while the
+presenter has moved on.
+
+- **Fix:** the SwiftUI About view must draw the frame's close action, and the view stack must follow the frame (About
+  shown only while the frame says so). Add a `DailTests` UI test: open About, close it, the list is visible; open
+  About, open a mailbox from the drawer, About is gone.
+- **Touches:** `ios/` (About view, root navigation), `app-mobile` if the frame lacks the action.
+- **Done when:** CI's `ios` job is green with the new test (read with `gh run view`).
+- **Open questions:** none.
+
+### MISC-13 — Mobile: About title and text
+
+The mobile About pane shows: first line `× About dail (<version>)` (the close button, then the title with the running
+version), second line a short description such as "Email client for IMAP and SMTP accounts." Drop "keyboard-driven,
+agent-controllable": neither applies on a phone (no MCP, no keyboard-first use). The desktop text is unchanged.
+
+- **Touches:** `app-mobile` (`theme.rs` about text, About frame title), `android/`, `ios/`; contract frame
+  `about.json` and snapshots.
+- **Open questions:** none.
+
+### MISC-14 — Mobile: maximize the message pane
+
+There must be an explicit way to maximize the message content pane (full screen: no sidebar, no list, minimal top
+bar), and to restore it. Pinch (MISC-6) is not discoverable enough.
+
+- **UI:** a maximize / restore button in the message top bar beside the close (×) of MISC-7; double-tap on the
+  title bar may toggle it too.
+- **Commands:** none expected; it is the largest pane step of MISC-6 in the presenter (persists across threads, as
+  MISC-6 decided).
+- **Touches:** `app-mobile`, `android/`, `ios/`; contract frames.
+- **Open questions:** none.
+
+### MISC-15 — CI: run only on PRs into `main` and on `main`
+
+`ci.yml` has `pull_request:` without a branch filter, so it runs for PRs into any branch;
+`gradle-verification.yml` likewise. Limit both to `pull_request: branches: [main]`; `ci.yml` keeps
+`push: branches: [main]` and `workflow_dispatch`. Scheduled workflows (`advisories`, `toolchain`) and `release.yml`
+(tags) are unchanged. Update AGENTS.md §6 / ARCHITECTURE.md where they describe the triggers.
+
+- **Open questions:** none.
+
+### MISC-16 — Repository: protect `main`
+
+Nobody pushes to `main` directly; changes arrive by PR, and only admins / the owner can merge.
+
+- **Decision:** a repository ruleset on `main` (`gh api repos/{owner}/{repo}/rulesets`): block deletion and force
+  pushes, require a pull request, require the `ci` status checks (the job names of `ci.yml`), restrict who can
+  update `main` with the bypass list = repository admins + the release App of MISC-9 (the App only for its bump
+  commit). Store the ruleset JSON in `.github/rulesets/main.json` and apply it with a documented `gh api` command,
+  so the setting is reviewable.
+- **Order:** apply after MISC-9's App exists, or the release bump cannot push. Applying it is an outward-facing
+  repository change: confirm with the user before running the `gh api` call.
+- **Done when:** `git push origin main` from a non-bypass actor is rejected, and a PR merge by an admin works.
 - **Open questions:** none.

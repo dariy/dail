@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -84,6 +85,8 @@ private fun DrawerItems(
     send: (UiEvent) -> Unit,
 ) {
     LazyColumn(Modifier.padding(horizontal = 12.dp)) {
+        // Rail ↔ full tree (MISC-11), at the top of the pane.
+        drawer.style?.let { style -> item { ActionButton(style, send) } }
         drawer.allInboxes?.let { item -> item { DrawerEntry(item, send) } }
         drawer.accounts.forEach { account ->
             item {
@@ -96,7 +99,7 @@ private fun DrawerItems(
                         )
                         Spacer(Modifier.width(8.dp))
                     }
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(account.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                         if (account.email != account.name) {
                             Text(
@@ -107,6 +110,7 @@ private fun DrawerItems(
                             )
                         }
                     }
+                    account.fold?.let { fold -> Chevron(fold, send) }
                 }
             }
             items(account.mailboxes) { item -> DrawerEntry(item, send) }
@@ -121,14 +125,38 @@ private fun DrawerEntry(
     item: DrawerItem,
     send: (UiEvent) -> Unit,
 ) {
+    // The folder tree (MISC-10): indented by depth, with a chevron before a folder that has
+    // folders below it.
     NavigationDrawerItem(
         label = { Text(item.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         selected = item.selected,
         onClick = { send(UiEvent.Tap(item.action)) },
-        icon = { Glyph(item.icon) },
+        icon = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                item.fold?.let { fold -> Chevron(fold, send) }
+                Glyph(item.icon)
+            }
+        },
         badge = { if (item.unread > 0) Text(item.unread.toString()) },
-        modifier = Modifier.semantics { contentDescription = item.a11y },
+        modifier =
+            Modifier
+                .padding(start = INDENT * item.depth)
+                .semantics { contentDescription = item.a11y },
     )
+}
+
+/** Folds or unfolds the folders below a folder or an account. */
+@Composable
+private fun Chevron(
+    fold: Fold,
+    send: (UiEvent) -> Unit,
+) {
+    IconButton(
+        onClick = { send(UiEvent.Tap(fold.action)) },
+        modifier = Modifier.size(CHEVRON_SIZE).semantics { contentDescription = fold.a11y },
+    ) {
+        Glyph(if (fold.collapsed) "chevron_right" else "expand_more")
+    }
 }
 
 @Composable
@@ -139,6 +167,7 @@ private fun DrawerRail(
     val items = listOfNotNull(drawer.allInboxes) + drawer.accounts.flatMap { it.mailboxes } + drawer.footer
     NavigationRail(Modifier.fillMaxHeight().width(RAIL_WIDTH), windowInsets = WindowInsets(0)) {
         LazyColumn {
+            drawer.style?.let { style -> item { ActionButton(style, send) } }
             items(items) { item ->
                 NavigationRailItem(
                     selected = item.selected,
@@ -159,6 +188,8 @@ fun Glyph(name: String) {
 }
 
 private val DRAWER_WIDTH = 280.dp
+private val INDENT = 16.dp
+private val CHEVRON_SIZE = 32.dp
 private val RAIL_WIDTH = 80.dp
 private val TAG_WIDTH = 4.dp
 private val TAG_HEIGHT = 16.dp

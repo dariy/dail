@@ -25,11 +25,21 @@ expression: phone.frame()
   },
   "drawer": {
     "modal": false,
-    "rail": true,
+    "rail": false,
+    "style": {
+      "icon": "chevron_left",
+      "label": "Icons only",
+      "action": 10
+    },
     "accounts": [
       {
         "name": "alice@example.com",
         "email": "alice@example.com",
+        "fold": {
+          "collapsed": false,
+          "action": 6,
+          "a11y": "alice@example.com folders"
+        },
         "mailboxes": [
           {
             "label": "Inbox",
@@ -72,7 +82,7 @@ expression: phone.frame()
         "icon": "settings",
         "unread": 0,
         "selected": false,
-        "action": 6,
+        "action": 7,
         "a11y": "Settings"
       },
       {
@@ -80,7 +90,7 @@ expression: phone.frame()
         "icon": "info",
         "unread": 0,
         "selected": false,
-        "action": 7,
+        "action": 8,
         "a11y": "About"
       },
       {
@@ -88,7 +98,7 @@ expression: phone.frame()
         "icon": "add",
         "unread": 0,
         "selected": false,
-        "action": 8,
+        "action": 9,
         "a11y": "Add account"
       }
     ]
@@ -103,10 +113,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 9,
-        "long_press": 10,
-        "swipe_start": 11,
-        "swipe_end": 12,
+        "action": 11,
+        "long_press": 12,
+        "swipe_start": 13,
+        "swipe_end": 14,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -121,10 +131,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 13,
-        "long_press": 14,
-        "swipe_start": 15,
-        "swipe_end": 16,
+        "action": 15,
+        "long_press": 16,
+        "swipe_start": 17,
+        "swipe_end": 18,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -142,7 +152,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 17
+    "action": 19
   },
   "theme": {
     "id": "dail-light",
@@ -336,6 +346,7 @@ expression: phone.frame()
       "add": "",
       "all_inbox": "",
       "archive": "",
+      "arrow_back": "",
       "attach_file": "",
       "check": "",
       "check_box": "",
@@ -343,6 +354,7 @@ expression: phone.frame()
       "chevron_left": "",
       "chevron_right": "",
       "close": "",
+      "close_fullscreen": "",
       "cloud_off": "",
       "content_copy": "",
       "contrast": "",
@@ -370,6 +382,7 @@ expression: phone.frame()
       "mark_email_unread": "",
       "menu": "",
       "more_horiz": "",
+      "open_in_full": "",
       "open_in_new": "",
       "person": "",
       "picture_as_pdf": "",

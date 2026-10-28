@@ -164,6 +164,10 @@ pub struct Drawer {
     pub modal: bool,
     /// A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).
     pub rail: bool,
+    /// Switches between the rail and the full tree (`toggle_sidebar`), where the pane can be
+    /// either: a landscape window that is not compact, or an expanded one (MISC-11).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub style: Option<Button>,
     /// Every account's inbox, with two accounts or more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub all_inboxes: Option<DrawerItem>,
@@ -183,8 +187,23 @@ pub struct DrawerAccount {
     /// Its colour: an index into the theme's `tags`, with two accounts or more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag: Option<usize>,
-    /// Its mailboxes, in the sidebar's order.
+    /// The chevron that folds the whole account (`collapse_folders` with an empty path).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<Fold>,
+    /// Its folders as the sidebar's tree shows them: in tree order, without the folders below
+    /// a collapsed one, and none while the account is collapsed (MISC-10).
     pub mailboxes: Vec<DrawerItem>,
+}
+
+/// The chevron of a folder that has folders below it, or of an account.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Fold {
+    /// Whether the folders below are hidden (the chevron points right).
+    pub collapsed: bool,
+    /// Expands or collapses (`expand_folders` / `collapse_folders`).
+    pub action: ActionId,
+    /// TalkBack's name (`Work subfolders`).
+    pub a11y: String,
 }
 
 /// A mailbox in the drawer.
@@ -192,16 +211,26 @@ pub struct DrawerAccount {
 pub struct DrawerItem {
     /// The mailbox's name.
     pub label: String,
+    /// Its level in the folder tree, `0` at the top (indent by it).
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub depth: usize,
+    /// The chevron, if folders hang below it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fold: Option<Fold>,
     /// The icon's name (`inbox`, `send`, `folder`, …).
     pub icon: String,
     /// Unread messages.
     pub unread: u32,
     /// Whether the list shows it.
     pub selected: bool,
-    /// Opens it.
+    /// Opens it; for a folder the server does not let us open, the same as `fold`'s action.
     pub action: ActionId,
     /// TalkBack's name.
     pub a11y: String,
+}
+
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 /// Row heights (`list_density`).
@@ -330,6 +359,10 @@ pub struct Reader {
     /// The × next to the subject: closes the message (`close_thread`), leaving the list
     /// (MISC-7).
     pub close: Button,
+    /// Beside the ×: maximizes the message (no sidebar, no list, a bare top bar), or restores
+    /// the panes. Only while there is something to hide or it is maximized (MISC-14).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maximize: Option<Button>,
     /// What can be done with it: archive, trash, star, read, *Move…*, reply.
     pub actions: Vec<Button>,
     /// The conversation above it in the list, if any: a swipe to the right (MISC-5; no button).

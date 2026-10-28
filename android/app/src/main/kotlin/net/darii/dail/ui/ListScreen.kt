@@ -31,6 +31,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 /**
  * The thread list: `total` items, of which the frame carries a window (`offset`, `rows`); the
@@ -197,7 +199,9 @@ fun ThreadRow(
 
 /**
  * A row that swipes: towards the start edge (left) archives, towards the end edge (right)
- * trashes. The row springs back; the next frame drops it.
+ * trashes. The action runs only once the finger is lifted past half the row and the row has
+ * settled off-screen (`onDismiss`); dragging back under half before lifting cancels it. The row
+ * then springs back; the next frame drops it.
  *
  * The swipe state is remembered across frames, but action IDs are per frame (the presenter
  * forgets the old ones), so the callback reads the row of the current frame (MISC-1): with the
@@ -212,20 +216,19 @@ private fun SwipeRow(
 ) {
     val current by rememberUpdatedState(row)
     val sendNow by rememberUpdatedState(send)
-    val state =
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                when (value) {
-                    SwipeToDismissBoxValue.EndToStart -> sendNow(UiEvent.Swipe(current.swipeStart))
-                    SwipeToDismissBoxValue.StartToEnd -> sendNow(UiEvent.Swipe(current.swipeEnd))
-                    SwipeToDismissBoxValue.Settled -> Unit
-                }
-                false
-            },
-        )
+    val scope = rememberCoroutineScope()
+    val state = rememberSwipeToDismissBoxState()
     SwipeToDismissBox(
         state = state,
         backgroundContent = { SwipeBackground(state.dismissDirection) },
+        onDismiss = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> sendNow(UiEvent.Swipe(current.swipeStart))
+                SwipeToDismissBoxValue.StartToEnd -> sendNow(UiEvent.Swipe(current.swipeEnd))
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            scope.launch { state.reset() }
+        },
         content = { content() },
     )
 }

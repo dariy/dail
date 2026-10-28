@@ -669,6 +669,17 @@
         "rail": {
           "description": "A navigation rail (icons only) rather than the full drawer (`toggle_sidebar`).",
           "type": "boolean"
+        },
+        "style": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Switches between the rail and the full tree (`toggle_sidebar`), where the pane can be\neither: a landscape window that is not compact, or an expanded one (MISC-11)."
         }
       },
       "required": [
@@ -686,8 +697,19 @@
           "description": "Its address.",
           "type": "string"
         },
+        "fold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Fold"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The chevron that folds the whole account (`collapse_folders` with an empty path)."
+        },
         "mailboxes": {
-          "description": "Its mailboxes, in the sidebar's order.",
+          "description": "Its folders as the sidebar's tree shows them: in tree order, without the folders below\na collapsed one, and none while the account is collapsed (MISC-10).",
           "items": {
             "$ref": "#/$defs/DrawerItem"
           },
@@ -722,10 +744,27 @@
           "type": "string"
         },
         "action": {
-          "description": "Opens it.",
+          "description": "Opens it; for a folder the server does not let us open, the same as `fold`'s action.",
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        },
+        "depth": {
+          "description": "Its level in the folder tree, `0` at the top (indent by it).",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "fold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Fold"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The chevron, if folders hang below it."
         },
         "icon": {
           "description": "The icon's name (`inbox`, `send`, `folder`, …).",
@@ -815,6 +854,31 @@
           "type": "string"
         }
       ]
+    },
+    "Fold": {
+      "description": "The chevron of a folder that has folders below it, or of an account.",
+      "properties": {
+        "a11y": {
+          "description": "TalkBack's name (`Work subfolders`).",
+          "type": "string"
+        },
+        "action": {
+          "description": "Expands or collapses (`expand_folders` / `collapse_folders`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "collapsed": {
+          "description": "Whether the folders below are hidden (the chevron points right).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "collapsed",
+        "action",
+        "a11y"
+      ],
+      "type": "object"
     },
     "FrameTheme": {
       "description": "A theme, sent in the frame when it changes (the settings or the system's dark mode).",
@@ -1405,6 +1469,17 @@
         "close": {
           "$ref": "#/$defs/Button",
           "description": "The × next to the subject: closes the message (`close_thread`), leaving the list\n(MISC-7)."
+        },
+        "maximize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Beside the ×: maximizes the message (no sidebar, no list, a bare top bar), or restores\nthe panes. Only while there is something to hide or it is maximized (MISC-14)."
         },
         "messages": {
           "description": "Its messages, oldest first.",
