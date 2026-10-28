@@ -6,10 +6,12 @@ only bypass actors may update it, so only repository admins can merge. The other
 MISC-9 (`.github/workflows/bump.yml`), which pushes the version bump commit straight to `main`. Its ID is not
 stored here; the apply command adds it.
 
-Apply (create) it once the App exists, with `DAIL_RELEASE_APP_ID` set to the App's ID:
+Apply (create) it once the App exists; the App's ID comes from the `release` environment's `RELEASE_APP_ID`
+variable:
 
 ```sh
-jq --argjson app "$DAIL_RELEASE_APP_ID" \
+app="$(gh variable get RELEASE_APP_ID --env release)"
+jq --argjson app "$app" \
   '.bypass_actors += [{actor_type: "Integration", actor_id: $app, bypass_mode: "always"}]' \
   .github/rulesets/main.json | gh api --method POST repos/{owner}/{repo}/rulesets --input -
 ```
