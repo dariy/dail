@@ -31,7 +31,8 @@
   no workflows. One-time setup: create a GitHub App owned by the repository owner with *Contents: read and write*,
   install it on the repository, and store its numeric ID as the variable `RELEASE_APP_ID` and its private key as
   the secret `RELEASE_APP_PRIVATE_KEY`, both in the `release` environment (which also needs `main` in its deployment
-  branches). The environment's required reviewers approve each bump. Create the labels `release:minor`, `release:major` and `release:skip`.
+  branches; no required reviewers: the merge is the approval). Only admins and the App can push `v*` tags
+  (`.github/rulesets/release-tags.json`), so only a merge, through `bump.yml`, starts a release that publishes. Create the labels `release:minor`, `release:major` and `release:skip`.
 - Update manifest (ADR 0011): `cargo xtask release manifest [--dist dist]` writes `dist/manifest.json` (target, kind,
   URL, sha256 and size of each installable artifact) and `dist/manifest.json.minisig`, signed with the minisign key in
   `DAIL_UPDATE_SIGNING_KEY` (the text of the secret key file) and `DAIL_UPDATE_SIGNING_PASSWORD`. The trusted comment

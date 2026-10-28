@@ -6,8 +6,12 @@ only bypass actors may update it, so only repository admins can merge. The other
 MISC-9 (`.github/workflows/bump.yml`), which pushes the version bump commit straight to `main`. Its ID is not
 stored here; the apply command adds it.
 
-Apply (create) it once the App exists; the App's ID comes from the `release` environment's `RELEASE_APP_ID`
-variable:
+`release-tags.json` guards the release tags: only admins and the release App may create, move or delete a `v*`
+tag, so a tag push that starts a publishing `release.yml` comes from a merge (`bump.yml`) or an admin. The
+`release` environment has no required reviewers: the PR merge is the approval.
+
+Apply (create) either once the App exists, with the same command (`main.json` or `release-tags.json`); the App's ID
+comes from the `release` environment's `RELEASE_APP_ID` variable:
 
 ```sh
 app="$(gh variable get RELEASE_APP_ID --env release)"
