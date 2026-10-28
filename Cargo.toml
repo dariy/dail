@@ -140,6 +140,8 @@ nucleo-matcher = "0.3"
 rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
 # Inline (cid:) images in the reader; already in the tree via eframe (png). Pure-Rust decoders only.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+# Camera JPEGs larger than images::MAX_SIDE, decoded DCT-scaled (MISC-19). Forbids unsafe, no rayon.
+jpeg-decoder = { version = "0.3", default-features = false, features = ["platform_independent"] }
 webbrowser = "1.2" # opens links and "open original" in the system browser (app-gui only)
 # Desktop notifications (app-gui only): the freedesktop service over D-Bus on Linux (zbus is already in the tree for
 # the keyring), toasts through WinRT on Windows (the `windows` crate is already in the tree for accesskit).

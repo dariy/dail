@@ -113,7 +113,11 @@ mod tests {
             image::ImageFormat::Png,
         )
         .unwrap();
-        assert!(decode(&bytes).is_err(), "too wide");
+        assert_eq!(
+            decode(&bytes).unwrap().size,
+            [app_sync::images::MAX_SIDE as usize, 1],
+            "too wide: downscaled to fit"
+        );
     }
 
     #[test]

@@ -3,6 +3,7 @@
 
 mod compose;
 mod config;
+mod images;
 mod mime;
 mod original;
 mod scale;

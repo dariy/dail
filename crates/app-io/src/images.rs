@@ -1,11 +1,12 @@
 //! Decoding untrusted images (inline `cid:` parts, attachment previews) with the limits every
 //! front-end shares: PNG, JPEG, GIF (the first frame) or WebP, recognised by their bytes, at most
-//! [`MAX_SIDE`] pixels per side and [`MAX_ALLOC`] bytes of decoder memory. Nothing remote is
-//! ever loaded.
+//! [`MAX_SIDE`] pixels per side (larger ones are decoded downscaled to fit) and [`MAX_ALLOC`]
+//! bytes of decoder memory, turned upright by their EXIF orientation. Nothing remote is ever
+//! loaded.
 
-use image::{ImageFormat, ImageReader, Limits};
+use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits, imageops::FilterType};
 
-/// The largest image decoded, per side (bigger ones are refused, not scaled).
+/// The largest image side returned; larger images are decoded downscaled to fit.
 pub const MAX_SIDE: u32 = 4096;
 /// The most memory a decoder may use.
 pub const MAX_ALLOC: u64 = 96 << 20;
@@ -32,26 +33,47 @@ pub enum ImageError {
     Decode(String),
 }
 
+fn decode_error(err: impl std::fmt::Display) -> ImageError {
+    ImageError::Decode(err.to_string())
+}
+
 /// Decodes an image part within the limits. Untrusted input: anything else is an error.
 pub fn decode(bytes: &[u8]) -> Result<Rgba, ImageError> {
     let mut reader = ImageReader::new(std::io::Cursor::new(bytes))
         .with_guessed_format()
-        .map_err(|err| ImageError::Decode(err.to_string()))?;
+        .map_err(decode_error)?;
+    let format = reader.format();
     if !matches!(
-        reader.format(),
+        format,
         Some(ImageFormat::Png | ImageFormat::Jpeg | ImageFormat::Gif | ImageFormat::WebP)
     ) {
         return Err(ImageError::Format);
     }
     let mut limits = Limits::default();
-    limits.max_image_width = Some(MAX_SIDE);
-    limits.max_image_height = Some(MAX_SIDE);
     limits.max_alloc = Some(MAX_ALLOC);
-    reader.limits(limits);
-    let image = reader
-        .decode()
-        .map_err(|err| ImageError::Decode(err.to_string()))?
-        .to_rgba8();
+    reader.limits(limits.clone());
+    let mut decoder = reader.into_decoder().map_err(decode_error)?;
+    let orientation = decoder.orientation().map_err(decode_error)?;
+    let (width, height) = decoder.dimensions();
+    let fits = width <= MAX_SIDE && height <= MAX_SIDE;
+    let mut image = if format == Some(ImageFormat::Jpeg) && !fits {
+        drop(decoder);
+        jpeg_scaled(bytes)?
+    } else {
+        // `into_decoder` skips the allocation check `ImageReader::decode` makes.
+        limits
+            .reserve(decoder.total_bytes())
+            .map_err(decode_error)?;
+        decoder.set_limits(limits).map_err(decode_error)?;
+        let image = DynamicImage::from_decoder(decoder).map_err(decode_error)?;
+        if fits {
+            image
+        } else {
+            image.resize(MAX_SIDE, MAX_SIDE, FilterType::Triangle)
+        }
+    };
+    image.apply_orientation(orientation);
+    let image = image.to_rgba8();
     Ok(Rgba {
         width: image.width(),
         height: image.height(),
@@ -59,30 +81,36 @@ pub fn decode(bytes: &[u8]) -> Result<Rgba, ImageError> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn png(image: &image::RgbaImage) -> Vec<u8> {
-        let mut out = Vec::new();
-        image
-            .write_to(&mut std::io::Cursor::new(&mut out), ImageFormat::Png)
-            .unwrap();
-        out
+/// A JPEG larger than [`MAX_SIDE`], decoded at the largest DCT scale (1, ½, ¼ or ⅛) that fits.
+fn jpeg_scaled(bytes: &[u8]) -> Result<DynamicImage, ImageError> {
+    use jpeg_decoder::{CodingProcess, Decoder, PixelFormat};
+    let mut decoder = Decoder::new(bytes);
+    decoder.set_max_decoding_buffer_size(usize::try_from(MAX_ALLOC).unwrap_or(usize::MAX));
+    decoder.read_info().map_err(decode_error)?;
+    let info = decoder
+        .info()
+        .ok_or_else(|| decode_error("no JPEG header"))?;
+    let (w, h) = (u64::from(info.width), u64::from(info.height));
+    let components: u64 = match info.pixel_format {
+        PixelFormat::L8 => 1,
+        PixelFormat::RGB24 => 3,
+        other => return Err(decode_error(format!("unsupported JPEG pixels {other:?}"))),
+    };
+    if info.coding_process == CodingProcess::DctProgressive && w * h * components * 2 > MAX_ALLOC {
+        return Err(decode_error("progressive JPEG too large"));
     }
-
-    #[test]
-    fn images_decode_within_limits() {
-        let small = image::RgbaImage::from_raw(2, 1, vec![255, 0, 0, 255, 0, 0, 0, 0]).unwrap();
-        let image = decode(&png(&small)).unwrap();
-        assert_eq!((image.width, image.height), (2, 1));
-        assert_eq!(image.pixels, [255, 0, 0, 255, 0, 0, 0, 0]);
-        assert!(matches!(
-            decode(b"<svg xmlns='http://www.w3.org/2000/svg'/>"),
-            Err(ImageError::Format)
-        ));
-        assert!(decode(b"").is_err());
-        let huge = image::RgbaImage::new(MAX_SIDE + 1, 1);
-        assert!(decode(&png(&huge)).is_err(), "too wide");
-    }
+    let side = u64::from(MAX_SIDE);
+    let factor = [1u64, 2, 4, 8]
+        .into_iter()
+        .find(|f| w.div_ceil(*f) <= side && h.div_ceil(*f) <= side)
+        .ok_or_else(|| decode_error("JPEG too large"))?;
+    let want = |v: u64| u16::try_from(v.div_ceil(factor)).unwrap_or(u16::MAX);
+    let (out_w, out_h) = decoder.scale(want(w), want(h)).map_err(decode_error)?;
+    let pixels = decoder.decode().map_err(decode_error)?;
+    let (out_w, out_h) = (u32::from(out_w), u32::from(out_h));
+    let image = match info.pixel_format {
+        PixelFormat::L8 => image::GrayImage::from_raw(out_w, out_h, pixels).map(DynamicImage::from),
+        _ => image::RgbImage::from_raw(out_w, out_h, pixels).map(DynamicImage::from),
+    };
+    image.ok_or_else(|| decode_error("short JPEG data"))
 }
