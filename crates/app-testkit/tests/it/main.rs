@@ -3,6 +3,7 @@
 
 mod compose;
 mod folders;
+mod media;
 mod offline;
 mod original;
 mod pins;

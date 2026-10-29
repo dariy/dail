@@ -1844,7 +1844,9 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 `fail_next(reason)`, `set_offline(bool)` to fail every server effect while store and keyring keep working, server edits via `edit_server(|fixture| …)`, an in-memory keyring, a fake local file system for attachments (`add_file(path, bytes)`), a fake SMTP server (`sent()`
 lists accepted messages with login, `MAIL FROM` and `RCPT TO`; a fixture account's `smtp_saves_to` makes it file each message
 itself, as Gmail does), `VerifyAccount` against the fixture's accounts and optional `password`) and `Fixture` (fake-server content as JSON; built-ins in `crates/app-testkit/fixtures/`, compiled in — `basic` is alice@example.com
-with INBOX, Sent, Drafts and Archive;
+with INBOX, Sent, Drafts and Archive; generated: `large` (scale) and `media`, `basic` plus a message from Bob carrying
+`fixtures/media/` — a 6000 × 4000 `photo.jpg` with EXIF orientation 6, a 3-page `report.pdf` and a `broken.pdf`
+(MISC-19; the ignored `media::regenerate` writes them);
 `Fixture::builtin("basic")`, `Fixture::from_path`).
 
 **Android** (ADR 0009): `cargo xtask android check` runs clippy (`-D warnings`) for `aarch64-linux-android` and

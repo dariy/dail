@@ -519,6 +519,7 @@ dependencies = [
  "app-core",
  "app-io",
  "app-sync",
+ "image",
  "parking_lot 0.13.0",
  "proptest",
  "serde",
