@@ -90,6 +90,41 @@ final class HostTests: XCTestCase {
 }
 
 /// The demo host for a test, in its own profile.
+extension HostTests {
+    /// MISC-19: the media fixture's photo comes back upright and the PDF as pages and tiles of the
+    /// asked sizes, through `dail_blob`.
+    func testMediaPreviewBlobs() throws {
+        let demo = try DemoHost(backend: .object(["memory": .string("media")]))
+        defer { demo.close() }
+        var frame = try demo.send(.configure(
+            widthPt: 1180, heightPt: 820, dark: false, fontScale: 1, locale: "en-US", keyboard: false)) { $0.list?.rows.isEmpty == false }
+        let row = try XCTUnwrap(frame.list?.rows.first { $0.subject.contains("Photos and the report") })
+        frame = try demo.send(.tap(row.action), timeout: 10) { $0.reader?.messages.contains { !$0.attachments.isEmpty } == true }
+        let message = try XCTUnwrap(frame.reader?.messages.first { !$0.attachments.isEmpty })
+        frame = try demo.send(.tap(message.attachments[1].open)) { $0.preview != nil }
+        let preview = try XCTUnwrap(frame.preview)
+        XCTAssertEqual(preview.kind, .pdf)
+
+        func blob(_ request: JSON) -> Data? { Native.blob(handle: demo.handle, request: request.text) }
+        let at: (Int) -> [String: JSON] = { ["blob": .string(preview.blob), "part": .number(Double($0))] }
+        let pages = try XCTUnwrap(blob(.object(["pdf_pages": .object(at(preview.part))])))
+        guard case let .object(answer) = try JSONDecoder().decode(JSON.self, from: pages), case let .array(list)? = answer["pages"] else {
+            return XCTFail("no pages")
+        }
+        XCTAssertEqual(list.count, 3)
+        var page = at(preview.part)
+        page["page"] = .number(0)
+        page["width"] = .number(600)
+        XCTAssertEqual(blob(.object(["pdf_page": .object(page)])).flatMap(rgbaImage)?.width, 600)
+        page["width"] = .number(4000)
+        page["tile"] = .object(["x": .number(100), "y": .number(200), "w": .number(512), "h": .number(256)])
+        let tile = try XCTUnwrap(blob(.object(["pdf_page": .object(page)])).flatMap(rgbaImage))
+        XCTAssertEqual([tile.width, tile.height], [512, 256])
+        let photo = try XCTUnwrap(blob(.object(["image": .object(at(message.attachments[0].part))])).flatMap(rgbaImage))
+        XCTAssertGreaterThan(photo.height, photo.width, "upright: portrait")
+    }
+}
+
 final class DemoHost {
     let handle: Int32
     let profile: URL

@@ -2,7 +2,7 @@
 # the project is never committed or edited by hand. The XCFrameworks come from `cargo xtask ios xcframework`.
 #
 # Two app targets over the same Swift sources, like Android's flavours: `Dail` (live: the profile's store, the
-# Keychain and the mail servers) and `DailDemo` (the memory backend over the `basic` fixture, `DEMO` set).
+# Keychain and the mail servers) and `DailDemo` (the memory backend over the `media` fixture, `DEMO` set).
 name: Dail
 options:
   bundleIdPrefix: net.darii

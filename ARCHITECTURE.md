@@ -1678,7 +1678,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `git diff` in the `ios-changes` job), and always when started by hand.
 - **The app** (`ios/`). Two app targets over the same Swift sources, like Android's flavours: `Dail`
   (`net.darii.dail`, links `DailCore.xcframework`) and `DailDemo` (`net.darii.dail.demo`, `DailCore-Demo`, the `DEMO`
-  condition: `{"memory": "basic"}`). iOS 17, iPhone and iPad, unsigned. `Native.swift` is the only file that calls
+  condition: `{"memory": "media"}`). iOS 17, iPhone and iPad, unsigned. `Native.swift` is the only file that calls
   `dail.h`: it copies and frees the strings and bounces the listener (an unretained `Listener` as the context) to
   the main actor. The profile is `Application Support/profiles/default`.
 - **The contract in Swift** (`ios/Dail/Frame.swift`, `UiEvent.swift`): Codable mirrors of `app_mobile`'s frame,
@@ -1697,7 +1697,12 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
   `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a
   `dail-action:<id>` link the view turns into a tap (so the link sheet shows the target first), and inline images
-  are placeholders. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
+  are placeholders. `PreviewView` draws an attachment preview (MISC-19): Close, the name and Save, then a picture or
+  PDF pages in `DocumentView` (a `UIScrollView` zooming 1–5×, double tap fit ↔ 2.5×, unanimated under Reduce Motion;
+  pages laid out by `DocumentLayout`, a port of the adapted `DocLayout`; each page a fit-width image from `blob` with
+  a `CATiledLayer` above it whose `draw` asks for `pdf_page` tiles off the main thread) with "Page n of m", or the text
+  monospaced. `Host.blob` runs `dail_blob` on a serial "dail-blob" queue, never on main or dail-ui; views get it as
+  the `\.blobs` environment value. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
   `copy`, `open_url`, `haptic` and `system_settings`; the file ones wait for the compose wave.
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
   (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
