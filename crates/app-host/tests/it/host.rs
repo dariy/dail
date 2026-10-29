@@ -64,13 +64,25 @@ fn synced_host_with_alerts() -> (
     Arc<app_testkit::MemoryBackend>,
     Alerts,
 ) {
+    synced_host_over("basic")
+}
+
+/// [`synced_host_with_alerts`] over the built-in fixture `name`.
+fn synced_host_over(
+    name: &str,
+) -> (
+    Host,
+    Arc<AtomicUsize>,
+    Arc<app_testkit::MemoryBackend>,
+    Alerts,
+) {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
         .enable_all()
         .build()
         .unwrap();
     let (session, backend) = runtime.block_on(async {
-        let fixture = app_testkit::Fixture::builtin("basic").unwrap();
+        let fixture = app_testkit::Fixture::builtin(name).unwrap();
         let synced = app_testkit::synced_session(fixture).await.unwrap();
         let inbox = synced
             .session
@@ -169,6 +181,34 @@ fn the_config_is_json() {
             cid: "logo".to_owned()
         }
     );
+    let request: BlobRequest = serde_json::from_str(
+        r#"{"pdf_page": {"blob": "b", "part": 1, "page": 0, "width": 800, "tile": {"x": 0, "y": 8, "w": 16, "h": 32}}}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        request,
+        BlobRequest::PdfPage {
+            blob: "b".to_owned(),
+            part: 1,
+            page: 0,
+            width: 800,
+            tile: Some(app_host::PdfTile {
+                x: 0,
+                y: 8,
+                w: 16,
+                h: 32
+            }),
+        }
+    );
+    let request: BlobRequest =
+        serde_json::from_str(r#"{"pdf_pages": {"blob": "b", "part": 1}}"#).unwrap();
+    assert_eq!(
+        request,
+        BlobRequest::PdfPages {
+            blob: "b".to_owned(),
+            part: 1
+        }
+    );
     let request: BlobRequest =
         serde_json::from_str(r#"{"text": {"blob": "b", "part": 2}}"#).unwrap();
     assert_eq!(
@@ -230,6 +270,81 @@ fn a_swipe_archives_and_asks_for_a_haptic() {
             .as_ref()
             .is_some_and(|list| list.rows.iter().all(|r| r.thread != rows[0].thread))
     });
+    host.close();
+}
+
+/// Width, height and RGBA length of an image `blob` answered.
+fn image_size(bytes: &[u8]) -> (u32, u32) {
+    let width = u32::from_le_bytes(bytes[..4].try_into().unwrap());
+    let height = u32::from_le_bytes(bytes[4..8].try_into().unwrap());
+    assert_eq!(bytes.len(), 8 + (width * height * 4) as usize);
+    (width, height)
+}
+
+#[test]
+fn media_blobs_decode_upright_and_render_pdf_pages() {
+    let (host, _, _, _) = synced_host_over("media");
+    let state = host.state();
+    let message = state
+        .messages
+        .values()
+        .find(|m| m.subject == "Photos and the report")
+        .unwrap();
+    let id = message.id;
+    let thread = state
+        .threads
+        .values()
+        .find(|t| t.messages.contains(&id))
+        .unwrap()
+        .id;
+    let open = serde_json::to_value(Command::OpenThread { id: thread }).unwrap();
+    host.debug(app_host::DebugTask::Exec {
+        origin: Origin::Cli,
+        command: open,
+    })
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let blob = loop {
+        if let app_core::BodyState::Fetched { blob } = &host.state().messages[&id].body {
+            break blob.clone();
+        }
+        assert!(Instant::now() < deadline, "the body was not fetched");
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let request = |json: serde_json::Value| -> Option<Vec<u8>> {
+        let mut json = json;
+        let inner = json.as_object_mut().unwrap().values_mut().next().unwrap();
+        inner["blob"] = blob.clone().into();
+        host.blob(&serde_json::from_value(json).unwrap())
+    };
+
+    let photo = request(serde_json::json!({"image": {"part": 2}})).unwrap();
+    let (width, height) = image_size(&photo);
+    assert!(height > width, "upright: portrait");
+    assert!(width.max(height) <= 4096);
+
+    let pages = request(serde_json::json!({"pdf_pages": {"part": 3}})).unwrap();
+    let pages: serde_json::Value = serde_json::from_slice(&pages).unwrap();
+    assert_eq!(pages["pages"].as_array().unwrap().len(), 3);
+    assert_eq!(pages["max_side"], 4096);
+    assert_eq!(pages["max_width"], 16384);
+    assert_eq!(pages["tile_max"], 1024);
+
+    let page = request(serde_json::json!({"pdf_page": {"part": 3, "page": 0, "width": 800}}));
+    assert_eq!(image_size(&page.unwrap()).0, 800);
+    let tile = serde_json::json!({"x": 100, "y": 200, "w": 512, "h": 256});
+    let page = request(
+        serde_json::json!({"pdf_page": {"part": 3, "page": 2, "width": 8000, "tile": tile}}),
+    );
+    assert_eq!(image_size(&page.unwrap()), (512, 256));
+
+    let past = serde_json::json!({"pdf_page": {"part": 3, "page": 3, "width": 800}});
+    assert_eq!(request(past), None);
+    let outside = serde_json::json!({"x": 7900, "y": 0, "w": 512, "h": 256});
+    let outside =
+        serde_json::json!({"pdf_page": {"part": 3, "page": 0, "width": 8000, "tile": outside}});
+    assert_eq!(request(outside), None);
+    assert_eq!(request(serde_json::json!({"pdf_pages": {"part": 4}})), None);
     host.close();
 }
 

@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use app_core::{AppState, Command, DraftId, Origin};
+use app_io::pdf::PdfData;
 use app_io::{ProfileDirs, ProfileStore};
 use app_mobile::event::SaveFile;
 use app_mobile::{External, Frame, Mobile, NoteAct, Purpose, Reply, Request, UiEvent};
@@ -15,6 +16,7 @@ use app_sync::{
 };
 use serde::Serialize;
 use tokio::runtime::Runtime;
+use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 
 use crate::config::{BackendChoice, BlobRequest, Config, DebugTask, Task};
@@ -54,8 +56,15 @@ pub struct Host {
     wake: Wake,
     /// Where picked and shared files are copied (`outgoing`).
     outgoing: PathBuf,
+    /// The open preview's PDF bytes, keyed by `(blob, part)`, so pages need not read it again.
+    pdf: Mutex<Option<((String, usize), PdfData)>>,
+    /// One PDF job at a time (ADR 0012).
+    pdf_jobs: Arc<Semaphore>,
     _lock: Option<ProfileLock>,
 }
+
+/// How long a PDF job may wait and run before `blob` answers `None` (ADR 0012).
+const PDF_TIMEOUT: Duration = Duration::from_secs(10);
 
 impl std::fmt::Debug for Host {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -152,6 +161,8 @@ impl Host {
             visible,
             wake,
             outgoing,
+            pdf: Mutex::new(None),
+            pdf_jobs: Arc::new(Semaphore::new(1)),
             _lock: lock,
         }
     }
@@ -170,7 +181,9 @@ impl Host {
         let mut mobile = lock(&self.mobile);
         let requests = mobile.event(event, &bridge.state());
         submit(&bridge, requests);
-        next(&bridge, &mut mobile)
+        let output = next(&bridge, &mut mobile);
+        self.forget_pdf(&output);
+        output
     }
 
     /// [`Host::event`] over JSON.
@@ -182,11 +195,53 @@ impl Host {
     pub fn frame(&self) -> Output {
         let bridge = lock(&self.bridge);
         let mut mobile = lock(&self.mobile);
-        next(&bridge, &mut mobile)
+        let output = next(&bridge, &mut mobile);
+        self.forget_pdf(&output);
+        output
     }
 
-    /// Bytes of a stored part: as stored, or for an image its width and height (two
-    /// little-endian `u32`) and then RGBA. `None` if it cannot be read or decoded. Blocks.
+    /// Drops the cached PDF once no preview shows.
+    fn forget_pdf(&self, output: &Output) {
+        if output.frame.preview.is_none() {
+            lock(&self.pdf).take();
+        }
+    }
+
+    /// The PDF bytes of attachment `part` of `blob`, from the one-entry cache or the store.
+    async fn pdf_data(&self, blob: &str, part: usize) -> Option<PdfData> {
+        let key = (blob.to_owned(), part);
+        if let Some((cached, data)) = lock(&self.pdf).as_ref()
+            && *cached == key
+        {
+            return Some(data.clone());
+        }
+        let bytes = self.client.attachment_part(blob, part).await.ok()??.1.bytes;
+        let data = PdfData::from(Arc::new(bytes));
+        *lock(&self.pdf) = Some((key, data.clone()));
+        Some(data)
+    }
+
+    /// Runs a PDF job on a blocking thread, one at a time, within [`PDF_TIMEOUT`].
+    async fn pdf_job<T: Send + 'static>(
+        &self,
+        job: impl FnOnce() -> Option<T> + Send + 'static,
+    ) -> Option<T> {
+        let jobs = self.pdf_jobs.clone();
+        let run = async move {
+            let permit = jobs.acquire_owned().await.ok()?;
+            tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                job()
+            })
+            .await
+            .ok()?
+        };
+        tokio::time::timeout(PDF_TIMEOUT, run).await.ok()?
+    }
+
+    /// Bytes of a stored part: as stored, or for an image (a picture or a PDF page) its width and
+    /// height (two little-endian `u32`) and then RGBA, or a PDF's pages as JSON. `None` if it
+    /// cannot be read, decoded or rendered in time. Blocks.
     pub fn blob(&self, request: &BlobRequest) -> Option<Vec<u8>> {
         let client = self.client.clone();
         self.runtime.block_on(async move {
@@ -201,6 +256,38 @@ impl Host {
                 BlobRequest::Image { blob, part } => {
                     (client.attachment_part(blob, *part).await.ok()??.1, true)
                 }
+                BlobRequest::PdfPages { blob, part } => {
+                    let data = self.pdf_data(blob, *part).await?;
+                    let pages = self.pdf_job(move || app_io::pdf::pages(&data).ok()).await?;
+                    let pages: Vec<[f32; 2]> = pages.iter().map(|p| [p.width, p.height]).collect();
+                    let answer = serde_json::json!({
+                        "pages": pages,
+                        "max_side": app_io::images::MAX_SIDE,
+                        "max_width": app_io::pdf::MAX_ZOOM_WIDTH,
+                        "tile_max": app_io::pdf::TILE_MAX,
+                    });
+                    return Some(answer.to_string().into_bytes());
+                }
+                BlobRequest::PdfPage {
+                    blob,
+                    part,
+                    page,
+                    width,
+                    tile,
+                } => {
+                    let data = self.pdf_data(blob, *part).await?;
+                    let (page, width) = (*page, *width);
+                    let tile = tile.map(|t| app_io::pdf::Tile {
+                        x: t.x,
+                        y: t.y,
+                        w: t.w,
+                        h: t.h,
+                    });
+                    let image = self
+                        .pdf_job(move || app_io::pdf::render(&data, page, width, tile).ok())
+                        .await?;
+                    return Some(image_bytes(&image));
+                }
                 BlobRequest::Inline { blob, cid } => {
                     (client.inline_part(blob, cid).await.ok()??, true)
                 }
@@ -212,11 +299,7 @@ impl Host {
                 .await
                 .ok()?
                 .ok()?;
-            let mut out = Vec::with_capacity(8 + image.pixels.len());
-            out.extend_from_slice(&image.width.to_le_bytes());
-            out.extend_from_slice(&image.height.to_le_bytes());
-            out.extend_from_slice(&image.pixels);
-            Some(out)
+            Some(image_bytes(&image))
         })
     }
 
@@ -391,6 +474,15 @@ fn submit(bridge: &Bridge<Purpose>, requests: Vec<Request>) {
 }
 
 /// Feeds the replies, submits what they and the state call for, and draws.
+/// An image as `blob` answers it: width and height (little-endian `u32`), then RGBA.
+fn image_bytes(image: &app_io::images::Rgba) -> Vec<u8> {
+    let mut out = Vec::with_capacity(8 + image.pixels.len());
+    out.extend_from_slice(&image.width.to_le_bytes());
+    out.extend_from_slice(&image.height.to_le_bytes());
+    out.extend_from_slice(&image.pixels);
+    out
+}
+
 fn next(bridge: &Bridge<Purpose>, mobile: &mut Mobile) -> Output {
     let replies = bridge
         .replies()
