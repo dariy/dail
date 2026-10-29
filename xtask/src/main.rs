@@ -75,6 +75,12 @@ const GATES: &[Gate] = &[
         args: &["test", "--workspace"],
         default: true,
     },
+    // The patched crates under vendor/ are not members, so `--workspace` skips their tests (ADR 0012).
+    Gate {
+        name: "vendor",
+        args: &["test", "-p", "hayro-postscript", "--lib"],
+        default: true,
+    },
     Gate {
         name: "smoke",
         args: &[
@@ -141,7 +147,11 @@ const ANDROID_USAGE: &str =
     "cargo xtask android check|apk|apk-check|licences [--check]|all|test [ARGS…]";
 
 /// The licence lists of the About screen, under `crates/app-mobile` (included by `app_mobile::theme`).
-const LICENCE_LISTS: [&str; 2] = ["licences/rust-crates.txt", "licences/android-libraries.txt"];
+const LICENCE_LISTS: [&str; 3] = [
+    "licences/rust-crates.txt",
+    "licences/android-libraries.txt",
+    "licences/pdf-assets.txt",
+];
 
 /// Licensee's report for the APK users get (`assembleLiveRelease`).
 const LICENSEE_REPORT: &str = "app/build/reports/licensee/androidLiveRelease/artifacts.json";
@@ -318,7 +328,11 @@ fn licences(check: bool) -> Result<()> {
     if !report.exists() {
         gradle(&root, &["licensee"])?;
     }
-    let lists = [rust_crates(&root)?, android_libraries(&report)?];
+    let lists = [
+        rust_crates(&root)?,
+        android_libraries(&report)?,
+        pdf_assets(&root)?,
+    ];
     let mut err = std::io::stderr().lock();
     let mut stale = Vec::new();
     for (name, list) in LICENCE_LISTS.iter().zip(lists) {
@@ -339,6 +353,46 @@ fn licences(check: bool) -> Result<()> {
         );
     }
     Ok(())
+}
+
+/// The data hayro embeds, with its licences (ADR 0012): the Foxit fonts and the colour profiles of
+/// hayro-interpret, and the Adobe CMaps of hayro-cmap, read from the checked-out sources.
+fn pdf_assets(root: &Path) -> Result<String> {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let output = Command::new(&cargo)
+        .args(["metadata", "--format-version", "1", "--locked"])
+        .current_dir(root)
+        .output()
+        .context("failed to spawn `cargo metadata`")?;
+    if !output.status.success() {
+        bail!("`cargo metadata` failed with {}", output.status);
+    }
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let dir = |name: &str| -> Result<std::path::PathBuf> {
+        let manifest = metadata["packages"]
+            .as_array()
+            .context("no packages")?
+            .iter()
+            .find(|package| package["name"] == name)
+            .and_then(|package| package["manifest_path"].as_str())
+            .with_context(|| format!("no package {name}"))?;
+        Ok(Path::new(manifest)
+            .parent()
+            .context("manifest without a directory")?
+            .join("assets"))
+    };
+    let read = |path: std::path::PathBuf| {
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))
+    };
+    let interpret = dir("hayro-interpret")?;
+    let cmap = dir("hayro-cmap")?;
+    Ok(format!(
+        "PDF fonts and colour profiles (hayro-interpret)\n\n{}\n{}\n{}\nAdobe CMaps (hayro-cmap)\n\n{}",
+        read(interpret.join("README.md"))?.trim_end(),
+        read(interpret.join("LICENSE_FOXIT"))?,
+        read(interpret.join("CGATS_LICENSE.txt"))?,
+        read(cmap.join("LICENSE.txt"))?,
+    ))
 }
 
 /// `name version licence` for every package `libdail.so` links on [`ANDROID_TARGETS`]: the normal

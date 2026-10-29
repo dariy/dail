@@ -1,0 +1,12 @@
+# Vendored from https://github.com/LaurenzV/hayro at 5a4ddbb861e97d7693400c4d8d97363caa2c884f with one fix:
+# `object::read` skips runs of `<<` and `>>` in a loop instead of one recursive call each. See ../README.md.
+[package]
+name = "hayro-postscript"
+version = "0.1.0"
+description = "A lightweight PostScript scanner."
+authors = ["Laurenz Stampfl <laurenz.stampfl@gmail.com>"]
+edition = "2024"
+rust-version = "1.92"
+repository = "https://github.com/LaurenzV/hayro"
+license = "Apache-2.0 OR MIT"
+publish = false

@@ -1,5 +1,7 @@
 [workspace]
 resolver = "3"
+# Patched third-party crates (vendor/README.md); not members, so the workspace rules do not apply.
+exclude = ["vendor"]
 members = [
     "crates/app-core",
     "crates/app-io",
@@ -142,6 +144,9 @@ rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 # Camera JPEGs larger than images::MAX_SIDE, decoded DCT-scaled (MISC-19). Forbids unsafe, no rayon.
 jpeg-decoder = { version = "0.3", default-features = false, features = ["platform_independent"] }
+# PDF pages for attachment previews (ADR 0012): upstream main at a reviewed commit, back to crates.io once a release
+# has the fixes. Embedded standard fonts and CMaps, so nothing is looked up on the device.
+hayro = { git = "https://github.com/LaurenzV/hayro", rev = "5a4ddbb861e97d7693400c4d8d97363caa2c884f", default-features = false, features = ["embed-fonts", "embed-cmaps"] }
 webbrowser = "1.2" # opens links and "open original" in the system browser (app-gui only)
 # Desktop notifications (app-gui only): the freedesktop service over D-Bus on Linux (zbus is already in the tree for
 # the keyring), toasts through WinRT on Windows (the `windows` crate is already in the tree for accesskit).
@@ -222,3 +227,7 @@ zerovec-derive = { opt-level = 0, debug = false }
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# ADR 0012: hayro-postscript with the loop fix for runs of `<<`/`>>` (vendor/README.md).
+[patch."https://github.com/LaurenzV/hayro"]
+hayro-postscript = { path = "vendor/hayro-postscript" }

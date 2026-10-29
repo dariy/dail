@@ -8,6 +8,7 @@ pub mod fulltext;
 pub mod images;
 pub mod mime;
 pub mod original;
+pub mod pdf;
 pub mod profile;
 pub mod store;
 pub mod update;

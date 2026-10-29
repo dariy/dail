@@ -67,7 +67,7 @@ jobs:
         with:
           # Only main writes the cache, so a pull request cannot poison it for later runs.
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      - run: cargo xtask verify test smoke
+      - run: cargo xtask verify test vendor smoke
 
   # The `android` gate (ADR 0009): clippy for the Android targets over the crates the app links, Gradle's
   # formatter, licences, Lint and JVM tests, then the APKs (cargo-ndk builds libdail.so) and their check.

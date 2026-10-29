@@ -48,6 +48,7 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
     ├── app-host/         # Mobile host without the platform: session, presenter, the six calls (ADR 0010).
     ├── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
     └── app-ios/          # iOS host, staticlib `libdail.a`: C exports (`include/dail.h`), Keychain, log file over app-host (ADR 0010).
+vendor/                   # Patched third-party crates, outside the workspace (vendor/README.md; ADR 0012).
 android/                  # Gradle project: the Kotlin/Compose app. Draws frames, holds no rules (ADR 0009).
 ios/                      # XcodeGen spec (`project.yml`) and the SwiftUI app. Draws frames, holds no rules (ADR 0010).
 ```
@@ -57,7 +58,7 @@ ios/                      # XcodeGen spec (`project.yml`) and the SwiftUI app. D
 app-core   ← (nothing internal)
 app-theme  ← (nothing internal)                (ADR 0008; external deps: serde only)
 app-tls    ← (nothing internal)                (ADR 0003; external deps: rustls without provider, sha2, getrandom, zeroize)
-app-io     ← app-core
+app-io     ← app-core                         (ADR 0012: hayro from git, PDF pages)
 app-sync   ← app-core, app-io, app-tls
 app-mcp    ← app-core, app-sync
 app-front  ← app-core                         (ADR 0004; no toolkit, no tokio)
@@ -152,12 +153,12 @@ pub enum Command {
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 
 ## 6. Verification Loop (Gatekeeper Protocol)
-Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`, on pull requests into `main`, pushes to `main` but the release bump commit, and by hand) runs them as parallel jobs: `fmt deny` once, `clippy` and `test smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `ios` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
+Run `cargo xtask verify`. It executes the gates below in order and stops at the first failure; the two that compile nothing come first. `cargo xtask verify <gate>…` runs only the named gates (still in this order). CI (`.github/workflows/ci.yml`, on pull requests into `main`, pushes to `main` but the release bump commit, and by hand) runs them as parallel jobs: `fmt deny` once, `clippy` and `test vendor smoke` on Ubuntu and on Windows, `android` on Ubuntu, and `ios` on macOS when a change touches the iOS app's inputs. Without `xtask`, run them by hand:
 
 1. `cargo fmt --all --check`
 2. `cargo deny check`
 3. `cargo clippy --workspace --all-targets -- -D warnings` (it also does everything `cargo check` does)
-4. `cargo test --workspace`
+4. `cargo test --workspace`, then `cargo test -p hayro-postscript --lib` (the `vendor` gate: patched crates under `vendor/` are not workspace members)
 5. **Headless smoke test** (no network, fake backend):
    `cargo run -p app-cli -- batch --backend memory tests/smoke/basic.jsonl`
    It must exit 0 and print one JSON receipt per line.

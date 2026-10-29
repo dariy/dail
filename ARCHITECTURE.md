@@ -115,7 +115,10 @@ commands to submit or keeps the next step), `text` (the sanitizer for untrusted 
 `clean_lines`; control and bidi characters become U+FFFD), `a11y` (the accessible names of thread and nav rows, read
 by AccessKit and TalkBack) and `panes` (which panes show for a width class: `Slot`, `Width`, `choose`; the TUI maps
 columns onto it). `app_io::images` decodes untrusted images with the shared limits (PNG, JPEG, GIF, WebP; larger than 4096 px a
-side decoded downscaled to fit, JPEGs DCT-scaled by `jpeg-decoder`; 96 MiB; upright by EXIF orientation) into RGBA; `app-sync` re-exports it as `app_sync::images` for the GUI, which does not depend on `app-io`.
+side decoded downscaled to fit, JPEGs DCT-scaled by `jpeg-decoder`; 96 MiB; upright by EXIF orientation) into RGBA; `app_io::pdf` rasterizes untrusted PDF pages with `hayro` (ADR 0012): `pages` (sizes in points as shown) and
+`render(data, page, width, tile)` (a whole page within 4096 px a side, or a tile of at most 1024 px cut from a page at
+up to 16384 px wide) into the same RGBA, within 32 MiB and 1000 pages, under `catch_unwind`. `app-sync` re-exports
+`images` as `app_sync::images` for the GUI, which does not depend on `app-io`.
 
 `app-mobile` and `app-android` (ADR 0009, Wave 4) are the Android front-end. `app-mobile` (← app-core, app-front,
 app-theme; no toolkit, no tokio, no JNI) turns `AppState` into JSON screen models ("frames") and touch events into
@@ -1895,6 +1898,7 @@ allowlist; bot PRs are merged like any other.
 | Self-update | `self-replace` (app-sync, desktop targets only) | Replaces the running executable, also on Windows where it is locked; pure Rust (ADR 0011) |
 | Browser | `webbrowser` (app-gui) | Opens clicked links and the original page |
 | Notifications | `zbus` 5 (Linux), `windows` 0.62 `UI_Notifications` (Windows), both app-gui | Desktop notifications; both crates already in the tree (keyring, accesskit); `notify-rust` would add `mac-notification-sys`, which compiles C |
+| PDF pages | `hayro` (git, upstream `main` at a pinned commit; `embed-fonts`, `embed-cmaps`) + vendored `hayro-postscript` | Attachment previews on mobile (ADR 0012); pure Rust, no system PDF renderer; `vendor/README.md` says when to drop the patch |
 | Images | `image` 0.25 (app-io; png, jpeg, gif, webp), `jpeg-decoder` 0.3 (`platform_independent`) | Inline `cid:` images and attachment previews; pure-Rust decoders; `jpeg-decoder` decodes JPEGs over 4096 px DCT-scaled (forbids unsafe) |
 | Store | `redb` | Pure-Rust embedded ACID KV; no `-sys` |
 | Secrets | `keyring` 4 | Secret Service via zbus (pure Rust) / Windows Credential Manager |
