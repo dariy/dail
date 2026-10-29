@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -14,11 +15,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -26,11 +31,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import net.darii.dail.ui.viewer.Limits
+import net.darii.dail.ui.viewer.PageCanvas
+import net.darii.dail.ui.viewer.PageImages
+import net.darii.dail.ui.viewer.PageSize
+import net.darii.dail.ui.viewer.ViewerState
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -107,6 +118,67 @@ fun BlobImage(
     }
 }
 
+/** Runs blob requests one at a time, so a stale page or tile never races a wanted one. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal val blobLane = Dispatchers.IO.limitedParallelism(1)
+
+/** [rgbaBitmap] of a blob request on [blobLane]; null when the host or the memory cannot. */
+internal suspend fun loadBitmap(
+    blobs: (JsonObject) -> ByteArray?,
+    request: JsonObject,
+): ImageBitmap? =
+    withContext(blobLane) {
+        try {
+            blobs(request)?.let(::rgbaBitmap)
+        } catch (_: OutOfMemoryError) {
+            // the JNI byte array or the bitmap did not fit: the picture is not shown
+            null
+        }
+    }
+
+/** A picture as a one-page document: pinch, double tap and pan, drawn from the decoded image. */
+@Composable
+private fun PictureViewer(
+    preview: Preview,
+    modifier: Modifier,
+) {
+    val blobs = LocalBlobs.current
+    val request = blobRequest("image", preview.blob, part = preview.part)
+    val loaded by produceState<Loaded<ImageBitmap>>(Loaded.Loading, request) {
+        value = Loaded.Done(loadBitmap(blobs, request))
+    }
+    when (val picture = loaded) {
+        Loaded.Loading -> {
+            CircularProgressIndicator(modifier.wrapContentSize())
+        }
+
+        is Loaded.Done -> {
+            val bitmap = picture.value
+            if (bitmap == null) {
+                Text("This picture could not be shown.", modifier.padding(12.dp))
+                return
+            }
+            val scope = rememberCoroutineScope()
+            val state =
+                remember(bitmap) {
+                    val size = PageSize(bitmap.width.toFloat(), bitmap.height.toFloat())
+                    ViewerState(listOf(size), Limits(maxSide = Int.MAX_VALUE, maxWidth = 0, tileMax = 1, tiles = false))
+                }
+            val images = remember(bitmap) { PageImages(scope, Int.MAX_VALUE) { bitmap } }
+            DisposableEffect(images) { onDispose { images.close() } }
+            PageCanvas(
+                state,
+                images,
+                background = MaterialTheme.colorScheme.surfaceContainer,
+                paper = Color.Transparent,
+                still = rememberStill(),
+                modifier = modifier,
+                gap = 0.dp,
+            )
+        }
+    }
+}
+
 /** A received attachment in the app: a picture, cleaned text, or why it is not shown. */
 @Composable
 fun PreviewScreen(
@@ -127,9 +199,7 @@ fun PreviewScreen(
             val body = Modifier.fillMaxWidth().padding(12.dp)
             when (preview.kind) {
                 PreviewKind.Image -> {
-                    BlobImage(blobRequest("image", preview.blob, part = preview.part), preview.name, body) {
-                        Text("Loading or not a picture dail can show.", body)
-                    }
+                    PictureViewer(preview, Modifier.fillMaxSize())
                 }
 
                 PreviewKind.Text -> {

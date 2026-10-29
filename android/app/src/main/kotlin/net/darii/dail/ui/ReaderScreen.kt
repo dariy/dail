@@ -1,6 +1,5 @@
 package net.darii.dail.ui
 
-import android.provider.Settings
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -50,7 +49,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -95,11 +93,7 @@ fun ReaderPane(
 ) {
     val current by rememberUpdatedState(reader)
     val sendNow by rememberUpdatedState(send)
-    val context = LocalContext.current
-    val still =
-        remember {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-        }
+    val still = rememberStill()
     val turnAt = with(LocalDensity.current) { TURN.toPx() }
     val scope = rememberCoroutineScope()
     // How far the body is pulled past its top (> 0) or its end (< 0), in pixels.
