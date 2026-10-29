@@ -16,6 +16,7 @@ struct RootView: View {
                     Text(error).padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
                 case let .ready(frame, theme):
                     FrameView(frame: frame, palette: Palette(theme: theme), send: host.send)
+                        .environment(\.blobs, Blobs(load: host.blob))
                 }
             }
             .onAppear { configure(geometry.size) }

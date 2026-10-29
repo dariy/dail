@@ -65,7 +65,7 @@ struct FrameView: View {
         } else if let sheet = frame.palette {
             PaletteView(sheet: sheet, send: send)
         } else if let preview = frame.preview {
-            Placeholder(title: preview.name, text: preview.detail)
+            PreviewView(preview: preview, send: send)
         } else {
             HStack(spacing: 0) {
                 ForEach(Array(frame.layout.panes.enumerated()), id: \.offset) { _, pane in

@@ -31,6 +31,14 @@ enum Native {
         take(dail_frame(handle))
     }
 
+    /// `dail_blob`: a `BlobRequest`'s bytes, or nil. Blocks: never call it on the main thread. The
+    /// bytes stay Rust's until the `Data` is released, which hands them to `dail_bytes_free`.
+    static func blob(handle: Int32, request: String) -> Data? {
+        let bytes = request.withCString { dail_blob(handle, $0) }
+        guard let pointer = bytes.ptr else { return nil }
+        return Data(bytesNoCopy: pointer, count: bytes.len, deallocator: .custom { _, _ in dail_bytes_free(bytes) })
+    }
+
     /// `dail_close`: shuts the session down; the listener is not called afterwards.
     static func close(handle: Int32) {
         dail_close(handle)

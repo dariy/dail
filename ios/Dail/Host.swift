@@ -21,11 +21,24 @@ final class Host: ObservableObject {
     private var theme: FrameTheme?
 
     #if DEMO
-    /// The memory backend over the `basic` fixture (app-ios's `demo` feature).
-    static let backend: JSON = .object(["memory": .string("basic")])
+    /// The memory backend over the `media` fixture: `basic` plus a photo and PDFs (app-ios's `demo` feature).
+    static let backend: JSON = .object(["memory": .string("media")])
     #else
     static let backend: JSON = .string("live")
     #endif
+
+    /// `blob` calls run here, one at a time, never on main or dail-ui (they block).
+    private let blobs = DispatchQueue(label: "dail-blob", qos: .userInitiated)
+
+    /// A `BlobRequest`'s bytes (`Native.blob`), or nil. Blocks the caller: call it off the main
+    /// thread (a `CATiledLayer`'s draw, a task).
+    func blob(_ request: JSON) -> Data? {
+        blobs.sync {
+            let handle = ui.sync { self.handle }
+            guard handle > 0 else { return nil }
+            return Native.blob(handle: handle, request: request.text)
+        }
+    }
 
     /// Opens the session on dail-ui, once, with the profile in Application Support.
     func open() {
