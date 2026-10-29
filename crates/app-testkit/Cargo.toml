@@ -22,5 +22,6 @@ thiserror.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
+image.workspace = true
 proptest.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
