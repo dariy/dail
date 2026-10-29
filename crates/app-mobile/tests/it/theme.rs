@@ -88,12 +88,18 @@ fn about_shows_the_licences_and_back_closes_it() {
             "Material Symbols",
             "Rust crates",
             "Android libraries",
-            "PDF fonts and CMaps"
+            "PDF fonts and CMaps",
+            "PdfCraft for Android (adapted viewer)"
         ]
     );
     // ADR 0012: the data hayro embeds.
     assert!(licences[5].text.contains("Foxit"));
     assert!(licences[5].text.contains("Adobe"));
+    assert!(
+        licences[6]
+            .text
+            .contains("ArtCraft Team and the PdfCraft contributors")
+    );
     assert!(crates_have(&licences[3].text, "hayro "));
     assert!(licences[0].text.contains("SIL OPEN FONT LICENSE"));
     // What `libdail.so` links, and nothing that only builds or tests it.

@@ -181,6 +181,10 @@ pub fn about() -> About {
         name: "PDF fonts and CMaps".to_owned(),
         text: include_str!("../licences/pdf-assets.txt").to_owned(),
     });
+    licences.push(Licence {
+        name: "PdfCraft for Android (adapted viewer)".to_owned(),
+        text: include_str!("../licences/pdfcraft-viewer.txt").to_owned(),
+    });
     About {
         title: about_title(),
         // The phone has no MCP server and no keyboard-first use: neither is said here (MISC-13).

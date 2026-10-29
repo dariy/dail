@@ -1,6 +1,5 @@
 package net.darii.dail.ui
 
-import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -26,7 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
@@ -53,11 +51,7 @@ fun ReaderPage(
     overList: Boolean,
     send: (UiEvent) -> Unit,
 ) {
-    val context = LocalContext.current
-    val still =
-        remember {
-            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-        }
+    val still = rememberStill()
     // The frame's reader, or the last one while the page slides out (as `rememberUpdatedState`).
     val kept = remember { mutableStateOf<Reader?>(null) }
     if (reader != null) kept.value = reader
