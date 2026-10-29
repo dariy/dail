@@ -101,4 +101,5 @@ CMaps (BSD-3-Clause) and the CGATS001 ICC profile (CC0). `cargo xtask android li
   1024² tile cut from a 16384 px page 7 ms. Emulator numbers come with the host commit.
 - New crates linked by `libdail.so`: 33 (the hayro family, vello_cpu/vello_common, kurbo, peniko, skrifa, zune-jpeg,
   pic-scale, fearless_simd, flate2 with zlib-rs and their helpers; `crates/app-mobile/licences/rust-crates.txt`).
-- Size: measured once the host calls `app_io::pdf` (until then the linker drops it).
+- Size (arm64 release, before Wave 9's MISC-19 → with the host calling `app_io::pdf`): `libdail.so` 15.40 → 20.27 MB,
+  the live APK 18.44 → 23.31 MB, about +4.9 MB each (hayro with its embedded fonts and CMaps, and `jpeg-decoder`).

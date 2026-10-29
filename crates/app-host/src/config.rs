@@ -66,6 +66,30 @@ pub enum BlobRequest {
         /// The attachment's index.
         part: usize,
     },
+    /// The pages of PDF attachment `part`, as UTF-8 JSON: `{"pages": [[w, h], …], "max_side",
+    /// "max_width", "tile_max"}`, sizes in points as shown, limits in pixels (ADR 0012).
+    PdfPages {
+        /// The body's blob key.
+        blob: String,
+        /// The attachment's index.
+        part: usize,
+    },
+    /// Page `page` (from 0) of PDF attachment `part` rendered at `width` pixels, as an image: the
+    /// whole page (within `max_side`), or with `tile` that rectangle of it (within `max_width`
+    /// and `tile_max`).
+    PdfPage {
+        /// The body's blob key.
+        blob: String,
+        /// The attachment's index.
+        part: usize,
+        /// The page, from 0.
+        page: usize,
+        /// The rendering's width in pixels.
+        width: u32,
+        /// A rectangle of the rendering, in its pixels.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tile: Option<PdfTile>,
+    },
     /// The inline part `Content-ID: <cid>`, decoded as an image.
     Inline {
         /// The body's blob key.
@@ -73,6 +97,19 @@ pub enum BlobRequest {
         /// The part's Content-ID, without angle brackets.
         cid: String,
     },
+}
+
+/// A rectangle of a PDF page's rendering, in its pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PdfTile {
+    /// Left edge.
+    pub x: u32,
+    /// Top edge.
+    pub y: u32,
+    /// Width.
+    pub w: u32,
+    /// Height.
+    pub h: u32,
 }
 
 /// `background`'s argument: work a job or a service runs while the app may be off screen.

@@ -7,7 +7,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use hayro::hayro_interpret::InterpreterSettings;
 use hayro::hayro_interpret::util::TransformExt;
-use hayro::hayro_syntax::{Pdf, PdfData};
+use hayro::hayro_syntax::Pdf;
+/// A PDF's bytes, shared rather than copied between calls.
+pub use hayro::hayro_syntax::PdfData;
 use hayro::kurbo::Affine;
 use hayro::vello_cpu::color::palette::css::WHITE;
 use hayro::vello_cpu::{Pixmap, RasterizerSettings, RenderContext, Resources, TargetInit};

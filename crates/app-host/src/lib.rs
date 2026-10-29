@@ -15,7 +15,7 @@ pub mod outgoing;
 pub mod platform;
 
 pub use config::{
-    BackendChoice, BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task,
+    BackendChoice, BlobRequest, Config, DebugTask, ImportTask, NotificationTask, PdfTile, Task,
 };
 pub use error::HostError;
 pub use host::{Alert, Host, Output};

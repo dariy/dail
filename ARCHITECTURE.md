@@ -1534,8 +1534,12 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   runtime threads) says a new frame is ready.
 - **`blob(BlobRequest)`** (IO threads, blocks): `{attachment: {blob, part}}` as stored, `{text: {blob, part}}` as
   `app_mobile::preview_text`, or `{image: {blob, part}}` /
-  `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA; `None`
-  if it cannot be read or decoded.
+  `{inline: {blob, cid}}` decoded by `app_io::images` into width and height (two little-endian `u32`) then RGBA;
+  `{pdf_pages: {blob, part}}` as JSON `{"pages": [[w, h], …], "max_side", "max_width", "tile_max"}` (points as shown,
+  limits in pixels) and `{pdf_page: {blob, part, page, width, tile?: {x, y, w, h}}}` rendered by `app_io::pdf` into
+  the same image format (ADR 0012). The host keeps the open preview's PDF bytes (one entry, keyed by `(blob, part)`,
+  dropped when no preview shows) and runs one PDF job at a time on a blocking thread, within 10 s. `None` if it cannot
+  be read, decoded or rendered in time.
 - **`import(draft, name, source)`** (IO threads, blocks while it copies): a picked or shared file. Kotlin opens the
   content URI and passes `/proc/self/fd/<n>`, so Rust reads it without a new JNI call; `app_host::outgoing` copies it into
   `<outgoing_dir>/<32 hex digits>/` under `safe_file_name(name)`, at most 25 MiB (`MAX_ATTACHMENT_BYTES`; a larger file
