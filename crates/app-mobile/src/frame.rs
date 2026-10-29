@@ -590,6 +590,9 @@ pub enum PreviewKind {
     Image,
     /// Cleaned text from the host (`blob`'s `text` request: UTF-8).
     Text,
+    /// PDF pages rendered by the host (`blob`'s `pdf_pages`, then `pdf_page` for each page and
+    /// tile; ADR 0012).
+    Pdf,
     /// Not shown; it can be saved.
     None,
 }
@@ -611,6 +614,9 @@ pub struct Preview {
     /// What to say instead of the content (no preview for this type).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// What to say when the host cannot load the content (a picture, a page or the text).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub failed: Option<String>,
     /// *Save*.
     pub save: Button,
     /// Closes it.

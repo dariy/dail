@@ -1,6 +1,7 @@
 package net.darii.dail.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,14 +34,21 @@ import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.float
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 import net.darii.dail.ui.viewer.Limits
 import net.darii.dail.ui.viewer.PageCanvas
 import net.darii.dail.ui.viewer.PageImages
 import net.darii.dail.ui.viewer.PageSize
+import net.darii.dail.ui.viewer.TileRect
 import net.darii.dail.ui.viewer.ViewerState
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -155,7 +163,7 @@ private fun PictureViewer(
         is Loaded.Done -> {
             val bitmap = picture.value
             if (bitmap == null) {
-                Text("This picture could not be shown.", modifier.padding(12.dp))
+                Text(preview.failed ?: "", modifier.padding(12.dp))
                 return
             }
             val scope = rememberCoroutineScope()
@@ -175,6 +183,128 @@ private fun PictureViewer(
                 modifier = modifier,
                 gap = 0.dp,
             )
+        }
+    }
+}
+
+/** `blob`'s `pdf_pages` answer: the page sizes in points and the host's limits. */
+internal fun pdfPages(bytes: ByteArray): Pair<List<PageSize>, Limits>? =
+    runCatching {
+        val json = Json.parseToJsonElement(bytes.decodeToString()).jsonObject
+        val pages =
+            json.getValue("pages").jsonArray.map {
+                val size = it.jsonArray
+                PageSize(size[0].jsonPrimitive.float, size[1].jsonPrimitive.float)
+            }
+        val limits =
+            Limits(
+                maxSide = json.getValue("max_side").jsonPrimitive.int,
+                maxWidth = json.getValue("max_width").jsonPrimitive.int,
+                tileMax = json.getValue("tile_max").jsonPrimitive.int,
+                tiles = true,
+            )
+        pages to limits
+    }.getOrNull()?.takeIf { it.first.isNotEmpty() }
+
+/** A `pdf_page` request: [page] rendered [width] pixels wide, or the [tile] of it. */
+internal fun pdfPageRequest(
+    blob: String,
+    part: Int,
+    page: Int,
+    width: Int,
+    tile: TileRect?,
+) = buildJsonObject {
+    putJsonObject("pdf_page") {
+        put("blob", blob)
+        put("part", part)
+        put("page", page)
+        put("width", width)
+        tile?.let {
+            putJsonObject("tile") {
+                put("x", it.x)
+                put("y", it.y)
+                put("w", it.w)
+                put("h", it.h)
+            }
+        }
+    }
+}
+
+/** At most 96 MiB of rendered pages and tiles, and less on a small heap. */
+private fun imageBudget(): Int = minOf(96L shl 20, Runtime.getRuntime().maxMemory() / 4).toInt()
+
+/**
+ * A PDF as one zoomable column: base images at the fit width for the pages in and near view, and
+ * once zoomed in, tiles of the visible area, nearest first. "Page n of m" follows the scroll.
+ */
+@Composable
+private fun PdfViewer(
+    preview: Preview,
+    modifier: Modifier,
+) {
+    val blobs = LocalBlobs.current
+    val request = blobRequest("pdf_pages", preview.blob, part = preview.part)
+    val loaded by produceState<Loaded<Pair<List<PageSize>, Limits>>>(Loaded.Loading, request) {
+        value =
+            Loaded.Done(
+                withContext(blobLane) {
+                    try {
+                        blobs(request)?.let(::pdfPages)
+                    } catch (_: OutOfMemoryError) {
+                        null
+                    }
+                },
+            )
+    }
+    when (val doc = loaded) {
+        Loaded.Loading -> {
+            CircularProgressIndicator(modifier.wrapContentSize())
+        }
+
+        is Loaded.Done -> {
+            val (pages, limits) =
+                doc.value ?: run {
+                    Text(preview.failed ?: "", modifier.padding(12.dp))
+                    return
+                }
+            val scope = rememberCoroutineScope()
+            val state = remember(doc) { ViewerState(pages, limits) }
+            val images =
+                remember(doc) {
+                    PageImages(scope, imageBudget()) { r ->
+                        loadBitmap(blobs, pdfPageRequest(preview.blob, preview.part, r.key.page, r.width, r.tile))
+                    }
+                }
+            DisposableEffect(images) { onDispose { images.close() } }
+            Box(modifier) {
+                PageCanvas(
+                    state,
+                    images,
+                    background = MaterialTheme.colorScheme.surfaceContainer,
+                    paper = Color.White,
+                    still = rememberStill(),
+                )
+                val current = state.currentPage
+                // read the failures so a failed page shows its text
+                images.failures
+                val label =
+                    if (images.failed(current)) {
+                        preview.failed ?: ""
+                    } else {
+                        "Page ${current + 1} of ${pages.size}"
+                    }
+                Surface(
+                    Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                ) {
+                    Text(
+                        label,
+                        Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
         }
     }
 }
@@ -202,6 +332,10 @@ fun PreviewScreen(
                     PictureViewer(preview, Modifier.fillMaxSize())
                 }
 
+                PreviewKind.Pdf -> {
+                    PdfViewer(preview, Modifier.fillMaxSize())
+                }
+
                 PreviewKind.Text -> {
                     val request = blobRequest("text", preview.blob, part = preview.part)
                     when (val text = rememberBlob(request) { it.decodeToString() }) {
@@ -211,7 +345,7 @@ fun PreviewScreen(
 
                         is Loaded.Done -> {
                             Text(
-                                text.value ?: "The file could not be read.",
+                                text.value ?: preview.failed ?: "",
                                 body.verticalScroll(rememberScrollState()),
                                 fontFamily = FontFamily.Monospace,
                                 style = MaterialTheme.typography.bodySmall,

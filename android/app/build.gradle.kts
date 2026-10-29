@@ -57,7 +57,7 @@ android {
         create("demo") {
             dimension = "backend"
             applicationIdSuffix = ".demo"
-            buildConfigField("String", "BACKEND", "\"{\\\"memory\\\": \\\"basic\\\"}\"")
+            buildConfigField("String", "BACKEND", "\"{\\\"memory\\\": \\\"media\\\"}\"")
         }
     }
 

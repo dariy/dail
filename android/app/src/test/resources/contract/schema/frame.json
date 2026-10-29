@@ -1405,6 +1405,13 @@
           "description": "The MIME type and the size.",
           "type": "string"
         },
+        "failed": {
+          "description": "What to say when the host cannot load the content (a picture, a page or the text).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "kind": {
           "$ref": "#/$defs/PreviewKind",
           "description": "How to show it."
@@ -1453,6 +1460,11 @@
         {
           "const": "text",
           "description": "Cleaned text from the host (`blob`'s `text` request: UTF-8).",
+          "type": "string"
+        },
+        {
+          "const": "pdf",
+          "description": "PDF pages rendered by the host (`blob`'s `pdf_pages`, then `pdf_page` for each page and\ntile; ADR 0012).",
           "type": "string"
         },
         {

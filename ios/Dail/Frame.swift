@@ -288,7 +288,7 @@ struct InlineImage: Codable {
     let cid: String
 }
 
-enum PreviewKind: String, Codable { case image, text, none }
+enum PreviewKind: String, Codable { case image, text, pdf, none }
 
 /// A received attachment shown in the app; other apps get it only through Save.
 struct AttachmentPreview: Codable {
@@ -298,6 +298,7 @@ struct AttachmentPreview: Codable {
     let blob: String
     let part: Int
     let note: String?
+    let failed: String?
     let save: ActionButton
     let close: ActionButton
 }

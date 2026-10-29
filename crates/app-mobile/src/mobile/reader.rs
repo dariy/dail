@@ -611,16 +611,32 @@ pub fn preview_text(bytes: &[u8]) -> String {
     out
 }
 
-/// How an attachment of type `mime` is shown (HTML is not shown as its source, as on the
-/// desktop).
-fn preview_kind(mime: &str) -> PreviewKind {
+/// How attachment `name` of type `mime` is shown: the picture formats `app_io::images` decodes,
+/// PDF (ADR 0012), text but HTML (not shown as its source, as on the desktop). A file sent as
+/// `application/octet-stream` is judged by its extension.
+fn preview_kind(mime: &str, name: &str) -> PreviewKind {
     let mime = mime.trim().to_ascii_lowercase();
-    if mime.starts_with("image/") {
-        PreviewKind::Image
-    } else if mime.starts_with("text/") && !mime.starts_with("text/html") {
-        PreviewKind::Text
-    } else {
-        PreviewKind::None
+    let mime = mime.split(';').next().unwrap_or_default().trim();
+    let by_type = match mime {
+        "image/png" | "image/jpeg" | "image/jpg" | "image/pjpeg" | "image/gif" | "image/webp" => {
+            PreviewKind::Image
+        }
+        "application/pdf" | "application/x-pdf" => PreviewKind::Pdf,
+        _ if mime.starts_with("text/") && mime != "text/html" => PreviewKind::Text,
+        _ => PreviewKind::None,
+    };
+    if mime != "application/octet-stream" {
+        return by_type;
+    }
+    let extension = name
+        .rsplit_once('.')
+        .map(|(_, ext)| ext.to_ascii_lowercase())
+        .unwrap_or_default();
+    match extension.as_str() {
+        "png" | "jpg" | "jpeg" | "gif" | "webp" => PreviewKind::Image,
+        "pdf" => PreviewKind::Pdf,
+        "txt" => PreviewKind::Text,
+        _ => PreviewKind::None,
     }
 }
 
@@ -639,7 +655,7 @@ impl Mobile {
             .iter()
             .find(|a| a.part == part)?
             .clone();
-        let kind = preview_kind(&file.content_type);
+        let kind = preview_kind(&file.content_type, &file.name);
         let save = SaveFile {
             part,
             name: file.name.clone(),
@@ -665,6 +681,13 @@ impl Mobile {
                 "dail does not show this kind of file. Save it to open it in another app."
                     .to_owned()
             }),
+            failed: match kind {
+                PreviewKind::Image => Some("This picture could not be shown."),
+                PreviewKind::Pdf => Some("This page could not be shown."),
+                PreviewKind::Text => Some("The file could not be read."),
+                PreviewKind::None => None,
+            }
+            .map(str::to_owned),
             save,
             close,
         })
