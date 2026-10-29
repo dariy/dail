@@ -83,6 +83,13 @@ CMaps (BSD-3-Clause) and the CGATS001 ICC profile (CC0). `cargo xtask android li
 
 - A failed allocation still aborts the process, and a decompression bomb inside hayro is not bounded yet (upstream
   PR #1663 is open). The preview is not restored on restart, so such a file cannot crash-loop the app.
+- Two fuzz regressions are not bounded at the pinned commit and are `#[ignore]` tests in
+  `crates/app-io/tests/it/pdf.rs`: `ccitt_huge_columns_allocation_aborts` (CCITT `/Columns 4294967295` makes
+  hayro-ccitt ask for 32 GiB, which aborts) and `a_huge_image_takes_seconds` (a 2³¹ × 2³¹ image header costs 3.8 s
+  optimized before it is refused). Run them by hand after every hayro bump.
+- Upstream's recursive `<<`/`>>` reader does not overflow in dail's optimized builds today, because LLVM turns the
+  tail call into a loop; nothing guarantees that, so the vendored fix makes the loop explicit and its unit tests
+  (the `vendor` gate) run unoptimized.
 - A render cannot be interrupted; the single permit and the timeout bound what a hostile file costs.
 - Future hardening: render in an isolated Android process, as Chrome does with PDFium.
 - The git dependency and the vendored crate must be followed by hand until a release lands.
@@ -90,5 +97,8 @@ CMaps (BSD-3-Clause) and the CGATS001 ICC profile (CC0). `cargo xtask android li
 
 ### Measurements
 
-To be filled in by the `app_io::pdf` commit: page and tile render time on the emulator, the size change of
-`libdail.so` and the APK, and the new crates in `cargo tree -p app-android -e normal --target aarch64-linux-android`.
+- Render time (release, x86_64 desktop, `pdf::render_times`): an A4 page at 1080 px 11 ms, at 4096 px 71 ms; a
+  1024² tile cut from a 16384 px page 7 ms. Emulator numbers come with the host commit.
+- New crates linked by `libdail.so`: 33 (the hayro family, vello_cpu/vello_common, kurbo, peniko, skrifa, zune-jpeg,
+  pic-scale, fearless_simd, flate2 with zlib-rs and their helpers; `crates/app-mobile/licences/rust-crates.txt`).
+- Size: measured once the host calls `app_io::pdf` (until then the linker drops it).

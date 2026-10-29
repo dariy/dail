@@ -87,9 +87,14 @@ fn about_shows_the_licences_and_back_closes_it() {
             "JetBrains Mono",
             "Material Symbols",
             "Rust crates",
-            "Android libraries"
+            "Android libraries",
+            "PDF fonts and CMaps"
         ]
     );
+    // ADR 0012: the data hayro embeds.
+    assert!(licences[5].text.contains("Foxit"));
+    assert!(licences[5].text.contains("Adobe"));
+    assert!(crates_have(&licences[3].text, "hayro "));
     assert!(licences[0].text.contains("SIL OPEN FONT LICENSE"));
     // What `libdail.so` links, and nothing that only builds or tests it.
     let crates = &licences[3].text;
@@ -179,4 +184,8 @@ fn a_mailbox_opened_from_the_drawer_closes_about() {
     let frame = phone.frame();
     assert!(frame.about.is_none(), "About gives way to the mailbox");
     assert_eq!(frame.list.unwrap().title, "Sent");
+}
+
+fn crates_have(list: &str, prefix: &str) -> bool {
+    list.lines().any(|line| line.starts_with(prefix))
 }

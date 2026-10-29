@@ -6,6 +6,7 @@ mod config;
 mod images;
 mod mime;
 mod original;
+mod pdf;
 mod scale;
 mod store;
 mod update;

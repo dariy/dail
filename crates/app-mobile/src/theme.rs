@@ -177,12 +177,16 @@ pub fn about() -> About {
         name: "Android libraries".to_owned(),
         text: include_str!("../licences/android-libraries.txt").to_owned(),
     });
+    licences.push(Licence {
+        name: "PDF fonts and CMaps".to_owned(),
+        text: include_str!("../licences/pdf-assets.txt").to_owned(),
+    });
     About {
         title: about_title(),
         // The phone has no MCP server and no keyboard-first use: neither is said here (MISC-13).
         text: format!(
             "Email client for IMAP and SMTP accounts ({}). The app bundles these typefaces, \
-             icons, Rust crates and Android libraries under their licences (SPDX identifiers: \
+             icons, PDF fonts, Rust crates and Android libraries under their licences (SPDX identifiers: \
              name, version, licence).",
             env!("CARGO_PKG_LICENSE")
         ),
