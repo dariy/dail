@@ -731,7 +731,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 - [x] MISC-18 [mobile][kt][ios]: the open message is a page from the right on compact windows (`layout.page`), a swipe
   right goes back; pulling past its top or bottom turns to the previous or next conversation; `Reader.previous` /
   `next` carry a peek (sender, subject, date)
-- [ ] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
+- [x] MISC-19 [io][host][mobile][kt][ios]: JPG and PDF attachments in the app with pinch and double-tap zoom;
   oversized JPEGs downscaled, EXIF orientation; PDF pages and zoom tiles by `hayro` (upstream `main` + a vendored
   `hayro-postscript` fix) in `app_io::pdf` (ADR 0012); Android viewer adapted from pdfcraft-android; iOS preview
   through `dail_blob`
@@ -755,6 +755,10 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 - Native Gmail labels (`X-GM-LABELS`, `X-GM-THRID`); optional Gmail API backend
 - JMAP backend (Fastmail, Stalwart) with push
 - Exchange/M365 via Graph API
+
+**Dependencies**
+- hayro back to crates.io once a release carries the fixes; drop the vendored `hayro-postscript` once upstream reads
+  `<<`/`>>` without recursion (`vendor/README.md`, ADR 0012)
 
 **Automation (ArtCraft dividends)**
 - Rules engine: predicate + stored command batch, run on `EnvelopesFetched` (a server-side-filter alternative)

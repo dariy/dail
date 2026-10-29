@@ -101,7 +101,7 @@ final class Host: ObservableObject {
         publish(.ready(answer.frame, theme))
         let externals = answer.externals ?? []
         if !externals.isEmpty {
-            DispatchQueue.main.async { externals.forEach(Self.perform) }
+            DispatchQueue.main.async { externals.forEach(self.perform) }
         }
     }
 
@@ -109,10 +109,12 @@ final class Host: ObservableObject {
         DispatchQueue.main.async { self.screen = screen }
     }
 
-    /// What only the host can do; the rest waits for later items (files, schedules).
+    /// What only the host can do; the rest waits for later items (schedules).
     @MainActor
-    private static func perform(_ external: External) {
+    private func perform(_ external: External) {
         switch external.external {
+        case "save_files":
+            if let blob = external.args?.blob, let files = external.args?.files, !files.isEmpty { save(blob: blob, files: files) }
         case "copy":
             if let text = external.args?.text { UIPasteboard.general.string = text }
         case "open_url":
@@ -127,8 +129,58 @@ final class Host: ObservableObject {
         }
     }
 
+    /// *Save* and *Save all*: each attachment read with `blob`'s `attachment` request into a
+    /// private temporary folder, then the system's exporter copies them where the user picks.
+    /// The folder is removed when the exporter closes.
+    @MainActor
+    private func save(blob: String, files: [SaveFile]) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("save-\(UUID().uuidString)", isDirectory: true)
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let urls: [URL] = files.compactMap { file in
+                let request: JSON = .object(["attachment": .object(["blob": .string(blob), "part": .number(Double(file.part))])])
+                guard let data = self.blob(request) else { return nil }
+                // the host made the name safe (app_io::mime::safe_file_name)
+                let url = folder.appendingPathComponent(file.name)
+                return (try? data.write(to: url, options: .completeFileProtection)) != nil ? url : nil
+            }
+            DispatchQueue.main.async {
+                guard !urls.isEmpty, let root = Self.topController() else {
+                    try? FileManager.default.removeItem(at: folder)
+                    return
+                }
+                let picker = UIDocumentPickerViewController(forExporting: urls, asCopy: true)
+                let cleanup = Cleanup(folder: folder)
+                picker.delegate = cleanup
+                objc_setAssociatedObject(picker, &Cleanup.key, cleanup, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+                root.present(picker, animated: true)
+            }
+        }
+    }
+
+    @MainActor
+    private static func topController() -> UIViewController? {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        var top = scene?.windows.first { $0.isKeyWindow }?.rootViewController
+        while let presented = top?.presentedViewController { top = presented }
+        return top
+    }
+
     private static func error(_ answer: JSON) -> String {
         if case let .object(fields) = answer, case let .string(error)? = fields["error"] { return error }
         return answer.text
     }
+}
+
+/// Removes the exported files' temporary folder when the exporter closes.
+private final class Cleanup: NSObject, UIDocumentPickerDelegate {
+    static var key: UInt8 = 0
+    let folder: URL
+
+    init(folder: URL) { self.folder = folder }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { remove() }
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) { remove() }
+
+    private func remove() { try? FileManager.default.removeItem(at: folder) }
 }

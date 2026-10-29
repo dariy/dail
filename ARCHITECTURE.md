@@ -1703,7 +1703,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   a `CATiledLayer` above it whose `draw` asks for `pdf_page` tiles off the main thread) with "Page n of m", or the text
   monospaced. `Host.blob` runs `dail_blob` on a serial "dail-blob" queue, never on main or dail-ui; views get it as
   the `\.blobs` environment value. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
-  `copy`, `open_url`, `haptic` and `system_settings`; the file ones wait for the compose wave.
+  `copy`, `open_url`, `haptic`, `system_settings` and `save_files` (each file read with `blob`'s `attachment`
+  request into a private temporary folder, then `UIDocumentPickerViewController(forExporting:asCopy: true)`; the
+  folder is removed when it closes); the other file ones wait for the compose wave.
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
   (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
   moves; leaving a field sends `blur`. Setup fields take their keyboard, autofill and capitalisation from `InputKind`,
