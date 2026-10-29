@@ -305,7 +305,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "app-android"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "android-native-keyring-store",
  "app-core",
@@ -323,7 +323,7 @@ dependencies = [
 
 [[package]]
 name = "app-cli"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "app-core",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "app-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "indexmap",
  "insta",
@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "app-front"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-testkit",
@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "app-gui"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-front",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "app-host"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-io",
@@ -409,7 +409,7 @@ dependencies = [
 
 [[package]]
 name = "app-io"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "ammonia",
  "app-core",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "app-ios"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-host",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "app-mcp"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-sync",
@@ -471,7 +471,7 @@ dependencies = [
 
 [[package]]
 name = "app-mobile"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-front",
@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "app-sync"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-io",
@@ -514,7 +514,7 @@ dependencies = [
 
 [[package]]
 name = "app-testkit"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-io",
@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "app-theme"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -538,7 +538,7 @@ dependencies = [
 
 [[package]]
 name = "app-tls"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chacha20poly1305",
  "getrandom 0.4.3",
@@ -555,7 +555,7 @@ dependencies = [
 
 [[package]]
 name = "app-tui"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "app-core",
  "app-front",
@@ -7744,7 +7744,7 @@ checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
 
 [[package]]
 name = "xtask"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "minisign",
