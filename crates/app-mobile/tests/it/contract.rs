@@ -93,6 +93,10 @@ fn frames() -> Vec<(String, Frame)> {
     let open = phone.frame().reader.unwrap().messages[0].attachments[0].open;
     phone.tap(open);
     out.push(("preview".to_owned(), phone.frame()));
+    phone.event(app_mobile::UiEvent::Back);
+    let open = phone.frame().reader.unwrap().messages[0].attachments[2].open;
+    phone.tap(open);
+    out.push(("preview_pdf".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::SetSearch {
         query: "lunch".to_owned(),

@@ -386,17 +386,23 @@ pub fn sample_document() -> app_core::document::Document {
     }
 }
 
-/// The fixture's newest thread open, its first message fetched (blob `b0`) with three
-/// attachments and the sample document.
+/// The fixture's newest thread open, its first message fetched (blob `b0`) with six
+/// attachments (a picture, text, a PDF, a zip, and a PDF and a JPEG sent as octet-stream) and
+/// the sample document.
 pub fn with_files() -> Phone {
-    let phone = Phone::inbox(360, 800);
+    with_files_at(360, 800)
+}
+
+/// [`with_files`] in a window of `width` × `height`.
+pub fn with_files_at(width: u32, height: u32) -> Phone {
+    let phone = Phone::inbox(width, height);
     let (_, threads) = inbox_of(phone.state());
     let mut state = phone.state().clone();
     let first = state.threads[&threads[0]].messages[0];
     state.messages.get_mut(&first).unwrap().body = app_core::BodyState::Fetched {
         blob: "b0".to_owned(),
     };
-    let mut phone = Phone::new(state, 360, 800);
+    let mut phone = Phone::new(state, width, height);
     let (inbox, _) = inbox_of(phone.state());
     phone.dispatch(Command::OpenMailbox { id: inbox });
     let mut body = html_body("Q3 numbers", &sample_document());
@@ -405,6 +411,9 @@ pub fn with_files() -> Phone {
         {"part": 3, "filename": "notes.txt", "content_type": "text/plain", "size": 12},
         {"part": 4, "filename": "q3.pdf", "content_type": "application/pdf", "size": 120_000},
         {"part": 5, "filename": "logo.png", "content_type": "image/png", "size": 10, "inline": true},
+        {"part": 6, "filename": "archive.zip", "content_type": "application/zip", "size": 5000},
+        {"part": 7, "filename": "scan.PDF", "content_type": "application/octet-stream", "size": 9000},
+        {"part": 8, "filename": "photo.jpg", "content_type": "application/octet-stream", "size": 9000},
     ]);
     phone.bodies = Some(vec![body]);
     phone.dispatch(Command::OpenThread { id: threads[0] });

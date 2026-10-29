@@ -264,6 +264,9 @@ enum class PreviewKind {
     @SerialName("text")
     Text,
 
+    @SerialName("pdf")
+    Pdf,
+
     @SerialName("none")
     None,
 }
@@ -277,6 +280,7 @@ data class Preview(
     val blob: String,
     val part: Int,
     val note: String? = null,
+    val failed: String? = null,
     val save: Button,
     val close: Button,
 )

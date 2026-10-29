@@ -1441,7 +1441,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Attachments and pictures.** An expanded message lists its attachments (not the inline parts): a tap opens
   `preview` over the panes, a picture (`kind: image`, the host's `blob` `image` request decoded by `app_io::images`),
   text (`kind: text`, not HTML: `blob`'s `text` request, which answers `app_mobile::preview_text` — UTF-8, at most
-  256 KiB, every line cleaned) or a note that dail does not show the type. There is no "open with": other apps get a
+  256 KiB, every line cleaned), PDF pages (`kind: pdf`: `blob`'s `pdf_pages`, then `pdf_page` for base images and
+  zoom tiles, ADR 0012) or a note that dail does not show the type. The kind comes from the MIME type (PNG, JPEG, GIF,
+  WebP; `application/pdf`; text but HTML), and from the extension for `application/octet-stream`. `failed` is the
+  text shown when the host cannot load it. Pictures and PDFs zoom (pinch, double tap fit ↔ 2.5×, pan; up to 5×):
+  Android's viewer (`ui/viewer/`) is adapted from pdfcraft-android (MIT, credited in About); PDFs show "Page n of m".
+  No Compose button floats over a preview. There is no "open with": other apps get a
   file only through *Save*. *Save* (one file) and *Save all (N)* ask for `External::SaveFiles{blob, files}`; the host
   replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin reads each file with
   `blob`'s `attachment` request into a document the Storage Access Framework creates: one file through the "create
@@ -1586,7 +1591,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   dependencies' cdylibs) in `build/rustJniLibs/<variant>`, a generated jniLibs directory. So `./gradlew assembleDemoDebug`
   and Android Studio build everything.
 - **Flavours.** `live` (the profile, the keyring, the servers) and `demo` (`net.darii.dail.demo`: the memory backend
-  with the `basic` fixture, like the GUI's demo); `BuildConfig.BACKEND` is `open`'s `backend`.
+  with the `media` fixture (`basic` plus a photo and PDFs, MISC-19); `BuildConfig.BACKEND` is `open`'s `backend`.
 - **Classes.** `Native` (the six calls) and `Listener`; `DailApplication` holds the `Host`, opened on first use; `Host`
   runs `open`, `event` and `frame` on one thread, "dail-ui", and publishes the decoded frame as a `StateFlow`;
   `MainActivity` draws it edge to edge, sends `configure` on every configuration change, `visible` on start and stop,

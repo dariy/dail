@@ -920,6 +920,8 @@ impl Mobile {
         if preview.is_none() {
             self.preview = None;
         }
+        // Nothing floats over a preview (its pages zoom under the whole screen).
+        let fab = fab.filter(|_| preview.is_none());
         let back = self.about
             || setup.is_some()
             || palette.is_some()

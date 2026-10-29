@@ -184,6 +184,18 @@ fn no_frame_carries_unsafe_characters() {
         assert_clean(&frame, "a preview");
         phone.event(UiEvent::Back);
 
+        // A poisoned PDF's preview (MISC-19).
+        let frame = phone.frame();
+        let open = frame.reader.as_ref().unwrap().messages[0].attachments[1].open;
+        phone.tap(open);
+        let frame = phone.frame();
+        assert_eq!(
+            frame.preview.as_ref().map(|p| p.kind),
+            Some(app_mobile::frame::PreviewKind::Pdf)
+        );
+        assert_clean(&frame, "a PDF preview");
+        phone.event(UiEvent::Back);
+
         // The poisoned thread as the peek of the thread beside it (MISC-18).
         let rows: Vec<ThreadId> = phone
             .frame()

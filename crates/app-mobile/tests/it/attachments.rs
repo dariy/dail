@@ -1,4 +1,4 @@
-//! Received attachments and pictures: previews in the app (image, text, none), *Save* and *Save
+//! Received attachments and pictures: previews in the app (image, text, PDF, none), *Save* and *Save
 //! all* through the host's pickers, no "open with", and inline pictures only for senders in
 //! `images_from`.
 
@@ -27,13 +27,25 @@ fn attachments_preview_by_kind_and_save_through_the_host() {
         .collect();
     assert_eq!(
         names,
-        ["chart.png", "notes.txt", "q3.pdf"],
+        [
+            "chart.png",
+            "notes.txt",
+            "q3.pdf",
+            "archive.zip",
+            "scan.PDF",
+            "photo.jpg"
+        ],
         "inline parts are not listed"
     );
-    for (i, kind) in [PreviewKind::Image, PreviewKind::Text, PreviewKind::None]
-        .into_iter()
-        .enumerate()
-    {
+    let kinds = [
+        PreviewKind::Image,
+        PreviewKind::Text,
+        PreviewKind::Pdf,
+        PreviewKind::None,
+        PreviewKind::Pdf,
+        PreviewKind::Image,
+    ];
+    for (i, kind) in kinds.into_iter().enumerate() {
         let message = first(&mut phone);
         assert!(phone.tap(message.attachments[i].open).is_empty());
         let frame = phone.frame();
@@ -44,6 +56,13 @@ fn attachments_preview_by_kind_and_save_through_the_host() {
             ("b0", message.attachments[i].part)
         );
         assert_eq!(preview.note.is_some(), kind == PreviewKind::None);
+        let failed = match kind {
+            PreviewKind::Image => Some("This picture could not be shown."),
+            PreviewKind::Pdf => Some("This page could not be shown."),
+            PreviewKind::Text => Some("The file could not be read."),
+            PreviewKind::None => None,
+        };
+        assert_eq!(preview.failed.as_deref(), failed);
         assert!(frame.back);
         phone.take();
         assert!(phone.event(app_mobile::UiEvent::Back).is_empty());
@@ -63,11 +82,11 @@ fn attachments_preview_by_kind_and_save_through_the_host() {
         }]
     );
     let all = message.save_all.unwrap();
-    assert_eq!(all.label, "Save all (3)");
+    assert_eq!(all.label, "Save all (6)");
     phone.tap(all.action);
     let externals = phone.externals();
     assert!(
-        matches!(&externals[..], [External::SaveFiles { files, .. }] if files.len() == 3),
+        matches!(&externals[..], [External::SaveFiles { files, .. }] if files.len() == 6),
         "{externals:?}"
     );
 }
@@ -117,4 +136,15 @@ fn text_previews_are_cleaned_and_capped() {
     assert!(text.starts_with("ok") && text.contains("\nline "));
     let big = preview_text(&vec![b'a'; 300 * 1024]);
     assert!(big.ends_with('…') && big.len() < 300 * 1024);
+}
+
+#[test]
+fn nothing_floats_over_a_preview_on_a_tablet() {
+    let mut phone = crate::support::with_files_at(1280, 800);
+    assert!(phone.frame().fab.is_some(), "Compose floats over the panes");
+    let message = first(&mut phone);
+    phone.tap(message.attachments[2].open);
+    let frame = phone.frame();
+    assert_eq!(frame.preview.unwrap().kind, PreviewKind::Pdf);
+    assert!(frame.fab.is_none());
 }
