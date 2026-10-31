@@ -123,6 +123,7 @@ fn a_server_without_keywords_keeps_the_pin_on_the_device() {
             })
             .collect(),
         existing: None,
+        vanished: None,
         highest_modseq: None,
     });
     assert_eq!(order(&m)[0], old, "still pinned");

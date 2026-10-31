@@ -8,7 +8,7 @@ use crate::approval::ApprovalRequest;
 use crate::draft::{Draft, OutgoingMessage};
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, RemoteMailbox};
-use crate::message::{Envelope, RemoteEnvelope, Thread, UidFlags};
+use crate::message::{Envelope, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::ops::{PendingOp, RemoteStep};
 use crate::search::Query;
 use crate::state::ViewPrefs;
@@ -86,8 +86,9 @@ pub enum Event {
         /// New messages (and flag updates of known UIDs), ascending by UID.
         envelopes: Vec<RemoteEnvelope>,
     },
-    /// An [`Effect::ResyncFlags`] completed: the current flags of every UID in the range that
-    /// still exists. Cached UIDs in the range that are missing were expunged.
+    /// An [`Effect::ResyncFlags`] completed: the flags of the UIDs in the range, and which of
+    /// them were expunged. Without `existing` and `vanished`, `flags` lists every UID that still
+    /// exists, and cached UIDs in the range that are missing were expunged.
     FlagsChanged {
         /// The account.
         account: AccountId,
@@ -105,6 +106,11 @@ pub enum Event {
         /// the changed ones). Without, `flags` lists every existing UID.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         existing: Option<Vec<u32>>,
+        /// With QRESYNC, instead of `existing`: the UIDs of the range expunged since the
+        /// resync's `changed_since` (`VANISHED`). `flags` lists only the changed messages;
+        /// cached UIDs that are neither listed nor vanished still exist.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        vanished: Option<Vec<UidRange>>,
         /// The server's HIGHESTMODSEQ (CONDSTORE) at the resync.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         highest_modseq: Option<u64>,
@@ -566,7 +572,8 @@ pub enum Effect {
         /// Last UID.
         to_uid: u32,
         /// The mailbox's HIGHESTMODSEQ at the last resync: a CONDSTORE server then sends only
-        /// the flags that changed since (`CHANGEDSINCE`).
+        /// the flags that changed since (`CHANGEDSINCE`), a QRESYNC one also the UIDs expunged
+        /// since (`VANISHED`).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         changed_since: Option<u64>,
     },

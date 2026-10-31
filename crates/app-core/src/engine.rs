@@ -264,6 +264,7 @@ impl Engine {
                 to_uid,
                 flags,
                 existing,
+                vanished,
                 highest_modseq,
             } => Ok(self.ingest_flags_changed(
                 sync::ChangedFlags {
@@ -274,6 +275,7 @@ impl Engine {
                     to_uid,
                     flags,
                     existing,
+                    vanished,
                     highest_modseq,
                 },
                 ctx,

@@ -9,10 +9,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use app_core::{
-    Endpoint, MailboxRole, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, Security,
+    Endpoint, MailboxRole, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, Security, UidRange,
 };
-use async_imap::imap_proto::{Response, Status};
-use async_imap::types::{Fetch, Flag, NameAttribute};
+use async_imap::imap_proto::{Capability, Response, Status};
+use async_imap::types::{Fetch, Flag, NameAttribute, UnsolicitedResponse};
 use futures_util::TryStreamExt as _;
 use rustls::ClientConfig;
 use rustls::pki_types::ServerName;
@@ -509,10 +509,13 @@ fn flag_name(flag: &Flag<'_>) -> Option<String> {
 pub struct ResyncedFlags {
     /// The server's UIDVALIDITY.
     pub uid_validity: u32,
-    /// `(uid, flags)`: of every existing UID, or only of the changed ones with `existing`.
+    /// `(uid, flags)`: of every existing UID, or only of the changed ones with `existing` or
+    /// `vanished`.
     pub flags: Vec<(u32, Vec<String>)>,
     /// With CONDSTORE and a mod-sequence to start from: every UID of the range that exists.
     pub existing: Option<Vec<u32>>,
+    /// With QRESYNC instead: the UIDs of the range expunged since that mod-sequence.
+    pub vanished: Option<Vec<UidRange>>,
     /// The server's HIGHESTMODSEQ, if it has CONDSTORE.
     pub highest_modseq: Option<u64>,
 }
@@ -520,13 +523,16 @@ pub struct ResyncedFlags {
 /// Flags of the UIDs `from..=to` that still exist, after checking UIDVALIDITY. A CONDSTORE
 /// server is opened with `SELECT … (CONDSTORE)`; given `changed_since` (its HIGHESTMODSEQ at
 /// the last resync) only the flags changed since are fetched (`CHANGEDSINCE`), and
-/// `UID SEARCH UID from:to` tells which UIDs still exist.
+/// `UID SEARCH UID from:to` tells which UIDs still exist. With `qresync` (enabled on the
+/// session, [`enable_qresync`]) the fetch asks for `VANISHED` instead, the UIDs expunged since,
+/// unless async-imap's unsolicited queue overflowed meanwhile: then it searches after all.
 pub async fn fetch_flags(
     session: &mut ImapSession,
     path: &str,
     from: u32,
     to: u32,
     changed_since: Option<u64>,
+    qresync: bool,
 ) -> Result<ResyncedFlags, String> {
     let capabilities = session
         .capabilities()
@@ -552,6 +558,7 @@ pub async fn fetch_flags(
         uid_validity,
         flags: Vec::new(),
         existing: None,
+        vanished: None,
         highest_modseq,
     };
     if selected.exists == 0 || from > to {
@@ -559,21 +566,17 @@ pub async fn fetch_flags(
         return Ok(out);
     }
     let since = changed_since.filter(|_| highest_modseq.is_some());
+    let vanish = qresync && since.is_some();
     let query = match since {
+        Some(modseq) if vanish => format!("(UID FLAGS) (CHANGEDSINCE {modseq} VANISHED)"),
         Some(modseq) => format!("(UID FLAGS) (CHANGEDSINCE {modseq})"),
         None => "(UID FLAGS)".to_owned(),
     };
-    if since.is_some() {
-        let existing = session
-            .uid_search(format!("UID {from}:{to}"))
-            .await
-            .map_err(|err| format!("IMAP UID SEARCH in {path} failed: {err}"))?;
-        let mut existing: Vec<u32> = existing
-            .into_iter()
-            .filter(|uid| (from..=to).contains(uid))
-            .collect();
-        existing.sort_unstable();
-        out.existing = Some(existing);
+    if vanish {
+        // Whatever is queued came with earlier commands, maybe for another mailbox.
+        drain_unsolicited(session);
+    } else if since.is_some() {
+        out.existing = Some(existing_uids(session, path, from, to).await?);
     }
     let responses: Vec<Fetch> = session
         .uid_fetch(format!("{from}:{to}"), query)
@@ -592,7 +595,115 @@ pub async fn fetch_flags(
     flags.sort_by_key(|(uid, _)| *uid);
     flags.dedup_by_key(|(uid, _)| *uid);
     out.flags = flags;
+    if vanish {
+        if session.unsolicited_responses.is_full() {
+            // The queue drops what comes on top of it: a VANISHED may be lost.
+            tracing::debug!(path, "unsolicited responses overflowed; searching instead");
+            drain_unsolicited(session);
+            out.existing = Some(existing_uids(session, path, from, to).await?);
+        } else {
+            let unsolicited = drain_unsolicited(session);
+            out.vanished = Some(vanished_ranges(
+                unsolicited.iter().filter_map(|response| match response {
+                    UnsolicitedResponse::Other(data) => Some(data.parsed()),
+                    _ => None,
+                }),
+                from,
+                to,
+            ));
+        }
+    }
     Ok(out)
+}
+
+/// `UID SEARCH UID from:to`: the UIDs of the range that exist, ascending.
+async fn existing_uids(
+    session: &mut ImapSession,
+    path: &str,
+    from: u32,
+    to: u32,
+) -> Result<Vec<u32>, String> {
+    let existing = session
+        .uid_search(format!("UID {from}:{to}"))
+        .await
+        .map_err(|err| format!("IMAP UID SEARCH in {path} failed: {err}"))?;
+    let mut existing: Vec<u32> = existing
+        .into_iter()
+        .filter(|uid| (from..=to).contains(uid))
+        .collect();
+    existing.sort_unstable();
+    Ok(existing)
+}
+
+/// Turns QRESYNC (RFC 7162) on for a fresh session, if the server announces it: `ENABLE
+/// QRESYNC` is only allowed before the first `SELECT`. From then on the server reports
+/// expunges as `VANISHED` instead of `EXPUNGE`, so async-imap's expunge streams stay empty;
+/// nothing here reads them. Returns whether the server enabled it. A refusal leaves the
+/// session as it was; a broken connection is an error.
+pub async fn enable_qresync(session: &mut ImapSession) -> Result<bool, String> {
+    use async_imap::error::Error;
+    let capabilities = session
+        .capabilities()
+        .await
+        .map_err(|err| format!("IMAP CAPABILITY failed: {err}"))?;
+    if !capabilities.has_str("QRESYNC") {
+        return Ok(false);
+    }
+    drain_unsolicited(session);
+    match session.run_command_and_check_ok("ENABLE QRESYNC").await {
+        Ok(()) => {}
+        Err(Error::No(reason) | Error::Bad(reason)) => {
+            tracing::debug!(%reason, "the server refused ENABLE QRESYNC");
+            return Ok(false);
+        }
+        Err(err) => return Err(format!("IMAP ENABLE QRESYNC failed: {err}")),
+    }
+    // `* ENABLED QRESYNC` arrives as a list of capabilities.
+    Ok(drain_unsolicited(session).iter().any(|response| {
+        let UnsolicitedResponse::Other(data) = response else {
+            return false;
+        };
+        let Response::Capabilities(enabled) = data.parsed() else {
+            return false;
+        };
+        enabled.iter().any(
+            |capability| matches!(capability, Capability::Atom(name) if name.eq_ignore_ascii_case("QRESYNC")),
+        )
+    }))
+}
+
+/// Takes what async-imap queued as unsolicited responses. Nothing else reads the queue; it
+/// holds 100 and drops the rest without an error.
+fn drain_unsolicited(session: &ImapSession) -> Vec<UnsolicitedResponse> {
+    let mut out = Vec::new();
+    while let Ok(response) = session.unsolicited_responses.try_recv() {
+        out.push(response);
+    }
+    out
+}
+
+/// The UIDs of `from..=to` that the `VANISHED` responses among `responses` report expunged
+/// (with `(EARLIER)` or without), merged. The sets are clipped to the range, never walked: a
+/// server may report `1:4294967295`.
+fn vanished_ranges<'a, 'r: 'a>(
+    responses: impl IntoIterator<Item = &'a Response<'r>>,
+    from: u32,
+    to: u32,
+) -> Vec<UidRange> {
+    let mut ranges = Vec::new();
+    for response in responses {
+        let Response::Vanished { uids, .. } = response else {
+            continue;
+        };
+        for set in uids {
+            let set = UidRange::new(*set.start(), *set.end());
+            let (first, last) = (set.first.max(from), set.last.min(to));
+            if first <= last {
+                ranges.push(UidRange { first, last });
+            }
+        }
+    }
+    UidRange::merged(ranges)
 }
 
 /// The raw RFC 822 message with `uid`, without setting `\Seen`. Fails if UIDVALIDITY changed
@@ -1013,6 +1124,29 @@ pub async fn delete_draft(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vanished_sets_are_clipped_to_the_range_and_merged() {
+        let lines: [&[u8]; 5] = [
+            b"* VANISHED (EARLIER) 1:4294967295\r\n",
+            b"* VANISHED 12:10,30\r\n",
+            b"* VANISHED (EARLIER) 50:60\r\n",
+            b"* 3 EXISTS\r\n",
+            b"* VANISHED 7\r\n",
+        ];
+        let responses: Vec<Response<'_>> = lines
+            .iter()
+            .map(|line| Response::parse(line).unwrap().1)
+            .collect();
+        let r = |first, last| UidRange { first, last };
+        assert_eq!(
+            vanished_ranges(&responses[1..], 5, 40),
+            [r(7, 7), r(10, 12), r(30, 30)],
+            "reversed set read upwards, outside sets dropped"
+        );
+        assert_eq!(vanished_ranges(&responses, 5, 40), [r(5, 40)]);
+        assert_eq!(vanished_ranges(&responses[3..4], 1, 9), []);
+    }
 
     #[test]
     fn quoted_strings_are_escaped_and_stay_on_one_line() {

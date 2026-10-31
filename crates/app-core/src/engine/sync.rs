@@ -9,7 +9,7 @@ use crate::error::CoreError;
 use crate::event::{Effect, MailDelta, PersistDelta};
 use crate::ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, MailboxRole, RemoteMailbox, assign_roles};
-use crate::message::{BodyState, Flags, RemoteEnvelope, Thread, UidFlags};
+use crate::message::{BodyState, Flags, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::{AppState, SyncIssue};
 use crate::threading::{Placement, ThreadKey, Threader};
@@ -38,6 +38,7 @@ pub(super) struct ChangedFlags {
     pub to_uid: u32,
     pub flags: Vec<UidFlags>,
     pub existing: Option<Vec<u32>>,
+    pub vanished: Option<Vec<UidRange>>,
     pub highest_modseq: Option<u64>,
 }
 
@@ -742,6 +743,17 @@ impl Engine {
             .existing
             .as_ref()
             .map(|uids| uids.iter().copied().collect());
+        let vanished: Option<Vec<UidRange>> = changed
+            .vanished
+            .as_ref()
+            .map(|ranges| UidRange::merged(ranges.iter().copied()));
+        // Whether a cached UID the server did not list still exists: CONDSTORE lists the UIDs
+        // that exist, QRESYNC the ones that vanished; a full listing leaves none unlisted.
+        let unlisted_exists = |uid: u32| match (&existing, &vanished) {
+            (Some(existing), _) => existing.contains(&uid),
+            (None, Some(vanished)) => !UidRange::any_contains(vanished, uid),
+            (None, None) => false,
+        };
         let mut changes = CacheChanges::default();
         let mut updated = 0_usize;
         let mut expunged = 0_usize;
@@ -761,8 +773,8 @@ impl Engine {
         }
         for (id, uid) in cached {
             match current.get(&uid) {
-                // CONDSTORE: unchanged messages are not listed, but they exist.
-                None if existing.as_ref().is_some_and(|e| e.contains(&uid)) => {}
+                // CONDSTORE, QRESYNC: unchanged messages are not listed, but they exist.
+                None if unlisted_exists(uid) => {}
                 Some(flags) => {
                     let flags = self.with_pending_flags(id, *flags);
                     if let Some(envelope) = self.state.messages.get_mut(&id)

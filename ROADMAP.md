@@ -206,9 +206,10 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 **Sync & performance**
 - [x] IMAP IDLE push for INBOX (+ fallback polling)
 - [x] CONDSTORE fast resync: only the flags changed since the last resync (`CHANGEDSINCE`), expunges from a UID search
-- [ ] QRESYNC: VANISHED instead of the UID search. Needs `ENABLE QRESYNC` on its own connection (it turns every later
-  EXPUNGE response into VANISHED, which async-imap's expunge does not parse) and VANISHED read from async-imap's bounded
-  unsolicited channel
+- [x] QRESYNC: VANISHED instead of the UID search. `ENABLE QRESYNC` runs on the shared connection when it opens (no third
+  connection: the expunge responses it turns into VANISHED are never read); VANISHED comes from async-imap's bounded
+  unsolicited queue, drained after the SELECT, and an overflowed queue falls back to the search. A resync keeps its
+  mod-sequence only if it covered every cached message (the fix also closes a stale-flags race of CONDSTORE)
 - [x] Full mailbox backfill in background with progress; configurable window per mailbox
 - [x] 100k-message mailboxes: scale measurements (`app-core` and `app-gui` `scale` tests, `--release --ignored`); the
   fetch merge was quadratic (change lists, placeholder lookup): a 50k first fetch went from 13 s to 0.2 s
