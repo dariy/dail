@@ -494,14 +494,17 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    `max(server UIDNEXT, highest fetched UID + 1)`, so the next fetch is incremental. Changes persist as one `MailDelta`.
    A vanished mailbox or a removed account takes its messages (and emptied threads) with it.
 3. Flag resync for the cached window: after an incremental `EnvelopesFetched` (not a first fetch or a UIDVALIDITY reset) the
-   engine emits `ResyncFlags` for `lowest..=highest` cached UID (counted in `SyncStatus.pending`). The runtime runs
-   `UID FETCH from:to (UID FLAGS)` and reports `FlagsChanged`: cached UIDs in the range get their flags updated, cached UIDs the
-   server no longer has were expunged and are dropped (with emptied threads). A resync whose `uid_validity` no longer matches
-   the cache is ignored. CONDSTORE (`imap::fetch_flags`): a server that announces it is opened with `SELECT … (CONDSTORE)`
-   and the event carries its `highest_modseq`, which the mailbox keeps; the next `ResyncFlags` passes it as
-   `changed_since`, and the runtime fetches `UID FETCH from:to (UID FLAGS) (CHANGEDSINCE m)` (only the messages changed
-   since) plus `UID SEARCH UID from:to`, reported as `existing`: cached UIDs that are neither listed nor existing were
-   expunged, the others keep their flags. The modseq is stored only from a successful resync, so a failed one never skips
+   engine emits `ResyncFlags` for `lowest..=highest` cached UID, the ones just fetched included (counted in
+   `SyncStatus.pending`). The runtime runs `UID FETCH from:to (UID FLAGS)` and reports `FlagsChanged`: cached UIDs in the
+   range get their flags updated, cached UIDs the server no longer has were expunged and are dropped (with emptied threads).
+   A resync whose `uid_validity` no longer matches the cache is ignored. CONDSTORE (`imap::fetch_flags`): a server that
+   announces it is opened with `SELECT … (CONDSTORE)` and the event carries its `highest_modseq`, which the mailbox keeps;
+   the next `ResyncFlags` passes it as `changed_since`, and the runtime fetches `UID FETCH from:to (UID FLAGS)
+   (CHANGEDSINCE m)` (only the messages changed since) plus `UID SEARCH UID from:to`, reported as `existing`: cached UIDs
+   that are neither listed nor existing were expunged, the others keep their flags. The modseq is stored only from a
+   successful resync that covered every cached message of the mailbox: an account's effects run in order, so a message
+   outside the range was fetched before the resync's `SELECT` and merged after the resync was emitted, and a change in
+   between would lie below the new modseq forever (a stale flag). Then the old modseq stays; a failed resync never skips
    changes; a new UIDVALIDITY forgets it. QRESYNC (VANISHED instead of the search) is a separate roadmap item.
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not

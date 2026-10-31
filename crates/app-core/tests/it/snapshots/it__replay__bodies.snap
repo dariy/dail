@@ -761,7 +761,7 @@ expression: first
                 },
                 "mailbox": "00000000-0000-0005-0000-000000000000",
                 "path": "INBOX",
-                "to_uid": 2,
+                "to_uid": 3,
                 "uid_validity": 3
               },
               "effect": "resync_flags"

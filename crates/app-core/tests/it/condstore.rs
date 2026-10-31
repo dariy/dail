@@ -28,8 +28,20 @@ fn resync_of(effects: &[Effect]) -> Option<u64> {
     })
 }
 
-fn flags_changed(
+/// The UID range of the `ResyncFlags` among `effects`.
+fn range_of(effects: &[Effect]) -> Option<(u32, u32)> {
+    effects.iter().find_map(|e| match e {
+        Effect::ResyncFlags {
+            from_uid, to_uid, ..
+        } => Some((*from_uid, *to_uid)),
+        _ => None,
+    })
+}
+
+/// The answer to a resync of UIDs `from..=to` of INBOX.
+fn resynced(
     m: &Mail,
+    (from_uid, to_uid): (u32, u32),
     flags: Vec<UidFlags>,
     existing: Option<Vec<u32>>,
     modseq: Option<u64>,
@@ -38,12 +50,21 @@ fn flags_changed(
         account: m.account,
         mailbox: m.mailbox("INBOX"),
         uid_validity: 7,
-        from_uid: 1,
-        to_uid: 3,
+        from_uid,
+        to_uid,
         flags,
         existing,
         highest_modseq: modseq,
     }
+}
+
+fn flags_changed(
+    m: &Mail,
+    flags: Vec<UidFlags>,
+    existing: Option<Vec<u32>>,
+    modseq: Option<u64>,
+) -> Event {
+    resynced(m, (1, 3), flags, existing, modseq)
 }
 
 #[test]
@@ -102,6 +123,47 @@ fn only_changed_flags_are_listed_and_existing_tells_expunges() {
     );
     assert!(state.messages[&two].flags.flagged);
     assert!(!state.messages.contains_key(&three));
+}
+
+#[test]
+fn the_resync_after_a_fetch_covers_what_it_merged() {
+    let mut m = cached();
+    let outcome = m.fetch("INBOX", vec![mail(4, "d@x", None, "Four", true)]);
+    assert_eq!(range_of(&outcome.effects), Some((1, 4)));
+}
+
+#[test]
+fn a_resync_that_missed_a_cached_message_keeps_the_old_modseq() {
+    let mut m = cached();
+    let inbox = m.mailbox("INBOX");
+    let modseq = |m: &Mail| m.engine.state().mailboxes[&inbox].highest_modseq;
+    m.feed(flags_changed(&m, vec![], Some(vec![1, 2, 3]), Some(10)));
+    assert_eq!(modseq(&m), Some(10));
+
+    // A resync of 1–3 is under way when a fetch that ran before it merges UID 4: changes to
+    // UID 4 between that fetch and the resync's SELECT lie below the resync's modseq.
+    let next = m.fetch("INBOX", vec![]);
+    assert_eq!(range_of(&next.effects), Some((1, 3)));
+    m.fetch("INBOX", vec![mail(4, "d@x", None, "Four", true)]);
+    m.feed(flags_changed(&m, vec![], Some(vec![1, 2, 3]), Some(20)));
+    assert_eq!(modseq(&m), Some(10), "UID 4 was not covered");
+    let next = m.fetch("INBOX", vec![]);
+    assert_eq!(resync_of(&next.effects), Some(10));
+
+    // A resync that covers every cached message counts.
+    m.feed(resynced(
+        &m,
+        (1, 4),
+        vec![],
+        Some(vec![1, 2, 3, 4]),
+        Some(21),
+    ));
+    assert_eq!(modseq(&m), Some(21));
+
+    // Forgetting is always safe: a server that stops reporting one resets it.
+    m.fetch("INBOX", vec![mail(5, "e@x", None, "Five", true)]);
+    m.feed(flags_changed(&m, vec![], Some(vec![1, 2, 3]), None));
+    assert_eq!(modseq(&m), None);
 }
 
 #[test]
