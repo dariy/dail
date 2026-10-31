@@ -31,6 +31,13 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-22 | Palette: query results as views, not raw JSON | M | app-front, app-mobile, app-gui, app-tui, android/, ios/ | 2026-10-28 |
 | MISC-23 | Mobile: folder tree alignment (one column per level, half-icon indent) | S | android/, ios/ | 2026-10-28 |
 | MISC-24 | Mobile: settings content on the title's left edge | S | android/, ios/ | 2026-10-28 |
+| MISC-25 | Settings › Appearance: live preview of density and text size | M | app-gui, app-mobile, android/, ios/ | 2026-10-29 |
+| MISC-26 | Navigation closes the settings page | S | app-core, app-gui, app-tui, app-mobile | 2026-10-29 |
+| MISC-27 | Desktop: About page from the app title | S | app-gui, app-front | 2026-10-29 |
+| MISC-28 | Message body normalised for reading | L | app-io, app-core, app-front, app-gui, app-tui, app-mobile | 2026-10-29 |
+| MISC-29 | Pre-load message bodies around the selection | M | app-core, app-sync, app-testkit | 2026-10-30 |
+| MISC-30 | iOS: compose opens no editor and blocks the content pane | M | ios/, app-mobile | 2026-10-31 |
+| MISC-31 | Android: composer scrolls and stays above the keyboard | M | android/ | 2026-10-31 |
 
 ## Details
 
@@ -524,3 +531,108 @@ about 56 dp after the back arrow. On iOS the grouped list's insets put the rows 
 - **Done when:** on a phone (screenshots, both platforms) the first letters of the first tab, of each caption and of
   each row are under the "S" of "Settings" (±1 dp/pt).
 - **Open questions:** none.
+
+### MISC-25 — Settings › Appearance: live preview of density and text size
+
+In *Settings › Appearance*, show a preview of the message list (a few sample rows) that follows the density and text
+size choices as they change, so the user does not have to close the settings pane to see the effect.
+
+- **Commands:** none; the preview draws the current settings with sample rows (no real mail).
+- **Touches:** `app-gui` (`settings.rs`), `app-mobile` (`mobile/settings.rs`, frame), `android/`, `ios/`.
+- **Open questions:** desktop only, or the mobile apps too? Should the preview show sample rows or the user's own
+  first threads?
+
+### MISC-26 — Navigation closes the settings page
+
+While the *Settings* page is open, any other navigation (a click on a folder in the sidebar, a navigation command
+chosen from the command palette, such as *Open mailbox*) closes the settings page and shows the navigation target.
+Today the user must close the settings first.
+
+- **Commands:** none new; the navigation `View` commands (`open_mailbox`, `select_thread`, …) also clear the settings
+  view in the engine, so CLI and MCP get the same behaviour as the GUI.
+- **Touches:** `app-core` (engine, view state), `app-gui`, `app-tui`, `app-mobile` (check that each draws the
+  target once the view changes).
+- **Open questions:** which commands count as navigation: only those that change the main view (mailbox, thread,
+  search), or also panels such as the outbox and approvals?
+
+### MISC-27 — Desktop: About page from the app title
+
+The desktop app has no way to reach an *About* page any more (the mobile apps show it as a sidebar entry, MISC-3).
+Make the app's title and icon at the top left ("<> dail") a link-button that opens *About*: name, version, licence
+and links, as on mobile.
+
+- **Commands:** none new if the desktop can reuse what mobile uses for *About*; otherwise an `open_about {}` `View`
+  command (agents allowed) so the palette reaches it too (AGENTS.md §1, parity).
+- **Touches:** `app-gui` (`shell.rs`, the title), `app-front` (the shared About content, if it moves out of
+  `app-mobile`).
+- **Open questions:** should *About* open as a page in the main pane (like *Settings*) or as a dialog?
+
+### MISC-28 — Message body normalised for reading
+
+Normalise the message body for reading, in plain-text and HTML mail alike. This item also covers the paragraph reflow
+that ROADMAP's known limitations leave as a follow-up (text wraps raggedly on a phone: HTML is rendered at 100
+columns and senders wrap plain text near 72).
+
+1. **Paragraphs.** Lines of one paragraph are joined and reflowed to the pane's width. Each paragraph is followed by
+   a gap of 0.5–2 lines (a theme metric, not blank text lines).
+2. **Blank lines.** A run of empty lines becomes one.
+3. **Headings.** Every heuristic applies: Markdown `#` lines, setext underlines (`===`, `---`), and guesses such as
+   a short line in capitals, or a short line without final punctuation between blank lines.
+4. **Markdown.** Every safe Markdown construct in plain-text mail is rendered: headings, lists, block quotes, and
+   inline emphasis, strong, code and strike-through. Nothing that loads or runs anything (images, raw HTML).
+5. **Links.** As today, links are collected in the *Links* block at the bottom of the message. Each link gets a
+   number, drawn as a marker that is a separate span, never text, so a sender's own `(1)` or `[1]` cannot pass for
+   one (AGENTS.md §4, untrusted content):
+   - Desktop and mobile: the link's text stays inline, underlined and clickable, followed by a small raised number
+     in the link colour (`Check activity¹`). A bare URL in the body is replaced by the marker alone.
+   - TUI: `[1]` in the link colour, underlined.
+   - The *Links* block repeats the marker: `<icon> ¹ https://url.goes/here — Check activity`. The title is the
+     link's text in HTML, or the text of a Markdown link; a bare URL has none.
+   - CLI and MCP output keeps the real URLs, with the number as a separate field.
+
+- **Commands:** none; this changes the `Document` that `app-io` builds and how the front ends draw it.
+- **Touches:** `app-io` (`document.rs`, the plain-text path in `mime.rs`), `app-core` (`document` spans: the link
+  marker, number and title), `app-front` (`body.rs`, `links`), `app-gui` (`reader.rs`), `app-tui`, `app-mobile` (and its
+  Android/iOS views for the gap and the *Links* block).
+- **Done when:** ROADMAP's known limitation about ragged wrapping is removed.
+- **Open questions:** none.
+
+### MISC-29 — Pre-load message bodies around the selection
+
+Make a pre-loading strategy for message content so that moving through the list (next/previous thread, opening a
+mailbox) does not wait on a body fetch. Today bodies are fetched lazily (`FetchBody`) plus a top-20 unread prefetch
+(ROADMAP sync item); read neighbours of the selected thread are not fetched ahead. Pre-load the bodies of the threads
+next to the selection (in the direction of travel) and of the first rows of a newly opened mailbox, bounded so it does
+not flood the connection.
+
+- **Commands:** none expected; the engine emits extra `FetchBody` effects on `View` navigation (no history).
+- **Touches:** `app-core` (prefetch window on selection change, dedupe with pending fetches), `app-sync` (low-priority
+  queue behind user fetches), `app-testkit` (fake transport).
+- **Open questions:** window size and whether it is a config value; whether to pre-load on metered connections (mobile).
+
+### MISC-30 — iOS: compose opens no editor and blocks the content pane
+
+On iOS, "create new message" shows only "New message" and "saved" in the content pane: no editor (no To, Subject or
+body fields). The pane then stays stuck on it: selecting another message in the list does not show that message's
+content. Composing mail on iOS is unusable until this is fixed.
+
+- **Commands:** none expected; a bug in how the iOS app draws the composer frame (or how the presenter frames it).
+- **Touches:** `ios/` (SwiftUI composer and content pane), possibly `app-mobile` (composer frame, leaving compose on
+  selection).
+- **Open questions:** iPad split view only, or iPhone too? Does Android show the same with the same frame?
+
+### MISC-31 — Android: composer scrolls and stays above the keyboard
+
+Three problems in the Android composer:
+
+1. The pane does not scroll. The user wants to scroll the header fields (To, Cc, Subject, ...) out of view so the
+   body gets the screen.
+2. After several lines of body text, the text area goes under the on-screen keyboard and the caret line is hidden.
+   The body must scroll inside the content area and keep the caret visible above the keyboard.
+3. When the draft auto-saves, the keyboard and the content area react (the frame redraw disturbs focus, caret or
+   layout). A save must not change the keyboard or the editor.
+
+- **Commands:** none.
+- **Touches:** `android/` (`ui/ComposerScreen.kt`: scroll container, IME insets, keeping text field state across
+  frames); possibly `app-mobile` if the saved-state frame replaces the editor's fields.
+- **Open questions:** does iOS (MISC-30) need the same behaviour once its editor shows?
