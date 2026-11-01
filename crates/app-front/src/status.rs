@@ -175,7 +175,8 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     for (id, sync) in &state.status.sync {
         if let Some(issue) = &sync.last_error {
             let account = state.accounts.get(id);
-            let email = account.map_or("account", |a| a.email.as_str());
+            let email =
+                account.map_or(crate::i18n::text(lang, Key::AccountX), |a| a.email.as_str());
             let preset = account.map_or(ProviderPreset::Custom, |a| a.preset);
             let cause = cause(&issue.error);
             let fix = if cause == Cause::Password {

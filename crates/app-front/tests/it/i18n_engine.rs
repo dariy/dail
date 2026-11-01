@@ -30,6 +30,31 @@ fn errors_are_translated_and_english_is_the_engines() {
 }
 
 #[test]
+fn reasons_with_values_keep_them() {
+    for (reason, french) in [
+        ("Work exists already", "Work existe déjà"),
+        (
+            "account a has no folder \"b\"",
+            "le compte a n’a pas de dossier \"b\"",
+        ),
+        (
+            "at column 3: invalid date `x`; write YYYY-MM-DD",
+            "à la colonne 3 : date `x` non valide ; écrivez AAAA-MM-JJ",
+        ),
+        ("a server said no", "a server said no"),
+    ] {
+        let err = CoreError::InvalidArgument {
+            field: "f".to_owned(),
+            reason: reason.to_owned(),
+        };
+        assert_eq!(
+            error_in(Lang::French, &err),
+            format!("argument `f` non valide : {french}")
+        );
+    }
+}
+
+#[test]
 fn undo_labels_keep_their_values() {
     for (english, french) in [
         ("Archive (3 messages)", "Archiver (3 messages)"),

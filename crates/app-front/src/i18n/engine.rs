@@ -9,6 +9,45 @@ use super::{Lang, commands, pseudo};
 /// English reasons of `invalid_argument` and similar errors, with their French.
 const REASONS: &[(&str, &str)] = &[
     (
+        "it is being sent and can't be stopped any more",
+        "il est en cours d’envoi et ne peut plus être arrêté",
+    ),
+    ("no send is scheduled", "aucun envoi n’est programmé"),
+    ("it is being sent", "il est en cours d’envoi"),
+    (
+        "a send is scheduled; run cancel_send first",
+        "un envoi est programmé ; lancez d’abord cancel_send",
+    ),
+    (
+        "it has no recipients; set to, cc or bcc with update_draft",
+        "il n’a pas de destinataire ; indiquez to, cc ou bcc avec update_draft",
+    ),
+    (
+        "no thread is open (open_thread)",
+        "aucune discussion n’est ouverte (open_thread)",
+    ),
+    (
+        "no draft is open (open_composer)",
+        "aucun brouillon n’est ouvert (open_composer)",
+    ),
+    ("the pane is not shown", "le volet n’est pas affiché"),
+    (
+        "must be a message ID without spaces, line breaks or control characters",
+        "doit être un identifiant de message sans espace, saut de ligne ni caractère de contrôle",
+    ),
+    (
+        "empty phrase; remove the quotes",
+        "expression vide ; retirez les guillemets",
+    ),
+    (
+        "unterminated quote; add a closing `\"`",
+        "guillemet non fermé ; ajoutez un `\"` final",
+    ),
+    (
+        "expected a space after the closing `\"`",
+        "espace attendu après le `\"` final",
+    ),
+    (
         "give `ids` (threads), `messages` or both",
         "indiquez `ids` (discussions), `messages` ou les deux",
     ),
@@ -118,8 +157,88 @@ const REASONS: &[(&str, &str)] = &[
     ),
 ];
 
+/// Reasons with variable parts: each `{}` of the English is a value, kept in order in the French.
+const PATTERNS: &[(&str, &str)] = &[
+    ("at column {}: {}", "à la colonne {} : {}"),
+    ("{} exists already", "{} existe déjà"),
+    (
+        "message {} is not in the open conversation",
+        "le message {} n’est pas dans la discussion ouverte",
+    ),
+    (
+        "account {} has no folder {}",
+        "le compte {} n’a pas de dossier {}",
+    ),
+    (
+        "must be between 1 and {}",
+        "doit être compris entre 1 et {}",
+    ),
+    (
+        "must be between 0 and {} (the number of attachments)",
+        "doit être compris entre 0 et {} (le nombre de pièces jointes)",
+    ),
+    (
+        "the draft has {} attachment(s)",
+        "le brouillon a {} pièce(s) jointe(s)",
+    ),
+    (
+        "expected a folder path like {}",
+        "chemin de dossier attendu, par exemple {}",
+    ),
+    (
+        "required for the {} preset",
+        "obligatoire pour le préréglage {}",
+    ),
+    (
+        "this install cannot download the update; open {}",
+        "cette installation ne peut pas télécharger la mise à jour ; ouvrez {}",
+    ),
+    (
+        "{} is still being checked; try again",
+        "{} est encore en cours de vérification ; réessayez",
+    ),
+    ("`{}:` needs a value", "`{}:` demande une valeur"),
+    (
+        "unknown `is:{}`; use is:unread, is:read or is:starred",
+        "`is:{}` inconnu ; utilisez is:unread, is:read ou is:starred",
+    ),
+    (
+        "unknown `has:{}`; use has:attachment",
+        "`has:{}` inconnu ; utilisez has:attachment",
+    ),
+    (
+        "invalid date `{}`; write YYYY-MM-DD",
+        "date `{}` non valide ; écrivez AAAA-MM-JJ",
+    ),
+    (
+        "`{}` is not a calendar date",
+        "`{}` n’est pas une date du calendrier",
+    ),
+];
+
+/// The values of `text` if it has the shape of `template`.
+fn values<'a>(template: &str, text: &'a str) -> Option<Vec<&'a str>> {
+    let mut parts = template.split("{}");
+    let mut rest = text.strip_prefix(parts.next()?)?;
+    let mut found = Vec::new();
+    let parts: Vec<&str> = parts.collect();
+    for (at, part) in parts.iter().enumerate() {
+        let end = if at + 1 == parts.len() {
+            rest.strip_suffix(part)?.len()
+        } else {
+            rest.find(part)?
+        };
+        found.push(rest.get(..end)?);
+        rest = rest.get(end + part.len()..)?;
+    }
+    rest.is_empty().then_some(found)
+}
+
 /// Undo labels without a variable part.
 const LABELS: &[(&str, &str)] = &[
+    ("Reply", "Répondre"),
+    ("Reply all", "Répondre à tous"),
+    ("Forward", "Transférer"),
     (
         "Offer every version again",
         "Proposer de nouveau toutes les versions",
@@ -176,10 +295,37 @@ const PREFIXES: &[(&str, &str)] = &[
 ];
 
 fn french_reason(reason: &str) -> String {
-    REASONS
+    if let Some((_, french)) = REASONS.iter().find(|(english, _)| *english == reason) {
+        return (*french).to_owned();
+    }
+    PATTERNS
         .iter()
-        .find(|(english, _)| *english == reason)
-        .map_or_else(|| reason.to_owned(), |(_, french)| (*french).to_owned())
+        .find_map(|(english, french)| {
+            let values = values(english, reason)?;
+            let mut parts = french.split("{}");
+            let mut out = parts.next()?.to_owned();
+            for (value, part) in values.iter().zip(parts) {
+                // A column's reason is itself a reason.
+                out.push_str(&french_reason(value));
+                out.push_str(part);
+            }
+            Some(out)
+        })
+        .unwrap_or_else(|| reason.to_owned())
+}
+
+fn french_role(role: &str) -> &str {
+    match role {
+        "Inbox" => "de réception",
+        "Sent" => "des messages envoyés",
+        "Drafts" => "de brouillons",
+        "Trash" => "corbeille",
+        "Archive" => "d’archives",
+        "Junk" => "de courrier indésirable",
+        "All" => "de tout le courrier",
+        "Flagged" => "de messages suivis",
+        other => other,
+    }
 }
 
 fn french_entity(entity: &str) -> &str {
@@ -225,7 +371,10 @@ fn french_error(err: &CoreError) -> String {
             format!("{command} est irréversible ; répétez avec `confirm: true`")
         }
         CoreError::NoMailboxForRole { account, role } => {
-            format!("le compte {account} n’a pas de dossier {role:?}")
+            format!(
+                "le compte {account} n’a pas de dossier {}",
+                french_role(&format!("{role:?}"))
+            )
         }
         CoreError::OriginNotAllowed { command, origin } => format!(
             "{command} ne peut pas être lancé depuis {origin} ; l’utilisateur doit le faire \

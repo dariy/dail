@@ -1368,7 +1368,7 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                             Key::ClearFlagOn
                         },
                         &[
-                            ("flag", &format!("{flag:?}")),
+                            ("flag", flag_name(*flag)),
                             ("n", &messages.len().to_string()),
                         ],
                     ),
@@ -1399,7 +1399,7 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                             Key::ClearFlagAll
                         },
                         &[
-                            ("flag", &format!("{flag:?}")),
+                            ("flag", flag_name(*flag)),
                             (
                                 "mailbox",
                                 &state
@@ -1848,4 +1848,13 @@ impl Palette {
             },
         }
     }
+}
+
+/// A flag's name in the current language.
+fn flag_name(flag: app_core::FlagKind) -> &'static str {
+    crate::i18n::s(match flag {
+        app_core::FlagKind::Seen => Key::ReadFlag,
+        app_core::FlagKind::Flagged => Key::StarredX,
+        app_core::FlagKind::Pinned => Key::PinnedX,
+    })
 }

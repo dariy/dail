@@ -2123,6 +2123,21 @@ strings! {
     EditorExited:
         "{program} exited with {status}",
         "{program} s’est terminé avec {status}";
+    TerminalCantDraw:
+        "the terminal can't be drawn: {error}",
+        "impossible de dessiner le terminal : {error}";
+    InputClosed:
+        "input closed",
+        "entrée fermée";
+    TerminalWentAway:
+        "the terminal went away",
+        "le terminal a disparu";
+    ReceivedSignal:
+        "received {name}",
+        "{name} reçu";
+    ConsoleClose:
+        "console close",
+        "fermeture de la console";
     ToNameLower:
         "to {name}",
         "à {name}";

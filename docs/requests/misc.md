@@ -41,6 +41,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-32 | Translate every remaining UI string, including settings tips | M | app-core, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 | MISC-33 | TUI settings: Enter skips the "which setting" step | S | app-front, app-tui | 2026-11-01 |
 | MISC-34 | Fix the `libdail.rlib` output filename collision | S | app-android, app-ios, xtask, android/, ios/ | 2026-11-01 |
+| MISC-35 | Stable, translation-independent error codes | M | app-core, app-io, app-sync, app-mcp, app-cli, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 
 ## Details
 
@@ -675,3 +676,18 @@ lib target named `dail` with an `rlib` crate type. Cargo says this may become a 
   `android/` (`Native.kt`, `build.gradle.kts`) and `ios/project.yml`.
 - **Open questions:** the rlib cannot simply go, because `tests/it` in both crates imports it as `dail::`. Keep the
   shipped names by renaming only at the packaging step, or rename the shipped libraries too?
+
+### MISC-35 — Stable, translation-independent error codes
+
+Every internal error gets a unique code, something like `ERR001`, that does not change with the UI language. A user can
+then quote the code from a translated message, and an agent or a search can match on it. The user also suggests
+unifying the scheme with the command ids.
+
+- **Commands:** none. The `Command` JSON stays as it is. Receipts and rejections gain a code field; the existing
+  `error` slug (`origin_not_allowed`) is a public API and stays (AGENTS.md §5).
+- **Touches:** `app-core` (`CoreError`), `app-io` and `app-sync` (their error enums, the 13 files that derive errors
+  across the workspace), `app-mcp`, `app-cli`, and the places that show errors: `app-front`, `app-gui`, `app-tui`,
+  `app-mobile`.
+- **Open questions:** do the codes share a namespace with the command ids, or does each error carry its own code next
+  to the command name that failed? Does a code cover only `CoreError` and failures that reach the user, or every
+  internal error enum?
