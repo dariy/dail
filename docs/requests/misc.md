@@ -38,6 +38,8 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-29 | Pre-load message bodies around the selection | M | app-core, app-sync, app-testkit | 2026-10-30 |
 | MISC-30 | iOS: compose opens no editor and blocks the content pane | M | ios/, app-mobile | 2026-10-31 |
 | MISC-31 | Android: composer scrolls and stays above the keyboard | M | android/ | 2026-10-31 |
+| MISC-32 | Translate every remaining UI string, including settings tips | M | app-core, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
+| MISC-33 | TUI settings: Enter skips the "which setting" step | S | app-front, app-tui | 2026-11-01 |
 
 ## Details
 
@@ -636,3 +638,26 @@ Three problems in the Android composer:
 - **Touches:** `android/` (`ui/ComposerScreen.kt`: scroll container, IME insets, keeping text field state across
   frames); possibly `app-mobile` if the saved-state frame replaces the editor's fields.
 - **Open questions:** does iOS (MISC-30) need the same behaviour once its editor shows?
+
+### MISC-32 — Translate every remaining UI string, including settings tips
+
+The user wants everything in the app translated, with no English left in a translated session. Settings tips (the
+hint text under or beside each setting) are named explicitly. Tooltips and any other string that still bypasses the
+`app_front::i18n` table are included. This extends the ROADMAP i18n items: its open "engine texts" item covers
+`app-core` errors and undo labels, but not the settings tips.
+
+- **Commands:** none.
+- **Touches:** `app-front` (`i18n` table), `app-gui` and `app-tui` (settings, tooltips), `app-mobile` (settings hints,
+  frames), `app-core` if settings tips or engine texts are defined there.
+- **Open questions:** none.
+
+### MISC-33 — TUI settings: Enter skips the "which setting" step
+
+In the TUI's *Settings* page, `Enter` on the language row opens the palette's search step that asks which setting to
+change, although the row already chose it. It must go straight to the step that picks the value. Every row of a
+`SettingKey` has the same cause (`crates/app-tui/src/settings.rs` starts the `SetSetting` flow from its first step), so
+the fix covers them all.
+
+- **Commands:** none; the palette's `set_setting` flow gains an entry point past its first step.
+- **Touches:** `app-front` (`palette`), `app-tui` (`settings.rs`).
+- **Open questions:** none.
