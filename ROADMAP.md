@@ -749,7 +749,7 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 ## Wave 10 — Daily-use requests: "it reads well and gets out of the way"
 
 The requests of 2026-10-29 to 2026-11-01. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-25 to
-MISC-33). Small fixes first, then the mobile composers, then MISC-28. MISC-32 builds on the i18n work and lands with it.
+MISC-34). Small fixes first, then the mobile composers, then MISC-28. MISC-32 builds on the i18n work and lands with it.
 
 **Exit criteria**
 - The settings page gets out of the way of navigation, and every setting row goes straight to its value.
@@ -768,6 +768,7 @@ MISC-33). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - [ ] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves
 - [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
 - [ ] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string (on the i18n branch)
+- [ ] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 
 ---
 

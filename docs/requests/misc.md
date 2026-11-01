@@ -40,6 +40,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-31 | Android: composer scrolls and stays above the keyboard | M | android/ | 2026-10-31 |
 | MISC-32 | Translate every remaining UI string, including settings tips | M | app-core, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 | MISC-33 | TUI settings: Enter skips the "which setting" step | S | app-front, app-tui | 2026-11-01 |
+| MISC-34 | Fix the `libdail.rlib` output filename collision | S | app-android, app-ios, xtask, android/, ios/ | 2026-11-01 |
 
 ## Details
 
@@ -661,3 +662,16 @@ the fix covers them all.
 - **Commands:** none; the palette's `set_setting` flow gains an entry point past its first step.
 - **Touches:** `app-front` (`palette`), `app-tui` (`settings.rs`).
 - **Open questions:** none.
+
+### MISC-34 — Fix the `libdail.rlib` output filename collision
+
+A workspace release build warns that `app-ios` and `app-android` both write `target/release/libdail.rlib`: both have a
+lib target named `dail` with an `rlib` crate type. Cargo says this may become a hard error
+(<https://github.com/rust-lang/cargo/issues/6313>). The build must be free of the warning, while the app still loads
+`libdail.so` on Android and links `libdail.a` on iOS.
+
+- **Commands:** none.
+- **Touches:** `app-android`, `app-ios` (`Cargo.toml`, `tests/it`), and, if a library is renamed, `xtask`,
+  `android/` (`Native.kt`, `build.gradle.kts`) and `ios/project.yml`.
+- **Open questions:** the rlib cannot simply go, because `tests/it` in both crates imports it as `dail::`. Keep the
+  shipped names by renaming only at the packaging step, or rename the shipped libraries too?
