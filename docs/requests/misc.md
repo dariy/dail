@@ -683,11 +683,12 @@ Every internal error gets a unique code, something like `ERR001`, that does not 
 then quote the code from a translated message, and an agent or a search can match on it. The user also suggests
 unifying the scheme with the command ids.
 
-- **Commands:** none. The `Command` JSON stays as it is. Receipts and rejections gain a code field; the existing
-  `error` slug (`origin_not_allowed`) is a public API and stays (AGENTS.md §5).
+- **Commands:** none. The `Command` JSON stays as it is. The `error` slug in receipts and rejections changes to
+  `error_<code>_<slug>`, built on the existing slug (`origin_not_allowed`). The slug is public, but nothing uses it yet
+  (user decision, 2026-11-01), so no alias is kept.
 - **Touches:** `app-core` (`CoreError`), `app-io` and `app-sync` (their error enums, the 13 files that derive errors
   across the workspace), `app-mcp`, `app-cli`, and the places that show errors: `app-front`, `app-gui`, `app-tui`,
   `app-mobile`.
-- **Open questions:** do the codes share a namespace with the command ids, or does each error carry its own code next
-  to the command name that failed? Does a code cover only `CoreError` and failures that reach the user, or every
-  internal error enum?
+- **Decided:** errors have their own codes, separate from the command ids; a receipt carries the failed command next to
+  the error. Codes cover `CoreError` and every failure that reaches the user; internal error enums map to a code at
+  that boundary.
