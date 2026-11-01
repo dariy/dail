@@ -746,6 +746,31 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 
 ---
 
+## Wave 10 — Daily-use requests: "it reads well and gets out of the way"
+
+The requests of 2026-10-29 to 2026-11-01. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-25 to
+MISC-33). Small fixes first, then the mobile composers, then MISC-28. MISC-32 builds on the i18n work and lands with it.
+
+**Exit criteria**
+- The settings page gets out of the way of navigation, and every setting row goes straight to its value.
+- The desktop reaches *About*; Appearance previews density and text size.
+- Moving through the list does not wait on a body fetch for nearby threads.
+- Composing works on iOS and is comfortable on Android.
+- Mail reads as reflowed paragraphs with numbered link markers; no English is left in a translated session.
+
+- [ ] MISC-33 [front][tui]: TUI setting rows open the value step of `set_setting` directly
+- [ ] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
+  main view, mailbox, thread and search, in the engine)
+- [ ] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
+- [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
+- [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
+- [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
+- [ ] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves
+- [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
+- [ ] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string (on the i18n branch)
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
