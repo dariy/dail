@@ -255,6 +255,26 @@ fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'sta
     )
 }
 
+/// The step that asks for `key`'s new value: `set_setting` past its "which setting" step.
+#[must_use]
+pub fn set_setting(state: &AppState, key: SettingKey) -> Flow {
+    let allowed = key.allowed();
+    let current = key.get(&state.settings);
+    ask(
+        format!("New value for {}", key.as_str()),
+        AskKind::Text(format!("{allowed}, now {current}")),
+        move |_, choice| match choice {
+            Choice::Text(text) => text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
+                Flow::Run(Command::SetSetting {
+                    key,
+                    value: value.into(),
+                })
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// The confirmation step of `remove_account` for `id` (the settings' *Remove* starts here).
 pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     let email = state
@@ -515,23 +535,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             let Choice::Setting(key) = choice else {
                 return Flow::Hidden;
             };
-            let allowed = key.allowed();
-            let current = key.get(&state.settings);
-            ask(
-                format!("New value for {}", key.as_str()),
-                AskKind::Text(format!("{allowed}, now {current}")),
-                move |_, choice| match choice {
-                    Choice::Text(text) => {
-                        text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
-                            Flow::Run(Command::SetSetting {
-                                key,
-                                value: value.into(),
-                            })
-                        })
-                    }
-                    _ => Flow::Hidden,
-                },
-            )
+            set_setting(state, key)
         }),
         CommandName::Undo => Flow::Run(Command::Undo {}),
         CommandName::Redo => Flow::Run(Command::Redo {}),

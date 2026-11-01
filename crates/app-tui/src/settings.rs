@@ -4,7 +4,7 @@
 //! the terminal's colours (ADR 0004), so `appearance` shows the general settings.
 
 use app_core::{AccountStatus, AppState, Command, CommandName, SettingKey, SettingsSection};
-use app_front::palette::{Flow, flow};
+use app_front::palette::{Flow, flow, set_setting};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -206,10 +206,19 @@ impl SettingsView {
                 }));
             }
             KeyCode::Enter => {
-                let Some(name) = rows.get(self.cursor).and_then(|r| r.change) else {
+                let Some(row) = rows.get(self.cursor) else {
                     return outcome;
                 };
-                match (name, flow(name, state)) {
+                let Some(name) = row.change else {
+                    return outcome;
+                };
+                // A setting's row has already chosen the setting.
+                let setting = SettingKey::ALL.iter().find(|k| k.as_str() == row.key);
+                let step = match setting {
+                    Some(key) => set_setting(state, *key),
+                    None => flow(name, state),
+                };
+                match (name, step) {
                     (CommandName::TestAccount, _) => {
                         if let Some(account) = state.accounts.values().nth(self.cursor) {
                             outcome
