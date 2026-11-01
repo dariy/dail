@@ -188,7 +188,7 @@ expression: first
       "line": 5,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "value",
           "reason": "history_cap must be between 1 and 10000"
         }
@@ -328,7 +328,7 @@ expression: first
       "line": 9,
       "result": {
         "err": {
-          "error": "nothing_to_redo"
+          "error": "error_011_nothing_to_redo"
         }
       }
     },

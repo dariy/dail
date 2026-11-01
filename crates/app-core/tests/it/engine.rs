@@ -80,11 +80,21 @@ fn from_value_rejects_unknown_command() {
     let err = Command::from_value(json!({"cmd": "launch_rockets"})).unwrap_err();
     assert!(matches!(err, CoreError::InvalidCommand { .. }));
     let json = serde_json::to_value(&err).unwrap();
-    assert_eq!(json["error"], "invalid_command");
+    assert_eq!(json["error"], "error_001_invalid_command");
 }
 
 #[test]
 fn commands_serialize_with_cmd_and_args() {
     let json = serde_json::to_value(Command::ClosePalette {}).unwrap();
     assert_eq!(json, json!({"cmd": "close_palette", "args": {}}));
+}
+
+#[test]
+fn error_slug_starts_with_its_code() {
+    let err = CoreError::NothingToUndo;
+    assert_eq!(err.code(), "ERR010");
+    assert!(err.to_string().starts_with("ERR010: "));
+    let json = serde_json::to_value(&err).unwrap();
+    assert_eq!(json["error"], "error_010_nothing_to_undo");
+    assert_eq!(serde_json::from_value::<CoreError>(json).unwrap(), err);
 }

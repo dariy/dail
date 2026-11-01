@@ -98,7 +98,7 @@ async fn rejections_are_structured_tool_errors() {
     assert_eq!(result.is_error, Some(true));
     assert_eq!(
         result.structured_content.unwrap()["error"]["error"],
-        "nothing_to_undo"
+        "error_010_nothing_to_undo"
     );
     let result = call(&Connection::Local(session.client()), "no_such_tool", None)
         .await
@@ -106,7 +106,7 @@ async fn rejections_are_structured_tool_errors() {
     assert_eq!(result.is_error, Some(true));
     assert_eq!(
         result.structured_content.unwrap()["error"]["error"],
-        "invalid_command"
+        "error_001_invalid_command"
     );
 }
 

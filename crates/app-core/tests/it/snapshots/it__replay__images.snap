@@ -387,7 +387,7 @@ expression: first
       "line": 8,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "sender",
           "reason": "expected an email address like news@example.org"
         }

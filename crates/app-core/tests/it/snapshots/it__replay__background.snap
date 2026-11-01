@@ -162,7 +162,7 @@ expression: first
       "line": 4,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "value",
           "reason": "background_sync must be between 0 and 2"
         }
@@ -172,7 +172,7 @@ expression: first
       "line": 5,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "value",
           "reason": "background_interval_mins must be between 15 and 720"
         }

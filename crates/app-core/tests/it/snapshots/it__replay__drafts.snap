@@ -1073,7 +1073,7 @@ expression: first
       "line": 14,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "to",
           "reason": "`nobody` is not an address like name@example.com"
         }

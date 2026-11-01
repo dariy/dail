@@ -976,7 +976,7 @@ expression: first
       "line": 12,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "path",
           "reason": "must be an absolute file path"
         }

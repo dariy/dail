@@ -752,7 +752,7 @@ expression: first
       "result": {
         "err": {
           "command": "save_attachments",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp"
         }
       }
@@ -762,7 +762,7 @@ expression: first
       "result": {
         "err": {
           "entity": "message",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0000-0000-000000000063"
         }
       }
@@ -771,7 +771,7 @@ expression: first
       "line": 14,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "message",
           "reason": "the body is not downloaded yet (open_thread downloads it)"
         }
@@ -781,7 +781,7 @@ expression: first
       "line": 15,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "dir",
           "reason": "expected the absolute path of a folder"
         }

@@ -400,7 +400,7 @@ expression: first
       "line": 8,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "mode",
           "reason": "give a mode, a light theme or a dark theme"
         }
@@ -410,7 +410,7 @@ expression: first
       "line": 9,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "dark",
           "reason": "a theme name is a slug: a-z, 0-9 and -, at most 64"
         }

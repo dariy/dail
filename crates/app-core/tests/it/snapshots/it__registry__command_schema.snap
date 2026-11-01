@@ -853,7 +853,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Add an IMAP/SMTP mail account. The password, if given, is stored in the OS keyring only;\nit never appears in state, config, receipts or logs. Run `test_account` afterwards to\ncheck the login. Undoable (undo removes the account and its keyring entry). Only the user\ncan add accounts (GUI or CLI); agents (MCP) get `origin_not_allowed`.",
+      "description": "Add an IMAP/SMTP mail account. The password, if given, is stored in the OS keyring only;\nit never appears in state, config, receipts or logs. Run `test_account` afterwards to\ncheck the login. Undoable (undo removes the account and its keyring entry). Only the user\ncan add accounts (GUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -973,7 +973,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Change an account's display name or servers. Give at least one field. Changing a server\nresets the account's status to `unverified`. Undoable. Only the user can change accounts\n(GUI or CLI); agents (MCP) get `origin_not_allowed`.",
+      "description": "Change an account's display name or servers. Give at least one field. Changing a server\nresets the account's status to `unverified`. Undoable. Only the user can change accounts\n(GUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -1028,7 +1028,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Replace an account's password (e.g. after its login failed, or with a new App Password):\nstored in the OS keyring only, then the login is tested; the result arrives in the\naccount's `status`. Not undoable (the old password is not kept). Only the user can do\nthis (GUI, TUI or CLI); agents (MCP) get `origin_not_allowed`.",
+      "description": "Replace an account's password (e.g. after its login failed, or with a new App Password):\nstored in the OS keyring only, then the login is tested; the result arrives in the\naccount's `status`. Not undoable (the old password is not kept). Only the user can do\nthis (GUI, TUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -1060,7 +1060,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Add an address the account sends from (an alias), or change the name or signature of one\n(the account's own address included). The signature is added to new drafts from that\naddress. Undoable. Only the user can do this (GUI, TUI or CLI); agents (MCP) get\n`origin_not_allowed`.",
+      "description": "Add an address the account sends from (an alias), or change the name or signature of one\n(the account's own address included). The signature is added to new drafts from that\naddress. Undoable. Only the user can do this (GUI, TUI or CLI); agents (MCP) get\n`error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -1105,7 +1105,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Remove an alias, or the name and signature of the account's own address. Undoable. Only\nthe user can do this; agents (MCP) get `origin_not_allowed`.",
+      "description": "Remove an alias, or the name and signature of the account's own address. Undoable. Only\nthe user can do this; agents (MCP) get `error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -1900,7 +1900,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Save attachments of a downloaded message into a folder of this computer, under their file\nnames (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).\nProgress and the written paths appear in `status.saves`. Only the user can do this (GUI,\nTUI or CLI); agents (MCP) get `origin_not_allowed`.",
+      "description": "Save attachments of a downloaded message into a folder of this computer, under their file\nnames (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).\nProgress and the written paths appear in `status.saves`. Only the user can do this (GUI,\nTUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.",
       "properties": {
         "args": {
           "properties": {
@@ -2731,7 +2731,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Put back a discarded draft as it was; `undo` of `discard_draft` uses this. Its attachments\nare checked again. Fails if a draft with the same ID exists. Undoable (undo discards it\nagain). Only the user can run it directly (GUI or CLI); agents (MCP) get\n`origin_not_allowed` and use `undo` instead.",
+      "description": "Put back a discarded draft as it was; `undo` of `discard_draft` uses this. Its attachments\nare checked again. Fails if a draft with the same ID exists. Undoable (undo discards it\nagain). Only the user can run it directly (GUI or CLI); agents (MCP) get\n`error_008_origin_not_allowed` and use `undo` instead.",
       "properties": {
         "args": {
           "properties": {
@@ -3241,7 +3241,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Install the downloaded update (`update.status` is `ready`): replace the running AppImage\nor binary, or start the `.deb`/MSI installer, which asks for admin rights. It runs\ndownloaded code, so only the user can do this; agents (MCP) get `origin_not_allowed`.\nRequires `confirm: true`; cannot be undone. Restart dail afterwards.",
+      "description": "Install the downloaded update (`update.status` is `ready`): replace the running AppImage\nor binary, or start the `.deb`/MSI installer, which asks for admin rights. It runs\ndownloaded code, so only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.\nRequires `confirm: true`; cannot be undone. Restart dail afterwards.",
       "properties": {
         "args": {
           "properties": {
@@ -3347,7 +3347,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Approve an agent's request to send a draft (see `list_approvals`): the draft is sent like\n`send_draft` from the user, after the undo-send window. Only the user can do this (GUI or\nCLI); agents (MCP) get `origin_not_allowed`. Undoable until the mail leaves (undo cancels\nthe send; the request is not restored).",
+      "description": "Approve an agent's request to send a draft (see `list_approvals`): the draft is sent like\n`send_draft` from the user, after the undo-send window. Only the user can do this (GUI or\nCLI); agents (MCP) get `error_008_origin_not_allowed`. Undoable until the mail leaves (undo cancels\nthe send; the request is not restored).",
       "properties": {
         "args": {
           "properties": {
@@ -3373,7 +3373,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Decline an agent's request to send a draft (see `list_approvals`). The draft is kept, with\na `send_error` saying the user declined. Only the user can do this (GUI or CLI); agents\n(MCP) get `origin_not_allowed`. Not undoable.",
+      "description": "Decline an agent's request to send a draft (see `list_approvals`). The draft is kept, with\na `send_error` saying the user declined. Only the user can do this (GUI or CLI); agents\n(MCP) get `error_008_origin_not_allowed`. Not undoable.",
       "properties": {
         "args": {
           "properties": {

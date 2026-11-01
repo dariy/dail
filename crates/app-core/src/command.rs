@@ -77,7 +77,7 @@ pub enum Command {
     /// Add an IMAP/SMTP mail account. The password, if given, is stored in the OS keyring only;
     /// it never appears in state, config, receipts or logs. Run `test_account` afterwards to
     /// check the login. Undoable (undo removes the account and its keyring entry). Only the user
-    /// can add accounts (GUI or CLI); agents (MCP) get `origin_not_allowed`.
+    /// can add accounts (GUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.
     AddAccount {
         /// Provider preset. `gmail` needs an App Password (2-step verification on);
         /// `custom` needs `imap` and `smtp`.
@@ -115,7 +115,7 @@ pub enum Command {
     },
     /// Change an account's display name or servers. Give at least one field. Changing a server
     /// resets the account's status to `unverified`. Undoable. Only the user can change accounts
-    /// (GUI or CLI); agents (MCP) get `origin_not_allowed`.
+    /// (GUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.
     UpdateAccount {
         /// The account to change.
         id: AccountId,
@@ -132,7 +132,7 @@ pub enum Command {
     /// Replace an account's password (e.g. after its login failed, or with a new App Password):
     /// stored in the OS keyring only, then the login is tested; the result arrives in the
     /// account's `status`. Not undoable (the old password is not kept). Only the user can do
-    /// this (GUI, TUI or CLI); agents (MCP) get `origin_not_allowed`.
+    /// this (GUI, TUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.
     SetPassword {
         /// The account.
         id: AccountId,
@@ -142,7 +142,7 @@ pub enum Command {
     /// Add an address the account sends from (an alias), or change the name or signature of one
     /// (the account's own address included). The signature is added to new drafts from that
     /// address. Undoable. Only the user can do this (GUI, TUI or CLI); agents (MCP) get
-    /// `origin_not_allowed`.
+    /// `error_008_origin_not_allowed`.
     SetIdentity {
         /// The account.
         account: AccountId,
@@ -156,7 +156,7 @@ pub enum Command {
         signature: Option<String>,
     },
     /// Remove an alias, or the name and signature of the account's own address. Undoable. Only
-    /// the user can do this; agents (MCP) get `origin_not_allowed`.
+    /// the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
     RemoveIdentity {
         /// The account.
         account: AccountId,
@@ -370,7 +370,7 @@ pub enum Command {
     /// Save attachments of a downloaded message into a folder of this computer, under their file
     /// names (made safe; an existing file is never overwritten, the copy becomes `name (1).pdf`).
     /// Progress and the written paths appear in `status.saves`. Only the user can do this (GUI,
-    /// TUI or CLI); agents (MCP) get `origin_not_allowed`.
+    /// TUI or CLI); agents (MCP) get `error_008_origin_not_allowed`.
     SaveAttachments {
         /// The message (an ID from `get_thread`); its body must be downloaded.
         message: MessageId,
@@ -623,7 +623,7 @@ pub enum Command {
     /// Put back a discarded draft as it was; `undo` of `discard_draft` uses this. Its attachments
     /// are checked again. Fails if a draft with the same ID exists. Undoable (undo discards it
     /// again). Only the user can run it directly (GUI or CLI); agents (MCP) get
-    /// `origin_not_allowed` and use `undo` instead.
+    /// `error_008_origin_not_allowed` and use `undo` instead.
     RestoreDraft {
         /// The draft, as returned when it was discarded.
         draft: Box<Draft>,
@@ -772,7 +772,7 @@ pub enum Command {
     DownloadUpdate {},
     /// Install the downloaded update (`update.status` is `ready`): replace the running AppImage
     /// or binary, or start the `.deb`/MSI installer, which asks for admin rights. It runs
-    /// downloaded code, so only the user can do this; agents (MCP) get `origin_not_allowed`.
+    /// downloaded code, so only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
     /// Requires `confirm: true`; cannot be undone. Restart dail afterwards.
     InstallUpdate {
         /// Must be `true`; confirms that the install is intended.
@@ -800,7 +800,7 @@ pub enum Command {
     ListApprovals {},
     /// Approve an agent's request to send a draft (see `list_approvals`): the draft is sent like
     /// `send_draft` from the user, after the undo-send window. Only the user can do this (GUI or
-    /// CLI); agents (MCP) get `origin_not_allowed`. Undoable until the mail leaves (undo cancels
+    /// CLI); agents (MCP) get `error_008_origin_not_allowed`. Undoable until the mail leaves (undo cancels
     /// the send; the request is not restored).
     ApproveRequest {
         /// The approval request (an ID from `list_approvals`).
@@ -808,7 +808,7 @@ pub enum Command {
     },
     /// Decline an agent's request to send a draft (see `list_approvals`). The draft is kept, with
     /// a `send_error` saying the user declined. Only the user can do this (GUI or CLI); agents
-    /// (MCP) get `origin_not_allowed`. Not undoable.
+    /// (MCP) get `error_008_origin_not_allowed`. Not undoable.
     RejectRequest {
         /// The approval request (an ID from `list_approvals`).
         id: ApprovalId,

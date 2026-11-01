@@ -1151,7 +1151,7 @@ expression: first
       "result": {
         "err": {
           "entity": "mailbox",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0002-0000-000000000009"
         }
       }

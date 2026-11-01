@@ -52,25 +52,25 @@ pub struct Tile {
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum PdfError {
     /// More than [`MAX_BYTES`].
-    #[error("the PDF is larger than {MAX_BYTES} bytes")]
+    #[error("ERR131: the PDF is larger than {MAX_BYTES} bytes")]
     TooLarge,
     /// More than [`MAX_PAGES`].
-    #[error("the PDF has more than {MAX_PAGES} pages")]
+    #[error("ERR132: the PDF has more than {MAX_PAGES} pages")]
     TooManyPages,
     /// Not a PDF hayro can read (corrupt, encrypted, or not a PDF).
-    #[error("unreadable PDF: {0}")]
+    #[error("ERR133: unreadable PDF: {0}")]
     Unreadable(String),
     /// No page with this index.
-    #[error("no page {0}")]
+    #[error("ERR134: no page {0}")]
     NoPage(usize),
     /// The page's size is not finite or below one point, or the width is out of range.
-    #[error("the page size is out of range")]
+    #[error("ERR135: the page size is out of range")]
     PageSize,
     /// The tile is empty, larger than [`TILE_MAX`] or outside the page.
-    #[error("the tile is out of range")]
+    #[error("ERR136: the tile is out of range")]
     Tile,
     /// The renderer panicked.
-    #[error("the PDF renderer failed")]
+    #[error("ERR137: the PDF renderer failed")]
     Panicked,
 }
 

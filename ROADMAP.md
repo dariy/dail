@@ -774,7 +774,7 @@ MISC-35). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [ ] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
-- [ ] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;
+- [x] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;
   error slugs become `error_<code>_<slug>` (decided: errors have their own codes, separate from command ids; codes cover
   `CoreError` and every failure that reaches the user)
 

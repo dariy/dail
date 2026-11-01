@@ -1066,7 +1066,7 @@ expression: first
       "line": 13,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "ids",
           "reason": "give `ids` (threads), `messages` or both"
         }

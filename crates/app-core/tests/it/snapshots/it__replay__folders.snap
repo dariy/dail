@@ -393,7 +393,7 @@ expression: first
       "line": 5,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "keys",
           "reason": "account 00000000-0000-0001-0000-000000000000 has no folder \"Wor\""
         }
@@ -669,7 +669,7 @@ expression: first
       "line": 13,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "id",
           "reason": "give either id or account"
         }
@@ -981,7 +981,7 @@ expression: first
       "result": {
         "err": {
           "entity": "mailbox",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0002-0000-000000000009"
         }
       }
@@ -1319,7 +1319,7 @@ expression: first
       "result": {
         "err": {
           "command": "delete_folder",
-          "error": "confirmation_required"
+          "error": "error_006_confirmation_required"
         }
       }
     },

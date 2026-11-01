@@ -15,10 +15,10 @@ use app_sync::{RandomSeeds, SeedSource};
 #[derive(Debug, thiserror::Error)]
 pub enum ImportError {
     /// The copy would pass the 25 MiB that a draft may carry in all.
-    #[error("“{0}” is larger than 25 MiB and cannot be attached")]
+    #[error("ERR331: “{0}” is larger than 25 MiB and cannot be attached")]
     TooLarge(String),
     /// Reading the source or writing the copy failed.
-    #[error("“{name}” could not be copied: {source}")]
+    #[error("ERR332: “{name}” could not be copied: {source}")]
     Io {
         /// The file's name.
         name: String,

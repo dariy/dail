@@ -31,7 +31,7 @@ request that the user approves, edits or rejects in the dail GUI; the mail leave
 that (unless the user started the server with `--allow-send`). Never try to get around this, \
 and tell the user when a draft is waiting for approval. Attaching a file (`attach_file`) shows \
 its path to the user on the approval card.\n\n\
-Some tools are for the user only and answer `origin_not_allowed`: adding or changing accounts, \
+Some tools are for the user only and answer `error_008_origin_not_allowed`: adding or changing accounts, \
 their passwords and sending addresses (`add_account`, `update_account`, `set_password`, \
 `set_identity`, `remove_identity`), saving attachments to disk (`save_attachments`), \
 `restore_draft` (use `undo` to bring back a discarded draft), installing an update of dail \
@@ -46,7 +46,7 @@ undone. Failed server changes stay visible in `list_pending_ops`.";
 #[derive(Debug, thiserror::Error)]
 pub enum McpError {
     /// The MCP transport failed to initialize or stopped abnormally.
-    #[error("MCP server failed: {0}")]
+    #[error("ERR441: MCP server failed: {0}")]
     Serve(String),
     /// The session failed.
     #[error(transparent)]

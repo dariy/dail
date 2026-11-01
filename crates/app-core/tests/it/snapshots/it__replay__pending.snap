@@ -1159,7 +1159,7 @@ expression: first
       "line": 15,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "id",
           "reason": "the op is running on the server; discard it after it failed"
         }

@@ -414,7 +414,7 @@ expression: first
       "line": 6,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "pane",
           "reason": "no thread is open (open_thread)"
         }
@@ -727,7 +727,7 @@ expression: first
       "line": 14,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "pane",
           "reason": "no draft is open (open_composer)"
         }

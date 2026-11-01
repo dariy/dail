@@ -1235,7 +1235,7 @@ expression: first
       "line": 11,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "query",
           "reason": "at column 4: unknown `is:later`; use is:unread, is:read or is:starred"
         }

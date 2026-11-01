@@ -26,10 +26,10 @@ pub struct Rgba {
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
     /// The bytes are not one of the accepted formats.
-    #[error("not a PNG, JPEG, GIF or WebP image")]
+    #[error("ERR121: not a PNG, JPEG, GIF or WebP image")]
     Format,
     /// Unreadable, too large, or corrupt.
-    #[error("{0}")]
+    #[error("ERR122: {0}")]
     Decode(String),
 }
 

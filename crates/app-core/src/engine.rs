@@ -1029,7 +1029,7 @@ fn check_origin(cmd: &Command, ctx: &Ctx) -> Result<(), CoreError> {
     Ok(())
 }
 
-/// `not_found` for an `entity` (e.g. `"draft"`) and the ID that was looked up.
+/// `error_004_not_found` for an `entity` (e.g. `"draft"`) and the ID that was looked up.
 fn not_found(entity: &str, id: impl ToString) -> CoreError {
     CoreError::NotFound {
         entity: entity.to_owned(),
@@ -1037,7 +1037,7 @@ fn not_found(entity: &str, id: impl ToString) -> CoreError {
     }
 }
 
-/// `invalid_argument` for `field`, with the reason and the fix.
+/// `error_002_invalid_argument` for `field`, with the reason and the fix.
 fn invalid(field: &str, reason: impl Into<String>) -> CoreError {
     CoreError::InvalidArgument {
         field: field.to_owned(),

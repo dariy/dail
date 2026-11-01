@@ -881,7 +881,7 @@ expression: first
       "line": 13,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "ids",
           "reason": "message 00000000-0000-0000-0000-000000000063 is not in the open conversation"
         }
@@ -996,7 +996,7 @@ expression: first
       "result": {
         "err": {
           "entity": "thread",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0000-0000-000000000063"
         }
       }

@@ -3,19 +3,21 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Why the engine rejected a command or event. Serialized as `{"error":"<variant>", …}` so agents
-/// get machine-readable failures. A rejected input never changes state.
+/// Why the engine rejected a command or event. Serialized as `{"error":"error_<code>_<slug>", …}` so
+/// agents get machine-readable failures; `Display` starts with `ERR<code>: ` (ADR 0013). A rejected input never changes state.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "error", rename_all = "snake_case")]
+#[serde(tag = "error")]
 pub enum CoreError {
     /// The JSON is not a known command or its arguments do not match the command's schema.
-    #[error("invalid command: {reason}")]
+    #[error("ERR001: invalid command: {reason}")]
+    #[serde(rename = "error_001_invalid_command")]
     InvalidCommand {
         /// Parser diagnostic.
         reason: String,
     },
     /// An argument is well-formed JSON but not an acceptable value.
-    #[error("invalid argument `{field}`: {reason}")]
+    #[error("ERR002: invalid argument `{field}`: {reason}")]
+    #[serde(rename = "error_002_invalid_argument")]
     InvalidArgument {
         /// Name of the offending argument.
         field: String,
@@ -23,7 +25,8 @@ pub enum CoreError {
         reason: String,
     },
     /// A replay log line is not a valid record.
-    #[error("invalid replay record on line {line}: {reason}")]
+    #[error("ERR003: invalid replay record on line {line}: {reason}")]
+    #[serde(rename = "error_003_invalid_replay")]
     InvalidReplay {
         /// 1-based line number in the log.
         line: usize,
@@ -31,7 +34,8 @@ pub enum CoreError {
         reason: String,
     },
     /// The referenced entity does not exist (any more).
-    #[error("{entity} {id} not found")]
+    #[error("ERR004: {entity} {id} not found")]
+    #[serde(rename = "error_004_not_found")]
     NotFound {
         /// Entity type, e.g. `account`.
         entity: String,
@@ -39,7 +43,8 @@ pub enum CoreError {
         id: String,
     },
     /// An entity with the same unique key exists already.
-    #[error("{entity} {key} already exists")]
+    #[error("ERR005: {entity} {key} already exists")]
+    #[serde(rename = "error_005_already_exists")]
     AlreadyExists {
         /// Entity type, e.g. `account`.
         entity: String,
@@ -47,14 +52,16 @@ pub enum CoreError {
         key: String,
     },
     /// A `Destructive` command was sent without `confirm: true`.
-    #[error("{command} is irreversible; repeat it with `confirm: true`")]
+    #[error("ERR006: {command} is irreversible; repeat it with `confirm: true`")]
+    #[serde(rename = "error_006_confirmation_required")]
     ConfirmationRequired {
         /// Name of the command.
         command: String,
     },
     /// The account has no mailbox for this purpose (e.g. no Trash folder), so the message
     /// cannot be moved there. Use `move_threads` with an explicit mailbox instead.
-    #[error("account {account} has no {role:?} mailbox")]
+    #[error("ERR007: account {account} has no {role:?} mailbox")]
+    #[serde(rename = "error_007_no_mailbox_for_role")]
     NoMailboxForRole {
         /// The account.
         account: String,
@@ -62,7 +69,10 @@ pub enum CoreError {
         role: crate::mailbox::MailboxRole,
     },
     /// Only some front-ends may run this command (e.g. agents can't approve their own sends).
-    #[error("{command} can't be run from {origin}; the user has to do it in the GUI or the CLI")]
+    #[error(
+        "ERR008: {command} can't be run from {origin}; the user has to do it in the GUI or the CLI"
+    )]
+    #[serde(rename = "error_008_origin_not_allowed")]
     OriginNotAllowed {
         /// Name of the command.
         command: String,
@@ -70,7 +80,8 @@ pub enum CoreError {
         origin: String,
     },
     /// The draft can't be sent (or changed) in its current state.
-    #[error("draft {draft} can't be sent: {reason}")]
+    #[error("ERR009: draft {draft} can't be sent: {reason}")]
+    #[serde(rename = "error_009_not_sendable")]
     NotSendable {
         /// The draft.
         draft: String,
@@ -78,9 +89,30 @@ pub enum CoreError {
         reason: String,
     },
     /// `undo` was requested but the history is empty.
-    #[error("nothing to undo")]
+    #[error("ERR010: nothing to undo")]
+    #[serde(rename = "error_010_nothing_to_undo")]
     NothingToUndo,
     /// `redo` was requested but nothing has been undone since the last change.
-    #[error("nothing to redo")]
+    #[error("ERR011: nothing to redo")]
+    #[serde(rename = "error_011_nothing_to_redo")]
     NothingToRedo,
+}
+
+impl CoreError {
+    /// The stable code, as the user quotes it. The same in every language; never reused.
+    pub const fn code(&self) -> &'static str {
+        match self {
+            Self::InvalidCommand { .. } => "ERR001",
+            Self::InvalidArgument { .. } => "ERR002",
+            Self::InvalidReplay { .. } => "ERR003",
+            Self::NotFound { .. } => "ERR004",
+            Self::AlreadyExists { .. } => "ERR005",
+            Self::ConfirmationRequired { .. } => "ERR006",
+            Self::NoMailboxForRole { .. } => "ERR007",
+            Self::OriginNotAllowed { .. } => "ERR008",
+            Self::NotSendable { .. } => "ERR009",
+            Self::NothingToUndo => "ERR010",
+            Self::NothingToRedo => "ERR011",
+        }
+    }
 }

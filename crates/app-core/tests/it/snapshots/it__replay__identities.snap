@@ -249,7 +249,7 @@ expression: first
       "result": {
         "err": {
           "command": "set_identity",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp"
         }
       }

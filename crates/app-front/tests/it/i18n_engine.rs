@@ -21,11 +21,11 @@ fn errors_are_translated_and_english_is_the_engines() {
     assert_eq!(error_in(Lang::English, &err), err.to_string());
     assert_eq!(
         error_in(Lang::French, &err),
-        "argument `password` non valide : ne doit pas être vide"
+        "ERR002 : argument `password` non valide : ne doit pas être vide"
     );
     assert_eq!(
         error_in(Lang::French, &CoreError::NothingToUndo),
-        "rien à annuler"
+        "ERR010 : rien à annuler"
     );
 }
 
@@ -49,7 +49,7 @@ fn reasons_with_values_keep_them() {
         };
         assert_eq!(
             error_in(Lang::French, &err),
-            format!("argument `f` non valide : {french}")
+            format!("ERR002 : argument `f` non valide : {french}")
         );
     }
 }

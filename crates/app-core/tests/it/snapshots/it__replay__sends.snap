@@ -801,7 +801,7 @@ expression: first
       "result": {
         "err": {
           "draft": "00000000-0000-0003-0000-000000000000",
-          "error": "not_sendable",
+          "error": "error_009_not_sendable",
           "reason": "it is being sent and can't be stopped any more"
         }
       }

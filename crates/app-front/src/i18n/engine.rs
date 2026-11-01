@@ -6,7 +6,7 @@ use app_core::{CommandName, CoreError};
 
 use super::{Lang, commands, pseudo};
 
-/// English reasons of `invalid_argument` and similar errors, with their French.
+/// English reasons of `error_002_invalid_argument` and similar errors, with their French.
 const REASONS: &[(&str, &str)] = &[
     (
         "it is being sent and can't be stopped any more",
@@ -340,12 +340,17 @@ fn french_entity(entity: &str) -> &str {
     }
 }
 
-/// `err` as the user reads it in `lang`.
+/// `err` as the user reads it in `lang`. The code stays as it is in every language.
 pub fn error_in(lang: Lang, err: &CoreError) -> String {
     match lang {
         Lang::English => err.to_string(),
-        Lang::Pseudo => pseudo(&err.to_string()),
-        Lang::French => french_error(err),
+        Lang::Pseudo => {
+            let text = err.to_string();
+            let prefix = format!("{}: ", err.code());
+            let message = text.strip_prefix(&prefix).unwrap_or(&text);
+            format!("{prefix}{}", pseudo(message))
+        }
+        Lang::French => format!("{} : {}", err.code(), french_error(err)),
     }
 }
 

@@ -343,7 +343,7 @@ expression: first
       "result": {
         "err": {
           "command": "approve_request",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp"
         }
       }
