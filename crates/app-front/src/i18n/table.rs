@@ -40,7 +40,7 @@ strings! {
         "échec du trousseau";
     KeyringHint:
         "The system keyring (Secret Service on Linux, Credential Manager on Windows) is locked or missing: unlock it, or start a keyring service.",
-        "Le trousseau du système (Secret Service sous Linux, Gestionnaire d'identifiants sous Windows) est verrouillé ou absent : déverrouillez-le ou démarrez un service de trousseau.";
+        "Le trousseau du système (Secret Service sous Linux, Gestionnaire d’identifiants sous Windows) est verrouillé ou absent : déverrouillez-le ou démarrez un service de trousseau.";
     LoginFailed:
         "{email}: login failed",
         "{email} : échec de la connexion";
@@ -58,22 +58,22 @@ strings! {
         "tester à nouveau";
     HintPasswordGmail:
         "Gmail refused the password. It needs an App Password (Google account → Security → 2-Step Verification → App passwords), not your Google password.",
-        "Gmail a refusé le mot de passe. Il faut un mot de passe d'application (compte Google → Sécurité → Validation en deux étapes → Mots de passe des applications), pas votre mot de passe Google.";
+        "Gmail a refusé le mot de passe. Il faut un mot de passe d’application (compte Google → Sécurité → Validation en deux étapes → Mots de passe des applications), pas votre mot de passe Google.";
     HintPassword:
         "The server refused the password (or none is stored). Enter it again; if you changed it on the web, use the new one.",
-        "Le serveur a refusé le mot de passe (ou aucun n'est enregistré). Saisissez-le à nouveau ; si vous l'avez changé sur le web, utilisez le nouveau.";
+        "Le serveur a refusé le mot de passe (ou aucun n’est enregistré). Saisissez-le à nouveau ; si vous l’avez changé sur le web, utilisez le nouveau.";
     HintQuota:
         "The mailbox is full. Delete or archive mail and empty the Trash, then retry.",
         "La boîte aux lettres est pleine. Supprimez ou archivez du courrier et videz la corbeille, puis réessayez.";
     HintTlsCiphers:
         "The server only offers TLS ciphers dail does not have yet (AES-GCM or P-256 key exchange). Nothing to fix on your side; see ROADMAP.md (TLS tiers 2 and 3).",
-        "Le serveur ne propose que des chiffrements TLS que dail n'a pas encore (AES-GCM ou échange de clés P-256). Rien à corriger de votre côté ; voir ROADMAP.md (TLS, niveaux 2 et 3).";
+        "Le serveur ne propose que des chiffrements TLS que dail n’a pas encore (AES-GCM ou échange de clés P-256). Rien à corriger de votre côté ; voir ROADMAP.md (TLS, niveaux 2 et 3).";
     HintCertificate:
         "The server's certificate is not trusted: expired, self-signed or for another name. Check the server name; dail does not connect without a valid certificate.",
-        "Le certificat du serveur n'est pas fiable : expiré, auto-signé ou émis pour un autre nom. Vérifiez le nom du serveur ; dail ne se connecte pas sans certificat valide.";
+        "Le certificat du serveur n’est pas fiable : expiré, auto-signé ou émis pour un autre nom. Vérifiez le nom du serveur ; dail ne se connecte pas sans certificat valide.";
     HintNetwork:
         "The server could not be reached. Check the connection and the server name; syncing tries again by itself.",
-        "Le serveur est injoignable. Vérifiez la connexion et le nom du serveur ; la synchronisation réessaie d'elle-même.";
+        "Le serveur est injoignable. Vérifiez la connexion et le nom du serveur ; la synchronisation réessaie d’elle-même.";
     Syncing:
         "⟳ syncing…",
         "⟳ synchronisation…";
@@ -97,10 +97,10 @@ strings! {
         "{pending} en attente · {failed} en échec";
     CollapseSidebar:
         "Collapse sidebar (Ctrl+B)",
-        "Replier la barre latérale (Ctrl+B)";
+        "Réduire la barre latérale (Ctrl+B)";
     ExpandSidebar:
         "Expand sidebar (Ctrl+B)",
-        "Déplier la barre latérale (Ctrl+B)";
+        "Développer la barre latérale (Ctrl+B)";
     Compose:
         "Compose",
         "Rédiger";
@@ -115,16 +115,16 @@ strings! {
         "Afficher tous les dossiers";
     AllInboxes:
         "All inboxes",
-        "Toutes les boîtes";
+        "Dossiers unifiés";
     Favourites:
         "Favourites",
-        "Favoris";
+        "Dossiers préférés";
     HideHiddenFolders:
         "Hide hidden folders",
         "Masquer les dossiers cachés";
     NoAccountsYet:
         "No accounts yet.",
-        "Aucun compte pour l'instant.";
+        "Aucun compte pour l’instant.";
     AddAccount:
         "Add account",
         "Ajouter un compte";
@@ -145,10 +145,10 @@ strings! {
         "Renommer…";
     UnpinFavourites:
         "Unpin from Favourites",
-        "Retirer des favoris";
+        "Retirer des dossiers préférés";
     PinFavourites:
         "Pin to Favourites",
-        "Ajouter aux favoris";
+        "Ajouter aux dossiers préférés";
     ShowFolder:
         "Show folder",
         "Afficher le dossier";
@@ -157,7 +157,7 @@ strings! {
         "Masquer le dossier";
     FocusMailbox:
         "Focus this mailbox",
-        "Se concentrer sur cette boîte";
+        "Se concentrer sur ce dossier";
     MarkAllRead:
         "Mark all as read",
         "Tout marquer comme lu";
@@ -166,7 +166,7 @@ strings! {
         "Supprimer…";
     SearchOrRun:
         "Search or run a command",
-        "Chercher ou lancer une commande";
+        "Rechercher ou lancer une commande";
     MoveHint:
         "j / k to move",
         "j / k pour se déplacer";
@@ -178,7 +178,7 @@ strings! {
         "recherche sur le serveur…";
     RetryFailed:
         "Retry failed changes",
-        "Relancer les modifications en échec";
+        "Réessayer les modifications en échec";
     Undo:
         "Undo",
         "Annuler";
@@ -208,7 +208,7 @@ strings! {
         "De";
     CcBcc:
         "Cc/Bcc",
-        "Cc/Cci";
+        "Copie à/Copie cachée à";
     Subject:
         "Subject",
         "Objet";
@@ -217,10 +217,10 @@ strings! {
         "Écrivez votre message…";
     OriginalBelow:
         "The original is added below when sent",
-        "L'original est ajouté dessous à l'envoi";
+        "L’original est ajouté dessous à l’envoi";
     CancelSend:
         "Cancel send",
-        "Annuler l'envoi";
+        "Annuler l’envoi";
     AttachFiles:
         "Attach files…",
         "Joindre des fichiers…";
@@ -247,13 +247,13 @@ strings! {
         "Déposez les fichiers pour les joindre";
     NoMatches:
         "No matching conversations.",
-        "Aucune conversation ne correspond.";
+        "Aucune discussion ne correspond.";
     NoConversations:
         "No conversations here.",
-        "Aucune conversation ici.";
+        "Aucune discussion ici.";
     PickMailbox:
         "Pick a mailbox.",
-        "Choisissez une boîte.";
+        "Choisissez un dossier.";
     Focus:
         "Focus",
         "Focus";
@@ -292,10 +292,10 @@ strings! {
         "Marquer comme non lu";
     Star:
         "Star",
-        "Suivre";
+        "Ajouter un suivi";
     Unstar:
         "Unstar",
-        "Ne plus suivre";
+        "Retirer le suivi";
     UncheckAll:
         "Uncheck all",
         "Tout décocher";
@@ -310,7 +310,7 @@ strings! {
         "(sans expéditeur)";
     NoSubject:
         "(no subject)",
-        "(sans objet)";
+        "(pas de sujet)";
     Pinned:
         "Pinned",
         "Épinglé";
@@ -325,7 +325,7 @@ strings! {
         "la signature";
     NoConversationOpen:
         "No conversation open",
-        "Aucune conversation ouverte";
+        "Aucune discussion ouverte";
     Reply:
         "Reply",
         "Répondre";
@@ -337,10 +337,10 @@ strings! {
         "Transférer";
     UnstarKey:
         "Unstar (S)",
-        "Ne plus suivre (S)";
+        "Retirer le suivi (S)";
     StarKey:
         "Star (S)",
-        "Suivre (S)";
+        "Ajouter un suivi (S)";
     MarkReadKey:
         "Mark read (U)",
         "Marquer comme lu (U)";
@@ -358,19 +358,19 @@ strings! {
         "Déplacer… (V)";
     NextConversation:
         "Next conversation (j)",
-        "Conversation suivante (j)";
+        "Discussion suivante (j)";
     PreviousConversation:
         "Previous conversation (k)",
-        "Conversation précédente (k)";
+        "Discussion précédente (k)";
     OneMessage:
         "1 MESSAGE",
         "1 MESSAGE";
     OpenOriginal:
         "Open original",
-        "Ouvrir l'original";
+        "Ouvrir l’original";
     OpenOriginalArrow:
         "Open original ↗",
-        "Ouvrir l'original ↗";
+        "Ouvrir l’original ↗";
     OpenOriginalHint:
         "A sanitized copy (no scripts, no images, nothing remote) in your browser",
         "Une copie assainie (ni scripts, ni images, rien de distant) dans votre navigateur";
@@ -391,7 +391,7 @@ strings! {
         "Afficher les images";
     PicturesHint:
         "Only pictures carried in the message; nothing is downloaded",
-        "Seulement les images contenues dans le message ; rien n'est téléchargé";
+        "Seulement les images contenues dans le message ; rien n’est téléchargé";
     NoText:
         "(no text)",
         "(pas de texte)";
@@ -457,10 +457,10 @@ strings! {
         "La hauteur des lignes de la liste";
     Cozy:
         "Cozy 48",
-        "Aéré 48";
+        "Détendue 48";
     Compact:
         "Compact 40",
-        "Compact 40";
+        "Compacte 40";
     PreviewDensity:
         "Preview 72",
         "Aperçu 72";
@@ -496,10 +496,10 @@ strings! {
         "Changer…";
     UndoSend:
         "Undo send",
-        "Annulation de l'envoi";
+        "Annulation de l’envoi";
     UndoSendHint:
         "How long a sent message waits before it leaves",
-        "Le temps qu'un message attend avant de partir";
+        "Le temps qu’un message attend avant de partir";
     Off:
         "Off",
         "Désactivé";
@@ -514,7 +514,7 @@ strings! {
         "Marquer comme lu";
     MarkAsReadHint:
         "When an open conversation is marked read (other values: set_setting in the palette)",
-        "Quand une conversation ouverte est marquée comme lue (autres valeurs : set_setting dans la palette)";
+        "Quand une discussion ouverte est marquée comme lue (autres valeurs : set_setting dans la palette)";
     Never:
         "Never",
         "Jamais";
@@ -532,13 +532,13 @@ strings! {
         "Notifications";
     NotificationsHint:
         "New mail, failed sends and agent requests while dail is in the background",
-        "Nouveau courrier, envois en échec et demandes d'agents quand dail est en arrière-plan";
+        "Nouveau courrier, envois en échec et demandes d’agents quand dail est en arrière-plan";
     UndoHistory:
         "Undo history",
-        "Historique d'annulation";
+        "Historique d’annulation";
     UndoHistoryHint:
         "How many steps undo remembers",
-        "Le nombre d'étapes gardées";
+        "Le nombre d’étapes gardées";
     Updates:
         "Updates",
         "Mises à jour";
@@ -547,7 +547,7 @@ strings! {
         "Vérifier automatiquement";
     CheckAutomaticallyHint:
         "Asks GitHub for the signed release list; nothing about you is sent",
-        "Demande à GitHub la liste signée des versions ; rien sur vous n'est envoyé";
+        "Demande à GitHub la liste signée des versions ; rien sur vous n’est envoyé";
     HowOften:
         "How often",
         "Fréquence";
@@ -601,13 +601,13 @@ strings! {
         "Retour";
     AppPassword:
         "App Password",
-        "Mot de passe d'application";
+        "Mot de passe d’application";
     Password:
         "Password",
         "Mot de passe";
     KeyringOnly:
         "Stored in the system keyring only; dail never writes it anywhere else.",
-        "Stocké uniquement dans le trousseau du système ; dail ne l'écrit nulle part ailleurs.";
+        "Stocké uniquement dans le trousseau du système ; dail ne l’écrit nulle part ailleurs.";
     SaveAndTest:
         "Save and test",
         "Enregistrer et tester";
@@ -643,7 +643,7 @@ strings! {
         "un message";
     ApproveSend:
         "Approve send",
-        "Approuver l'envoi";
+        "Approuver l’envoi";
     Edit:
         "Edit",
         "Modifier";
@@ -670,7 +670,7 @@ strings! {
         "Ouvrir ↗";
     HidePreview:
         "Hide preview",
-        "Masquer l'aperçu";
+        "Masquer l’aperçu";
     Preview:
         "Preview",
         "Aperçu";
@@ -679,7 +679,7 @@ strings! {
         "Enregistrer…";
     LoadingPreview:
         "Loading the preview…",
-        "Chargement de l'aperçu…";
+        "Chargement de l’aperçu…";
     Dismiss:
         "Dismiss",
         "Ignorer";
@@ -703,10 +703,10 @@ strings! {
         "Ses pièces jointes sont encore en cours de vérification.";
     SendRequests:
         " Send requests ",
-        " Demandes d'envoi ";
+        " Demandes d’envoi ";
     NoSendRequests:
         "No send requests.",
-        "Aucune demande d'envoi.";
+        "Aucune demande d’envoi.";
     ApprovalsCheckingFooter:
         "attachments are being checked · e edit · r reject · q close",
         "vérification des pièces jointes · e modifier · r rejeter · q fermer";
@@ -718,13 +718,13 @@ strings! {
         "q fermer";
     OriginalBelowTui:
         "(the original is added below when sent)",
-        "(l'original est ajouté dessous à l'envoi)";
+        "(l’original est ajouté dessous à l’envoi)";
     ReadOnlyWhileSent:
         "read-only while it is sent · z cancels",
-        "lecture seule pendant l'envoi · z annule";
+        "lecture seule pendant l’envoi · z annule";
     ComposerFooter:
         "Ctrl+S send · Ctrl+O $EDITOR · Ctrl+K “Attach file” · Esc close",
-        "Ctrl+S envoyer · Ctrl+O $EDITOR · Ctrl+K “Attach file” · Échap fermer";
+        "Ctrl+S envoyer · Ctrl+O $EDITOR · Ctrl+K « Attach file » · Échap fermer";
     FromColon:
         "From: ",
         "De : ";
@@ -751,7 +751,7 @@ strings! {
         "↑↓ défiler · Tab Entrée ouvrir · r données brutes · q ou Échap fermer";
     NoConversationTui:
         "No conversation open. Enter opens the selected one.",
-        "Aucune conversation ouverte. Entrée ouvre celle qui est sélectionnée.";
+        "Aucune discussion ouverte. Entrée ouvre celle qui est sélectionnée.";
     Keys:
         "Keys",
         "Touches";
@@ -829,10 +829,10 @@ strings! {
         "Test de la connexion…";
     QuitConfirm:
         "Quitting cancels the send still in its undo window. q quits, any other key stays",
-        "Quitter annule l'envoi encore dans son délai d'annulation. q quitte, toute autre touche reste";
+        "Quitter annule l’envoi encore dans son délai d’annulation. q quitte, toute autre touche reste";
     PickMailboxTui:
         "Pick a mailbox: g i for the inbox.",
-        "Choisissez une boîte : g i pour la réception.";
+        "Choisissez un dossier : g i pour le courrier entrant.";
     PressEnterToAdd:
         "Press Enter to add one here, or run in another shell:",
         "Appuyez sur Entrée pour en ajouter un ici, ou lancez dans un autre terminal :";
@@ -844,7 +844,7 @@ strings! {
         "Définissez $VISUAL ou $EDITOR pour écrire le message dans votre éditeur";
     StillHere:
         "Still here; the send goes out when its window closes.",
-        "Toujours là ; l'envoi part à la fin de son délai.";
+        "Toujours là ; l’envoi part à la fin de son délai.";
     MouseOn:
         "Mouse on: tap to select, swipe to scroll",
         "Souris active : touchez pour sélectionner, glissez pour défiler";
@@ -859,7 +859,7 @@ strings! {
         "Terminal trop petit";
     Mailboxes:
         "Mailboxes",
-        "Boîtes";
+        "Dossiers";
     Message:
         "Message",
         "Message";
@@ -868,7 +868,7 @@ strings! {
         "Brouillon";
     Conversations:
         "Conversations",
-        "Conversations";
+        "Discussions";
     FocusFooter:
         "Focus · palette: Exit focus",
         "Focus · palette : Exit focus";
@@ -907,10 +907,10 @@ strings! {
         "{n} modification(s) en attente du serveur";
     CollapseWhat:
         "Collapse {what}",
-        "Replier {what}";
+        "Réduire {what}";
     ExpandWhat:
         "Expand {what}",
-        "Déplier {what}";
+        "Développer {what}";
     FetchingOlder:
         "Fetching older mail: {cached} of {wanted} cached",
         "Récupération du courrier ancien : {cached} sur {wanted} en cache";
@@ -919,7 +919,7 @@ strings! {
         "Synchroniser ({keys})";
     DraftSaveFailed:
         "Draft save failed: {error}",
-        "Échec de l'enregistrement du brouillon : {error}";
+        "Échec de l’enregistrement du brouillon : {error}";
     NotSent:
         "Not sent: {error}",
         "Non envoyé : {error}";
@@ -937,7 +937,7 @@ strings! {
         "{n} cochés";
     LabelConversation:
         "{label} conversation",
-        "{label} la conversation";
+        "{label} la discussion";
     HideWhat:
         "Hide {what}",
         "Masquer {what}";
@@ -952,16 +952,16 @@ strings! {
         "{n} MESSAGES";
     ExpandMessage:
         "Expand message from {from}",
-        "Déplier le message de {from}";
+        "Développer le message de {from}";
     CollapseMessage:
         "Collapse message from {from}",
-        "Replier le message de {from}";
+        "Réduire le message de {from}";
     ToList:
         "to {to}",
-        "à {to}";
+        "pour {to}";
     BodyFailed:
         "The body could not be downloaded: {error}",
-        "Le message n'a pas pu être téléchargé : {error}";
+        "Le message n’a pas pu être téléchargé : {error}";
     ActionFrom:
         "{action} from {sender}",
         "{action} de {sender}";
@@ -976,7 +976,7 @@ strings! {
         "échec : {error}";
     RemoveAccountCache:
         "Remove {email} and its mail cache",
-        "Retirer {email} et son cache de courrier";
+        "Supprimer {email} et son cache de courrier";
     ChangeKeysOf:
         "Change the keys of {name}",
         "Changer les touches de {name}";
@@ -1012,10 +1012,10 @@ strings! {
         "Enregistrement dans {dir}…";
     SaveFailed:
         "Could not save the attachments: {error}",
-        "Impossible d'enregistrer les pièces jointes : {error}";
+        "Impossible d’enregistrer les pièces jointes : {error}";
     NoPreview:
         "No preview: {error}",
-        "Pas d'aperçu : {error}";
+        "Pas d’aperçu : {error}";
     SavedAs:
         "Saved as {name}",
         "Enregistré sous {name}";
@@ -1024,16 +1024,16 @@ strings! {
         "{n} fichiers enregistrés : {names}";
     AgentRequest:
         "Agent request: send {what} — check it before approving",
-        "Demande d'agent : envoyer {what} — vérifiez avant d'approuver";
+        "Demande d’agent : envoyer {what} — vérifiez avant d’approuver";
     AgentWantsSend:
         "! An agent wants to send {what}",
         "! Un agent veut envoyer {what}";
     ApprovalsHintTui:
         " — Ctrl+K, “Show send requests”",
-        " — Ctrl+K, “Show send requests”";
+        " — Ctrl+K, « Show send requests »";
     SendNowQuestion:
         "Send “{subject}” now? y sends (with the undo window), any other key doesn't",
-        "Envoyer “{subject}” maintenant ? y envoie (avec le délai d'annulation), toute autre touche non";
+        "Envoyer « {subject} » maintenant ? y envoie (avec le délai d’annulation), toute autre touche non";
     FromLine:
         "  From: {from}",
         "  De : {from}";
@@ -1060,7 +1060,7 @@ strings! {
         "Trouvé sur {source} : {imap} et {smtp}. Ctrl+F les remplit.";
     EditorFailed:
         "The editor failed: {reason}",
-        "L'éditeur a échoué : {reason}";
+        "L’éditeur a échoué : {reason}";
     TitleFocus:
         "{title} · Focus",
         "{title} · Focus";
@@ -1078,16 +1078,16 @@ strings! {
         "{text} (réessayer : palette)";
     UndoLabel:
         "“{label}” z undo",
-        "“{label}” z annuler";
+        "« {label} » z annuler";
     BadgeSettings:
         "{badge} (settings)",
         "{badge} (paramètres)";
     PresetGmailHint:
         "Needs an App Password (2-Step Verification on).",
-        "Nécessite un mot de passe d'application (validation en deux étapes activée).";
+        "Nécessite un mot de passe d’application (validation en deux étapes activée).";
     PresetHostingerHint:
         "Your mailbox password.",
-        "Le mot de passe de votre boîte.";
+        "Le mot de passe de votre compte.";
     PresetCustomHint:
         "Enter the servers yourself.",
         "Saisissez les serveurs vous-même.";
@@ -1123,7 +1123,7 @@ strings! {
         "sélectionner";
     ToLabel:
         "To",
-        "À";
+        "Pour";
     ReleaseNotes:
         "  release notes",
         "  notes de version";
@@ -1135,22 +1135,22 @@ strings! {
         "(expéditeur inconnu)";
     SendingFailed:
         "Sending failed",
-        "Échec de l'envoi";
+        "Échec de l’envoi";
     AnAgentWantsToSendAMessage:
         "An agent wants to send a message",
         "Un agent veut envoyer un message";
     To:
         "To:",
-        "À :";
+        "Pour :";
     Cc:
         "Cc:",
-        "Cc :";
+        "Copie à :";
     Bcc:
         "Bcc:",
-        "Cci :";
+        "Copie cachée à :";
     BccX:
         "Bcc",
-        "Cci";
+        "Copie cachée à";
     SendingX:
         "sending…",
         "envoi…";
@@ -1243,7 +1243,7 @@ strings! {
         "Plus tard";
     Today:
         "Today",
-        "Aujourd'hui";
+        "Aujourd’hui";
     Yesterday:
         "Yesterday",
         "Hier";
@@ -1258,10 +1258,10 @@ strings! {
         "maintenant";
     JustNow:
         "just now",
-        "à l'instant";
+        "à l’instant";
     Inbox:
         "Inbox",
-        "Boîte de réception";
+        "Courrier entrant";
     Sent:
         "Sent",
         "Envoyés";
@@ -1276,7 +1276,7 @@ strings! {
         "Tous les messages";
     WhichConversation:
         "Which conversation?",
-        "Quelle conversation ?";
+        "Quelle discussion ?";
     WhichDraft:
         "Which draft?",
         "Quel brouillon ?";
@@ -1285,7 +1285,7 @@ strings! {
         "Quel compte ?";
     RemoveThisAccountThisCannotBeUndone:
         "Remove this account? This cannot be undone.",
-        "Retirer ce compte ? C'est irréversible.";
+        "Supprimer ce compte ? C’est irréversible.";
     InstallTheUpdateDailAsksToRestart:
         "Install the update? dail asks to restart afterwards.",
         "Installer la mise à jour ? dail demandera de redémarrer ensuite.";
@@ -1297,7 +1297,7 @@ strings! {
         "Nouveau nom (chemin complet) ?";
     DeleteThisFolderAndAllMailIn:
         "Delete this folder and all mail in it? This cannot be undone.",
-        "Supprimer ce dossier et tout son courrier ? C'est irréversible.";
+        "Supprimer ce dossier et tout son courrier ? C’est irréversible.";
     FindTheMailServersOfWhichAddress:
         "Find the mail servers of which address?",
         "Trouver les serveurs de quelle adresse ?";
@@ -1327,7 +1327,7 @@ strings! {
         "Nouveau nom affiché";
     WhichMailbox:
         "Which mailbox?",
-        "Quelle boîte ?";
+        "Quel dossier ?";
     KeepHowManyOfTheNewestMessages:
         "Keep how many of the newest messages offline?",
         "Garder combien de messages récents hors ligne ?";
@@ -1336,7 +1336,7 @@ strings! {
         "un nombre ; 0 garde tout";
     GoToMailbox:
         "Go to mailbox",
-        "Aller à la boîte";
+        "Aller au dossier";
     WhichAddress:
         "Which address?",
         "Quelle adresse ?";
@@ -1363,10 +1363,10 @@ strings! {
         "un nom ou une adresse";
     SelectWhichConversation:
         "Select which conversation?",
-        "Sélectionner quelle conversation ?";
+        "Sélectionner quelle discussion ?";
     OpenWhichConversation:
         "Open which conversation?",
-        "Ouvrir quelle conversation ?";
+        "Ouvrir quelle discussion ?";
     ShowImagesFromWhichSender:
         "Show images from which sender?",
         "Afficher les images de quel expéditeur ?";
@@ -1381,7 +1381,7 @@ strings! {
         "un chemin absolu, p. ex. /home/moi/Téléchargements";
     MoveWhichConversation:
         "Move which conversation?",
-        "Déplacer quelle conversation ?";
+        "Déplacer quelle discussion ?";
     DiscardWhichChange:
         "Discard which change?",
         "Abandonner quelle modification ?";
@@ -1396,13 +1396,13 @@ strings! {
         "Joindre à quel brouillon ?";
     RemoveWhichAttachment:
         "Remove which attachment?",
-        "Retirer quelle pièce jointe ?";
+        "Supprimer quelle pièce jointe ?";
     FromWhichDraft:
         "From which draft?",
         "De quel brouillon ?";
     SearchMailResultsAsData:
         "Search mail (results as data)",
-        "Chercher dans le courrier (résultats en données)";
+        "Rechercher dans le courrier (résultats en données)";
     Search:
         "Search",
         "Rechercher";
@@ -1411,7 +1411,7 @@ strings! {
         "Activer quel panneau ?";
     FocusOnWhichMailbox:
         "Focus on which mailbox?",
-        "Focus sur quelle boîte ?";
+        "Focus sur quel dossier ?";
     NameOfTheNewFolder:
         "Name of the new folder?",
         "Nom du nouveau dossier ?";
@@ -1426,22 +1426,22 @@ strings! {
         "Supprimer quel dossier ?";
     PinWhichMailbox:
         "Pin which mailbox?",
-        "Épingler quelle boîte ?";
+        "Épingler quel dossier ?";
     UnpinWhichMailbox:
         "Unpin which mailbox?",
-        "Détacher quelle boîte ?";
+        "Détacher quel dossier ?";
     HideWhichMailbox:
         "Hide which mailbox?",
-        "Masquer quelle boîte ?";
+        "Masquer quel dossier ?";
     ShowWhichHiddenMailbox:
         "Show which hidden mailbox?",
-        "Afficher quelle boîte masquée ?";
+        "Afficher quel dossier masqué ?";
     MarkWhichMailboxRead:
         "Mark which mailbox read?",
-        "Marquer quelle boîte comme lue ?";
+        "Marquer quel dossier comme lu ?";
     ShowOnlyWhichThreads:
         "Show only which threads?",
-        "Afficher seulement quelles conversations ?";
+        "Afficher seulement quelles discussions ?";
     All:
         "all",
         "toutes";
@@ -1453,10 +1453,10 @@ strings! {
         "on ou off, puis les heures entre deux vérifications : on 24";
     ApproveWhichSendRequest:
         "Approve which send request?",
-        "Approuver quelle demande d'envoi ?";
+        "Approuver quelle demande d’envoi ?";
     RejectWhichSendRequest:
         "Reject which send request?",
-        "Rejeter quelle demande d'envoi ?";
+        "Rejeter quelle demande d’envoi ?";
     TypeThenEnter:
         "Type, then Enter",
         "Saisissez, puis Entrée";
@@ -1474,13 +1474,13 @@ strings! {
         "Récents";
     Threads:
         "Threads",
-        "Conversations";
+        "Discussions";
     Date:
         "Date",
         "Date";
     Mailbox:
         "Mailbox",
-        "Boîte";
+        "Dossier";
     Size:
         "Size",
         "Taille";
@@ -1498,7 +1498,7 @@ strings! {
         "aucune";
     OpenConversation:
         "Open conversation",
-        "Ouvrir la conversation";
+        "Ouvrir la discussion";
     LastMessage:
         "Last message",
         "Dernier message";
@@ -1507,7 +1507,7 @@ strings! {
         "Requête";
     NoMailboxes:
         "No mailboxes",
-        "Aucune boîte";
+        "Aucun dossier";
     NoContacts:
         "No contacts",
         "Aucun contact";
@@ -1516,7 +1516,7 @@ strings! {
         "Aucune modification en attente";
     NoSendRequestsX:
         "No send requests",
-        "Aucune demande d'envoi";
+        "Aucune demande d’envoi";
     Testing:
         "Testing…",
         "Test…";
@@ -1603,7 +1603,7 @@ strings! {
         "{n} nouveaux messages";
     MessagesCouldNotBeSent:
         "{n} messages could not be sent",
-        "{n} messages n'ont pas pu être envoyés";
+        "{n} messages n’ont pas pu être envoyés";
     ToX:
         "To {to}: {subject}",
         "À {to} : {subject}";
@@ -1636,7 +1636,7 @@ strings! {
         "Envoi dans {n} s";
     RemoveAndItsPassword:
         "Remove {email} and its password",
-        "Retirer {email} et son mot de passe";
+        "Supprimer {email} et son mot de passe";
     InstallDail:
         "Install dail {version}",
         "Installer dail {version}";
@@ -1651,7 +1651,7 @@ strings! {
         "Supprimer {path}";
     MarkAllUnreadMessagesReadUndoRestores:
         "Mark all {n} unread messages read? Undo restores only the cached ones.",
-        "Marquer les {n} messages non lus comme lus ? L'annulation ne restaure que ceux en cache.";
+        "Marquer les {n} messages non lus comme lus ? L’annulation ne restaure que ceux en cache.";
     MarkMessagesRead:
         "Mark {n} messages read",
         "Marquer {n} messages comme lus";
@@ -1666,10 +1666,10 @@ strings! {
         "Aller à {name}";
     Use:
         "Use “{query}”",
-        "Utiliser “{query}”";
+        "Utiliser « {query} »";
     SearchMailFor:
         "Search mail for “{query}”",
-        "Chercher “{query}” dans le courrier";
+        "Rechercher « {query} » dans le courrier";
     UnreadXX:
         "{unread} unread · {total}",
         "{unread} non lus · {total}";
@@ -1678,7 +1678,7 @@ strings! {
         "{state} · {n} tentatives";
     ToName:
         "To {to}",
-        "À {to}";
+        "Pour {to}";
     SignedIn:
         "Signed in {age}",
         "Connecté {age}";
@@ -1696,7 +1696,7 @@ strings! {
         "Installation de dail {version}…";
     DailIsInstalledRestartDailToUse:
         "dail {version} is installed: restart dail to use it",
-        "dail {version} est installé : redémarrez dail pour l'utiliser";
+        "dail {version} est installé : redémarrez dail pour l’utiliser";
     UpdateFailed:
         "Update failed: {reason}",
         "Échec de la mise à jour : {reason}";
@@ -1717,16 +1717,16 @@ strings! {
         "Rechercher les nouvelles versions de dail ?";
     UpdateQuestionDetail:
         "Once a day dail asks GitHub for the signed release list. Nothing about you or your mail is sent. You can change this in Settings.",
-        "Une fois par jour, dail demande à GitHub la liste signée des versions. Rien sur vous ou votre courrier n'est envoyé. Vous pouvez changer cela dans les paramètres.";
+        "Une fois par jour, dail demande à GitHub la liste signée des versions. Rien sur vous ou votre courrier n’est envoyé. Vous pouvez changer cela dans les paramètres.";
     LanguageSetting:
         "Language",
         "Langue";
     LanguageHint:
         "The language of the app",
-        "La langue de l'application";
+        "La langue de l’application";
     AddAnAccountInDailBeforeSharing:
         "Add an account in dail before sharing to it.",
-        "Ajoutez un compte dans dail avant d'y partager.";
+        "Ajoutez un compte dans dail avant d’y partager.";
     RestorePanes:
         "Restore panes",
         "Restaurer les panneaux";
@@ -1744,10 +1744,10 @@ strings! {
         "Icônes seules";
     NoAccountsYetAddOneToRead:
         "No accounts yet. Add one to read your mail here.",
-        "Aucun compte pour l'instant. Ajoutez-en un pour lire votre courrier ici.";
+        "Aucun compte pour l’instant. Ajoutez-en un pour lire votre courrier ici.";
     PickAMailboxFromTheMenu:
         "Pick a mailbox from the menu.",
-        "Choisissez une boîte dans le menu.";
+        "Choisissez un dossier dans le menu.";
     ForwardedMessage:
         "Forwarded message",
         "Message transféré";
@@ -1768,10 +1768,10 @@ strings! {
         "Nouveau courrier";
     AMessageWasNotSent:
         "A message was not sent",
-        "Un message n'a pas été envoyé";
+        "Un message n’a pas été envoyé";
     NewMailArrivesAsItComes:
         "New mail arrives as it comes",
-        "Le courrier arrive au fil de l'eau";
+        "Le courrier arrive au fil de l’eau";
     Stop:
         "Stop",
         "Arrêter";
@@ -1780,10 +1780,10 @@ strings! {
         "Batterie";
     ConnectingToYourInboxes:
         "Connecting to your inboxes",
-        "Connexion à vos boîtes";
+        "Connexion à vos comptes";
     Watching1Inbox:
         "Watching 1 inbox",
-        "Surveillance d'une boîte";
+        "Surveillance d’un dossier";
     QuotedTextX:
         "Quoted text",
         "Texte cité";
@@ -1798,10 +1798,10 @@ strings! {
         "Fermer le message";
     PreviousConversationX:
         "Previous conversation",
-        "Conversation précédente";
+        "Discussion précédente";
     NextConversationX:
         "Next conversation",
-        "Conversation suivante";
+        "Discussion suivante";
     Copy:
         "Copy",
         "Copier";
@@ -1813,28 +1813,28 @@ strings! {
         "Enregistrer";
     DailDoesNotShowThisKindOf:
         "dail does not show this kind of file. Save it to open it in another app.",
-        "dail n'affiche pas ce type de fichier. Enregistrez-le pour l'ouvrir dans une autre application.";
+        "dail n’affiche pas ce type de fichier. Enregistrez-le pour l’ouvrir dans une autre application.";
     ThisPictureCouldNotBeShown:
         "This picture could not be shown.",
-        "Cette image n'a pas pu être affichée.";
+        "Cette image n’a pas pu être affichée.";
     ThisPageCouldNotBeShown:
         "This page could not be shown.",
-        "Cette page n'a pas pu être affichée.";
+        "Cette page n’a pas pu être affichée.";
     TheFileCouldNotBeRead:
         "The file could not be read.",
-        "Le fichier n'a pas pu être lu.";
+        "Le fichier n’a pas pu être lu.";
     TheMessageIsNotDownloadedYet:
         "The message is not downloaded yet.",
-        "Le message n'est pas encore téléchargé.";
+        "Le message n’est pas encore téléchargé.";
     On:
         "On",
         "Activé";
     CozyX:
         "Cozy",
-        "Aéré";
+        "Détendue";
     CompactX:
         "Compact",
-        "Compact";
+        "Compacte";
     OnlyWhileOpen:
         "Only while open",
         "Seulement ouverte";
@@ -1846,10 +1846,10 @@ strings! {
         "Push";
     CheckTheInboxEvery:
         "Check the inbox every",
-        "Relever la boîte toutes les";
+        "Relever le dossier toutes les";
     MessagesFetchedFirst:
         "Messages fetched first",
-        "Messages récupérés d'abord";
+        "Messages récupérés d’abord";
     ListDensity:
         "List density",
         "Densité de la liste";
@@ -1867,34 +1867,34 @@ strings! {
         "Marquer comme lu après";
     RefreshAMailboxOnOpenAfter:
         "Refresh a mailbox on open after",
-        "Actualiser une boîte à l'ouverture après";
+        "Actualiser un dossier à l’ouverture après";
     SyncEveryFolderEvery:
         "Sync every folder every",
         "Synchroniser tous les dossiers toutes les";
     AfterArchiving:
         "After archiving",
-        "Après l'archivage";
+        "Après l’archivage";
     HowLongASendCanStillBe:
         "How long a send can still be cancelled.",
         "Le temps pendant lequel un envoi peut être annulé.";
     WhileTheAppIsOpen:
         "While the app is open.",
-        "Tant que l'application est ouverte.";
+        "Tant que l’application est ouverte.";
     NewMailAndFailedSendsWhileDail:
         "New mail and failed sends, while dail is off screen.",
-        "Nouveau courrier et envois en échec, quand dail n'est pas à l'écran.";
+        "Nouveau courrier et envois en échec, quand dail n’est pas à l’écran.";
     PerMailboxOnItsFirstSync:
         "Per mailbox, on its first sync.",
-        "Par boîte, à sa première synchronisation.";
+        "Par dossier, à sa première synchronisation.";
     Mode:
         "Mode",
         "Mode";
     SystemFollowsAndroidSDarkTheme:
         "System follows Android's dark theme.",
-        "Système suit le thème sombre d'Android.";
+        "Système suit le thème sombre d’Android.";
     TextSizeFollowsAndroidSFontSize:
         "Text size follows Android's font size.",
-        "La taille du texte suit celle d'Android.";
+        "La taille du texte suit celle d’Android.";
     ChangeAKey:
         "Change a key…",
         "Changer une touche…";
@@ -1951,13 +1951,13 @@ strings! {
         "{n} sélectionnés";
     NotSentX:
         "Not sent: “{subject}”: {error}",
-        "Non envoyé : “{subject}” : {error}";
+        "Non envoyé : « {subject} » : {error}";
     NewMailInConversations:
         "New mail in {n} conversations",
-        "Nouveau courrier dans {n} conversations";
+        "Nouveau courrier dans {n} discussions";
     WatchingInboxes:
         "Watching {n} inboxes",
-        "Surveillance de {n} boîtes";
+        "Surveillance de {n} dossiers";
     HideImagesFrom:
         "Hide images from {who}",
         "Masquer les images de {who}";
@@ -1987,7 +1987,7 @@ strings! {
         "Aucune application ne peut ouvrir ce lien.";
     NativeNoSettings:
         "This phone has no such settings screen.",
-        "Ce téléphone n'a pas cet écran de paramètres.";
+        "Ce téléphone n’a pas cet écran de paramètres.";
     NativeRelease:
         "Release to open",
         "Relâchez pour ouvrir";
