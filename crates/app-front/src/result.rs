@@ -359,7 +359,7 @@ impl Cx<'_> {
                 ],
             );
             if let Some(window) = m["window"].as_u64() {
-                meta.push_str(&format!(" · window {window}"));
+                meta.push_str(&crate::i18n::f(Key::WindowN, &[("n", &window.to_string())]));
             }
             let row = ResultRow {
                 title: format!("{indent}{name}"),
@@ -718,9 +718,9 @@ fn addrs(value: &Value) -> Option<String> {
 fn flags(value: &Value) -> Option<String> {
     let flags = value.as_object()?;
     let on: Vec<&str> = [
-        ("seen", "read"),
+        ("seen", crate::i18n::s(Key::ReadFlag)),
         ("flagged", crate::i18n::s(Key::StarredX)),
-        ("answered", "answered"),
+        ("answered", crate::i18n::s(Key::AnsweredFlag)),
         ("draft", crate::i18n::s(Key::DraftX)),
         ("pinned", crate::i18n::s(Key::PinnedX)),
     ]

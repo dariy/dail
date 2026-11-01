@@ -299,7 +299,7 @@ private fun MessageCard(
         Column(Modifier.fillMaxWidth().clickable { send(UiEvent.Tap(message.toggle)) }) {
             Text(message.from, fontWeight = FontWeight.Bold)
             if (message.expanded && message.to.isNotEmpty()) {
-                Text("to ${message.to}", style = MaterialTheme.typography.bodySmall)
+                Text(tr("to {name}", "name" to message.to), style = MaterialTheme.typography.bodySmall)
             }
             Text(message.date, style = MaterialTheme.typography.labelSmall)
             if (!message.expanded) Text(message.snippet, maxLines = 1, overflow = TextOverflow.Ellipsis)

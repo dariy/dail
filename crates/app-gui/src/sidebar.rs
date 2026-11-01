@@ -118,8 +118,9 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             );
             // The title is the way to About (MISC-27).
             let title = icon.union(name);
-            title.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "About dail"));
-            if title.on_hover_text("About dail").clicked() {
+            let about = t.s(Key::AboutDail);
+            title.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, about));
+            if title.on_hover_text(about).clicked() {
                 queue.push(Request::user(Command::OpenSettings {
                     section: Some(app_core::SettingsSection::About),
                 }));

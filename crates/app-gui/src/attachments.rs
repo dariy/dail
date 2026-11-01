@@ -180,7 +180,10 @@ pub fn preview_data(content_type: &str, bytes: &[u8]) -> Result<PreviewData, Str
             String::from_utf8_lossy(&bytes[..end]).into_owned(),
         ))
     } else {
-        Err(format!("no preview for {content_type}"))
+        Err(app_front::i18n::f(
+            app_front::i18n::Key::NoPreviewFor,
+            &[("type", content_type)],
+        ))
     }
 }
 

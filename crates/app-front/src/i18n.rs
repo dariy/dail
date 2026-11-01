@@ -11,6 +11,7 @@
 //! with no [`Lang`] at hand reads it through [`s`], [`f`] and [`title`].
 
 mod commands;
+mod engine;
 mod table;
 
 use std::sync::OnceLock;
@@ -18,6 +19,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use app_core::{Category, CommandName};
 
+pub use engine::{error_in, help_in, label_in};
 pub use table::{Key, english, french};
 
 /// A UI language.
@@ -86,6 +88,21 @@ pub fn s(key: Key) -> &'static str {
 /// `key` in the current language with its placeholders filled.
 pub fn f(key: Key, args: &[(&str, &str)]) -> String {
     tr(current(), key, args)
+}
+
+/// The engine error `err` in the current language.
+pub fn error(err: &app_core::CoreError) -> String {
+    error_in(current(), err)
+}
+
+/// The undo label `label` in the current language.
+pub fn label(label: &str) -> String {
+    label_in(current(), label)
+}
+
+/// The one-sentence help of `name` in the current language.
+pub fn help(name: CommandName) -> String {
+    help_in(current(), name)
 }
 
 /// The title of `name` in `lang`.

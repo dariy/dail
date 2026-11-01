@@ -432,18 +432,6 @@ fn theme_card(ui: &mut Ui, t: &Tokens, theme: &app_theme::Theme, chosen: bool) -
     response
 }
 
-/// The first sentence of a command's doc comment.
-fn first_sentence(name: CommandName) -> String {
-    let text = name
-        .spec()
-        .description()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ");
-    let end = text.find(". ").map_or(text.len(), |at| at + 1);
-    text.get(..end).unwrap_or_default().to_owned()
-}
-
 fn keys(
     ui: &mut Ui,
     t: &Tokens,
@@ -512,7 +500,7 @@ fn keys(
                     ));
                     ui.label(ui::text(
                         &t.type_scale.body_sm,
-                        first_sentence(name),
+                        app_front::i18n::help(name),
                         t.text_muted,
                     ));
                 });
@@ -702,18 +690,17 @@ fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
     ui.add_space(t.m.space.xs);
     ui.label(ui::text(
         &t.type_scale.body_md,
-        concat!(
-            "Keyboard-first email client that agents can drive. Licence: ",
-            env!("CARGO_PKG_LICENSE"),
-            "."
+        t.f(
+            Key::AboutDesktopText,
+            &[("licence", env!("CARGO_PKG_LICENSE"))],
         ),
         t.text_secondary,
     ));
     ui.add_space(t.m.space.md);
     let repository = env!("CARGO_PKG_REPOSITORY");
     for (title, url) in [
-        ("Source code", repository.to_owned()),
-        ("Releases", format!("{repository}/releases")),
+        (t.s(Key::SourceCode), repository.to_owned()),
+        (t.s(Key::Releases), format!("{repository}/releases")),
     ] {
         if ui::ghost(ui, t, title).on_hover_text(&url).clicked() {
             actions.open = Some(url);

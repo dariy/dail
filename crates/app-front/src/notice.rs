@@ -27,7 +27,7 @@ impl LastAction {
             self.label = None;
         }
         if let Some(label) = &receipt.undo_label {
-            self.label = Some(label.clone());
+            self.label = Some(crate::i18n::label(label));
         }
         // An approved request is the user's send: its receipt is the send's.
         if matches!(receipt.name.as_str(), "send_draft" | "approve_request")
@@ -41,7 +41,7 @@ impl LastAction {
 
 /// The text of a rejected command: `Archive: <the engine's error>`.
 pub fn rejection(title: &str, err: &CoreError) -> String {
-    format!("{title}: {err}")
+    format!("{title}: {}", crate::i18n::error(err))
 }
 
 /// Whether the send of `draft` can still be cancelled (scheduled, not yet leaving).

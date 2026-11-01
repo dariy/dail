@@ -504,15 +504,17 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             crate::i18n::s(Key::YouExampleOrgAsksTheProviderThen),
             |email| Command::DiscoverServers { email },
         ),
-        CommandName::SetKeyPreset => text("Which keys?", "gmail or vim", |text| {
-            Command::SetKeyPreset {
+        CommandName::SetKeyPreset => text(
+            crate::i18n::s(Key::WhichKeys),
+            crate::i18n::s(Key::GmailOrVim),
+            |text| Command::SetKeyPreset {
                 preset: if text.trim().eq_ignore_ascii_case("vim") {
                     app_core::KeyPreset::Vim
                 } else {
                     app_core::KeyPreset::Gmail
                 },
-            }
-        }),
+            },
+        ),
         CommandName::SetTheme => text(
             crate::i18n::s(Key::WhichTheme),
             crate::i18n::s(Key::SystemLightOrDarkThenATheme),
@@ -1053,29 +1055,32 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             let now: Vec<&str> = [
                 (filter.unread, crate::i18n::s(Key::UnreadX)),
                 (filter.starred, crate::i18n::s(Key::StarredX)),
-                (filter.attachments, "attachments"),
+                (filter.attachments, crate::i18n::s(Key::AttachmentsX)),
             ]
             .into_iter()
             .filter_map(|(on, name)| on.then_some(name))
             .collect();
             ask(
                 crate::i18n::s(Key::ShowOnlyWhichThreads),
-                AskKind::Text(format!(
-                    "unread, starred, attachments (empty: all); now: {}",
-                    if now.is_empty() {
-                        crate::i18n::s(Key::All).to_owned()
-                    } else {
-                        now.join(", ")
-                    }
+                AskKind::Text(crate::i18n::f(
+                    Key::FilterHint,
+                    &[(
+                        "now",
+                        &if now.is_empty() {
+                            crate::i18n::s(Key::All).to_owned()
+                        } else {
+                            now.join(", ")
+                        },
+                    )],
                 )),
                 |_, choice| match choice {
                     Choice::Text(text) => {
                         let text = text.to_lowercase();
-                        let has = |word: &str| Some(text.contains(word));
+                        let has = |words: [&str; 2]| Some(words.iter().any(|w| text.contains(w)));
                         Flow::Run(Command::SetListFilter {
-                            unread: has("unread"),
-                            starred: has("star"),
-                            attachments: has("attach"),
+                            unread: has(["unread", "non lu"]),
+                            starred: has(["star", "suivi"]),
+                            attachments: has(["attach", "pièce"]),
                         })
                     }
                     _ => Flow::Hidden,
@@ -1356,14 +1361,17 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                         flag,
                         value,
                         messages,
-                    } => {
-                        format!(
-                            "{} {:?} on {} message(s)",
-                            if *value { "set" } else { "clear" },
-                            flag,
-                            messages.len()
-                        )
-                    }
+                    } => crate::i18n::f(
+                        if *value {
+                            Key::SetFlagOn
+                        } else {
+                            Key::ClearFlagOn
+                        },
+                        &[
+                            ("flag", &format!("{flag:?}")),
+                            ("n", &messages.len().to_string()),
+                        ],
+                    ),
                     app_core::RemoteOp::Move { to, messages } => format!(
                         "move {} message(s) to {}",
                         messages.len(),
@@ -1384,14 +1392,22 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                         mailbox,
                         flag,
                         value,
-                    } => format!(
-                        "{} {:?} on all of {}",
-                        if *value { "set" } else { "clear" },
-                        flag,
-                        state
-                            .mailboxes
-                            .get(mailbox)
-                            .map_or_else(String::new, mailbox_name)
+                    } => crate::i18n::f(
+                        if *value {
+                            Key::SetFlagAll
+                        } else {
+                            Key::ClearFlagAll
+                        },
+                        &[
+                            ("flag", &format!("{flag:?}")),
+                            (
+                                "mailbox",
+                                &state
+                                    .mailboxes
+                                    .get(mailbox)
+                                    .map_or_else(String::new, mailbox_name),
+                            ),
+                        ],
                     ),
                 };
                 let detail = op
@@ -1705,13 +1721,7 @@ impl Palette {
                     if i < self.recent_head(rows) {
                         crate::i18n::s(Key::Recent)
                     } else {
-                        match name.spec().category {
-                            Category::Mail => "Mail",
-                            Category::Compose => "Compose",
-                            Category::Navigation => crate::i18n::s(Key::Navigation),
-                            Category::Account => "Account",
-                            Category::App => "App",
-                        }
+                        crate::i18n::s(crate::i18n::category_key(name.spec().category))
                     }
                 }
                 Target::Mailbox(_) => crate::i18n::s(Key::Mailboxes),
@@ -1749,14 +1759,7 @@ impl Palette {
         let Target::Command(name) = rows.get(selected)?.target else {
             return None;
         };
-        let text = name
-            .spec()
-            .description()
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ");
-        let end = text.find(". ").map_or(text.len(), |at| at + 1);
-        let first: String = text[..end].chars().take(200).collect();
+        let first: String = crate::i18n::help(name).chars().take(200).collect();
         (!first.is_empty()).then_some(first)
     }
 

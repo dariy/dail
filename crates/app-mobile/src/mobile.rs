@@ -694,9 +694,13 @@ impl Mobile {
         let files: Vec<String> = files.into_iter().filter(|u| shareable(u)).collect();
         if files.len() < total {
             let refused = total - files.len();
-            self.notify(&format!(
-                "{refused} shared file{} could not be attached: only files shared by other apps can.",
-                if refused == 1 { "" } else { "s" }
+            self.notify(&i18n::f(
+                if refused == 1 {
+                    Text::SharedRefusedOne
+                } else {
+                    Text::SharedRefused
+                },
+                &[("n", &refused.to_string())],
             ));
         }
         vec![Request {
@@ -1833,6 +1837,8 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
         Text::NativeFailed,
         Text::NativePassed,
         Text::NativePending,
+        Text::Pinned,
+        Text::ToNameLower,
         Text::Subject,
         Text::Message,
         Text::Trash,

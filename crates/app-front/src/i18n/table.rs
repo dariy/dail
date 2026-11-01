@@ -2012,4 +2012,118 @@ strings! {
     NativePending:
         "Pending",
         "En attente";
+    AboutDail:
+        "About dail",
+        "À propos de dail";
+    AboutDailVersion:
+        "About dail ({version})",
+        "À propos de dail ({version})";
+    AboutDesktopText:
+        "Keyboard-first email client that agents can drive. Licence: {licence}.",
+        "Client de messagerie piloté au clavier, que des agents peuvent commander. Licence : {licence}.";
+    AboutMobileText:
+        "Email client for IMAP and SMTP accounts ({licence}). The app bundles these typefaces, icons, PDF fonts, Rust crates and Android libraries under their licences (SPDX identifiers: name, version, licence).",
+        "Client de messagerie pour comptes IMAP et SMTP ({licence}). L’application intègre ces polices, icônes, polices PDF, crates Rust et bibliothèques Android sous leurs licences (identifiants SPDX : nom, version, licence).";
+    SourceCode:
+        "Source code",
+        "Code source";
+    Releases:
+        "Releases",
+        "Versions";
+    RustCrates:
+        "Rust crates",
+        "Crates Rust";
+    AndroidLibraries:
+        "Android libraries",
+        "Bibliothèques Android";
+    PdfFontsAndCmaps:
+        "PDF fonts and CMaps",
+        "Polices PDF et CMaps";
+    PdfCraftViewer:
+        "PdfCraft for Android (adapted viewer)",
+        "PdfCraft pour Android (visionneuse adaptée)";
+    SharedRefused:
+        "{n} shared files could not be attached: only files shared by other apps can.",
+        "{n} fichiers partagés n’ont pas pu être joints : seuls les fichiers partagés par d’autres applications peuvent l’être.";
+    SharedRefusedOne:
+        "1 shared file could not be attached: only files shared by other apps can.",
+        "1 fichier partagé n’a pas pu être joint : seuls les fichiers partagés par d’autres applications peuvent l’être.";
+    LoginFailedColon:
+        "The login failed: {error}",
+        "La connexion a échoué : {error}";
+    HintUp:
+        "up",
+        "haut";
+    HintDown:
+        "down",
+        "bas";
+    WhichKeys:
+        "Which keys?",
+        "Quels raccourcis ?";
+    GmailOrVim:
+        "gmail or vim",
+        "gmail ou vim";
+    FilterHint:
+        "unread, starred, attachments (empty: all); now: {now}",
+        "non lu, suivi, pièces jointes (vide : tout) ; actuellement : {now}";
+    AttachmentsX:
+        "attachments",
+        "pièces jointes";
+    ReadFlag:
+        "read",
+        "lu";
+    AnsweredFlag:
+        "answered",
+        "répondu";
+    WindowN:
+        " · window {n}",
+        " · fenêtre {n}";
+    SetFlagOn:
+        "set {flag} on {n} message(s)",
+        "activer {flag} sur {n} message(s)";
+    ClearFlagOn:
+        "clear {flag} on {n} message(s)",
+        "retirer {flag} sur {n} message(s)";
+    SetFlagAll:
+        "set {flag} on all of {mailbox}",
+        "activer {flag} sur tout {mailbox}";
+    ClearFlagAll:
+        "clear {flag} on all of {mailbox}",
+        "retirer {flag} sur tout {mailbox}";
+    NoPreviewFor:
+        "no preview for {type}",
+        "pas d’aperçu pour {type}";
+    ImageNotInMessage:
+        "the image is not in the message",
+        "l’image n’est pas dans le message";
+    NotAnImage:
+        "{type} is not an image",
+        "{type} n’est pas une image";
+    AttachmentNotStored:
+        "the attachment is not in the local store",
+        "la pièce jointe n’est pas dans le stockage local";
+    CouldNotOpenBrowser:
+        "Could not open the browser: {error}",
+        "Impossible d’ouvrir le navigateur : {error}";
+    MessageGone:
+        "The message is not in the local store any more.",
+        "Le message n’est plus dans le stockage local.";
+    AttachmentGone:
+        "The attachment is not in the local store any more.",
+        "La pièce jointe n’est plus dans le stockage local.";
+    CouldNotWriteOriginal:
+        "Could not write the original: {error}",
+        "Impossible d’écrire l’original : {error}";
+    CouldNotWriteAttachment:
+        "Could not write the attachment: {error}",
+        "Impossible d’écrire la pièce jointe : {error}";
+    NoEditor:
+        "no editor",
+        "aucun éditeur";
+    EditorExited:
+        "{program} exited with {status}",
+        "{program} s’est terminé avec {status}";
+    ToNameLower:
+        "to {name}",
+        "à {name}";
 }

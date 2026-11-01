@@ -248,7 +248,8 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   (`DAIL_LANG=pseudo`); the shared status texts use it
 - [x] i18n: move the GUI's and TUI's own labels into the strings table; a first real translation (French)
 - [x] i18n: command titles, shared `app_front` texts, the mobile apps' labels; `language` setting in Settings
-- [ ] i18n: engine texts (`app-core` errors and undo labels) and the TUI's named language choice
+- [x] i18n: engine texts (`app-core` errors and undo labels, translated for display in `app_front::i18n`)
+- [ ] i18n: the TUI's named language choice
 - [ ] i18n: Spanish, then Romanian
 - [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
@@ -771,7 +772,7 @@ MISC-34). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
 - [ ] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves
 - [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
-- [ ] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string (on the i18n branch)
+- [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [ ] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 
 ---

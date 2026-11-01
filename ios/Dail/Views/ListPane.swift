@@ -112,7 +112,7 @@ struct ThreadRowView: View {
                     Spacer()
                     if row.attachments { Image(systemName: "paperclip").font(.caption) }
                     if row.starred { Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow) }
-                    if row.pinned == true { Image(systemName: "pin.fill").font(.caption).accessibilityLabel("Pinned") }
+                    if row.pinned == true { Image(systemName: "pin.fill").font(.caption).accessibilityLabel(tr("Pinned")) }
                     Text(verbatim: row.date).font(.caption).foregroundStyle(.secondary)
                 }
                 .fontWeight(row.unread ? .semibold : .regular)

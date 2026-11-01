@@ -69,9 +69,9 @@ pub fn list_title(state: &AppState) -> String {
     };
     let filter = state.view.filter;
     let only: Vec<&str> = [
-        (filter.unread, "unread"),
-        (filter.starred, "starred"),
-        (filter.attachments, "attachments"),
+        (filter.unread, s(Key::UnreadX)),
+        (filter.starred, s(Key::StarredX)),
+        (filter.attachments, s(Key::AttachmentsX)),
     ]
     .into_iter()
     .filter_map(|(on, name)| on.then_some(name))

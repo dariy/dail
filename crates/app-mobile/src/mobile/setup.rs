@@ -523,9 +523,9 @@ impl Mobile {
                     actions.push(self.setup_button(i18n::s(Key::SyncNow), SetupAct::Sync));
                 }
                 (2, failure) => {
-                    error = Some(clean(&format!(
-                        "The login failed: {}",
-                        failure.unwrap_or_default()
+                    error = Some(clean(&i18n::f(
+                        Key::LoginFailedColon,
+                        &[("error", &failure.unwrap_or_default())],
                     )));
                     actions
                         .push(self.setup_button(i18n::s(Key::TryAnotherPassword), SetupAct::Retry));

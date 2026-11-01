@@ -194,8 +194,8 @@ impl PaletteState {
                                 ui,
                                 t,
                                 &[
-                                    ("↑", "up"),
-                                    ("↓", "down"),
+                                    ("↑", t.s(Text::HintUp)),
+                                    ("↓", t.s(Text::HintDown)),
                                     ("Enter", t.s(Text::HintChoose)),
                                     ("Esc", t.s(Text::HintBack)),
                                 ],
