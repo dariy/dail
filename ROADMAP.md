@@ -759,7 +759,7 @@ MISC-34). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - Mail reads as reflowed paragraphs with numbered link markers; no English is left in a translated session.
 
 - [x] MISC-33 [front][tui]: TUI setting rows open the value step of `set_setting` directly
-- [ ] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
+- [x] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
   main view, mailbox, thread and search, in the engine)
 - [ ] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
 - [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
