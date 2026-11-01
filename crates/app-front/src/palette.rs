@@ -8,6 +8,7 @@
 //! §4.5`). [`Palette`] is the state of an open palette without any drawing: the query, the
 //! cursor and the current step.
 
+use crate::i18n::Key;
 use std::fmt;
 
 use app_core::{
@@ -183,7 +184,7 @@ fn on_threads(state: &AppState, make: fn(Vec<ThreadId>) -> Command) -> Flow {
     let ids = targets(state);
     if ids.is_empty() {
         ask(
-            "Which conversation?",
+            crate::i18n::s(Key::WhichConversation),
             AskKind::Threads,
             move |_, choice| match choice {
                 Choice::Thread(id) => Flow::Run(make(vec![id])),
@@ -201,7 +202,7 @@ fn on_message(state: &AppState, make: fn(MessageId) -> Command) -> Flow {
         return Flow::Run(make(message));
     }
     ask(
-        "Which conversation?",
+        crate::i18n::s(Key::WhichConversation),
         AskKind::Threads,
         move |state, choice| match choice {
             Choice::Thread(id) => {
@@ -220,7 +221,7 @@ fn on_draft(state: &AppState, scheduled: bool, make: fn(DraftId) -> Command) -> 
         return Flow::Run(make(id));
     }
     ask(
-        "Which draft?",
+        crate::i18n::s(Key::WhichDraft),
         AskKind::Drafts { scheduled },
         move |_, choice| match choice {
             Choice::Draft(id) => Flow::Run(make(id)),
@@ -246,7 +247,7 @@ fn pick_mailbox(
 
 fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'static) -> Flow {
     ask(
-        "Which account?",
+        crate::i18n::s(Key::WhichAccount),
         AskKind::Accounts,
         move |state, choice| match choice {
             Choice::Account(id) => make(state, id),
@@ -263,8 +264,11 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
         .map(|a| a.email.clone())
         .unwrap_or_default();
     ask(
-        "Remove this account? This cannot be undone.",
-        AskKind::Confirm(format!("Remove {email} and its password")),
+        crate::i18n::s(Key::RemoveThisAccountThisCannotBeUndone),
+        AskKind::Confirm(crate::i18n::f(
+            Key::RemoveAndItsPassword,
+            &[("email", &email)],
+        )),
         move |_, choice| match choice {
             Choice::Yes => Flow::Run(Command::RemoveAccount { id, confirm: true }),
             _ => Flow::Hidden,
@@ -279,8 +283,8 @@ pub fn install_update(state: &AppState) -> Flow {
         _ => String::new(),
     };
     ask(
-        "Install the update? dail asks to restart afterwards.",
-        AskKind::Confirm(format!("Install dail {version}")),
+        crate::i18n::s(Key::InstallTheUpdateDailAsksToRestart),
+        AskKind::Confirm(crate::i18n::f(Key::InstallDail, &[("version", &version)])),
         move |_, choice| match choice {
             Choice::Yes => Flow::Run(Command::InstallUpdate { confirm: true }),
             _ => Flow::Hidden,
@@ -292,8 +296,8 @@ pub fn install_update(state: &AppState) -> Flow {
 fn update_policy_command(text: &str) -> Command {
     let mut words = text.split_whitespace();
     let checks = match words.next().map(str::to_ascii_lowercase).as_deref() {
-        Some("on" | "yes") => Some(app_core::UpdateChecks::On),
-        Some("off" | "no") => Some(app_core::UpdateChecks::Off),
+        Some("on" | "yes" | "oui") => Some(app_core::UpdateChecks::On),
+        Some("off" | "no" | "non") => Some(app_core::UpdateChecks::Off),
         _ => None,
     };
     Command::SetUpdatePolicy {
@@ -308,10 +312,12 @@ pub fn move_to(state: &AppState, ids: Vec<ThreadId>) -> Flow {
         .first()
         .and_then(|t| state.threads.get(t))
         .map(|t| t.account);
-    pick_mailbox("Move to…", account, move |to| Command::MoveThreads {
-        ids: ids.clone(),
-        messages: Vec::new(),
-        to,
+    pick_mailbox(crate::i18n::s(Key::MoveTo), account, move |to| {
+        Command::MoveThreads {
+            ids: ids.clone(),
+            messages: Vec::new(),
+            to,
+        }
     })
 }
 
@@ -325,8 +331,8 @@ pub fn new_subfolder(state: &AppState, parent: MailboxId) -> Flow {
         format!("{}{}", mailbox.path, mailbox.separator()),
     );
     ask(
-        format!("New folder in {}", mailbox.path),
-        AskKind::Text("its name".into()),
+        crate::i18n::f(Key::NewFolderIn, &[("path", &mailbox.path)]),
+        AskKind::Text(crate::i18n::s(Key::ItsName).into()),
         move |_, choice| match choice {
             Choice::Text(name) if !name.trim().is_empty() => Flow::Run(Command::CreateFolder {
                 account,
@@ -344,8 +350,11 @@ pub fn rename_folder(state: &AppState, id: MailboxId) -> Flow {
         .get(&id)
         .map_or_else(String::new, |m| m.path.clone());
     ask(
-        "New name (full path)?",
-        AskKind::Text(format!("now {now}")),
+        crate::i18n::s(Key::NewNameFullPath),
+        AskKind::Text(crate::i18n::f(
+            Key::NowX,
+            &[(crate::i18n::s(Key::Now), &now)],
+        )),
         move |_, choice| match choice {
             Choice::Text(path) if !path.trim().is_empty() => {
                 Flow::Run(Command::RenameFolder { id, path })
@@ -362,8 +371,8 @@ pub fn delete_folder(state: &AppState, id: MailboxId) -> Flow {
         .get(&id)
         .map_or_else(String::new, |m| m.path.clone());
     ask(
-        "Delete this folder and all mail in it? This cannot be undone.",
-        AskKind::Confirm(format!("Delete {path}")),
+        crate::i18n::s(Key::DeleteThisFolderAndAllMailIn),
+        AskKind::Confirm(crate::i18n::f(Key::DeleteX, &[("path", &path)])),
         move |_, choice| match choice {
             Choice::Yes => Flow::Run(Command::DeleteFolder { id, confirm: true }),
             _ => Flow::Hidden,
@@ -393,8 +402,14 @@ fn mark_mailbox_read(state: &AppState, id: MailboxId) -> Flow {
         return Flow::Run(Command::MarkMailboxRead { id });
     }
     ask(
-        format!("Mark all {unread} unread messages read? Undo restores only the cached ones."),
-        AskKind::Confirm(format!("Mark {unread} messages read")),
+        crate::i18n::f(
+            Key::MarkAllUnreadMessagesReadUndoRestores,
+            &[("n", &unread.to_string())],
+        ),
+        AskKind::Confirm(crate::i18n::f(
+            Key::MarkMessagesRead,
+            &[("n", &unread.to_string())],
+        )),
         move |_, choice| match choice {
             Choice::Yes => Flow::Run(Command::MarkMailboxRead { id }),
             _ => Flow::Hidden,
@@ -465,8 +480,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
     match name {
         CommandName::GetSettings => Flow::Run(Command::GetSettings {}),
         CommandName::DiscoverServers => text(
-            "Find the mail servers of which address?",
-            "you@example.org (asks the provider, then Mozilla)",
+            crate::i18n::s(Key::FindTheMailServersOfWhichAddress),
+            crate::i18n::s(Key::YouExampleOrgAsksTheProviderThen),
             |email| Command::DiscoverServers { email },
         ),
         CommandName::SetKeyPreset => text("Which keys?", "gmail or vim", |text| {
@@ -479,18 +494,18 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             }
         }),
         CommandName::SetTheme => text(
-            "Which theme?",
-            "system, light or dark, then a theme for that mode: dark dail-dark-hc",
+            crate::i18n::s(Key::WhichTheme),
+            crate::i18n::s(Key::SystemLightOrDarkThenATheme),
             |text| theme_command(&text),
         ),
         CommandName::SetKeybinding => ask(
-            "Which command?",
-            AskKind::Text("its name, e.g. archive_threads".into()),
+            crate::i18n::s(Key::WhichCommand),
+            AskKind::Text(crate::i18n::s(Key::ItsNameEGArchiveThreads).into()),
             |_, choice| match choice {
                 Choice::Text(command) if !command.trim().is_empty() => {
                     let command = command.trim().to_owned();
                     ask(
-                        "Which keys? (comma-separated; empty: the preset's)",
+                        crate::i18n::s(Key::WhichKeysCommaSeparatedEmptyThePreset),
                         AskKind::Text("e, Shift+E, g a".into()),
                         move |_, choice| match choice {
                             Choice::Text(keys) => {
@@ -511,28 +526,35 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 _ => Flow::Hidden,
             },
         ),
-        CommandName::SetSetting => ask("Which setting?", AskKind::Settings, |state, choice| {
-            let Choice::Setting(key) = choice else {
-                return Flow::Hidden;
-            };
-            let allowed = key.allowed();
-            let current = key.get(&state.settings);
-            ask(
-                format!("New value for {}", key.as_str()),
-                AskKind::Text(format!("{allowed}, now {current}")),
-                move |_, choice| match choice {
-                    Choice::Text(text) => {
-                        text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
-                            Flow::Run(Command::SetSetting {
-                                key,
-                                value: value.into(),
+        CommandName::SetSetting => ask(
+            crate::i18n::s(Key::WhichSetting),
+            AskKind::Settings,
+            |state, choice| {
+                let Choice::Setting(key) = choice else {
+                    return Flow::Hidden;
+                };
+                let allowed = key.allowed();
+                let current = key.get(&state.settings);
+                ask(
+                    crate::i18n::f(Key::NewValueFor, &[("key", key.as_str())]),
+                    AskKind::Text(crate::i18n::f(
+                        Key::NowXX,
+                        &[("allowed", &allowed), ("current", &current.to_string())],
+                    )),
+                    move |_, choice| match choice {
+                        Choice::Text(text) => {
+                            text.trim().parse::<u64>().map_or(Flow::Hidden, |value| {
+                                Flow::Run(Command::SetSetting {
+                                    key,
+                                    value: value.into(),
+                                })
                             })
-                        })
-                    }
-                    _ => Flow::Hidden,
-                },
-            )
-        }),
+                        }
+                        _ => Flow::Hidden,
+                    },
+                )
+            },
+        ),
         CommandName::Undo => Flow::Run(Command::Undo {}),
         CommandName::Redo => Flow::Run(Command::Redo {}),
         // The palette is already open.
@@ -547,7 +569,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 .get(&id)
                 .map(|a| a.display_name.clone())
                 .unwrap_or_default();
-            text("New display name", current, move |name| {
+            text(crate::i18n::s(Key::NewDisplayName), current, move |name| {
                 Command::UpdateAccount {
                     id,
                     display_name: Some(name),
@@ -560,17 +582,19 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::SyncNow => Flow::Run(Command::SyncNow { account: None }),
         CommandName::ListMailboxes => Flow::Run(Command::ListMailboxes { account: None }),
         CommandName::ListThreads => {
-            pick_mailbox("Which mailbox?", None, |mailbox| Command::ListThreads {
-                mailbox,
-                offset: 0,
-                limit: 50,
+            pick_mailbox(crate::i18n::s(Key::WhichMailbox), None, |mailbox| {
+                Command::ListThreads {
+                    mailbox,
+                    offset: 0,
+                    limit: 50,
+                }
             })
         }
         CommandName::SetSyncWindow => {
             let window = |mailbox| {
                 ask(
-                    "Keep how many of the newest messages offline?",
-                    AskKind::Text("a number; 0 keeps all of it".into()),
+                    crate::i18n::s(Key::KeepHowManyOfTheNewestMessages),
+                    AskKind::Text(crate::i18n::s(Key::ANumber0KeepsAllOfIt).into()),
                     move |_, choice| match choice {
                         Choice::Text(text) => {
                             text.trim().parse::<u32>().map_or(Flow::Hidden, |n| {
@@ -587,7 +611,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match state.view.mailbox {
                 Some(mailbox) => window(mailbox),
                 None => ask(
-                    "Which mailbox?",
+                    crate::i18n::s(Key::WhichMailbox),
                     AskKind::Mailboxes(None),
                     move |_, choice| match choice {
                         Choice::Mailbox(id) => window(id),
@@ -597,19 +621,19 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             }
         }
         CommandName::OpenUnifiedInbox => Flow::Run(Command::OpenUnifiedInbox {}),
-        CommandName::OpenMailbox => {
-            pick_mailbox("Go to mailbox", None, |id| Command::OpenMailbox { id })
-        }
+        CommandName::OpenMailbox => pick_mailbox(crate::i18n::s(Key::GoToMailbox), None, |id| {
+            Command::OpenMailbox { id }
+        }),
         CommandName::SetIdentity => pick_account(|_, account| {
             ask(
-                "Which address?",
+                crate::i18n::s(Key::WhichAddress),
                 AskKind::Text("sales@example.org".into()),
                 move |_, choice| match choice {
                     Choice::Text(email) if !email.trim().is_empty() => {
                         let email = email.trim().to_owned();
                         ask(
-                            "Its signature? (empty: none)",
-                            AskKind::Text("Name · Company".into()),
+                            crate::i18n::s(Key::ItsSignatureEmptyNone),
+                            AskKind::Text(crate::i18n::s(Key::NameCompany).into()),
                             move |_, choice| match choice {
                                 Choice::Text(signature) => Flow::Run(Command::SetIdentity {
                                     account,
@@ -627,14 +651,16 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             )
         }),
         CommandName::RemoveIdentity => pick_account(|_, account| {
-            text("Remove which address?", "sales@example.org", move |email| {
-                Command::RemoveIdentity { account, email }
-            })
+            text(
+                crate::i18n::s(Key::RemoveWhichAddress),
+                "sales@example.org",
+                move |email| Command::RemoveIdentity { account, email },
+            )
         }),
         CommandName::SetMailboxIdentity => {
             let email = |mailbox| {
                 ask(
-                    "Send from which address? (empty: the account's own)",
+                    crate::i18n::s(Key::SendFromWhichAddressEmptyTheAccount),
                     AskKind::Text("sales@example.org".into()),
                     move |_, choice| match choice {
                         Choice::Text(text) => Flow::Run(Command::SetMailboxIdentity {
@@ -648,7 +674,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match state.view.mailbox {
                 Some(mailbox) => email(mailbox),
                 None => ask(
-                    "Which mailbox?",
+                    crate::i18n::s(Key::WhichMailbox),
                     AskKind::Mailboxes(None),
                     move |_, choice| match choice {
                         Choice::Mailbox(id) => email(id),
@@ -659,16 +685,16 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         }
         CommandName::SetDraftFrom => match state.view.composer {
             Some(id) => text(
-                "Send from which address?",
+                crate::i18n::s(Key::SendFromWhichAddress),
                 "sales@example.org",
                 move |email| Command::SetDraftFrom { id, email },
             ),
             None => ask(
-                "Which draft?",
+                crate::i18n::s(Key::WhichDraft),
                 AskKind::Drafts { scheduled: false },
                 |_, choice| match choice {
                     Choice::Draft(id) => text(
-                        "Send from which address?",
+                        crate::i18n::s(Key::SendFromWhichAddress),
                         "sales@example.org",
                         move |email| Command::SetDraftFrom { id, email },
                     ),
@@ -677,14 +703,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             ),
         },
         CommandName::ListContacts => text(
-            "List contacts matching…",
-            "a name or an address",
+            crate::i18n::s(Key::ListContactsMatching),
+            crate::i18n::s(Key::ANameOrAnAddress),
             |query| Command::ListContacts { query, limit: 50 },
         ),
         CommandName::CheckThreads => Flow::Run(Command::CheckThreads { ids: Vec::new() }),
         CommandName::UncheckThreads => Flow::Run(Command::UncheckThreads { ids: Vec::new() }),
         CommandName::SelectThreads => ask(
-            "Select which conversation?",
+            crate::i18n::s(Key::SelectWhichConversation),
             AskKind::Threads,
             |_, choice| match choice {
                 Choice::Thread(id) => Flow::Run(Command::SelectThreads { ids: vec![id] }),
@@ -692,7 +718,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::OpenThread => ask(
-            "Open which conversation?",
+            crate::i18n::s(Key::OpenWhichConversation),
             AskKind::Threads,
             |_, choice| match choice {
                 Choice::Thread(id) => Flow::Run(Command::OpenThread { id }),
@@ -709,7 +735,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 rich_body: false,
             }),
             None => ask(
-                "Which conversation?",
+                crate::i18n::s(Key::WhichConversation),
                 AskKind::Threads,
                 |_, choice| match choice {
                     Choice::Thread(id) => Flow::Run(Command::GetThread {
@@ -728,7 +754,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::ShowImagesFrom => match open_sender(state) {
             Some(sender) => Flow::Run(Command::ShowImagesFrom { sender }),
             None => text(
-                "Show images from which sender?",
+                crate::i18n::s(Key::ShowImagesFromWhichSender),
                 "news@example.org",
                 |sender| Command::ShowImagesFrom { sender },
             ),
@@ -737,7 +763,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match open_sender(state).filter(|s| state.settings.shows_images_from(s)) {
                 Some(sender) => Flow::Run(Command::HideImagesFrom { sender }),
                 None => text(
-                    "Hide images from which sender?",
+                    crate::i18n::s(Key::HideImagesFromWhichSender),
                     "news@example.org",
                     |sender| Command::HideImagesFrom { sender },
                 ),
@@ -746,8 +772,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::SaveAttachments => {
             let folder = |message| {
                 text(
-                    "Save the attachments into which folder?",
-                    "an absolute path, e.g. /home/me/Downloads",
+                    crate::i18n::s(Key::SaveTheAttachmentsIntoWhichFolder),
+                    crate::i18n::s(Key::AnAbsolutePathEGHomeMe),
                     move |dir| Command::SaveAttachments {
                         message,
                         parts: Vec::new(),
@@ -758,7 +784,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match state.view.thread.and_then(|t| newest_message(state, t)) {
                 Some(message) => folder(message),
                 None => ask(
-                    "Which conversation?",
+                    crate::i18n::s(Key::WhichConversation),
                     AskKind::Threads,
                     move |state, choice| match choice {
                         Choice::Thread(id) => {
@@ -806,7 +832,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             let ids = targets(state);
             if ids.is_empty() {
                 ask(
-                    "Move which conversation?",
+                    crate::i18n::s(Key::MoveWhichConversation),
                     AskKind::Threads,
                     move |state, choice| match choice {
                         Choice::Thread(id) => then(state, vec![id]),
@@ -819,16 +845,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         }
         CommandName::ListPendingOps => Flow::Run(Command::ListPendingOps { account: None }),
         CommandName::RetryPendingOps => Flow::Run(Command::RetryPendingOps { id: None }),
-        CommandName::DiscardPendingOp => {
-            ask(
-                "Discard which change?",
-                AskKind::Ops,
-                |_, choice| match choice {
-                    Choice::Op(id) => Flow::Run(Command::DiscardPendingOp { id }),
-                    _ => Flow::Hidden,
-                },
-            )
-        }
+        CommandName::DiscardPendingOp => ask(
+            crate::i18n::s(Key::DiscardWhichChange),
+            AskKind::Ops,
+            |_, choice| match choice {
+                Choice::Op(id) => Flow::Run(Command::DiscardPendingOp { id }),
+                _ => Flow::Hidden,
+            },
+        ),
         CommandName::CreateDraft => {
             let make = |account| {
                 Flow::Run(Command::CreateDraft {
@@ -867,8 +891,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::AttachFile => {
             let then = |draft: DraftId| {
                 text(
-                    "Attach which file?",
-                    "absolute path, e.g. /home/me/report.pdf",
+                    crate::i18n::s(Key::AttachWhichFile),
+                    crate::i18n::s(Key::AbsolutePathEGHomeMeReport),
                     move |path| Command::AttachFile {
                         draft,
                         path,
@@ -879,7 +903,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match state.view.composer {
                 Some(draft) => then(draft),
                 None => ask(
-                    "Attach to which draft?",
+                    crate::i18n::s(Key::AttachToWhichDraft),
                     AskKind::Drafts { scheduled: false },
                     move |_, choice| match choice {
                         Choice::Draft(id) => then(id),
@@ -891,7 +915,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::RemoveAttachment => {
             let then = |draft: DraftId| {
                 ask(
-                    "Remove which attachment?",
+                    crate::i18n::s(Key::RemoveWhichAttachment),
                     AskKind::Attachments(draft),
                     move |_, choice| match choice {
                         Choice::Index(index) => {
@@ -904,7 +928,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             match state.view.composer {
                 Some(draft) => then(draft),
                 None => ask(
-                    "From which draft?",
+                    crate::i18n::s(Key::FromWhichDraft),
                     AskKind::Drafts { scheduled: false },
                     move |_, choice| match choice {
                         Choice::Draft(id) => then(id),
@@ -916,7 +940,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::SendDraft => on_draft(state, false, |id| Command::SendDraft { id }),
         CommandName::CancelSend => on_draft(state, true, |id| Command::CancelSend { id }),
         CommandName::Search => text(
-            "Search mail (results as data)",
+            crate::i18n::s(Key::SearchMailResultsAsData),
             "from:alice is:unread",
             |query| Command::Search {
                 query,
@@ -928,7 +952,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::SetSearch => text(
-            "Search",
+            crate::i18n::s(Key::Search),
             "from:alice has:attachment after:2024-01-01",
             |query| Command::SetSearch { query },
         ),
@@ -938,7 +962,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::OpenSettings => Flow::Run(Command::OpenSettings { section: None }),
         CommandName::CloseSettings => Flow::Run(Command::CloseSettings {}),
         CommandName::FocusPane => ask(
-            "Focus which pane?",
+            crate::i18n::s(Key::FocusWhichPane),
             AskKind::Panes,
             |_, choice| match choice {
                 Choice::Pane(pane) => Flow::Run(Command::FocusPane { pane }),
@@ -951,7 +975,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 id: Some(id),
                 account: None,
             }),
-            _ => pick_mailbox("Focus on which mailbox?", None, |id| {
+            _ => pick_mailbox(crate::i18n::s(Key::FocusOnWhichMailbox), None, |id| {
                 Command::FocusMailbox {
                     id: Some(id),
                     account: None,
@@ -962,8 +986,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::CreateFolder => {
             let named = |account| {
                 ask(
-                    "Name of the new folder?",
-                    AskKind::Text("a path like Work/Clients".into()),
+                    crate::i18n::s(Key::NameOfTheNewFolder),
+                    AskKind::Text(crate::i18n::s(Key::APathLikeWorkClients).into()),
                     move |_, choice| match choice {
                         Choice::Text(path) if !path.trim().is_empty() => {
                             Flow::Run(Command::CreateFolder { account, path })
@@ -980,7 +1004,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::RenameFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => rename_folder(state, id),
             None => ask(
-                "Rename which folder?",
+                crate::i18n::s(Key::RenameWhichFolder),
                 AskKind::Mailboxes(None),
                 |state, choice| match choice {
                     Choice::Mailbox(id) => rename_folder(state, id),
@@ -991,7 +1015,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::DeleteFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => delete_folder(state, id),
             None => ask(
-                "Delete which folder?",
+                crate::i18n::s(Key::DeleteWhichFolder),
                 AskKind::Mailboxes(None),
                 |state, choice| match choice {
                     Choice::Mailbox(id) => delete_folder(state, id),
@@ -999,40 +1023,46 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 },
             ),
         },
-        CommandName::PinMailbox => {
-            on_mailbox(state, "Pin which mailbox?", |id| Command::PinMailbox { id })
+        CommandName::PinMailbox => on_mailbox(state, crate::i18n::s(Key::PinWhichMailbox), |id| {
+            Command::PinMailbox { id }
+        }),
+        CommandName::UnpinMailbox => {
+            on_mailbox(state, crate::i18n::s(Key::UnpinWhichMailbox), |id| {
+                Command::UnpinMailbox { id }
+            })
         }
-        CommandName::UnpinMailbox => on_mailbox(state, "Unpin which mailbox?", |id| {
-            Command::UnpinMailbox { id }
-        }),
-        CommandName::HideMailbox => on_mailbox(state, "Hide which mailbox?", |id| {
-            Command::HideMailbox { id }
-        }),
-        CommandName::ShowMailbox => pick_mailbox("Show which hidden mailbox?", None, |id| {
-            Command::ShowMailbox { id }
-        }),
+        CommandName::HideMailbox => {
+            on_mailbox(state, crate::i18n::s(Key::HideWhichMailbox), |id| {
+                Command::HideMailbox { id }
+            })
+        }
+        CommandName::ShowMailbox => {
+            pick_mailbox(crate::i18n::s(Key::ShowWhichHiddenMailbox), None, |id| {
+                Command::ShowMailbox { id }
+            })
+        }
         CommandName::MarkMailboxRead => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => mark_mailbox_read(state, id),
-            None => pick_mailbox("Mark which mailbox read?", None, |id| {
+            None => pick_mailbox(crate::i18n::s(Key::MarkWhichMailboxRead), None, |id| {
                 Command::MarkMailboxRead { id }
             }),
         },
         CommandName::SetListFilter => {
             let filter = state.view.filter;
             let now: Vec<&str> = [
-                (filter.unread, "unread"),
-                (filter.starred, "starred"),
+                (filter.unread, crate::i18n::s(Key::UnreadX)),
+                (filter.starred, crate::i18n::s(Key::StarredX)),
                 (filter.attachments, "attachments"),
             ]
             .into_iter()
             .filter_map(|(on, name)| on.then_some(name))
             .collect();
             ask(
-                "Show only which threads?",
+                crate::i18n::s(Key::ShowOnlyWhichThreads),
                 AskKind::Text(format!(
                     "unread, starred, attachments (empty: all); now: {}",
                     if now.is_empty() {
-                        "all".to_owned()
+                        crate::i18n::s(Key::All).to_owned()
                     } else {
                         now.join(", ")
                     }
@@ -1042,7 +1072,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                         let text = text.to_lowercase();
                         let has = |word: &str| Some(text.contains(word));
                         Flow::Run(Command::SetListFilter {
-                            unread: has("unread"),
+                            unread: has(crate::i18n::s(Key::UnreadX)),
                             starred: has("star"),
                             attachments: has("attach"),
                         })
@@ -1067,13 +1097,13 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             _ => Flow::Run(Command::SkipUpdateVersion { version: None }),
         },
         CommandName::SetUpdatePolicy => text(
-            "Check for updates?",
-            "on or off, then hours between checks: on 24",
+            crate::i18n::s(Key::CheckForUpdates),
+            crate::i18n::s(Key::OnOrOffThenHoursBetweenChecks),
             |text| update_policy_command(&text),
         ),
         CommandName::ListApprovals => Flow::Run(Command::ListApprovals {}),
         CommandName::ApproveRequest => ask(
-            "Approve which send request?",
+            crate::i18n::s(Key::ApproveWhichSendRequest),
             AskKind::Approvals,
             |_, choice| match choice {
                 Choice::Approval(id) => Flow::Run(Command::ApproveRequest { id }),
@@ -1081,7 +1111,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
             },
         ),
         CommandName::RejectRequest => ask(
-            "Reject which send request?",
+            crate::i18n::s(Key::RejectWhichSendRequest),
             AskKind::Approvals,
             |_, choice| match choice {
                 Choice::Approval(id) => Flow::Run(Command::RejectRequest { id }),
@@ -1175,7 +1205,7 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
             .map(|(letter, _)| format!("g {letter}"));
         rows.push(Row {
             target: Target::Mailbox(mailbox.id),
-            title: format!("Go to {}", mailbox_name(mailbox)),
+            title: crate::i18n::f(Key::GoTo, &[("name", &mailbox_name(mailbox))]),
             detail: account,
             keys,
         });
@@ -1204,7 +1234,7 @@ fn recent_threads(state: &AppState) -> Vec<(String, String, ThreadId)> {
         .map(|t| {
             let summary = ThreadSummary::of(state, t);
             let subject = if t.subject.trim().is_empty() {
-                "(no subject)"
+                crate::i18n::s(Key::NoSubject)
             } else {
                 &t.subject
             };
@@ -1275,14 +1305,14 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
             .map(|d| {
                 let to: Vec<&app_core::Addr> = d.to.iter().collect();
                 let subject = if d.subject.trim().is_empty() {
-                    "(no subject)".to_owned()
+                    crate::i18n::s(Key::NoSubject).to_owned()
                 } else {
                     d.subject.clone()
                 };
                 row(
                     Choice::Draft(d.id),
                     subject,
-                    format!("to {}", format::names(&to)),
+                    crate::i18n::f(Key::ToList, &[("to", &format::names(&to))]),
                 )
             })
             .collect(),
@@ -1305,14 +1335,14 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                 let subject = draft
                     .map(|d| d.subject.trim())
                     .filter(|subject| !subject.is_empty())
-                    .unwrap_or("(no subject)")
+                    .unwrap_or(crate::i18n::s(Key::NoSubject))
                     .to_owned();
                 let to: Vec<&app_core::Addr> =
                     draft.map(|d| d.to.iter().collect()).unwrap_or_default();
                 row(
                     Choice::Approval(approval.id),
                     subject,
-                    format!("to {}", format::names(&to)),
+                    crate::i18n::f(Key::ToList, &[("to", &format::names(&to))]),
                 )
             })
             .collect(),
@@ -1400,23 +1430,27 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
             if query.trim().is_empty() {
                 vec![Row {
                     target: Target::Choice(Choice::Text(String::new())),
-                    title: "Type, then Enter".to_owned(),
+                    title: crate::i18n::s(Key::TypeThenEnter).to_owned(),
                     detail: hint.clone(),
                     keys: None,
                 }]
             } else {
                 vec![row(
                     Choice::Text(query.to_owned()),
-                    format!("Use “{query}”"),
+                    crate::i18n::f(Key::Use, &[("query", query)]),
                     hint.clone(),
                 )]
             }
         }
         AskKind::Confirm(what) => vec![
-            row(Choice::Yes, what.clone(), "cannot be undone".to_owned()),
+            row(
+                Choice::Yes,
+                what.clone(),
+                crate::i18n::s(Key::CannotBeUndone).to_owned(),
+            ),
             row(
                 Choice::Text(String::new()),
-                "Cancel".to_owned(),
+                crate::i18n::s(Key::Cancel).to_owned(),
                 String::new(),
             ),
         ],
@@ -1572,8 +1606,8 @@ impl Palette {
                 kind: AskKind::Text(hint),
                 ..
             }) => hint.clone(),
-            Some(_) => "Filter…".to_owned(),
-            None => "Type a command or search…".to_owned(),
+            Some(_) => crate::i18n::s(Key::Filter).to_owned(),
+            None => crate::i18n::s(Key::TypeACommandOrSearch).to_owned(),
         }
     }
 
@@ -1668,19 +1702,19 @@ impl Palette {
             match &row.target {
                 Target::Command(name) => {
                     if i < self.recent_head(rows) {
-                        "Recent"
+                        crate::i18n::s(Key::Recent)
                     } else {
                         match name.spec().category {
                             Category::Mail => "Mail",
                             Category::Compose => "Compose",
-                            Category::Navigation => "Navigation",
+                            Category::Navigation => crate::i18n::s(Key::Navigation),
                             Category::Account => "Account",
                             Category::App => "App",
                         }
                     }
                 }
-                Target::Mailbox(_) => "Mailboxes",
-                Target::Thread(_) => "Threads",
+                Target::Mailbox(_) => crate::i18n::s(Key::Mailboxes),
+                Target::Thread(_) => crate::i18n::s(Key::Threads),
                 Target::Search(_) | Target::Choice(_) => "",
             }
         };
@@ -1743,8 +1777,8 @@ impl Palette {
                 if !query.is_empty() {
                     rows.push(Row {
                         target: Target::Search(query.to_owned()),
-                        title: format!("Search mail for “{query}”"),
-                        detail: "Navigation".to_owned(),
+                        title: crate::i18n::f(Key::SearchMailFor, &[("query", query)]),
+                        detail: crate::i18n::s(Key::Navigation).to_owned(),
                         keys: Some("/".to_owned()),
                     });
                 }

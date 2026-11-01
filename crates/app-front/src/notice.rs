@@ -1,6 +1,7 @@
 //! What a front-end tells the user about its own commands: the latest undoable action, the
 //! scheduled send to count down, and the text of a rejection.
 
+use crate::i18n::Key;
 use app_core::{AppState, CommandReceipt, CoreError, DraftId};
 
 use crate::compose;
@@ -58,5 +59,5 @@ pub fn sending_text(state: &AppState, draft: DraftId, now_ms: i64) -> String {
         .get(&draft)
         .and_then(|d| d.send_at)
         .map_or(0, |at| compose::seconds_left(at, now_ms));
-    format!("Sending in {left} s")
+    crate::i18n::f(Key::SendingInSX, &[("n", &left.to_string())])
 }

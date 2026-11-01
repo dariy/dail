@@ -3,7 +3,9 @@
 //! the palette at the step that changes the row. There is no appearance section: the TUI follows
 //! the terminal's colours (ADR 0004), so `appearance` shows the general settings.
 
+use crate::text::{f, s};
 use app_core::{AccountStatus, AppState, Command, CommandName, SettingKey, SettingsSection};
+use app_front::i18n::Key;
 use app_front::palette::{Flow, flow};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -16,10 +18,10 @@ use crate::text::clean;
 use crate::view::{bold, dim, reverse};
 
 /// The sections the TUI shows, in `Tab` order.
-const SECTIONS: [(SettingsSection, &str); 3] = [
-    (SettingsSection::General, "General"),
-    (SettingsSection::Keys, "Keys"),
-    (SettingsSection::Accounts, "Accounts"),
+const SECTIONS: [(SettingsSection, Key); 3] = [
+    (SettingsSection::General, Key::General),
+    (SettingsSection::Keys, Key::Keys),
+    (SettingsSection::Accounts, Key::Accounts),
 ];
 
 /// One row: a key, its value, and the command that changes it.
@@ -50,7 +52,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 let keys = crate::keys::deliverable(settings, name);
                 if !keys.is_empty() {
                     out.push(Row {
-                        key: name.spec().title.to_owned(),
+                        key: app_front::i18n::title(name).to_owned(),
                         value: keys.join(", "),
                         change: Some(CommandName::SetKeybinding),
                     });
@@ -65,15 +67,17 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 .map(|a| Row {
                     key: clean(&a.email),
                     value: match &a.status {
-                        AccountStatus::Unverified => "not tested".to_owned(),
-                        AccountStatus::Verified { .. } => "connected".to_owned(),
-                        AccountStatus::Failed { error, .. } => clean(&format!("failed: {error}")),
+                        AccountStatus::Unverified => s(Key::NotTested).to_owned(),
+                        AccountStatus::Verified { .. } => s(Key::Connected).to_owned(),
+                        AccountStatus::Failed { error, .. } => {
+                            f(Key::FailedError, &[("error", &clean(error))])
+                        }
                     },
                     change: Some(CommandName::TestAccount),
                 })
                 .collect();
             out.push(Row {
-                key: "Add an account".to_owned(),
+                key: s(Key::AddAnAccount).to_owned(),
                 value: String::new(),
                 change: Some(CommandName::AddAccount),
             });
@@ -125,7 +129,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                 // No browser from a terminal: the address, to copy.
                 Action::Open(url) => {
                     out.push(Row {
-                        key: "  release notes".to_owned(),
+                        key: s(Key::ReleaseNotes).to_owned(),
                         value: clean(url),
                         change: None,
                     });
@@ -243,7 +247,9 @@ impl SettingsView {
         self.cursor = self.cursor.min(rows.len().saturating_sub(1));
         frame.render_widget(Clear, area);
         let block = if borders {
-            Block::bordered().border_style(bold()).title(" Settings ")
+            Block::bordered()
+                .border_style(bold())
+                .title(s(Key::SettingsTitle))
         } else {
             Block::new()
         };
@@ -258,7 +264,10 @@ impl SettingsView {
                 } else {
                     dim()
                 };
-                [Span::styled(format!(" {title} "), style), Span::raw(" ")]
+                [
+                    Span::styled(format!(" {} ", crate::text::s(*title)), style),
+                    Span::raw(" "),
+                ]
             })
             .collect();
         lines.push(Line::from(tabs));
@@ -287,10 +296,7 @@ impl SettingsView {
             ..inner
         };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                "Tab section · j/k move · Enter change · Esc close",
-                dim(),
-            ))),
+            Paragraph::new(Line::from(Span::styled(s(Key::SettingsFooter), dim()))),
             footer,
         );
     }

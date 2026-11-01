@@ -7,9 +7,11 @@
 //! (`Name <a@b>` or `a@b`) on Enter, a comma or leaving the field; invalid text stays in the
 //! field. The body is a `ratatui-textarea`; the quote is shown read-only below it.
 
+use crate::text::{f, s};
 use app_core::{AppState, Command, Draft, DraftId};
 use app_front::compose::{self, Field};
 use app_front::format;
+use app_front::i18n::Key;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -135,7 +137,7 @@ impl ComposerView {
         let lines: Vec<String> = draft.body_text.split('\n').map(scrub).collect();
         self.body = TextArea::new(lines);
         self.body.set_cursor_line_style(Style::default());
-        self.body.set_placeholder_text("Write your message…");
+        self.body.set_placeholder_text(s(Key::WriteMessage));
         self.dirty = false;
         if fresh {
             self.inputs = [single_line(""), single_line(""), single_line("")];
@@ -395,7 +397,7 @@ impl ComposerView {
         ]));
         if let Some(error) = &draft.send_error {
             head.push(Line::from(Span::styled(
-                format!("Not sent: {}", clean(error)),
+                f(Key::NotSent, &[("error", &clean(error))]),
                 bold(),
             )));
             if let Some(hint) = app_front::status::send_hint(state, draft.account, error, self.lang)
@@ -407,7 +409,7 @@ impl ComposerView {
         }
         if let Some(error) = &draft.save_error {
             head.push(Line::from(Span::styled(
-                format!("Draft save failed: {}", clean(error)),
+                f(Key::DraftSaveFailed, &[("error", &clean(error))]),
                 dim(),
             )));
         }
@@ -421,7 +423,7 @@ impl ComposerView {
             |from| from.email.clone(),
         );
         head.push(Line::from(vec![
-            Span::styled("From: ", dim()),
+            Span::styled(s(Key::FromColon), dim()),
             Span::raw(clean(&from)),
         ]));
         for field in Field::ALL {
@@ -458,7 +460,10 @@ impl ComposerView {
             }
         }
         let subject_here = focused && self.spot == Spot::Subject;
-        let mut subject = format!("Subject: {}", clean(&text_of(&self.subject)));
+        let mut subject = f(
+            Key::SubjectLine,
+            &[("subject", &clean(&text_of(&self.subject)))],
+        );
         if subject_here {
             subject.push('▏');
         }
@@ -478,16 +483,15 @@ impl ComposerView {
                     tail.push(Line::from(Span::styled(piece, dim())));
                 }
             }
-            tail.push(Line::from(Span::styled(
-                "(the original is added below when sent)",
-                dim(),
-            )));
+            tail.push(Line::from(Span::styled(s(Key::OriginalBelowTui), dim())));
         }
         for attachment in &draft.attachments {
             let detail = match &attachment.state {
-                app_core::AttachmentState::Checking => "checking…".to_owned(),
+                app_core::AttachmentState::Checking => s(Key::Checking).to_owned(),
                 app_core::AttachmentState::Ready { size, .. } => format::size(*size),
-                app_core::AttachmentState::Failed { error } => format!("failed: {}", clean(error)),
+                app_core::AttachmentState::Failed { error } => {
+                    f(Key::FailedError, &[("error", &clean(error))])
+                }
             };
             tail.push(Line::from(format!(
                 "@ {} ({detail})",
@@ -495,9 +499,9 @@ impl ComposerView {
             )));
         }
         let footer = if draft.is_outgoing() {
-            "read-only while it is sent · z cancels"
+            s(Key::ReadOnlyWhileSent)
         } else {
-            "Ctrl+S send · Ctrl+O $EDITOR · Ctrl+K “Attach file” · Esc close"
+            s(Key::ComposerFooter)
         };
         tail.push(Line::from(Span::styled(footer, dim())));
         let [head_area, body_area, tail_area] = Layout::vertical([

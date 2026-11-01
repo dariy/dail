@@ -259,7 +259,7 @@ private fun Peek(
         Row(verticalAlignment = Alignment.CenterVertically) {
             neighbour.open.icon?.let { Glyph(it) }
             Text(
-                if (ready) "Release to open" else neighbour.open.label,
+                if (ready) tr("Release to open") else neighbour.open.label,
                 style = MaterialTheme.typography.labelMedium,
             )
         }
@@ -323,13 +323,16 @@ private fun MessageCard(
                     Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${file.mime} · ${file.size}", style = MaterialTheme.typography.labelSmall)
                 }
-                ActionButton(Button(icon = "download", label = "Save ${file.name}", action = file.save), send)
+                ActionButton(
+                    Button(icon = "download", label = tr("Save {name}", "name" to file.name), action = file.save),
+                    send,
+                )
             }
         }
         message.saveAll?.let { all -> TextButton(onClick = { send(UiEvent.Tap(all.action)) }) { Text(all.label) } }
         if (message.links.isNotEmpty()) {
             Text(
-                "Links (${message.links.size})",
+                tr("Links ({n})", "n" to message.links.size),
                 Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -425,7 +428,7 @@ private fun Block(
 
         is DocBlock.Fold -> {
             Text(
-                (if (block.expanded) "Hide " else "Show ") + block.label.lowercase(),
+                tr(if (block.expanded) "Hide {what}" else "Show {what}", "what" to block.label.lowercase()),
                 Modifier.clickable { send(UiEvent.Tap(block.toggle)) }.padding(vertical = 4.dp),
                 color = MaterialTheme.colorScheme.primary,
                 style = type.labelMedium,
@@ -514,7 +517,7 @@ fun LinkDialog(
 ) {
     AlertDialog(
         onDismissRequest = { send(UiEvent.Tap(link.close.action)) },
-        title = { Text("Open this link?") },
+        title = { Text(tr("Open this link?")) },
         text = { Text(link.url, style = MaterialTheme.typography.bodyMedium) },
         confirmButton = { TextButton(onClick = { send(UiEvent.Tap(link.open.action)) }) { Text(link.open.label) } },
         dismissButton = { TextButton(onClick = { send(UiEvent.Tap(link.copy.action)) }) { Text(link.copy.label) } },

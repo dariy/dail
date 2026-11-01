@@ -830,12 +830,15 @@ steps + final state with `insta` and checks that replaying twice is identical.
 
 ## 7. Front-ends
 
-**Strings and languages** (`app_front::i18n`): the texts the front-ends share are keys of a strings table
-(`i18n::Key`, an English template each with `{name}` placeholders, filled by `i18n::tr`). The front-ends pick a
-`Lang` at startup from `$DAIL_LANG` (`Shell::set_lang`, `Tui::with_lang_tag`). Besides English there is a
-pseudo-locale (`DAIL_LANG=pseudo`): accented, a third longer and bracketed, so hard-coded and clipped strings show.
-The status texts (problems, hints, fixes, sync and pending summaries) are in the table; the GUI's and TUI's own labels
-move over later. Right-to-left: egui 0.37 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
+**Strings and languages** (`app_front::i18n`): the texts of the front-ends are keys of a strings table
+(`i18n/table.rs`: one row per `i18n::Key` with its English and French templates, `{name}` placeholders filled by
+`i18n::tr`; `i18n::text` is the plain `&'static str` lookup). Command titles have an exhaustive table
+(`i18n/commands.rs`, read through `i18n::title`). The `language` setting (0 = system, 1 = English, 2 = French) picks
+the language: each front-end resolves it per frame (`Lang::resolve`, the system being `$DAIL_LANG`, the POSIX locale
+variables, or the device's locale) and calls `i18n::set_current`; code with no `Lang` at hand uses `i18n::s`/`f`.
+The GUI also carries it on `Tokens` (`t.s`, `t.f`). Kotlin and Swift compose a few texts themselves and read them
+from the frame's `labels` map. There is also a pseudo-locale (`DAIL_LANG=pseudo`): accented, a third longer and
+bracketed, so hard-coded and clipped strings show. Not translated: `app-core`'s error texts and undo labels. Right-to-left: egui 0.37 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
 mail shows in logical order and the layout is not mirrored; bidi control characters from mail cannot reorder the UI
 (the TUI replaces them, `text::is_unsafe`; notifications drop them).
 
@@ -1747,7 +1750,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`language`, `undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |

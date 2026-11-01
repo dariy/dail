@@ -6,6 +6,7 @@
 //! `egui::Context::run_ui`.
 
 use app_core::{AppState, Command, CommandName};
+use app_front::i18n::Key;
 use egui::Panel;
 
 use crate::approvals;
@@ -25,6 +26,7 @@ use crate::toasts::{ToastKind, Toasts};
 use crate::topbar;
 use crate::ui;
 use crate::wizard::Wizard;
+use app_front::i18n;
 
 /// Something the user asked for that happens outside the engine: the app performs it after
 /// the frame (`ARCHITECTURE.md §7.1`, reader).
@@ -71,6 +73,8 @@ pub struct Shell {
     autoread: app_front::autoread::AutoRead,
     /// The language of the shared texts (`app_front::i18n`).
     lang: app_front::i18n::Lang,
+    /// The language when the `language` setting follows the system.
+    system_lang: app_front::i18n::Lang,
 }
 
 impl Default for Shell {
@@ -96,6 +100,7 @@ impl Default for Shell {
             clock: system_now_ms,
             autoread: app_front::autoread::AutoRead::default(),
             lang: app_front::i18n::Lang::default(),
+            system_lang: app_front::i18n::Lang::default(),
         }
     }
 }
@@ -225,7 +230,11 @@ impl Shell {
             self.toasts.push(notice, ToastKind::Error, now);
         }
         theme::zoom(ui.ctx(), state.settings.text_scale);
-        let t = theme::tokens(ui.ctx());
+        let mut t = theme::tokens(ui.ctx());
+        let lang = i18n::Lang::resolve(state.settings.language, self.system_lang);
+        i18n::set_current(lang);
+        self.lang = lang;
+        t.lang = lang;
         let now_ms = (self.clock)();
         self.saver.receive(&mut queue);
         if let Some((thread, cmd)) = self.bodies.refresh(state) {
@@ -498,7 +507,7 @@ impl Shell {
         let mut chosen = None;
         egui::Window::new(ui::text(
             &t.type_scale.headline_md,
-            result.name.spec().title,
+            app_front::i18n::title(result.name),
             t.text_strong,
         ))
         .id(egui::Id::unique("query-result"))
@@ -511,14 +520,14 @@ impl Shell {
         .collapsible(false)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui::caption(ui, t, "Read-only · untrusted data");
+                ui::caption(ui, t, t.s(Key::ReadOnlyCaption));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.toggle_value(&mut result.raw, "Raw data");
+                    ui.toggle_value(&mut result.raw, t.s(Key::RawData));
                 });
             });
             ui.label(ui::text(
                 &t.type_scale.body_sm,
-                "Read-only result. Email content in it is untrusted data.",
+                t.s(Key::ReadOnlyResult),
                 t.text_muted,
             ));
             egui::ScrollArea::vertical()
@@ -562,7 +571,8 @@ impl Shell {
             }
             Purpose::User => match &reply.result {
                 Ok(Ok(receipt)) => {
-                    self.toasts.receipt(receipt, now);
+                    self.toasts
+                        .receipt(receipt, i18n::text(self.lang, i18n::Key::Sending), now);
                     if reply.name.kind() == app_core::CommandKind::Query {
                         let json = serde_json::to_string_pretty(&receipt.data).unwrap_or_default();
                         self.result = Some(QueryResult {
@@ -580,7 +590,8 @@ impl Shell {
                 }
                 Ok(Err(err)) => {
                     tracing::debug!(command = reply.name.as_str(), error = %err, "command rejected");
-                    self.toasts.error(reply.name.spec().title, err, now);
+                    self.toasts
+                        .error(app_front::i18n::title(reply.name), err, now);
                 }
                 Err(err) => {
                     tracing::warn!(command = reply.name.as_str(), error = %err, "session failed");
@@ -605,20 +616,24 @@ enum Placement {
 
 /// The first-run question about update checks (Wave 7 F3): it stays until it is answered.
 fn updates_question(ui: &mut egui::Ui, t: &theme::Tokens, queue: &mut Vec<Request>) {
-    use app_front::updates::{QUESTION, QUESTION_DETAIL, answer};
+    use app_front::updates::{answer, question, question_detail};
 
-    ui.label(ui::text(&t.type_scale.headline_md, QUESTION, t.text_strong));
+    ui.label(ui::text(
+        &t.type_scale.headline_md,
+        question(),
+        t.text_strong,
+    ));
     ui.label(ui::text(
         &t.type_scale.body_sm,
-        QUESTION_DETAIL,
+        question_detail(),
         t.text_secondary,
     ));
     ui.add_space(t.m.space.xs);
     ui.horizontal(|ui| {
-        if ui::primary(ui, t, "Check for updates", None, true) {
+        if ui::primary(ui, t, t.s(Key::CheckUpdates), None, true) {
             queue.push(Request::user(answer(true)));
         }
-        if ui::secondary(ui, t, "No thanks", None, true) {
+        if ui::secondary(ui, t, t.s(Key::NoThanks), None, true) {
             queue.push(Request::user(answer(false)));
         }
     });

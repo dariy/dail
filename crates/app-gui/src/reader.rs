@@ -4,6 +4,7 @@
 //! background `get_thread {include_body: true}`. Everything shown here is email content and is
 //! only displayed, never interpreted.
 
+use app_front::i18n::Key;
 use std::collections::HashSet;
 
 use app_core::document::FoldKind;
@@ -43,13 +44,13 @@ impl Folds {
 /// The button that opens or closes a fold; whether it was clicked.
 pub fn fold_toggle(ui: &mut Ui, t: &Tokens, kind: FoldKind, open: bool) -> bool {
     let what = match kind {
-        FoldKind::Quote => "quoted text",
-        FoldKind::Signature => "signature",
+        FoldKind::Quote => t.s(Key::QuotedText),
+        FoldKind::Signature => t.s(Key::Signature),
     };
     let (label, icon) = if open {
-        (format!("Hide {what}"), Icon::UnfoldLess)
+        (t.f(Key::HideWhat, &[("what", what)]), Icon::UnfoldLess)
     } else {
-        (format!("Show {what}"), Icon::UnfoldMore)
+        (t.f(Key::ShowWhat, &[("what", what)]), Icon::UnfoldMore)
     };
     let job = ui::icon_text(
         icon,
@@ -115,12 +116,12 @@ pub fn show(
         ui::empty_state(
             ui,
             t,
-            "No conversation open",
+            t.s(Key::NoConversationOpen),
             &[
-                ("j", "next"),
-                ("k", "previous"),
-                ("Enter", "open"),
-                ("Ctrl+K", "everything"),
+                ("j", t.s(Key::HintNext)),
+                ("k", t.s(Key::HintPrevious)),
+                ("Enter", t.s(Key::HintOpen)),
+                ("Ctrl+K", t.s(Key::HintEverything)),
             ],
         );
         return;
@@ -141,7 +142,7 @@ pub fn show(
     }
     ui.add_space(t.m.space.lg);
     let subject = if thread.subject.trim().is_empty() {
-        "(no subject)"
+        t.s(Key::NoSubject)
     } else {
         &thread.subject
     };
@@ -220,19 +221,19 @@ fn toolbar(
     ui::toolbar(ui, t, |ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));
         if let Some(message) = last {
-            if ui::primary(ui, t, "Reply", Some("R"), true) {
+            if ui::primary(ui, t, t.s(Key::Reply), Some("R"), true) {
                 push(Command::Reply {
                     message,
                     body: None,
                 });
             }
-            if ui::secondary_icon(ui, t, Icon::ReplyAll, "Reply all", Some("A"), true) {
+            if ui::secondary_icon(ui, t, Icon::ReplyAll, t.s(Key::ReplyAll), Some("A"), true) {
                 push(Command::ReplyAll {
                     message,
                     body: None,
                 });
             }
-            if ui::secondary_icon(ui, t, Icon::Forward, "Forward", Some("F"), true) {
+            if ui::secondary_icon(ui, t, Icon::Forward, t.s(Key::Forward), Some("F"), true) {
                 push(Command::Forward {
                     message,
                     body: None,
@@ -247,7 +248,11 @@ fn toolbar(
             t,
             if starred { strong } else { icon_color },
             Icon::Star,
-            if starred { "Unstar (S)" } else { "Star (S)" },
+            if starred {
+                t.s(Key::UnstarKey)
+            } else {
+                t.s(Key::StarKey)
+            },
         );
         if starred {
             // The starred state: the star filled over the outline.
@@ -275,9 +280,9 @@ fn toolbar(
         }
         let unread = messages.iter().any(|m| !m.flags.seen);
         let (read_icon, read_name) = if unread {
-            (Icon::MarkEmailRead, "Mark read (U)")
+            (Icon::MarkEmailRead, t.s(Key::MarkReadKey))
         } else {
-            (Icon::MarkEmailUnread, "Mark unread (U)")
+            (Icon::MarkEmailUnread, t.s(Key::MarkUnreadKey))
         };
         if ui::icon_button(ui, t, icon_color, read_icon, read_name).clicked() {
             push(if unread {
@@ -292,26 +297,26 @@ fn toolbar(
                 }
             });
         }
-        if ui::icon_button(ui, t, icon_color, Icon::Archive, "Archive (E)").clicked() {
+        if ui::icon_button(ui, t, icon_color, Icon::Archive, t.s(Key::ArchiveKey)).clicked() {
             push(Command::ArchiveThreads {
                 ids: ids.clone(),
                 messages: Vec::new(),
             });
         }
-        if ui::icon_button(ui, t, icon_color, Icon::Delete, "Trash (#)").clicked() {
+        if ui::icon_button(ui, t, icon_color, Icon::Delete, t.s(Key::TrashKey)).clicked() {
             push(Command::TrashThreads {
                 ids: ids.clone(),
                 messages: Vec::new(),
             });
         }
-        if ui::icon_button(ui, t, icon_color, Icon::DriveFileMove, "Move… (V)").clicked()
+        if ui::icon_button(ui, t, icon_color, Icon::DriveFileMove, t.s(Key::MoveKey)).clicked()
             && let app_front::palette::Flow::Ask(step) =
                 app_front::palette::flow(app_core::CommandName::MoveThreads, tool.state)
         {
             ask = Some(step);
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui::icon_button(ui, t, icon_color, Icon::Close, "Close (Esc)").clicked() {
+            if ui::icon_button(ui, t, icon_color, Icon::Close, t.s(Key::CloseEsc)).clicked() {
                 push(Command::CloseThread {});
             }
             let at = tool.rows.iter().position(|r| *r == tool.thread);
@@ -321,8 +326,14 @@ fn toolbar(
                 .and_then(|i| tool.rows.get(i))
                 .copied();
             ui.add_enabled_ui(next.is_some(), |ui| {
-                if ui::icon_button(ui, t, icon_color, Icon::ExpandMore, "Next conversation (j)")
-                    .clicked()
+                if ui::icon_button(
+                    ui,
+                    t,
+                    icon_color,
+                    Icon::ExpandMore,
+                    t.s(Key::NextConversation),
+                )
+                .clicked()
                     && let Some(id) = next
                 {
                     push(Command::OpenThread { id });
@@ -334,7 +345,7 @@ fn toolbar(
                     t,
                     icon_color,
                     Icon::ExpandLess,
-                    "Previous conversation (k)",
+                    t.s(Key::PreviousConversation),
                 )
                 .clicked()
                     && let Some(id) = prev
@@ -345,7 +356,13 @@ fn toolbar(
             if let Some(i) = at {
                 ui.label(ui::text(
                     &t.type_scale.label_sm,
-                    format!("{} of {}", i + 1, tool.rows.len()),
+                    t.f(
+                        Key::NOfM,
+                        &[
+                            ("n", &(i + 1).to_string()),
+                            ("m", &tool.rows.len().to_string()),
+                        ],
+                    ),
                     t.text_muted,
                 ));
             }
@@ -375,9 +392,9 @@ fn meta_line(ui: &mut Ui, t: &Tokens, state: &AppState, thread: &Thread, count: 
             );
         }
         let messages = if count == 1 {
-            "1 MESSAGE".to_owned()
+            t.s(Key::OneMessage).to_owned()
         } else {
-            format!("{count} MESSAGES")
+            t.f(Key::MessagesCount, &[("n", &count.to_string())])
         };
         ui::badge(ui, t, &messages, ui::Badge::Count);
         if state.accounts.len() > 1
@@ -395,11 +412,11 @@ fn meta_line(ui: &mut Ui, t: &Tokens, state: &AppState, thread: &Thread, count: 
     });
 }
 
-fn sender(message: &Envelope) -> String {
+fn sender(t: &Tokens, message: &Envelope) -> String {
     message
         .from
         .first()
-        .map_or_else(|| "(no sender)".to_owned(), format::full)
+        .map_or_else(|| t.s(Key::NoSender).to_owned(), format::full)
 }
 
 /// A collapsed message: sender, the start of its text and the date, on one line. A click
@@ -412,7 +429,7 @@ fn collapsed_row(
     now_ms: i64,
     queue: &mut Vec<Request>,
 ) {
-    let from = sender(message);
+    let from = sender(t, message);
     let snippet = body
         .map(|b| fold::split(&b.text).main)
         .and_then(|text| text.lines().find(|l| !l.trim().is_empty()))
@@ -473,7 +490,7 @@ fn collapsed_row(
                 });
             });
         });
-    let label = format!("Expand message from {from}");
+    let label = t.f(Key::ExpandMessage, &[("from", &from)]);
     let response = ui
         .interact(
             frame.response.rect,
@@ -517,7 +534,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
     } = io;
     ui::card_base(t).show(ui, |ui| {
         ui.set_width(ui.available_width());
-        let from = sender(message);
+        let from = sender(t, message);
         let header = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.md;
             let name = message
@@ -561,7 +578,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                 if !to.is_empty() {
                     ui.label(ui::text(
                         &t.type_scale.body_sm,
-                        format!("to {}", to.join(", ")),
+                        t.f(Key::ToList, &[("to", &to.join(", "))]),
                         t.text_secondary,
                     ));
                 }
@@ -569,7 +586,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
         });
         // In a conversation, a click on the header collapses the message to one line.
         if thread.messages.len() > 1 {
-            let label = format!("Collapse message from {from}");
+            let label = t.f(Key::CollapseMessage, &[("from", &from)]);
             let response = ui.interact(
                 header.response.rect,
                 ui.scope_id().with(("collapse", message.id)),
@@ -594,20 +611,15 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
         if let BodyState::Fetched { blob } = &message.body {
             let job = ui::icon_text(
                 Icon::OpenInNew,
-                "Open original",
+                t.s(Key::OpenOriginal),
                 ui::font(&t.type_scale.body_sm),
                 t.text_secondary,
             );
             let response = ui::ghost(ui, t, job);
             response.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::Role::Button, true, "Open original ↗")
+                egui::WidgetInfo::labeled(egui::Role::Button, true, t.s(Key::OpenOriginalArrow))
             });
-            if response
-                .on_hover_text(
-                    "A sanitized copy (no scripts, no images, nothing remote) in your browser",
-                )
-                .clicked()
-            {
+            if response.on_hover_text(t.s(Key::OpenOriginalHint)).clicked() {
                 externals.push(External::OpenOriginal { blob: blob.clone() });
             }
         }
@@ -691,11 +703,15 @@ fn message_body(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: BodyIo<'_>) {
         (BodyState::Failed { error }, None) => {
             ui.colored_label(
                 ui.visuals().error_fg_color,
-                format!("The body could not be downloaded: {error}"),
+                t.f(Key::BodyFailed, &[("error", error)]),
             );
         }
         _ => {
-            ui.label(ui::text(&t.type_scale.body_md, "Loading…", t.text_muted));
+            ui.label(ui::text(
+                &t.type_scale.body_md,
+                t.s(Key::Loading),
+                t.text_muted,
+            ));
         }
     }
 }
@@ -704,9 +720,9 @@ fn message_body(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: BodyIo<'_>) {
 fn images_bar(ui: &mut Ui, t: &Tokens, sender: &str, shown: bool, queue: &mut Vec<Request>) {
     ui.horizontal_wrapped(|ui| {
         let (note, action) = if shown {
-            ("Showing the pictures in this message.", "Hide images")
+            (t.s(Key::PicturesShown), t.s(Key::HideImages))
         } else {
-            ("Pictures in this message are hidden.", "Show images")
+            (t.s(Key::PicturesHidden), t.s(Key::ShowImages))
         };
         ui.label(ui::text(&t.type_scale.body_sm, note, t.text_muted));
         let icon = if shown {
@@ -714,7 +730,7 @@ fn images_bar(ui: &mut Ui, t: &Tokens, sender: &str, shown: bool, queue: &mut Ve
         } else {
             Icon::Visibility
         };
-        let label = format!("{action} from {sender}");
+        let label = t.f(Key::ActionFrom, &[("action", action), ("sender", sender)]);
         let job = ui::icon_text(
             icon,
             &label,
@@ -723,10 +739,7 @@ fn images_bar(ui: &mut Ui, t: &Tokens, sender: &str, shown: bool, queue: &mut Ve
         );
         let response = ui::ghost(ui, t, job);
         response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &label));
-        if response
-            .on_hover_text("Only pictures carried in the message; nothing is downloaded")
-            .clicked()
-        {
+        if response.on_hover_text(t.s(Key::PicturesHint)).clicked() {
             let sender = sender.to_owned();
             queue.push(Request::user(if shown {
                 Command::HideImagesFrom { sender }
@@ -756,7 +769,11 @@ fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
         };
         crate::document::show(ui, t, document, io);
     } else if body.text.trim().is_empty() {
-        ui.label(ui::text(&t.type_scale.body_lg, "(no text)", t.text_muted));
+        ui.label(ui::text(
+            &t.type_scale.body_lg,
+            t.s(Key::NoText),
+            t.text_muted,
+        ));
     } else {
         let folded = fold::split(&body.text);
         let mut job = ui::marked(
@@ -793,7 +810,11 @@ fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
     let links = links(&body.text);
     if !links.is_empty() {
         ui.add_space(t.m.space.md);
-        ui::caption(ui, t, &format!("Links ({})", links.len()));
+        ui::caption(
+            ui,
+            t,
+            &t.f(Key::LinksCount, &[("n", &links.len().to_string())]),
+        );
         for url in links {
             // The full target is the label: what you see is where it goes. Opens only on click.
             let mut job = ui::icon_text(
@@ -808,7 +829,7 @@ fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
             let name = format!("↗ {url}");
             let response = ui
                 .add(egui::Label::new(job).sense(egui::Sense::click()).truncate())
-                .on_hover_text(format!("Open in your browser:\n{url}"));
+                .on_hover_text(t.f(Key::OpenInBrowser, &[("url", &url)]));
             response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, &name));
             if response.clicked() {
                 externals.push(External::OpenUrl(url));

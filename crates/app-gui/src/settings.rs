@@ -7,6 +7,7 @@ use app_core::{
     AccountId, AccountStatus, AppState, Category, Command, CommandName, KeyPreset, SettingKey,
     SettingsSection, ThemeMode,
 };
+use app_front::i18n::Key;
 use app_front::palette::{Ask, Flow};
 use app_theme::{Appearance, Icon, builtin};
 use egui::{Sense, Ui, Vec2};
@@ -38,11 +39,11 @@ pub struct SettingsActions {
 }
 
 /// The tabs, in order, with their icons and titles.
-const TABS: [(SettingsSection, Icon, &str); 4] = [
-    (SettingsSection::Appearance, Icon::Contrast, "Appearance"),
-    (SettingsSection::Keys, Icon::Keyboard, "Keyboard"),
-    (SettingsSection::General, Icon::Settings, "General"),
-    (SettingsSection::Accounts, Icon::Person, "Accounts"),
+const TABS: [(SettingsSection, Icon, Key); 4] = [
+    (SettingsSection::Appearance, Icon::Contrast, Key::Appearance),
+    (SettingsSection::Keys, Icon::Keyboard, Key::Keyboard),
+    (SettingsSection::General, Icon::Settings, Key::General),
+    (SettingsSection::Accounts, Icon::Person, Key::Accounts),
 ];
 
 impl SettingsState {
@@ -61,7 +62,7 @@ impl SettingsState {
             ui.spacing_mut().item_spacing.x = t.m.space.sm;
             ui.label(ui::text(
                 &t.type_scale.headline_lg,
-                "Settings",
+                t.s(Key::Settings),
                 t.text_strong,
             ));
             ui::badge(
@@ -71,8 +72,14 @@ impl SettingsState {
                 ui::Badge::Outline,
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui::icon_button(ui, t, t.text_secondary, Icon::Close, "Close settings (Esc)")
-                    .clicked()
+                if ui::icon_button(
+                    ui,
+                    t,
+                    t.text_secondary,
+                    Icon::Close,
+                    t.s(Key::CloseSettings),
+                )
+                .clicked()
                 {
                     queue.push(Request::user(Command::CloseSettings {}));
                 }
@@ -81,7 +88,7 @@ impl SettingsState {
         ui.add_space(t.m.space.md);
         let items: Vec<(Icon, &str)> = TABS
             .iter()
-            .map(|(_, icon, title)| (*icon, *title))
+            .map(|(_, icon, title)| (*icon, t.s(*title)))
             .collect();
         let active = TABS.iter().position(|(s, _, _)| *s == section).unwrap_or(0);
         if let Some(i) = ui::tabs(ui, t, &items, active)
@@ -136,9 +143,11 @@ impl SettingsState {
                             t.text_strong,
                         ));
                         let status = match &account.status {
-                            AccountStatus::Unverified => "not tested yet".to_owned(),
-                            AccountStatus::Verified { .. } => "connected".to_owned(),
-                            AccountStatus::Failed { error, .. } => format!("failed: {error}"),
+                            AccountStatus::Unverified => t.s(Key::NotTestedYet).to_owned(),
+                            AccountStatus::Verified { .. } => t.s(Key::Connected).to_owned(),
+                            AccountStatus::Failed { error, .. } => {
+                                t.f(Key::FailedError, &[("error", error)])
+                            }
                         };
                         ui.label(ui::text(
                             &t.type_scale.label_sm,
@@ -156,16 +165,16 @@ impl SettingsState {
                 });
                 ui.add_space(t.m.space.sm);
                 ui.horizontal_wrapped(|ui| {
-                    if ui::secondary(ui, t, "Test", None, true) {
+                    if ui::secondary(ui, t, t.s(Key::Test), None, true) {
                         queue.push(Request::user(Command::TestAccount { id: account.id }));
                     }
-                    if ui::secondary(ui, t, "Re-enter password", None, true) {
+                    if ui::secondary(ui, t, t.s(Key::ReEnterPassword), None, true) {
                         actions.password = Some(account.id);
                     }
                     if self.confirm_remove == Some(account.id) {
                         let remove = ui::text(
                             &t.type_scale.body_md,
-                            format!("Remove {} and its mail cache", account.email),
+                            t.f(Key::RemoveAccountCache, &[("email", &account.email)]),
                             t.danger,
                         );
                         if ui::ghost(ui, t, remove).clicked() {
@@ -175,12 +184,17 @@ impl SettingsState {
                             }));
                             self.confirm_remove = None;
                         }
-                        let keep = ui::text(&t.type_scale.body_md, "Keep it", t.text_secondary);
+                        let keep =
+                            ui::text(&t.type_scale.body_md, t.s(Key::KeepIt), t.text_secondary);
                         if ui::ghost(ui, t, keep).clicked() {
                             self.confirm_remove = None;
                         }
                     } else {
-                        let remove = ui::text(&t.type_scale.body_md, "Remove…", t.text_secondary);
+                        let remove = ui::text(
+                            &t.type_scale.body_md,
+                            t.s(Key::RemoveDots),
+                            t.text_secondary,
+                        );
                         if ui::ghost(ui, t, remove).clicked() {
                             self.confirm_remove = Some(account.id);
                         }
@@ -189,7 +203,7 @@ impl SettingsState {
             });
             ui.add_space(t.m.space.sm);
         }
-        if ui::primary(ui, t, "Add account", None, true) {
+        if ui::primary(ui, t, t.s(Key::AddAccount), None, true) {
             actions.wizard = true;
         }
     }
@@ -238,31 +252,33 @@ fn choices(
 
 fn appearance(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
     let settings = &state.settings;
-    row(
-        ui,
-        t,
-        "Theme",
-        "Follow the desktop, or always light or dark",
-        |ui| {
-            let modes = [ThemeMode::System, ThemeMode::Light, ThemeMode::Dark];
-            let chosen = modes
-                .iter()
-                .position(|m| *m == ThemeMode::of(settings.theme))
-                .unwrap_or(0);
-            if let Some(i) = ui::segmented(ui, t, &["System", "Light", "Dark"], chosen)
-                && i != chosen
-            {
-                queue.push(Request::user(Command::SetTheme {
-                    mode: modes.get(i).copied(),
-                    light: None,
-                    dark: None,
-                }));
-            }
-        },
-    );
+    row(ui, t, t.s(Key::Theme), t.s(Key::ThemeHint), |ui| {
+        let modes = [ThemeMode::System, ThemeMode::Light, ThemeMode::Dark];
+        let chosen = modes
+            .iter()
+            .position(|m| *m == ThemeMode::of(settings.theme))
+            .unwrap_or(0);
+        if let Some(i) = ui::segmented(
+            ui,
+            t,
+            &[t.s(Key::System), t.s(Key::Light), t.s(Key::Dark)],
+            chosen,
+        ) && i != chosen
+        {
+            queue.push(Request::user(Command::SetTheme {
+                mode: modes.get(i).copied(),
+                light: None,
+                dark: None,
+            }));
+        }
+    });
     for (appearance, title, current) in [
-        (Appearance::Light, "Light theme", &settings.theme_light),
-        (Appearance::Dark, "Dark theme", &settings.theme_dark),
+        (
+            Appearance::Light,
+            t.s(Key::LightTheme),
+            &settings.theme_light,
+        ),
+        (Appearance::Dark, t.s(Key::DarkTheme), &settings.theme_dark),
     ] {
         ui.add_space(t.m.space.md);
         ui::caption(ui, t, title);
@@ -292,35 +308,43 @@ fn appearance(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request
     row(
         ui,
         t,
-        "Density",
-        "How tall the rows of the thread list are",
+        t.s(Key::LanguageSetting),
+        t.s(Key::LanguageHint),
         |ui| {
             choices(
                 ui,
                 t,
                 state,
-                SettingKey::ListDensity,
-                &[(0, "Cozy 48"), (1, "Compact 40"), (2, "Preview 72")],
+                SettingKey::Language,
+                &[(0, t.s(Key::System)), (1, "English"), (2, "Français")],
                 queue,
             );
         },
     );
-    row(
-        ui,
-        t,
-        "Text size",
-        "Ctrl + plus and minus change it for a while",
-        |ui| {
-            choices(
-                ui,
-                t,
-                state,
-                SettingKey::TextScale,
-                &[(90, "90 %"), (100, "100 %"), (125, "125 %"), (150, "150 %")],
-                queue,
-            );
-        },
-    );
+    row(ui, t, t.s(Key::Density), t.s(Key::DensityHint), |ui| {
+        choices(
+            ui,
+            t,
+            state,
+            SettingKey::ListDensity,
+            &[
+                (0, t.s(Key::Cozy)),
+                (1, t.s(Key::Compact)),
+                (2, t.s(Key::PreviewDensity)),
+            ],
+            queue,
+        );
+    });
+    row(ui, t, t.s(Key::TextSize), t.s(Key::TextSizeHint), |ui| {
+        choices(
+            ui,
+            t,
+            state,
+            SettingKey::TextScale,
+            &[(90, "90 %"), (100, "100 %"), (125, "125 %"), (150, "150 %")],
+            queue,
+        );
+    });
 }
 
 /// A selectable card with a small preview of a theme: its canvas, chrome, text and inverse.
@@ -426,7 +450,7 @@ fn keys(
     queue: &mut Vec<Request>,
 ) -> Option<Ask> {
     let mut ask = None;
-    row(ui, t, "Preset", "The keys everything starts from", |ui| {
+    row(ui, t, t.s(Key::Preset), t.s(Key::PresetHint), |ui| {
         let presets = [KeyPreset::Gmail, KeyPreset::Vim];
         let chosen = presets
             .iter()
@@ -445,7 +469,7 @@ fn keys(
             ui::icon(ui, Icon::Search, t.m.controls.icon_sm, t.text_muted, false);
             ui.add(
                 egui::TextEdit::singleline(filter)
-                    .hint_text("Filter the commands")
+                    .hint_text(t.s(Key::FilterCommands))
                     .frame(egui::Frame::NONE)
                     .desired_width(f32::INFINITY),
             );
@@ -454,11 +478,11 @@ fn keys(
     ui.add_space(t.m.space.md);
     let query = filter.trim().to_lowercase();
     for (category, title) in [
-        (Category::Mail, "Mail"),
-        (Category::Compose, "Compose"),
-        (Category::Navigation, "Navigation"),
-        (Category::Account, "Account"),
-        (Category::App, "App"),
+        (Category::Mail, t.s(Key::Mail)),
+        (Category::Compose, t.s(Key::Compose)),
+        (Category::Navigation, t.s(Key::Navigation)),
+        (Category::Account, t.s(Key::Account)),
+        (Category::App, t.s(Key::App)),
     ] {
         let names: Vec<(CommandName, Vec<String>)> = CommandName::ALL
             .iter()
@@ -481,7 +505,7 @@ fn keys(
                 ui.vertical(|ui| {
                     ui.label(ui::text(
                         &t.type_scale.body_md,
-                        name.spec().title,
+                        app_front::i18n::title(name),
                         t.text_strong,
                     ));
                     ui.label(ui::text(
@@ -491,9 +515,10 @@ fn keys(
                     ));
                 });
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let change = ui::text(&t.type_scale.label_md, "Change…", t.text_secondary);
+                    let change =
+                        ui::text(&t.type_scale.label_md, t.s(Key::Change), t.text_secondary);
                     let response = ui::ghost(ui, t, change);
-                    let label = format!("Change the keys of {}", name.spec().title);
+                    let label = t.f(Key::ChangeKeysOf, &[("name", app_front::i18n::title(name))]);
                     response.widget_info(|| {
                         egui::WidgetInfo::labeled(egui::Role::Button, true, &label)
                     });
@@ -516,53 +541,41 @@ fn keys(
 }
 
 fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
+    row(ui, t, t.s(Key::UndoSend), t.s(Key::UndoSendHint), |ui| {
+        choices(
+            ui,
+            t,
+            state,
+            SettingKey::UndoSendMs,
+            &[
+                (0, t.s(Key::Off)),
+                (5_000, "5 s"),
+                (10_000, "10 s"),
+                (30_000, "30 s"),
+            ],
+            queue,
+        );
+    });
+    row(ui, t, t.s(Key::CheckMail), t.s(Key::CheckMailHint), |ui| {
+        choices(
+            ui,
+            t,
+            state,
+            SettingKey::PollSecs,
+            &[
+                (60, "1 min"),
+                (120, "2 min"),
+                (300, "5 min"),
+                (900, "15 min"),
+            ],
+            queue,
+        );
+    });
     row(
         ui,
         t,
-        "Undo send",
-        "How long a sent message waits before it leaves",
-        |ui| {
-            choices(
-                ui,
-                t,
-                state,
-                SettingKey::UndoSendMs,
-                &[
-                    (0, "Off"),
-                    (5_000, "5 s"),
-                    (10_000, "10 s"),
-                    (30_000, "30 s"),
-                ],
-                queue,
-            );
-        },
-    );
-    row(
-        ui,
-        t,
-        "Check for mail",
-        "How often the inbox is polled without IDLE",
-        |ui| {
-            choices(
-                ui,
-                t,
-                state,
-                SettingKey::PollSecs,
-                &[
-                    (60, "1 min"),
-                    (120, "2 min"),
-                    (300, "5 min"),
-                    (900, "15 min"),
-                ],
-                queue,
-            );
-        },
-    );
-    row(
-        ui,
-        t,
-        "Mark as read",
-        "When an open conversation is marked read (other values: set_setting in the palette)",
+        t.s(Key::MarkAsRead),
+        t.s(Key::MarkAsReadHint),
         |ui| {
             choices(
                 ui,
@@ -570,10 +583,10 @@ fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) 
                 state,
                 SettingKey::MarkReadAfterMs,
                 &[
-                    (0, "Never"),
-                    (250, "Immediately"),
-                    (2_000, "After 2 s"),
-                    (5_000, "After 5 s"),
+                    (0, t.s(Key::Never)),
+                    (250, t.s(Key::Immediately)),
+                    (2_000, t.s(Key::After2s)),
+                    (5_000, t.s(Key::After5s)),
                 ],
                 queue,
             );
@@ -582,11 +595,11 @@ fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) 
     row(
         ui,
         t,
-        "Notifications",
-        "New mail, failed sends and agent requests while dail is in the background",
+        t.s(Key::Notifications),
+        t.s(Key::NotificationsHint),
         |ui| {
             let on = state.settings.notifications == 1;
-            if ui::switch(ui, t, on, "Notifications").clicked() {
+            if ui::switch(ui, t, on, t.s(Key::Notifications)).clicked() {
                 queue.push(Request::user(Command::SetSetting {
                     key: SettingKey::Notifications,
                     value: u64::from(!on).into(),
@@ -597,8 +610,8 @@ fn general(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) 
     row(
         ui,
         t,
-        "Undo history",
-        "How many steps undo remembers",
+        t.s(Key::UndoHistory),
+        t.s(Key::UndoHistoryHint),
         |ui| {
             choices(
                 ui,
@@ -622,10 +635,10 @@ fn updates(
     actions: &mut SettingsActions,
     queue: &mut Vec<Request>,
 ) {
-    use app_front::updates::{Action, INTERVALS, panel};
+    use app_front::updates::{Action, intervals, panel};
 
     ui.add_space(t.m.space.lg);
-    ui::caption(ui, t, "Updates");
+    ui::caption(ui, t, t.s(Key::Updates));
     let panel = panel(state, now_ms, env!("CARGO_PKG_VERSION"));
     let detail = match &panel.checked {
         Some(checked) => format!("{} · {checked}", panel.status),
@@ -649,23 +662,23 @@ fn updates(
     row(
         ui,
         t,
-        "Check automatically",
-        "Asks GitHub for the signed release list; nothing about you is sent",
+        t.s(Key::CheckAutomatically),
+        t.s(Key::CheckAutomaticallyHint),
         |ui| {
             let on = policy.checks == app_core::UpdateChecks::On;
-            if ui::switch(ui, t, on, "Check automatically").clicked() {
+            if ui::switch(ui, t, on, t.s(Key::CheckAutomatically)).clicked() {
                 queue.push(Request::user(app_front::updates::answer(!on)));
             }
         },
     );
-    row(ui, t, "How often", "Between automatic checks", |ui| {
-        let labels: Vec<&str> = INTERVALS.iter().map(|(_, l)| *l).collect();
-        let chosen = INTERVALS
+    row(ui, t, t.s(Key::HowOften), t.s(Key::HowOftenHint), |ui| {
+        let labels: Vec<&str> = intervals().iter().map(|(_, l)| *l).collect();
+        let chosen = intervals()
             .iter()
             .position(|(h, _)| *h == policy.interval_hours)
             .unwrap_or(usize::MAX);
         if let Some(i) = ui::segmented(ui, t, &labels, chosen)
-            && let Some((hours, _)) = INTERVALS.get(i)
+            && let Some((hours, _)) = intervals().get(i)
             && *hours != policy.interval_hours
         {
             queue.push(Request::user(Command::SetUpdatePolicy {

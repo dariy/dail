@@ -41,6 +41,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
