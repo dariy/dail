@@ -29,10 +29,10 @@ struct Row {
     change: Option<CommandName>,
 }
 
-/// The section the TUI shows for `section` (appearance has none of its own).
+/// The section the TUI shows for `section` (appearance and about have none of their own).
 const fn shown(section: SettingsSection) -> SettingsSection {
     match section {
-        SettingsSection::Appearance => SettingsSection::General,
+        SettingsSection::Appearance | SettingsSection::About => SettingsSection::General,
         other => other,
     }
 }
@@ -79,26 +79,28 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
             });
             out
         }
-        SettingsSection::General | SettingsSection::Appearance => update_rows(state)
-            .into_iter()
-            .chain(SettingKey::ALL.iter().map(|key| Row {
-                key: key.as_str().to_owned(),
-                value: key.get(settings).to_string(),
-                change: Some(CommandName::SetSetting),
-            }))
-            .chain([
-                Row {
-                    key: "theme_light".to_owned(),
-                    value: clean(&settings.theme_light),
-                    change: Some(CommandName::SetTheme),
-                },
-                Row {
-                    key: "theme_dark".to_owned(),
-                    value: clean(&settings.theme_dark),
-                    change: Some(CommandName::SetTheme),
-                },
-            ])
-            .collect(),
+        SettingsSection::General | SettingsSection::Appearance | SettingsSection::About => {
+            update_rows(state)
+                .into_iter()
+                .chain(SettingKey::ALL.iter().map(|key| Row {
+                    key: key.as_str().to_owned(),
+                    value: key.get(settings).to_string(),
+                    change: Some(CommandName::SetSetting),
+                }))
+                .chain([
+                    Row {
+                        key: "theme_light".to_owned(),
+                        value: clean(&settings.theme_light),
+                        change: Some(CommandName::SetTheme),
+                    },
+                    Row {
+                        key: "theme_dark".to_owned(),
+                        value: clean(&settings.theme_dark),
+                        change: Some(CommandName::SetTheme),
+                    },
+                ])
+                .collect()
+        }
     }
 }
 

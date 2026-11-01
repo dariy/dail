@@ -157,7 +157,11 @@ impl Mobile {
 
     /// The settings page, while open.
     pub(super) fn settings_page(&mut self, state: &AppState) -> Option<SettingsPage> {
-        let section = state.view.settings?;
+        // The phones have an About screen of their own (MISC-3): this section is the desktop's.
+        let section = match state.view.settings? {
+            SettingsSection::About => SettingsSection::General,
+            other => other,
+        };
         let tabs = TABS
             .iter()
             .map(|(s, title)| {
@@ -171,13 +175,13 @@ impl Mobile {
         let groups = match section {
             SettingsSection::Appearance => self.appearance(state),
             SettingsSection::Keys => self.keyboard(state),
-            SettingsSection::General => self.general(state),
+            SettingsSection::General | SettingsSection::About => self.general(state),
             SettingsSection::Accounts => self.accounts(state),
         };
         let name = match section {
             SettingsSection::Appearance => "appearance",
             SettingsSection::Keys => "keys",
-            SettingsSection::General => "general",
+            SettingsSection::General | SettingsSection::About => "general",
             SettingsSection::Accounts => "accounts",
         };
         Some(SettingsPage {

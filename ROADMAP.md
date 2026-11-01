@@ -761,7 +761,7 @@ MISC-34). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - [x] MISC-33 [front][tui]: TUI setting rows open the value step of `set_setting` directly
 - [x] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
   main view, mailbox, thread and search, in the engine)
-- [ ] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
+- [x] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
 - [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
 - [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane

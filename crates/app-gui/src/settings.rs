@@ -38,11 +38,12 @@ pub struct SettingsActions {
 }
 
 /// The tabs, in order, with their icons and titles.
-const TABS: [(SettingsSection, Icon, &str); 4] = [
+const TABS: [(SettingsSection, Icon, &str); 5] = [
     (SettingsSection::Appearance, Icon::Contrast, "Appearance"),
     (SettingsSection::Keys, Icon::Keyboard, "Keyboard"),
     (SettingsSection::General, Icon::Settings, "General"),
     (SettingsSection::Accounts, Icon::Person, "Accounts"),
+    (SettingsSection::About, Icon::Info, "About"),
 ];
 
 impl SettingsState {
@@ -110,6 +111,7 @@ impl SettingsState {
                     SettingsSection::Accounts => {
                         self.accounts(ui, t, state, &mut actions, queue);
                     }
+                    SettingsSection::About => about(ui, t, &mut actions),
                 }
             });
         actions
@@ -674,4 +676,45 @@ fn updates(
             }));
         }
     });
+}
+
+/// The About section (MISC-27): the name, the version, the licence, the links and the texts of
+/// what the desktop app bundles.
+fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
+    ui.label(ui::text(
+        &t.type_scale.headline_md,
+        concat!("dail ", env!("CARGO_PKG_VERSION")),
+        t.text_strong,
+    ));
+    ui.add_space(t.m.space.xs);
+    ui.label(ui::text(
+        &t.type_scale.body_md,
+        concat!(
+            "Keyboard-first email client that agents can drive. Licence: ",
+            env!("CARGO_PKG_LICENSE"),
+            "."
+        ),
+        t.text_secondary,
+    ));
+    ui.add_space(t.m.space.md);
+    let repository = env!("CARGO_PKG_REPOSITORY");
+    for (title, url) in [
+        ("Source code", repository.to_owned()),
+        ("Releases", format!("{repository}/releases")),
+    ] {
+        if ui::ghost(ui, t, title).on_hover_text(&url).clicked() {
+            actions.open = Some(url);
+        }
+    }
+    ui.add_space(t.m.space.lg);
+    let mut licences: Vec<(&str, &str)> = app_theme::fonts::fonts()
+        .iter()
+        .map(|font| (font.name, font.license))
+        .collect();
+    licences.push(("Material Symbols", app_theme::icon::ICON_LICENSE));
+    for (name, text) in licences {
+        egui::CollapsingHeader::new(name).show(ui, |ui| {
+            ui.label(ui::text(&t.type_scale.body_sm, text, t.text_secondary));
+        });
+    }
 }

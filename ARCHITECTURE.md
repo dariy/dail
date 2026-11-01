@@ -901,6 +901,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   and editable (`egui` `dropped_files` with a path; *Drop the files to attach them* shows while files hover); attachment chips show `checking…`, the size or the error.
   Send is enabled once there is a recipient and every attachment is checked. A scheduled or running send makes the
   draft read-only with *Cancel send*.
+- **About** (MISC-27): the desktop's title opens `open_settings {section: "about"}`, the page's last tab. The TUI and the
+  phones, which have no such tab, show General (the phones have their own About screen).
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
   the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts; a click
   runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the

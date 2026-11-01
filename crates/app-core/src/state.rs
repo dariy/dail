@@ -143,11 +143,19 @@ pub enum SettingsSection {
     General,
     /// The accounts.
     Accounts,
+    /// The version, the licences and the links.
+    About,
 }
 
 impl SettingsSection {
     /// Every section, in tab order.
-    pub const ALL: [Self; 4] = [Self::Appearance, Self::Keys, Self::General, Self::Accounts];
+    pub const ALL: [Self; 5] = [
+        Self::Appearance,
+        Self::Keys,
+        Self::General,
+        Self::Accounts,
+        Self::About,
+    ];
 }
 
 /// A pane of the main window.

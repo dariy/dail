@@ -99,7 +99,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         |ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.sm;
             let tile = t.m.controls.icon_button;
-            let (rect, _) = ui.allocate_exact_size(Vec2::splat(tile), Sense::hover());
+            let (rect, icon) = ui.allocate_exact_size(Vec2::splat(tile), Sense::click());
             ui.painter()
                 .rect_filled(rect, ui::radius(t.m.radius.md), t.inverse_bg);
             ui::paint_icon(
@@ -110,7 +110,19 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 t.inverse_text,
                 false,
             );
-            ui.label(ui::text(&t.type_scale.headline_md, "dail", t.text_strong));
+            let name = ui.add(
+                egui::Label::new(ui::text(&t.type_scale.headline_md, "dail", t.text_strong))
+                    .sense(Sense::click())
+                    .selectable(false),
+            );
+            // The title is the way to About (MISC-27).
+            let title = icon.union(name);
+            title.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, "About dail"));
+            if title.on_hover_text("About dail").clicked() {
+                queue.push(Request::user(Command::OpenSettings {
+                    section: Some(app_core::SettingsSection::About),
+                }));
+            }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui::icon_button(
                     ui,

@@ -569,6 +569,11 @@ expression: command_schema()
           "const": "accounts",
           "description": "The accounts.",
           "type": "string"
+        },
+        {
+          "const": "about",
+          "description": "The version, the licences and the links.",
+          "type": "string"
         }
       ]
     },
