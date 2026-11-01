@@ -1,13 +1,24 @@
 //! The UI strings table: every text the front-ends share is a [`Key`] with a template per
 //! language, `{name}` placeholders filled by [`tr`].
 //!
-//! English is the only real language so far. [`Lang::Pseudo`] is a pseudo-locale for
+//! The real languages are English and French. [`Lang::Pseudo`] is a pseudo-locale for
 //! developers (`DAIL_LANG=pseudo`): every template accented, a third longer and bracketed, the
 //! placeholders kept, so hard-coded strings (plain ASCII) and clipped ones (no closing bracket)
-//! stand out. Adding a language: a variant of [`Lang`] and a table like [`english`].
+//! stand out. Adding a language: a variant of [`Lang`] and a column in `table.rs`.
 //!
-//! Only the texts of `app_front::status` are in the table yet; the GUI's and TUI's own labels
-//! move over item by item.
+//! Command titles have their own table (`commands.rs`). The language of the running app is
+//! [`current`]: the front-ends set it from the `language` setting ([`Lang::resolve`]), and code
+//! with no [`Lang`] at hand reads it through [`s`], [`f`] and [`title`].
+
+mod commands;
+mod table;
+
+use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU8, Ordering};
+
+use app_core::{Category, CommandName};
+
+pub use table::{Key, english, french};
 
 /// A UI language.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -15,154 +26,124 @@ pub enum Lang {
     /// English.
     #[default]
     English,
+    /// French.
+    French,
     /// The pseudo-locale: English, accented, longer, bracketed.
     Pseudo,
 }
 
 impl Lang {
-    /// The language of a tag such as `$DAIL_LANG` (`pseudo` or `en-XA`: the pseudo-locale;
-    /// anything else, or nothing: English).
+    /// The language of the `language` setting (`0`: `system`, the language of the system).
+    pub const fn resolve(setting: u64, system: Self) -> Self {
+        match setting {
+            1 => Self::English,
+            2 => Self::French,
+            _ => system,
+        }
+    }
+
+    /// The language of a tag such as `$DAIL_LANG` (`fr`, `fr-CA`, `fr_FR.UTF-8`: French;
+    /// `pseudo` or `en-XA`: the pseudo-locale; anything else, or nothing: English).
     pub fn from_tag(tag: Option<&str>) -> Self {
-        match tag.map(|t| t.trim().to_ascii_lowercase()).as_deref() {
+        let tag = tag.map(|t| t.trim().to_ascii_lowercase());
+        match tag.as_deref() {
             Some("pseudo" | "en-xa") => Self::Pseudo,
+            Some(t) if t.split(['-', '_', '.']).next() == Some("fr") => Self::French,
             _ => Self::English,
         }
     }
 }
 
-/// A string of the table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Key {
-    /// The store could not be written.
-    StoreFailed,
-    /// The keyring failed.
-    KeyringFailed,
-    /// What to do about the keyring.
-    KeyringHint,
-    /// `{email}`'s login failed.
-    LoginFailed,
-    /// `{email}`'s sync failed.
-    SyncFailed,
-    /// The fix: enter the password again.
-    FixPassword,
-    /// The fix: sync again.
-    FixRetry,
-    /// The fix: test the login again.
-    FixTest,
-    /// Gmail refused the password.
-    HintPasswordGmail,
-    /// A server refused the password.
-    HintPassword,
-    /// The mailbox is full.
-    HintQuota,
-    /// No TLS ciphers in common.
-    HintTlsCiphers,
-    /// An untrusted certificate.
-    HintCertificate,
-    /// The server could not be reached.
-    HintNetwork,
-    /// A sync is running.
-    Syncing,
-    /// Synced `{age}` ago.
-    Synced,
-    /// There are no accounts.
-    NoAccounts,
-    /// Never synced.
-    NotSynced,
-    /// The next poll is due `{when}` (`in 2m`).
-    NextPoll,
-    /// `{pending}` changes wait for the server.
-    Pending,
-    /// `{pending}` wait, `{failed}` of them failed.
-    PendingFailed,
+static CURRENT: AtomicU8 = AtomicU8::new(0);
+
+/// The language of the system: `$DAIL_LANG`, else the POSIX locale variables.
+pub fn system_lang() -> Lang {
+    let tag = ["DAIL_LANG", "LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()));
+    Lang::from_tag(tag.as_deref())
 }
 
-impl Key {
-    /// Every key.
-    pub const ALL: &'static [Self] = &[
-        Self::StoreFailed,
-        Self::KeyringFailed,
-        Self::KeyringHint,
-        Self::LoginFailed,
-        Self::SyncFailed,
-        Self::FixPassword,
-        Self::FixRetry,
-        Self::FixTest,
-        Self::HintPasswordGmail,
-        Self::HintPassword,
-        Self::HintQuota,
-        Self::HintTlsCiphers,
-        Self::HintCertificate,
-        Self::HintNetwork,
-        Self::Syncing,
-        Self::Synced,
-        Self::NoAccounts,
-        Self::NotSynced,
-        Self::NextPoll,
-        Self::Pending,
-        Self::PendingFailed,
-    ];
+/// Makes `lang` the language of the running app.
+pub fn set_current(lang: Lang) {
+    CURRENT.store(lang as u8, Ordering::Relaxed);
 }
 
-/// The English table.
-pub const fn english(key: Key) -> &'static str {
-    match key {
-        Key::StoreFailed => "local store failed",
-        Key::KeyringFailed => "keyring failed",
-        Key::KeyringHint => {
-            "The system keyring (Secret Service on Linux, Credential Manager on Windows) is \
-             locked or missing: unlock it, or start a keyring service."
-        }
-        Key::LoginFailed => "{email}: login failed",
-        Key::SyncFailed => "{email}: sync failed",
-        Key::FixPassword => "re-enter password",
-        Key::FixRetry => "retry",
-        Key::FixTest => "test again",
-        Key::HintPasswordGmail => {
-            "Gmail refused the password. It needs an App Password (Google account → Security → \
-             2-Step Verification → App passwords), not your Google password."
-        }
-        Key::HintPassword => {
-            "The server refused the password (or none is stored). Enter it again; if you \
-             changed it on the web, use the new one."
-        }
-        Key::HintQuota => {
-            "The mailbox is full. Delete or archive mail and empty the Trash, then retry."
-        }
-        Key::HintTlsCiphers => {
-            "The server only offers TLS ciphers dail does not have yet (AES-GCM or P-256 key \
-             exchange). Nothing to fix on your side; see ROADMAP.md (TLS tiers 2 and 3)."
-        }
-        Key::HintCertificate => {
-            "The server's certificate is not trusted: expired, self-signed or for another \
-             name. Check the server name; dail does not connect without a valid certificate."
-        }
-        Key::HintNetwork => {
-            "The server could not be reached. Check the connection and the server name; \
-             syncing tries again by itself."
-        }
-        Key::Syncing => "⟳ syncing…",
-        Key::Synced => "synced {age}",
-        Key::NoAccounts => "no accounts",
-        Key::NotSynced => "not synced",
-        Key::NextPoll => "next {when}",
-        Key::Pending => "{pending} pending",
-        Key::PendingFailed => "{pending} pending · {failed} failed",
+/// The language of the running app.
+pub fn current() -> Lang {
+    match CURRENT.load(Ordering::Relaxed) {
+        1 => Lang::French,
+        2 => Lang::Pseudo,
+        _ => Lang::English,
+    }
+}
+
+/// `key` in the current language.
+pub fn s(key: Key) -> &'static str {
+    text(current(), key)
+}
+
+/// `key` in the current language with its placeholders filled.
+pub fn f(key: Key, args: &[(&str, &str)]) -> String {
+    tr(current(), key, args)
+}
+
+/// The title of `name` in `lang`.
+pub fn title_in(lang: Lang, name: CommandName) -> &'static str {
+    static PSEUDO: OnceLock<Vec<String>> = OnceLock::new();
+    match lang {
+        Lang::English => name.spec().title,
+        Lang::French => commands::french(name),
+        Lang::Pseudo => CommandName::ALL
+            .iter()
+            .position(|&n| n == name)
+            .and_then(|at| {
+                PSEUDO
+                    .get_or_init(|| {
+                        CommandName::ALL
+                            .iter()
+                            .map(|n| pseudo(n.spec().title))
+                            .collect()
+                    })
+                    .get(at)
+            })
+            .map_or_else(|| name.spec().title, String::as_str),
+    }
+}
+
+/// The title of `name` in the current language.
+pub fn title(name: CommandName) -> &'static str {
+    title_in(current(), name)
+}
+
+/// The label of a palette category in the current language.
+pub const fn category_key(category: Category) -> Key {
+    match category {
+        Category::Mail => Key::Mail,
+        Category::Navigation => Key::Navigation,
+        Category::Compose => Key::Compose,
+        Category::Account => Key::Account,
+        Category::App => Key::App,
     }
 }
 
 /// The template of `key` in `lang`.
-pub fn template(lang: Lang, key: Key) -> String {
+pub fn text(lang: Lang, key: Key) -> &'static str {
+    static PSEUDO: OnceLock<Vec<String>> = OnceLock::new();
     match lang {
-        Lang::English => english(key).to_owned(),
-        Lang::Pseudo => pseudo(english(key)),
+        Lang::English => english(key),
+        Lang::French => french(key),
+        Lang::Pseudo => PSEUDO
+            .get_or_init(|| Key::ALL.iter().map(|&k| pseudo(english(k))).collect())
+            .get(key as usize)
+            .map_or_else(|| english(key), String::as_str),
     }
 }
 
 /// `key` in `lang` with its placeholders filled from `args` (`(name, value)`; unknown
 /// placeholders stay as they are).
 pub fn tr(lang: Lang, key: Key, args: &[(&str, &str)]) -> String {
-    let mut text = template(lang, key);
+    let mut text = self::text(lang, key).to_owned();
     for (name, value) in args {
         text = text.replace(&format!("{{{name}}}"), value);
     }
@@ -233,13 +214,24 @@ mod tests {
     #[test]
     fn every_key_has_the_same_placeholders_in_every_language() {
         for &key in Key::ALL {
-            let english = template(Lang::English, key);
-            let pseudo = template(Lang::Pseudo, key);
-            assert_eq!(placeholders(&english), placeholders(&pseudo), "{key:?}");
+            let english = text(Lang::English, key);
+            let pseudo = text(Lang::Pseudo, key);
+            assert_eq!(placeholders(english), placeholders(pseudo), "{key:?}");
+            assert_eq!(placeholders(english), placeholders(french(key)), "{key:?}");
             assert!(pseudo.starts_with('[') && pseudo.ends_with(']'), "{key:?}");
             assert!(pseudo.chars().count() > english.chars().count(), "{key:?}");
             assert!(!english.is_empty());
         }
+    }
+
+    #[test]
+    fn french_is_a_real_table() {
+        assert_eq!(text(Lang::French, Key::Compose), "Rédiger");
+        assert_eq!(
+            tr(Lang::French, Key::SearchTitle, &[("query", "dail")]),
+            "Recherche : dail"
+        );
+        assert!(Key::ALL.iter().all(|&key| !french(key).is_empty()));
     }
 
     #[test]
@@ -261,6 +253,9 @@ mod tests {
             "[me@example.org: lögíñ fáíléd ····]"
         );
         assert_eq!(Lang::from_tag(Some(" en-XA ")), Lang::Pseudo);
+        assert_eq!(Lang::from_tag(Some("fr_CA.UTF-8")), Lang::French);
+        assert_eq!(Lang::from_tag(Some("fr")), Lang::French);
+        assert_eq!(Lang::from_tag(Some("fy")), Lang::English);
         assert_eq!(Lang::from_tag(Some("de_DE.UTF-8")), Lang::English);
         assert_eq!(Lang::from_tag(None), Lang::English);
     }

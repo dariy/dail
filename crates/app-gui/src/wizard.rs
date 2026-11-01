@@ -12,6 +12,7 @@
 //! the result; another try keeps the account.
 
 use app_core::{AccountId, AccountStatus, AppState, Command, Endpoint, ProviderPreset, Secret};
+use app_front::i18n::Key;
 use egui::{RichText, Ui};
 
 use crate::bridge::{Background, Purpose, Reply, Request};
@@ -78,21 +79,21 @@ impl Default for Wizard {
     }
 }
 
-const PRESETS: &[(ProviderPreset, &str, &str)] = &[
+const PRESETS: &[(ProviderPreset, Key, Key)] = &[
     (
         ProviderPreset::Gmail,
-        "Gmail",
-        "Needs an App Password (2-Step Verification on).",
+        Key::PresetGmail,
+        Key::PresetGmailHint,
     ),
     (
         ProviderPreset::Hostinger,
-        "Hostinger Mail",
-        "Your mailbox password.",
+        Key::PresetHostinger,
+        Key::PresetHostingerHint,
     ),
     (
         ProviderPreset::Custom,
-        "Other IMAP / SMTP",
-        "Enter the servers yourself.",
+        Key::PresetOther,
+        Key::PresetCustomHint,
     ),
 ];
 
@@ -211,18 +212,18 @@ impl Wizard {
             .show(ctx, |ui| {
                 ui.set_width(t.m.overlays.dialog_width - 2.0 * t.m.space.xl);
                 let title = if self.existing {
-                    "Change the password"
+                    t.s(Key::ChangePassword)
                 } else {
-                    "Add an account"
+                    t.s(Key::AddAnAccount)
                 };
                 ui.label(ui::text(&t.type_scale.headline_lg, title, t.text_strong));
                 let step = match (self.existing, self.step) {
-                    (true, Step::Test) => format!("{}  Connection", self.email),
+                    (true, Step::Test) => t.f(Key::TestConnection, &[("email", &self.email)]),
                     (true, _) => self.email.clone(),
-                    (false, Step::Preset) => "1 / 4  Provider".to_owned(),
-                    (false, Step::Address) => "2 / 4  Address".to_owned(),
-                    (false, Step::Password) => "3 / 4  Password".to_owned(),
-                    (false, Step::Test) => "4 / 4  Connection".to_owned(),
+                    (false, Step::Preset) => t.s(Key::Provider1).to_owned(),
+                    (false, Step::Address) => t.s(Key::Address2).to_owned(),
+                    (false, Step::Password) => t.s(Key::Password3).to_owned(),
+                    (false, Step::Test) => t.s(Key::Connection4).to_owned(),
                 };
                 ui::caption(ui, t, &step);
                 ui.add_space(t.m.space.md);
@@ -247,7 +248,7 @@ impl Wizard {
                 egui::Button::new(ui::text_at(
                     &t.type_scale.body_md,
                     600,
-                    *title,
+                    t.s(*title),
                     t.text_strong,
                 ))
                 .selected(chosen)
@@ -266,7 +267,7 @@ impl Wizard {
                 self.preset = *preset;
             }
             ui.label(
-                RichText::new(*hint)
+                RichText::new(t.s(*hint))
                     .font(ui::font(&t.type_scale.body_sm))
                     .color(t.text_muted),
             );
@@ -274,11 +275,11 @@ impl Wizard {
         }
         ui.add_space(t.m.space.sm);
         ui.horizontal(|ui| {
-            if ui::secondary(ui, t, "Cancel", Some("Esc"), true) {
+            if ui::secondary(ui, t, t.s(Key::Cancel), Some("Esc"), true) {
                 self.open = false;
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui::primary(ui, t, "Next", None, true) {
+                if ui::primary(ui, t, t.s(Key::Next), None, true) {
                     self.step = Step::Address;
                 }
             });
@@ -301,10 +302,10 @@ impl Wizard {
         .labelled_by(label.id)
     }
 
-    fn address_problem(&self) -> Option<String> {
+    fn address_problem(&self, t: &Tokens) -> Option<String> {
         let email = self.email.trim();
         if app_front::compose::parse_addr(email).is_none_or(|a| a.name.is_some()) {
-            return Some("Enter an email address like you@example.com.".to_owned());
+            return Some(t.s(Key::EnterEmail).to_owned());
         }
         if self.preset == ProviderPreset::Custom {
             for (name, text) in [("IMAP", &self.imap), ("SMTP", &self.smtp)] {
@@ -338,22 +339,40 @@ impl Wizard {
         state: &AppState,
         queue: &mut Vec<Request>,
     ) {
-        Self::field(ui, t, "Email address", &mut self.email, "you@example.com");
+        Self::field(
+            ui,
+            t,
+            t.s(Key::EmailAddress),
+            &mut self.email,
+            "you@example.com",
+        );
         ui.add_space(t.m.space.xs + 2.0);
         Self::field(
             ui,
             t,
-            "Name (optional)",
+            t.s(Key::NameOptional),
             &mut self.display_name,
-            "shown in the sidebar",
+            t.s(Key::ShownInSidebar),
         );
         if self.preset == ProviderPreset::Custom {
             ui.add_space(t.m.space.xs + 2.0);
-            Self::field(ui, t, "IMAP server", &mut self.imap, "imap.example.com:993");
+            Self::field(
+                ui,
+                t,
+                t.s(Key::ImapServer),
+                &mut self.imap,
+                "imap.example.com:993",
+            );
             ui.add_space(t.m.space.xs + 2.0);
-            Self::field(ui, t, "SMTP server", &mut self.smtp, "smtp.example.com:465");
+            Self::field(
+                ui,
+                t,
+                t.s(Key::SmtpServer),
+                &mut self.smtp,
+                "smtp.example.com:465",
+            );
             ui.label(
-                RichText::new("host:port, optionally :tls or :starttls (143 and 587 use STARTTLS)")
+                RichText::new(t.s(Key::HostPortHint))
                     .font(ui::font(&t.type_scale.body_sm))
                     .color(t.text_muted),
             );
@@ -362,7 +381,13 @@ impl Wizard {
             let email = self.email.trim().to_owned();
             let valid = app_front::compose::parse_addr(&email).is_some_and(|a| a.name.is_none());
             ui.horizontal(|ui| {
-                if ui::secondary(ui, t, "Find servers", None, valid && self.looking.is_none()) {
+                if ui::secondary(
+                    ui,
+                    t,
+                    t.s(Key::FindServers),
+                    None,
+                    valid && self.looking.is_none(),
+                ) {
                     queue.push(Request {
                         purpose: Purpose::Background(Background::WizardLookup),
                         cmd: Command::DiscoverServers {
@@ -373,15 +398,13 @@ impl Wizard {
                     self.lookup_error = None;
                 }
                 let note = match (&state.status.discovery, &self.lookup_error) {
-                    _ if self.looking.is_some() => "Looking…".to_owned(),
+                    _ if self.looking.is_some() => t.s(Key::Looking).to_owned(),
                     (_, Some(error)) => error.clone(),
                     (Some(d), None) if d.email == email => match &d.found {
-                        Ok(found) => format!("Found at {}", found.source),
-                        Err(error) => format!("Not found ({error}); enter them yourself."),
+                        Ok(found) => t.f(Key::FoundAt, &[("source", &found.source)]),
+                        Err(error) => t.f(Key::NotFound, &[("error", error)]),
                     },
-                    (None, None) | (Some(_), None) => {
-                        "Asks the provider's web server, then Mozilla's list.".to_owned()
-                    }
+                    (None, None) | (Some(_), None) => t.s(Key::FindServersHint).to_owned(),
                 };
                 ui.label(
                     RichText::new(note)
@@ -390,14 +413,14 @@ impl Wizard {
                 );
             });
         }
-        let problem = self.address_problem();
+        let problem = self.address_problem(t);
         ui.add_space(t.m.space.md);
         ui.horizontal(|ui| {
-            if ui::secondary(ui, t, "Back", None, true) {
+            if ui::secondary(ui, t, t.s(Key::Back), None, true) {
                 self.step = Step::Preset;
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui::primary(ui, t, "Next", None, problem.is_none()) {
+                if ui::primary(ui, t, t.s(Key::Next), None, problem.is_none()) {
                     self.step = Step::Password;
                 }
                 if let Some(problem) = &problem
@@ -415,9 +438,9 @@ impl Wizard {
 
     fn password_step(&mut self, ui: &mut Ui, t: &Tokens, queue: &mut Vec<Request>) {
         let label = if self.preset == ProviderPreset::Gmail {
-            "App Password"
+            t.s(Key::AppPassword)
         } else {
-            "Password"
+            t.s(Key::Password)
         };
         let label = ui.label(ui::text(&t.type_scale.label_md, label, t.text_secondary));
         let response = ui
@@ -428,7 +451,7 @@ impl Wizard {
             )
             .labelled_by(label.id);
         ui.label(
-            RichText::new("Stored in the system keyring only; dail never writes it anywhere else.")
+            RichText::new(t.s(Key::KeyringOnly))
                 .font(ui::font(&t.type_scale.body_sm))
                 .color(t.text_muted),
         );
@@ -439,7 +462,11 @@ impl Wizard {
         ui.add_space(t.m.space.md);
         let submit = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
         ui.horizontal(|ui| {
-            let back = if self.existing { "Cancel" } else { "Back" };
+            let back = if self.existing {
+                t.s(Key::Cancel)
+            } else {
+                t.s(Key::Back)
+            };
             if ui::secondary(ui, t, back, None, true) {
                 if self.existing {
                     self.open = false;
@@ -451,9 +478,9 @@ impl Wizard {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let ready = !self.password.is_empty();
                 let label = if self.existing {
-                    "Save and test"
+                    t.s(Key::SaveAndTest)
                 } else {
-                    "Add and test"
+                    t.s(Key::AddAndTest)
                 };
                 if (ui::primary(ui, t, label, None, ready) || (submit && ready))
                     && let Some(request) = self.submit_password()
@@ -512,7 +539,7 @@ impl Wizard {
             None | Some(AccountStatus::Unverified) => {
                 ui.horizontal(|ui| {
                     ui.label(
-                        RichText::new(format!("Signing in to {}…", self.email.trim()))
+                        RichText::new(t.f(Key::SigningIn, &[("email", self.email.trim())]))
                             .color(t.text_strong),
                     );
                 });
@@ -522,14 +549,14 @@ impl Wizard {
                     ui,
                     t,
                     app_theme::Icon::Check,
-                    "Connected. IMAP and SMTP both accepted the login.",
+                    t.s(Key::ConnectedLogin),
                     t.text_strong,
-                    "Connected. IMAP and SMTP both accepted the login.",
+                    t.s(Key::ConnectedLogin),
                 );
                 ui.add_space(t.m.space.md);
                 ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui::primary(ui, t, "Sync now", None, true)
+                        if ui::primary(ui, t, t.s(Key::SyncNow), None, true)
                             && let Some(id) = self.account
                         {
                             queue.push(Request::user(Command::SyncNow { account: Some(id) }));
@@ -539,19 +566,19 @@ impl Wizard {
                 });
             }
             Some(AccountStatus::Failed { error, .. }) => {
-                ui.colored_label(t.danger, format!("The login failed: {error}"));
+                ui.colored_label(t.danger, t.f(Key::LoginFailedError, &[("error", error)]));
                 ui.add_space(t.m.space.md);
                 ui.horizontal(|ui| {
                     let keep = if self.existing {
-                        "Close"
+                        t.s(Key::Close)
                     } else {
-                        "Keep it anyway"
+                        t.s(Key::KeepAnyway)
                     };
                     if ui::secondary(ui, t, keep, None, true) {
                         self.open = false;
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui::primary(ui, t, "Try another password", None, true) {
+                        if ui::primary(ui, t, t.s(Key::TryAnotherPassword), None, true) {
                             if self.existing {
                                 self.step = Step::Password;
                             } else if let Some(id) = self.account.take() {

@@ -143,7 +143,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   it cannot log in; the status line shows the keyring error. Attach to a GUI that runs in the desktop session, or start
   the TUI inside tmux from the desktop session and `tmux attach` over SSH.
 - HTML is rendered at 100 columns (`app_io::mime::TEXT_WIDTH`) and senders wrap plain text near 72, so text wraps
-  raggedly on a phone. Reflowing paragraphs is a follow-up.
+  raggedly on a phone. Reflowing paragraphs is MISC-28.
 - An attached TUI reads the whole state snapshot again after each change. That is fine for a few thousand messages;
   deltas come later.
 
@@ -206,9 +206,10 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 **Sync & performance**
 - [x] IMAP IDLE push for INBOX (+ fallback polling)
 - [x] CONDSTORE fast resync: only the flags changed since the last resync (`CHANGEDSINCE`), expunges from a UID search
-- [ ] QRESYNC: VANISHED instead of the UID search. Needs `ENABLE QRESYNC` on its own connection (it turns every later
-  EXPUNGE response into VANISHED, which async-imap's expunge does not parse) and VANISHED read from async-imap's bounded
-  unsolicited channel
+- [x] QRESYNC: VANISHED instead of the UID search. `ENABLE QRESYNC` runs on the shared connection when it opens (no third
+  connection: the expunge responses it turns into VANISHED are never read); VANISHED comes from async-imap's bounded
+  unsolicited queue, drained after the SELECT, and an overflowed queue falls back to the search. A resync keeps its
+  mod-sequence only if it covered every cached message (the fix also closes a stale-flags race of CONDSTORE)
 - [x] Full mailbox backfill in background with progress; configurable window per mailbox
 - [x] 100k-message mailboxes: scale measurements (`app-core` and `app-gui` `scale` tests, `--release --ignored`); the
   fetch merge was quadratic (change lists, placeholder lookup): a 50k first fetch went from 13 s to 0.2 s
@@ -245,7 +246,10 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
   mailbox rows, high-contrast dark/light (`theme` 3/4), `text_scale` setting
 - [x] i18n scaffolding (UI strings table): `app_front::i18n` keys with English templates and a pseudo-locale
   (`DAIL_LANG=pseudo`); the shared status texts use it
-- [ ] i18n: move the GUI's and TUI's own labels into the strings table; a first real translation
+- [x] i18n: move the GUI's and TUI's own labels into the strings table; a first real translation (French)
+- [x] i18n: command titles, shared `app_front` texts, the mobile apps' labels; `language` setting in Settings
+- [ ] i18n: engine texts (`app-core` errors and undo labels) and the TUI's named language choice
+- [ ] i18n: Spanish, then Romanian
 - [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub

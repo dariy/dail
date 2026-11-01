@@ -8,6 +8,7 @@
 
 use app_core::MessageId;
 use app_core::document::{Block, Cell, Document, FoldKind, Span};
+use app_front::i18n::Key;
 use egui::{RichText, Stroke, Ui};
 
 use crate::images::{ImageKey, Images, Slot};
@@ -265,7 +266,7 @@ impl Out<'_> {
         };
         let response = response
             .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(format!("Open in your browser:\n{url}"));
+            .on_hover_text(self.t.f(Key::OpenInBrowser, &[("url", url)]));
         if response.clicked() {
             self.io.externals.push(External::OpenUrl(url.clone()));
         }

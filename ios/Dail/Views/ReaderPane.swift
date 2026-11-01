@@ -149,7 +149,7 @@ private struct PeekView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Label(ready ? "Release to open" : peek.open.label,
+            Label(ready ? tr("Release to open") : peek.open.label,
                   systemImage: Icons.symbol(peek.open.icon) ?? "chevron.up.chevron.down")
                 .font(.footnote).foregroundStyle(.secondary)
             Text(verbatim: peek.subject).font(.headline).lineLimit(2).multilineTextAlignment(.center)
@@ -205,7 +205,7 @@ struct MessageView: View {
                         }
                         Spacer()
                         SwiftUI.Button { send(.tap(attachment.save)) } label: { Image(systemName: "arrow.down.circle") }
-                            .accessibilityLabel("Save \(attachment.name)")
+                            .accessibilityLabel(tr("Save {name}", ["name": attachment.name]))
                     }
                 }
                 if let saveAll = message.saveAll { FrameButton(button: saveAll, send: send) }

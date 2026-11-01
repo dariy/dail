@@ -7,22 +7,32 @@
 //! `set_update_policy`). Installing goes through [`crate::palette::install_update`], which asks
 //! first.
 
+use crate::i18n::Key;
 use app_core::{AppState, Command, UpdateChecks, UpdateRelease, UpdateStatus};
 
 use crate::format;
 use crate::palette::{self, Flow};
 
 /// The intervals offered for periodic checks, in hours, with their labels.
-pub const INTERVALS: [(u64, &str); 4] =
-    [(6, "6 h"), (24, "Daily"), (168, "Weekly"), (720, "Monthly")];
+pub fn intervals() -> [(u64, &'static str); 4] {
+    use crate::i18n::s;
+    [
+        (6, "6 h"),
+        (24, s(Key::Daily)),
+        (168, s(Key::Weekly)),
+        (720, s(Key::Monthly)),
+    ]
+}
 
 /// The first-run question (F3).
-pub const QUESTION: &str = "Check for new versions of dail?";
+pub fn question() -> &'static str {
+    crate::i18n::s(Key::UpdateQuestion)
+}
 
 /// What answering the question means, under it.
-pub const QUESTION_DETAIL: &str = "Once a day dail asks GitHub for the signed release list. \
-                                   Nothing about you or your mail is sent. You can change this \
-                                   in Settings.";
+pub fn question_detail() -> &'static str {
+    crate::i18n::s(Key::UpdateQuestionDetail)
+}
 
 /// A button of the update panel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,11 +53,11 @@ impl Action {
     /// The button's label.
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Check => "Check now",
-            Self::Download => "Download",
-            Self::Install => "Install…",
-            Self::Skip(_) => "Skip this version",
-            Self::Open(_) => "Release notes",
+            Self::Check => crate::i18n::s(Key::CheckNow),
+            Self::Download => crate::i18n::s(Key::Download),
+            Self::Install => crate::i18n::s(Key::Install),
+            Self::Skip(_) => crate::i18n::s(Key::SkipThisVersion),
+            Self::Open(_) => crate::i18n::s(Key::ReleaseNotesX),
         }
     }
 
@@ -113,38 +123,46 @@ pub fn panel(state: &AppState, now_ms: i64, fallback: &str) -> Panel {
         .is_some_and(|h| h.install.self_updates());
     let mut actions = Vec::new();
     let status = match &update.status {
-        _ if !can_update => "This build does not check for updates".to_owned(),
+        _ if !can_update => crate::i18n::s(Key::ThisBuildDoesNotCheckForUpdates).to_owned(),
         UpdateStatus::Idle => {
             actions.push(Action::Check);
             if update.last_check_ms.is_some() {
-                "dail is up to date".to_owned()
+                crate::i18n::s(Key::DailIsUpToDate).to_owned()
             } else {
-                "Not checked yet".to_owned()
+                crate::i18n::s(Key::NotCheckedYet).to_owned()
             }
         }
-        UpdateStatus::Checking => "Checking for updates…".to_owned(),
+        UpdateStatus::Checking => crate::i18n::s(Key::CheckingForUpdates).to_owned(),
         UpdateStatus::Available { release } => {
             if self_updates && release.artifact.is_some() {
                 actions.push(Action::Download);
             }
             actions.push(Action::Open(release.notes_url.clone()));
             actions.push(Action::Skip(release.version.clone()));
-            format!("dail {} is available", release.version)
+            crate::i18n::f(Key::DailIsAvailable, &[("version", &release.version)])
         }
-        UpdateStatus::Downloading { release } => format!("Downloading dail {}…", release.version),
+        UpdateStatus::Downloading { release } => {
+            crate::i18n::f(Key::DownloadingDail, &[("version", &release.version)])
+        }
         UpdateStatus::Ready { release, .. } => {
             actions.push(Action::Install);
             actions.push(Action::Open(release.notes_url.clone()));
             actions.push(Action::Skip(release.version.clone()));
-            format!("dail {} is downloaded and verified", release.version)
+            crate::i18n::f(
+                Key::DailIsDownloadedAndVerified,
+                &[("version", &release.version)],
+            )
         }
-        UpdateStatus::Installing { release } => format!("Installing dail {}…", release.version),
-        UpdateStatus::Installed { version } => {
-            format!("dail {version} is installed: restart dail to use it")
+        UpdateStatus::Installing { release } => {
+            crate::i18n::f(Key::InstallingDail, &[("version", &release.version)])
         }
+        UpdateStatus::Installed { version } => crate::i18n::f(
+            Key::DailIsInstalledRestartDailToUse,
+            &[("version", version)],
+        ),
         UpdateStatus::Failed { reason } => {
             actions.push(Action::Check);
-            format!("Update failed: {reason}")
+            crate::i18n::f(Key::UpdateFailed, &[("reason", reason)])
         }
     };
     Panel {
@@ -153,7 +171,7 @@ pub fn panel(state: &AppState, now_ms: i64, fallback: &str) -> Panel {
         checked: update
             .last_check_ms
             .filter(|_| can_update)
-            .map(|ms| format!("checked {}", format::age(ms, now_ms))),
+            .map(|ms| crate::i18n::f(Key::CheckedX, &[("age", &format::age(ms, now_ms))])),
         actions,
     }
 }
@@ -173,9 +191,9 @@ pub fn pending(state: &AppState) -> Option<&UpdateRelease> {
 /// installed; `None` otherwise.
 pub fn badge(state: &AppState) -> Option<String> {
     if let UpdateStatus::Installed { .. } = state.update.status {
-        return Some("Restart to update".to_owned());
+        return Some(crate::i18n::s(Key::RestartToUpdate).to_owned());
     }
-    pending(state).map(|release| format!("Update {}", release.version))
+    pending(state).map(|release| crate::i18n::f(Key::Update, &[("version", &release.version)]))
 }
 
 /// Whether to ask the first-run question: checks were never chosen, this build can check, and
@@ -198,10 +216,10 @@ pub fn answer(on: bool) -> Command {
     }
 }
 
-/// The label of the current interval (`Daily`), or `every N h` for one not in [`INTERVALS`].
+/// The label of the current interval (`Daily`), or `every N h` for one not in [`intervals`].
 pub fn interval_label(hours: u64) -> String {
-    INTERVALS
-        .iter()
-        .find(|(h, _)| *h == hours)
-        .map_or_else(|| format!("every {hours} h"), |(_, l)| (*l).to_owned())
+    intervals().iter().find(|(h, _)| *h == hours).map_or_else(
+        || crate::i18n::f(Key::EveryH, &[("n", &hours.to_string())]),
+        |(_, l)| (*l).to_owned(),
+    )
 }

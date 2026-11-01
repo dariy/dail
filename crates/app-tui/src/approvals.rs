@@ -6,8 +6,10 @@
 //! agent wrote before deciding. Approving asks for a confirmation first. The text is the agent's
 //! and may quote email: it is cleaned and shown, never interpreted.
 
+use crate::text::{f, s};
 use app_core::{AppState, Command};
 use app_front::approvals::{Card, cards};
+use app_front::i18n::Key;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -26,14 +28,14 @@ pub fn banner(state: &AppState) -> Option<Line<'static>> {
         return None;
     }
     let what = if n == 1 {
-        "a message".to_owned()
+        s(Key::AMessage).to_owned()
     } else {
-        format!("{n} messages")
+        f(Key::NMessages, &[("n", &n.to_string())])
     };
     Some(
         Line::from(vec![
-            Span::styled(format!("! An agent wants to send {what}"), bold()),
-            Span::raw(" — Ctrl+K, “Show send requests”"),
+            Span::styled(f(Key::AgentWantsSend, &[("what", &what)]), bold()),
+            Span::raw(s(Key::ApprovalsHintTui)),
         ])
         .style(reverse()),
     )
@@ -80,7 +82,7 @@ impl ApprovalsView {
                 out.requests
                     .push(Request::user(Command::ApproveRequest { id: card.id }));
             } else {
-                out.notice = Some("Not sent.".to_owned());
+                out.notice = Some(s(Key::NotSentNotice).to_owned());
             }
             return out;
         }
@@ -97,7 +99,7 @@ impl ApprovalsView {
             KeyCode::Char('b') | KeyCode::PageUp => self.scroll_by(-self.page()),
             KeyCode::Char('a') if card.ready => self.confirming = true,
             KeyCode::Char('a') => {
-                out.notice = Some("Its attachments are still being checked.".to_owned());
+                out.notice = Some(s(Key::AttachmentsChecked).to_owned());
             }
             KeyCode::Char('e') => {
                 // The user's edits keep the request.
@@ -134,7 +136,7 @@ impl ApprovalsView {
         let block = if borders {
             Block::bordered()
                 .border_style(bold())
-                .title(" Send requests ")
+                .title(s(Key::SendRequests))
         } else {
             Block::new()
         };
@@ -146,7 +148,7 @@ impl ApprovalsView {
             card_lines(card, i == self.cursor, &mut body);
         }
         if cards.is_empty() {
-            body.push(("No send requests.".to_owned(), dim()));
+            body.push((s(Key::NoSendRequests).to_owned(), dim()));
         }
         let wrapped: Vec<Line<'static>> = body
             .into_iter()
@@ -158,21 +160,14 @@ impl ApprovalsView {
             .collect();
         let footer = match cards.get(self.cursor) {
             Some(card) if self.confirming => Line::from(Span::styled(
-                format!(
-                    "Send “{}” now? y sends (with the undo window), any other key doesn't",
-                    clean(&card.subject)
-                ),
+                f(Key::SendNowQuestion, &[("subject", &clean(&card.subject))]),
                 bold(),
             )),
-            Some(card) if !card.ready => Line::from(Span::styled(
-                "attachments are being checked · e edit · r reject · q close",
-                dim(),
-            )),
-            Some(_) => Line::from(Span::styled(
-                "a approve · e edit · r reject · j/k next · q close",
-                dim(),
-            )),
-            None => Line::from(Span::styled("q close", dim())),
+            Some(card) if !card.ready => {
+                Line::from(Span::styled(s(Key::ApprovalsCheckingFooter), dim()))
+            }
+            Some(_) => Line::from(Span::styled(s(Key::ApprovalsFooter), dim())),
+            None => Line::from(Span::styled(s(Key::QClose), dim())),
         };
         self.height = usize::from(inner.height).saturating_sub(1);
         self.len = wrapped.len();
@@ -195,7 +190,7 @@ fn card_lines(card: &Card, selected: bool, out: &mut Vec<(String, Style)>) {
     let title = if selected { bold() } else { Style::default() };
     out.push((format!("{marker}{}", clean(&card.subject)), title));
     if !card.from.is_empty() {
-        out.push((format!("  From: {}", clean(&card.from)), dim()));
+        out.push((f(Key::FromLine, &[("from", &clean(&card.from))]), dim()));
     }
     for line in &card.recipients {
         out.push((format!("  {}", clean(line)), Style::default()));

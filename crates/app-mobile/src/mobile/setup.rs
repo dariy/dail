@@ -12,6 +12,7 @@
 use app_core::{
     AccountId, AccountStatus, AppState, Command, CommandName, Endpoint, ProviderPreset, Secret,
 };
+use app_front::i18n::{self, Key};
 use app_front::text::clean;
 
 use super::{Act, Mobile};
@@ -19,21 +20,21 @@ use crate::event::Field;
 use crate::frame::{Button, InputKind, PresetChoice, SetupField, SetupSheet, TextValue};
 use crate::request::{Purpose, Reply, Request};
 
-const PRESETS: [(ProviderPreset, &str, &str); 3] = [
+const PRESETS: [(ProviderPreset, Key, Key); 3] = [
     (
         ProviderPreset::Gmail,
-        "Gmail",
-        "Needs an App Password (2-Step Verification on).",
+        Key::PresetGmail,
+        Key::PresetGmailHint,
     ),
     (
         ProviderPreset::Hostinger,
-        "Hostinger Mail",
-        "Your mailbox password.",
+        Key::PresetHostinger,
+        Key::PresetHostingerHint,
     ),
     (
         ProviderPreset::Custom,
-        "Other IMAP / SMTP",
-        "Enter the servers yourself, or find them.",
+        Key::PresetOther,
+        Key::EnterTheServersYourselfOrFindThem,
     ),
 ];
 
@@ -150,7 +151,7 @@ impl Setup {
 
     fn address_problem(&self) -> Option<String> {
         if app_front::compose::parse_addr(self.email.trim()).is_none_or(|a| a.name.is_some()) {
-            return Some("Enter an email address like you@example.com.".to_owned());
+            return Some(i18n::s(Key::EnterEmail).to_owned());
         }
         if self.preset == ProviderPreset::Custom {
             for (name, text) in [("IMAP", &self.imap), ("SMTP", &self.smtp)] {
@@ -388,16 +389,16 @@ impl Mobile {
 
     fn draw_setup(&mut self, setup: &mut Setup, state: &AppState) -> SetupSheet {
         let title = if setup.existing {
-            "Change the password"
+            i18n::s(Key::ChangePassword)
         } else {
-            "Add an account"
+            i18n::s(Key::AddAnAccount)
         };
         let step = match (setup.existing, setup.step) {
             (true, _) => clean(&setup.email),
-            (false, Step::Preset) => "1 / 4  Provider".to_owned(),
-            (false, Step::Address) => "2 / 4  Address".to_owned(),
-            (false, Step::Password) => "3 / 4  Password".to_owned(),
-            (false, Step::Test) => "4 / 4  Connection".to_owned(),
+            (false, Step::Preset) => i18n::s(Key::Provider1).to_owned(),
+            (false, Step::Address) => i18n::s(Key::Address2).to_owned(),
+            (false, Step::Password) => i18n::s(Key::Password3).to_owned(),
+            (false, Step::Test) => i18n::s(Key::Connection4).to_owned(),
         };
         let field = |field, label: &str, hint: &str, input, text: &str| SetupField {
             field,
@@ -416,61 +417,63 @@ impl Mobile {
         let mut busy = false;
         let mut actions = Vec::new();
         let back_label = match setup.step {
-            Step::Preset => "Cancel",
-            Step::Password if setup.existing => "Cancel",
-            Step::Test => "Close",
-            Step::Address | Step::Password => "Back",
+            Step::Preset => i18n::s(Key::Cancel),
+            Step::Password if setup.existing => i18n::s(Key::Cancel),
+            Step::Test => i18n::s(Key::Close),
+            Step::Address | Step::Password => i18n::s(Key::Back),
         };
         match setup.step {
             Step::Preset => {
                 for (preset, label, hint) in PRESETS {
                     presets.push(PresetChoice {
-                        label: label.to_owned(),
-                        hint: hint.to_owned(),
+                        label: i18n::s(label).to_owned(),
+                        hint: i18n::s(hint).to_owned(),
                         selected: setup.preset == preset,
                         action: self.add(Act::Setup(SetupAct::Preset(preset))),
                     });
                 }
-                actions.push(self.setup_button("Next", SetupAct::Next));
+                actions.push(self.setup_button(i18n::s(Key::Next), SetupAct::Next));
             }
             Step::Address => {
                 fields.push(field(
                     Field::Email,
-                    "Email address",
+                    i18n::s(Key::EmailAddress),
                     "you@example.com",
                     InputKind::Email,
                     &setup.email,
                 ));
                 fields.push(field(
                     Field::Name,
-                    "Name (optional)",
-                    "shown in the drawer",
+                    i18n::s(Key::NameOptional),
+                    i18n::s(Key::ShownInTheDrawer),
                     InputKind::Name,
                     &setup.name,
                 ));
                 if setup.preset == ProviderPreset::Custom {
                     fields.push(field(
                         Field::Imap,
-                        "IMAP server",
+                        i18n::s(Key::ImapServer),
                         "imap.example.com:993",
                         InputKind::Server,
                         &setup.imap,
                     ));
                     fields.push(field(
                         Field::Smtp,
-                        "SMTP server",
+                        i18n::s(Key::SmtpServer),
                         "smtp.example.com:465",
                         InputKind::Server,
                         &setup.smtp,
                     ));
                     let email = setup.email.trim();
                     note = Some(match (&state.status.discovery, &setup.lookup_error) {
-                        _ if setup.looking.is_some() => "Looking…".to_owned(),
+                        _ if setup.looking.is_some() => i18n::s(Key::Looking).to_owned(),
                         (_, Some(error)) => clean(error),
                         (Some(d), None) if d.email == email => match &d.found {
-                            Ok(found) => clean(&format!("Found at {}", found.source)),
+                            Ok(found) => {
+                                clean(&i18n::f(Key::FoundAt, &[("source", &found.source)]))
+                            }
                             Err(error) => {
-                                clean(&format!("Not found ({error}); enter them yourself."))
+                                clean(&i18n::f(Key::NotFound, &[("error", &error.to_string())]))
                             }
                         },
                         (None | Some(_), None) => "host:port, optionally :tls or :starttls. \
@@ -482,21 +485,21 @@ impl Mobile {
                     let valid =
                         app_front::compose::parse_addr(email).is_some_and(|a| a.name.is_none());
                     if valid && setup.looking.is_none() {
-                        actions.push(self.setup_button("Find servers", SetupAct::Find));
+                        actions.push(self.setup_button(i18n::s(Key::FindServers), SetupAct::Find));
                     }
                 }
                 let problem = setup.address_problem();
                 if problem.is_none() {
-                    actions.push(self.setup_button("Next", SetupAct::Next));
+                    actions.push(self.setup_button(i18n::s(Key::Next), SetupAct::Next));
                 } else if !setup.email.trim().is_empty() {
                     error = problem;
                 }
             }
             Step::Password => {
                 let label = if setup.preset == ProviderPreset::Gmail {
-                    "App Password"
+                    i18n::s(Key::AppPassword)
                 } else {
-                    "Password"
+                    i18n::s(Key::Password)
                 };
                 fields.push(field(Field::Password, label, "", InputKind::Password, ""));
                 note = Some(
@@ -507,33 +510,37 @@ impl Mobile {
                 error = setup.error.as_deref().map(clean);
                 if !setup.password.is_empty() {
                     let label = if setup.existing {
-                        "Save and test"
+                        i18n::s(Key::SaveAndTest)
                     } else {
-                        "Add and test"
+                        i18n::s(Key::AddAndTest)
                     };
                     actions.push(self.setup_button(label, SetupAct::Submit));
                 }
             }
             Step::Test => match setup.status(state) {
                 (1, _) => {
-                    note = Some("Connected. IMAP and SMTP both accepted the login.".to_owned());
-                    actions.push(self.setup_button("Sync now", SetupAct::Sync));
+                    note = Some(i18n::s(Key::ConnectedLogin).to_owned());
+                    actions.push(self.setup_button(i18n::s(Key::SyncNow), SetupAct::Sync));
                 }
                 (2, failure) => {
                     error = Some(clean(&format!(
                         "The login failed: {}",
                         failure.unwrap_or_default()
                     )));
-                    actions.push(self.setup_button("Try another password", SetupAct::Retry));
+                    actions
+                        .push(self.setup_button(i18n::s(Key::TryAnotherPassword), SetupAct::Retry));
                 }
                 _ => {
                     busy = true;
-                    note = Some(clean(&format!("Signing in to {}…", setup.email.trim())));
+                    note = Some(clean(&i18n::f(
+                        Key::SigningIn,
+                        &[("email", setup.email.trim())],
+                    )));
                 }
             },
         }
         let mut back = self.setup_button(back_label, SetupAct::Back);
-        if back_label == "Back" {
+        if back_label == i18n::s(Key::Back) {
             // A left arrow, as every other Back (Cancel and Close stay words).
             back.icon = Some("arrow_back".to_owned());
         }

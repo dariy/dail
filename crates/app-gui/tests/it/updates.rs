@@ -60,9 +60,9 @@ fn button<'a>(h: &'a Harness<'static, Gui>, label: &'a str) -> egui_kittest::Nod
 fn the_first_run_question_sets_the_policy() {
     let mut h = gui(synced_state());
     h.run();
-    assert!(h.query_by_label(app_front::updates::QUESTION).is_none());
+    assert!(h.query_by_label(app_front::updates::question()).is_none());
     let mut h = with_host();
-    h.get_by_label(app_front::updates::QUESTION);
+    h.get_by_label(app_front::updates::question());
     button(&h, "Check for updates").click();
     h.run();
     assert_eq!(h.state_mut().pump(), [app_front::updates::answer(true)]);
@@ -71,7 +71,7 @@ fn the_first_run_question_sets_the_policy() {
         h.state().engine.state().settings.updates.checks,
         UpdateChecks::On
     );
-    assert!(h.query_by_label(app_front::updates::QUESTION).is_none());
+    assert!(h.query_by_label(app_front::updates::question()).is_none());
 }
 
 #[test]

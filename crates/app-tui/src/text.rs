@@ -2,6 +2,8 @@
 //! re-exported here: every widget draws email content through [`clean`] (one line) or
 //! [`clean_lines`] (a body). Widths, wrapping and padding count terminal columns.
 
+pub(crate) use app_front::i18n::{f, s};
+
 pub use app_front::text::{clean, clean_lines, is_unsafe};
 
 /// The display width of `text` in terminal columns.

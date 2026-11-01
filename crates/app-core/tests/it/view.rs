@@ -162,6 +162,7 @@ fn view_references_are_pruned_when_threads_vanish() {
         to_uid: 3,
         flags: vec![],
         existing: None,
+        vanished: None,
         highest_modseq: None,
     });
     let view = &m.engine.state().view;

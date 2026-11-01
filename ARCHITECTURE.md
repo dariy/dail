@@ -23,7 +23,7 @@ built-in MCP server are four equal front-ends to one deterministic engine.
 | | Now | Later |
 |---|---|---|
 | Platforms | Ubuntu (X11/Wayland), Windows, Android 10+ (ADR 0009); iOS/iPadOS 17+ in progress (Wave 5, ADR 0010) | macOS, Web/PWA |
-| Protocols | IMAP4rev1 (+UIDPLUS, MOVE, SPECIAL-USE if offered), SMTP submission | IDLE/CONDSTORE/QRESYNC, JMAP, Gmail API |
+| Protocols | IMAP4rev1 (+UIDPLUS, MOVE, SPECIAL-USE, IDLE, CONDSTORE, QRESYNC if offered), SMTP submission | JMAP, Gmail API |
 | Auth | Password / App Password (keyring-stored) | OAuth2 XOAUTH2 (Gmail, M365) |
 | Providers | Hostinger Mail, Gmail, generic custom with HTTPS autoconfig (ADR 0006) | DNS SRV discovery |
 
@@ -314,7 +314,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `SecretStored`, `SecretDeleted`, `SecretFailed`, `MailboxesListed{account, mailboxes}`,
   `EnvelopesFetched{account, mailbox, uid_validity, uid_next?, total, unread, envelopes: Vec<RemoteEnvelope>}`,
   `BodyFetched{message, blob, has_attachments, snippet?}`, `BodyFetchFailed{message, error}`,
-  `FlagsChanged{account, mailbox, uid_validity, from_uid, to_uid, flags: Vec<UidFlags>, existing?, highest_modseq?}`, `RemoteOpSucceeded{op}`, `RemoteOpFailed{op, error, permanent}`,
+  `FlagsChanged{account, mailbox, uid_validity, from_uid, to_uid, flags: Vec<UidFlags>, existing?, vanished?: Vec<UidRange>, highest_modseq?}`, `RemoteOpSucceeded{op}`, `RemoteOpFailed{op, error, permanent}`,
   `AttachmentInspected{draft, path, size, content_type}`, `AttachmentFailed{draft, path, error}`,
   `AttachmentsSaved{message, files}`, `AttachmentsSaveFailed{message, files, error}`,
   `MailboxWatched{account, mailbox, changed}`, `WatchFailed{account, mailbox, error, unsupported}`,
@@ -494,15 +494,26 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    `max(server UIDNEXT, highest fetched UID + 1)`, so the next fetch is incremental. Changes persist as one `MailDelta`.
    A vanished mailbox or a removed account takes its messages (and emptied threads) with it.
 3. Flag resync for the cached window: after an incremental `EnvelopesFetched` (not a first fetch or a UIDVALIDITY reset) the
-   engine emits `ResyncFlags` for `lowest..=highest` cached UID (counted in `SyncStatus.pending`). The runtime runs
-   `UID FETCH from:to (UID FLAGS)` and reports `FlagsChanged`: cached UIDs in the range get their flags updated, cached UIDs the
-   server no longer has were expunged and are dropped (with emptied threads). A resync whose `uid_validity` no longer matches
-   the cache is ignored. CONDSTORE (`imap::fetch_flags`): a server that announces it is opened with `SELECT … (CONDSTORE)`
-   and the event carries its `highest_modseq`, which the mailbox keeps; the next `ResyncFlags` passes it as
-   `changed_since`, and the runtime fetches `UID FETCH from:to (UID FLAGS) (CHANGEDSINCE m)` (only the messages changed
-   since) plus `UID SEARCH UID from:to`, reported as `existing`: cached UIDs that are neither listed nor existing were
-   expunged, the others keep their flags. The modseq is stored only from a successful resync, so a failed one never skips
-   changes; a new UIDVALIDITY forgets it. QRESYNC (VANISHED instead of the search) is a separate roadmap item.
+   engine emits `ResyncFlags` for `lowest..=highest` cached UID, the ones just fetched included (counted in
+   `SyncStatus.pending`). The runtime runs `UID FETCH from:to (UID FLAGS)` and reports `FlagsChanged`: cached UIDs in the
+   range get their flags updated, cached UIDs the server no longer has were expunged and are dropped (with emptied threads).
+   A resync whose `uid_validity` no longer matches the cache is ignored. CONDSTORE (`imap::fetch_flags`): a server that
+   announces it is opened with `SELECT … (CONDSTORE)` and the event carries its `highest_modseq`, which the mailbox keeps;
+   the next `ResyncFlags` passes it as `changed_since`, and the runtime fetches `UID FETCH from:to (UID FLAGS)
+   (CHANGEDSINCE m)` (only the messages changed since) plus `UID SEARCH UID from:to`, reported as `existing`: cached UIDs
+   that are neither listed nor existing were expunged, the others keep their flags. QRESYNC: `LiveBackend` sends
+   `ENABLE QRESYNC` when it opens an account's shared connection (only allowed before the first `SELECT`; watch connections
+   stay as they are), and on such a connection the fetch asks `(CHANGEDSINCE m VANISHED)` instead of searching. The server
+   then reports expunges, including the ones of `MOVE`/`EXPUNGE` on that connection, as `VANISHED`, which async-imap puts
+   into its bounded unsolicited queue (100 responses; it drops the rest without an error) and never into the expunge
+   results that `run_steps` throws away. The resync drains the queue after its `SELECT` (what is queued belongs to earlier
+   commands), collects `VANISHED` with or without `(EARLIER)`, clipped to the range and merged, and reports them as
+   `vanished` ranges (never walked: a server may send `1:4294967295`); if the queue is full after the fetch, a response may
+   be lost, and it searches as with CONDSTORE. The modseq is stored only from a successful resync that covered every
+   cached message of the mailbox: an account's effects run in order, so a message outside the range was fetched before
+   the resync's `SELECT` and merged after the resync was emitted, and a change in between would lie below the new modseq
+   forever (a stale flag, with QRESYNC a message that never goes). Then the old modseq stays; a failed resync never skips
+   changes; a new UIDVALIDITY forgets it.
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not
    repeated) and as a prefetch of the newest 20 unread INBOX messages
@@ -819,12 +830,15 @@ steps + final state with `insta` and checks that replaying twice is identical.
 
 ## 7. Front-ends
 
-**Strings and languages** (`app_front::i18n`): the texts the front-ends share are keys of a strings table
-(`i18n::Key`, an English template each with `{name}` placeholders, filled by `i18n::tr`). The front-ends pick a
-`Lang` at startup from `$DAIL_LANG` (`Shell::set_lang`, `Tui::with_lang_tag`). Besides English there is a
-pseudo-locale (`DAIL_LANG=pseudo`): accented, a third longer and bracketed, so hard-coded and clipped strings show.
-The status texts (problems, hints, fixes, sync and pending summaries) are in the table; the GUI's and TUI's own labels
-move over later. Right-to-left: egui 0.37 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
+**Strings and languages** (`app_front::i18n`): the texts of the front-ends are keys of a strings table
+(`i18n/table.rs`: one row per `i18n::Key` with its English and French templates, `{name}` placeholders filled by
+`i18n::tr`; `i18n::text` is the plain `&'static str` lookup). Command titles have an exhaustive table
+(`i18n/commands.rs`, read through `i18n::title`). The `language` setting (0 = system, 1 = English, 2 = French) picks
+the language: each front-end resolves it per frame (`Lang::resolve`, the system being `$DAIL_LANG`, the POSIX locale
+variables, or the device's locale) and calls `i18n::set_current`; code with no `Lang` at hand uses `i18n::s`/`f`.
+The GUI also carries it on `Tokens` (`t.s`, `t.f`). Kotlin and Swift compose a few texts themselves and read them
+from the frame's `labels` map. There is also a pseudo-locale (`DAIL_LANG=pseudo`): accented, a third longer and
+bracketed, so hard-coded and clipped strings show. Not translated: `app-core`'s error texts and undo labels. Right-to-left: egui 0.37 lays text out left to right with no bidi algorithm, so Hebrew or Arabic
 mail shows in logical order and the layout is not mirrored; bidi control characters from mail cannot reorder the UI
 (the TUI replaces them, `text::is_unsafe`; notifications drop them).
 
@@ -1738,7 +1752,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`language`, `undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |

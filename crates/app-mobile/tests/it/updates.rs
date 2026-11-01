@@ -58,7 +58,7 @@ fn the_question_waits_for_a_build_that_can_check() {
     let frame = phone.frame();
     let question = banner(&frame);
     assert!(question.info);
-    assert_eq!(question.text, app_front::updates::QUESTION);
+    assert_eq!(question.text, app_front::updates::question());
     assert!(question.dismiss.is_some());
 }
 

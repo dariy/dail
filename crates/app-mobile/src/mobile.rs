@@ -4,6 +4,8 @@
 //! `open_thread`, and Back is the `Escape` binding. The window class only chooses panes
 //! (`app_front::panes`); it never dispatches a command.
 
+use app_front::i18n;
+use app_front::i18n::Key as Text;
 use std::collections::HashSet;
 
 use app_core::document::FoldKind;
@@ -137,12 +139,12 @@ impl RowText {
         let sender = format::names(&summary.senders);
         Self {
             sender: if sender.is_empty() {
-                "(no sender)".to_owned()
+                i18n::s(Text::NoSender).to_owned()
             } else {
                 clean(&sender)
             },
             subject: match thread.subject.trim() {
-                "" => "(no subject)".to_owned(),
+                "" => i18n::s(Text::NoSubject).to_owned(),
                 s => clean(s),
             },
             date: format::short_date(thread.last_date_ms, now),
@@ -154,6 +156,8 @@ impl RowText {
 pub struct Mobile {
     clock: fn() -> i64,
     lang: Lang,
+    /// The device's language, for the `language` setting's "system".
+    system_lang: Lang,
     window: Window,
     visible: bool,
     /// The first visible row and how many are visible (`scrolled`).
@@ -262,6 +266,7 @@ impl Mobile {
         Self {
             clock,
             lang: Lang::default(),
+            system_lang: Lang::default(),
             window: Window {
                 width_dp: 360,
                 height_dp: 800,
@@ -381,7 +386,8 @@ impl Mobile {
                     width_dp,
                     height_dp,
                 };
-                self.lang = Lang::from_tag(locale.as_deref());
+                self.system_lang = Lang::from_tag(locale.as_deref());
+
                 Vec::new()
             }
             UiEvent::Visible { visible } => {
@@ -531,7 +537,7 @@ impl Mobile {
                         }
                     }
                     Ok(Err(err)) => {
-                        let text = notice::rejection(reply.name.spec().title, err);
+                        let text = notice::rejection(app_front::i18n::title(reply.name), err);
                         self.notice = Some((text, now + NOTICE_MS));
                     }
                     Err(err) => self.notice = Some((format!("dail: {err}"), now + NOTICE_MS)),
@@ -659,7 +665,7 @@ impl Mobile {
         files: Vec<String>,
     ) -> Vec<Request> {
         let Some(account) = palette::current_account(state) else {
-            self.notify("Add an account in dail before sharing to it.");
+            self.notify(i18n::s(Text::AddAnAccountInDailBeforeSharing));
             return Vec::new();
         };
         let mut fields = mailto
@@ -790,6 +796,8 @@ impl Mobile {
 
     /// The next screen. The action IDs of earlier frames stop working.
     pub fn frame(&mut self, state: &AppState) -> Frame {
+        self.lang = Lang::resolve(state.settings.language, self.system_lang);
+        i18n::set_current(self.lang);
         self.compose.sync(state);
         self.palette_sync(state);
         self.actions.clear();
@@ -875,9 +883,17 @@ impl Mobile {
             && (crowded || maximized)
         {
             reader.maximize = Some(if maximized {
-                self.button("close_fullscreen", "Restore panes", Act::Maximize)
+                self.button(
+                    "close_fullscreen",
+                    i18n::s(Text::RestorePanes),
+                    Act::Maximize,
+                )
             } else {
-                self.button("open_in_full", "Maximize message", Act::Maximize)
+                self.button(
+                    "open_in_full",
+                    i18n::s(Text::MaximizeMessage),
+                    Act::Maximize,
+                )
             });
         }
         let composer = if kinds.contains(&PaneKind::Composer) {
@@ -896,7 +912,7 @@ impl Mobile {
             && !state.accounts.is_empty()
             && !kinds.contains(&PaneKind::Composer)
             && !kinds.contains(&PaneKind::Settings))
-        .then(|| self.button("edit", "Compose", Act::Compose));
+        .then(|| self.button("edit", i18n::s(Text::Compose), Act::Compose));
         self.tell_send_errors(state);
         self.keep_sends(state);
         self.tell_schedule(state);
@@ -933,6 +949,7 @@ impl Mobile {
             || self.drawer_back(state);
         Frame {
             revision: self.revision,
+            labels: native_labels(),
             layout: Layout {
                 class,
                 panes: kinds,
@@ -967,7 +984,7 @@ impl Mobile {
                 // `× About dail (<version>)` (MISC-13).
                 title: crate::theme::about_title(),
                 subtitle: None,
-                navigation: Some(self.button("close", "Close", Act::Back)),
+                navigation: Some(self.button("close", i18n::s(Text::Close), Act::Back)),
                 actions: Vec::new(),
             };
         }
@@ -976,10 +993,10 @@ impl Mobile {
             _ => None,
         };
         let title = match one {
-            Some(PaneKind::Drawer) => "Mailboxes".to_owned(),
-            Some(PaneKind::Reader) => "Message".to_owned(),
-            Some(PaneKind::Composer) => "Draft".to_owned(),
-            Some(PaneKind::Settings) => "Settings".to_owned(),
+            Some(PaneKind::Drawer) => i18n::s(Text::Mailboxes).to_owned(),
+            Some(PaneKind::Reader) => i18n::s(Text::Message).to_owned(),
+            Some(PaneKind::Composer) => i18n::s(Text::Draft).to_owned(),
+            Some(PaneKind::Settings) => i18n::s(Text::Settings).to_owned(),
             Some(PaneKind::List) | None => list_title(state),
         };
         let subtitle = (!state.accounts.is_empty())
@@ -988,11 +1005,11 @@ impl Mobile {
         let navigation = match one {
             _ if state.accounts.is_empty() => None,
             Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer | PaneKind::Settings) => {
-                Some(self.button("arrow_back", "Back", Act::Back))
+                Some(self.button("arrow_back", i18n::s(Text::Back), Act::Back))
             }
             Some(PaneKind::List) | None if !kinds.contains(&PaneKind::Drawer) => Some(self.button(
                 "menu",
-                "Mailboxes",
+                i18n::s(Text::Mailboxes),
                 Act::Run(Command::FocusPane {
                     pane: Pane::Sidebar,
                 }),
@@ -1003,14 +1020,14 @@ impl Mobile {
         if !state.accounts.is_empty() {
             actions.push(self.button(
                 "search",
-                "Search or run a command",
+                i18n::s(Text::SearchOrRun),
                 Act::Run(Command::OpenPalette {}),
             ));
         }
         if state.accounts.is_empty() {
             actions.push(Button {
                 icon: None,
-                label: "Add account".to_owned(),
+                label: i18n::s(Text::AddAccount).to_owned(),
                 action: self.add(Act::Setup(setup::SetupAct::Open)),
             });
         }
@@ -1018,7 +1035,7 @@ impl Mobile {
             // Without accounts there is no drawer: *About* stays here (MISC-3).
             actions.push(Button {
                 icon: None,
-                label: "About".to_owned(),
+                label: i18n::s(Text::About).to_owned(),
                 action: self.add(Act::About),
             });
         }
@@ -1082,7 +1099,7 @@ impl Mobile {
                 .filter(|m| m.role == Some(MailboxRole::Inbox))
                 .map(|m| m.unread)
                 .sum();
-            let label = "All inboxes".to_owned();
+            let label = i18n::s(Text::AllInboxes).to_owned();
             DrawerItem {
                 a11y: a11y::nav_row(&label, unread),
                 label,
@@ -1105,9 +1122,13 @@ impl Mobile {
             let mut mailboxes = Vec::new();
             for node in mailbox::visible_rows(state, account.id, &nodes) {
                 let label = clean(&node.label);
-                let fold = node
-                    .is_parent()
-                    .then(|| self.fold(state, node.key.clone(), format!("{label} subfolders")));
+                let fold = node.is_parent().then(|| {
+                    self.fold(
+                        state,
+                        node.key.clone(),
+                        i18n::f(Text::SubfolderList, &[("name", &label)]),
+                    )
+                });
                 let action = match (node.mailbox, &fold) {
                     (Some(id), _) => self.add(open(Command::OpenMailbox { id })),
                     (None, Some(fold)) => fold.action,
@@ -1131,8 +1152,8 @@ impl Mobile {
                 account: account.id,
                 path: String::new(),
             };
-            let fold =
-                (!nodes.is_empty()).then(|| self.fold(state, key, format!("{name} folders")));
+            let fold = (!nodes.is_empty())
+                .then(|| self.fold(state, key, i18n::f(Text::FolderList, &[("name", &name)])));
             accounts.push(DrawerAccount {
                 name,
                 email: clean(&account.email),
@@ -1143,8 +1164,12 @@ impl Mobile {
         }
         let mut footer = Vec::new();
         for (label, icon, section) in [
-            ("Settings", "settings", None),
-            ("Add account", "add", Some(SettingsSection::Accounts)),
+            (i18n::s(Text::Settings), "settings", None),
+            (
+                i18n::s(Text::AddAccount),
+                "add",
+                Some(SettingsSection::Accounts),
+            ),
         ] {
             let selected = section.is_none() && state.view.settings.is_some() && !self.about;
             footer.push(DrawerItem {
@@ -1161,8 +1186,8 @@ impl Mobile {
                 // MISC-3: *About* right after *Settings* (no command: the screen is the
                 // presenter's).
                 footer.push(DrawerItem {
-                    a11y: "About".to_owned(),
-                    label: "About".to_owned(),
+                    a11y: i18n::s(Text::About).to_owned(),
+                    label: i18n::s(Text::About).to_owned(),
                     depth: 0,
                     fold: None,
                     icon: "info".to_owned(),
@@ -1175,9 +1200,9 @@ impl Mobile {
         // The rail ↔ full tree switch, where the pane can be either (MISC-11).
         let style = side.then(|| {
             let (icon, label) = if rail {
-                ("chevron_right", "Show folder names")
+                ("chevron_right", i18n::s(Text::ShowFolderNames))
             } else {
-                ("chevron_left", "Icons only")
+                ("chevron_left", i18n::s(Text::IconsOnly))
             };
             self.button(icon, label, Act::Run(Command::ToggleSidebar {}))
         });
@@ -1208,7 +1233,7 @@ impl Mobile {
                 refreshing: false,
                 rows: Vec::new(),
                 server: None,
-                empty: Some("No accounts yet. Add one to read your mail here.".to_owned()),
+                empty: Some(i18n::s(Text::NoAccountsYetAddOneToRead).to_owned()),
             };
         }
         let ids = self.rows.get(state).to_vec();
@@ -1269,7 +1294,7 @@ impl Mobile {
                 .unwrap_or_default()
                 .trim();
             let subject = match thread.subject.trim() {
-                "" => "(no subject)",
+                "" => i18n::s(Text::NoSubject),
                 s => s,
             };
             rows.push(Row {
@@ -1299,11 +1324,11 @@ impl Mobile {
         }
         let empty = (total == 0).then(|| {
             if state.view.search.is_some() {
-                "No matching conversations."
+                i18n::s(Text::NoMatches)
             } else if state.view.mailbox.is_some() {
-                "No conversations here."
+                i18n::s(Text::NoConversations)
             } else {
-                "Pick a mailbox from the menu."
+                i18n::s(Text::PickAMailboxFromTheMenu)
             }
             .to_owned()
         });
@@ -1334,7 +1359,7 @@ impl Mobile {
         let actions = [
             (
                 "archive",
-                "Archive",
+                i18n::s(Text::Archive),
                 Command::ArchiveThreads {
                     ids: ids.clone(),
                     messages: messages(),
@@ -1342,7 +1367,7 @@ impl Mobile {
             ),
             (
                 "delete",
-                "Trash",
+                i18n::s(Text::Trash),
                 Command::TrashThreads {
                     ids: ids.clone(),
                     messages: messages(),
@@ -1350,7 +1375,7 @@ impl Mobile {
             ),
             (
                 "mark_email_read",
-                "Mark read",
+                i18n::s(Text::MarkRead),
                 Command::MarkRead {
                     ids: ids.clone(),
                     messages: messages(),
@@ -1358,7 +1383,7 @@ impl Mobile {
             ),
             (
                 "mark_email_unread",
-                "Mark unread",
+                i18n::s(Text::MarkUnread),
                 Command::MarkUnread {
                     ids: ids.clone(),
                     messages: messages(),
@@ -1366,7 +1391,7 @@ impl Mobile {
             ),
             (
                 "star",
-                "Star",
+                i18n::s(Text::Star),
                 Command::Star {
                     ids: ids.clone(),
                     messages: messages(),
@@ -1376,7 +1401,7 @@ impl Mobile {
             if all_pinned {
                 (
                     "push_pin",
-                    "Unpin",
+                    i18n::s(Text::Unpin),
                     Command::UnpinThreads {
                         ids: ids.clone(),
                         messages: messages(),
@@ -1385,7 +1410,7 @@ impl Mobile {
             } else {
                 (
                     "push_pin",
-                    "Pin",
+                    i18n::s(Text::Pin),
                     Command::PinThreads {
                         ids: ids.clone(),
                         messages: messages(),
@@ -1398,11 +1423,11 @@ impl Mobile {
         .collect();
         let close = self.button(
             "close",
-            "Uncheck all",
+            i18n::s(Text::UncheckAll),
             Act::Run(Command::UncheckThreads { ids: Vec::new() }),
         );
         Some(Bulk {
-            title: format!("{} selected", ids.len()),
+            title: i18n::f(Text::Selected, &[("n", &ids.len().to_string())]),
             actions,
             close,
         })
@@ -1491,8 +1516,8 @@ impl Mobile {
             let expanded = self.compose.quote_open;
             QuoteFold {
                 label: match q.style {
-                    QuoteStyle::Forward => "Forwarded message",
-                    QuoteStyle::Reply => "Quoted message",
+                    QuoteStyle::Forward => i18n::s(Text::ForwardedMessage),
+                    QuoteStyle::Reply => i18n::s(Text::QuotedMessage),
                 }
                 .to_owned(),
                 header: if expanded {
@@ -1506,18 +1531,18 @@ impl Mobile {
         });
         let mut problems = Vec::new();
         if let Some(error) = &draft.send_error {
-            problems.push(format!("Not sent: {}", clean(error)));
+            problems.push(i18n::f(Text::NotSent, &[("error", &clean(error))]));
             if let Some(hint) = status::send_hint(state, draft.account, error, self.lang) {
                 problems.push(clean(&hint));
             }
         }
         if let Some(error) = &draft.save_error {
-            problems.push(format!("Draft save failed: {}", clean(error)));
+            problems.push(i18n::f(Text::DraftSaveFailed, &[("error", &clean(error))]));
         }
         let mut attachments = Vec::new();
         for (i, file) in draft.attachments.iter().enumerate() {
             let (detail, failed) = match &file.state {
-                AttachmentState::Checking => ("checking…".to_owned(), false),
+                AttachmentState::Checking => (i18n::s(Text::Checking).to_owned(), false),
                 AttachmentState::Ready { size, .. } => (format::size(*size), false),
                 AttachmentState::Failed { error } => (clean(error), true),
             };
@@ -1541,15 +1566,19 @@ impl Mobile {
         if editable && compose::sendable(&draft) {
             actions.push(self.button(
                 "send",
-                "Send",
+                i18n::s(Text::Send),
                 Act::Run(Command::SendDraft { id: draft.id }),
             ));
         }
         if editable {
-            actions.push(self.button("attach_file", "Attach files", Act::Pick(draft.id)));
+            actions.push(self.button(
+                "attach_file",
+                i18n::s(Text::AttachFilesTitle),
+                Act::Pick(draft.id),
+            ));
             actions.push(self.button(
                 "delete",
-                "Discard",
+                i18n::s(Text::Discard),
                 Act::Run(Command::DiscardDraft { id: draft.id }),
             ));
         }
@@ -1616,10 +1645,13 @@ impl Mobile {
             }
             self.told.push((draft.id, error.clone()));
             let subject = match draft.subject.trim() {
-                "" => "(no subject)",
+                "" => i18n::s(Text::NoSubject),
                 s => s,
             };
-            self.notify(&format!("Not sent: “{subject}”: {error}"));
+            self.notify(&i18n::f(
+                Text::NotSentX,
+                &[("subject", subject), ("error", error)],
+            ));
         }
     }
 
@@ -1657,16 +1689,16 @@ impl Mobile {
             let yes = self.add(Act::Run(updates::answer(true)));
             let no = self.add(Act::Run(updates::answer(false)));
             return Some(Banner {
-                text: updates::QUESTION.to_owned(),
-                hint: Some(updates::QUESTION_DETAIL.to_owned()),
+                text: updates::question().to_owned(),
+                hint: Some(updates::question_detail().to_owned()),
                 action: Some(Button {
                     icon: None,
-                    label: "Check".to_owned(),
+                    label: i18n::s(Text::Check).to_owned(),
                     action: yes,
                 }),
                 dismiss: Some(Button {
                     icon: None,
-                    label: "No thanks".to_owned(),
+                    label: i18n::s(Text::NoThanks).to_owned(),
                     action: no,
                 }),
                 info: true,
@@ -1678,16 +1710,19 @@ impl Mobile {
             version: Some(release.version.clone()),
         }));
         Some(Banner {
-            text: format!("dail {} is available", clean(&release.version)),
+            text: i18n::f(
+                Text::DailIsAvailable,
+                &[("version", &clean(&release.version))],
+            ),
             hint: None,
             action: Some(Button {
                 icon: None,
-                label: "Open".to_owned(),
+                label: i18n::s(Text::Open).to_owned(),
                 action: open,
             }),
             dismiss: Some(Button {
                 icon: None,
-                label: "Skip".to_owned(),
+                label: i18n::s(Text::Skip).to_owned(),
                 action: skip,
             }),
             info: true,
@@ -1703,7 +1738,7 @@ impl Mobile {
                 text,
                 action: Some(Button {
                     icon: None,
-                    label: "Undo".to_owned(),
+                    label: i18n::s(Text::Undo).to_owned(),
                     action,
                 }),
             });
@@ -1724,7 +1759,7 @@ impl Mobile {
                 text: clean(&label),
                 action: Some(Button {
                     icon: None,
-                    label: "Undo".to_owned(),
+                    label: i18n::s(Text::Undo).to_owned(),
                     action,
                 }),
             });
@@ -1759,14 +1794,50 @@ fn shareable(uri: &str) -> bool {
 /// The list's title: the search, or the open mailbox.
 fn list_title(state: &AppState) -> String {
     if let Some(search) = &state.view.search {
-        return format!("Search: {}", clean(search));
+        return i18n::f(Text::SearchTitle, &[("query", &clean(search))]);
     }
     if state.view.unified {
-        return "All inboxes".to_owned();
+        return i18n::s(Text::AllInboxes).to_owned();
     }
     state
         .view
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
-        .map_or_else(|| "Conversations".to_owned(), |m| clean(&mailbox_name(m)))
+        .map_or_else(
+            || i18n::s(Text::Conversations).to_owned(),
+            |m| clean(&mailbox_name(m)),
+        )
+}
+
+/// The texts Kotlin and Swift compose themselves.
+fn native_labels() -> std::collections::BTreeMap<String, String> {
+    if i18n::current() == Lang::English {
+        return std::collections::BTreeMap::new();
+    }
+    [
+        Text::NativeSaved,
+        Text::NativeSavedN,
+        Text::NativeSavedPart,
+        Text::NativeNoLinkApp,
+        Text::NativeNoSettings,
+        Text::FromHeader,
+        Text::RemoveName,
+        Text::NativeRelease,
+        Text::NativeSave,
+        Text::LinksCount,
+        Text::HideWhat,
+        Text::ShowWhat,
+        Text::NativeOpenLink,
+        Text::NativePage,
+        Text::NativeSelect,
+        Text::NativeFailed,
+        Text::NativePassed,
+        Text::NativePending,
+        Text::Subject,
+        Text::Message,
+        Text::Trash,
+    ]
+    .into_iter()
+    .map(|key| (i18n::english(key).to_owned(), i18n::s(key).to_owned()))
+    .collect()
 }

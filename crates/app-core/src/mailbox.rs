@@ -31,8 +31,9 @@ pub struct Mailbox {
     pub unread: u32,
     /// Messages on the server, as of the last fetch.
     pub total: u32,
-    /// The server's HIGHESTMODSEQ (CONDSTORE) as of the last flag resync: the next resync asks
-    /// only for changes since then. `None` without CONDSTORE (or before the first resync).
+    /// The server's HIGHESTMODSEQ (CONDSTORE) as of the last flag resync that covered every
+    /// cached message: the next resync asks only for changes since then. `None` without
+    /// CONDSTORE (or before the first resync).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub highest_modseq: Option<u64>,
     /// How many of the newest messages to keep cached (`set_sync_window`): `Some(0)` means the

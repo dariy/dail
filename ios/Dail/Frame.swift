@@ -59,8 +59,17 @@ struct Answer: Codable {
     let externals: [External]?
 }
 
+/// The latest frame's texts for what Swift composes itself: English template to the language.
+var frameLabels: [String: String] = [:]
+
+/// The text of an English `template`, placeholders filled from `args`.
+func tr(_ template: String, _ args: [String: String] = [:]) -> String {
+    args.reduce(frameLabels[template] ?? template) { $0.replacingOccurrences(of: "{\($1.key)}", with: $1.value) }
+}
+
 struct Frame: Codable {
     let revision: Int64
+    let labels: [String: String]?
     let layout: FrameLayout
     let topBar: TopBar
     let drawer: Drawer?

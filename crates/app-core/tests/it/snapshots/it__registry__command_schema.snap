@@ -544,6 +544,11 @@ expression: command_schema()
           "const": "after_triage",
           "description": "What the GUI and the TUI show after the open conversation is archived, trashed or moved:\n0 = the next one (default), 1 = the previous one, 2 = the list.",
           "type": "string"
+        },
+        {
+          "const": "language",
+          "description": "UI language: 0 = follow the system, 1 = English, 2 = French.",
+          "type": "string"
         }
       ]
     },

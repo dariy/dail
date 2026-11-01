@@ -39,6 +39,7 @@ import net.darii.dail.ui.SaveFile
 import net.darii.dail.ui.UiEvent
 import net.darii.dail.ui.blobRequest
 import net.darii.dail.ui.color
+import net.darii.dail.ui.tr
 
 /** The one activity: draws the host's frames edge to edge and returns the user's events. */
 class MainActivity : ComponentActivity() {
@@ -124,9 +125,9 @@ class MainActivity : ComponentActivity() {
         val good = saved.count { it }
         val text =
             when {
-                good == saved.size && good == 1 -> "Saved."
-                good == saved.size -> "Saved $good files."
-                else -> "Saved $good of ${saved.size} files."
+                good == saved.size && good == 1 -> tr("Saved.")
+                good == saved.size -> tr("Saved {n} files.", "n" to good)
+                else -> tr("Saved {n} of {m} files.", "n" to good, "m" to saved.size)
             }
         runOnUiThread { Toast.makeText(this, text, Toast.LENGTH_SHORT).show() }
     }
@@ -139,7 +140,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(view)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "No app can open this link.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr("No app can open this link."), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -187,7 +188,7 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(intent)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "This phone has no such settings screen.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, tr("This phone has no such settings screen."), Toast.LENGTH_SHORT).show()
         }
     }
 

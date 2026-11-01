@@ -64,7 +64,7 @@ fun ComposerPane(
             key = composer.draft,
             value = composer.subject,
             field = Field.Subject,
-            label = "Subject",
+            label = tr("Subject"),
             editable = composer.editable,
             singleLine = true,
             send = send,
@@ -73,7 +73,7 @@ fun ComposerPane(
             key = composer.draft,
             value = composer.body,
             field = Field.Body,
-            label = "Message",
+            label = tr("Message"),
             editable = composer.editable,
             singleLine = false,
             send = send,
@@ -131,7 +131,7 @@ private fun FromRow(
     Box {
         val tappable = composer.fromChoices.isNotEmpty()
         Text(
-            "From: ${composer.from}",
+            tr("From: {from}", "from" to composer.from),
             Modifier.fillMaxWidth().clickable(enabled = tappable) { open = true }.padding(vertical = 8.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
@@ -164,7 +164,7 @@ private fun RecipientField(
                     onClick = { send(UiEvent.Tap(chip.remove)) },
                     label = { Text(chip.label) },
                     trailingIcon = { Glyph("close") },
-                    modifier = Modifier.semantics { contentDescription = "Remove ${chip.label}" },
+                    modifier = Modifier.semantics { contentDescription = tr("Remove {name}", "name" to chip.label) },
                 )
             }
         }

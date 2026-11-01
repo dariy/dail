@@ -4,6 +4,7 @@
 
 use app_core::{AppState, Command};
 use app_front::approvals::{Card, cards};
+use app_front::i18n::Key;
 use egui::Ui;
 
 use crate::bridge::Request;
@@ -16,12 +17,15 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
     ui::caption(
         ui,
         t,
-        &format!(
-            "Agent request: send {} — check it before approving",
-            match cards.len() {
-                1 => "a message".to_owned(),
-                n => format!("{n} messages"),
-            }
+        &t.f(
+            Key::AgentRequest,
+            &[(
+                "what",
+                &match cards.len() {
+                    1 => t.s(Key::AMessage).to_owned(),
+                    n => t.f(Key::NMessages, &[("n", &n.to_string())]),
+                },
+            )],
         ),
     );
     egui::ScrollArea::vertical()
@@ -47,7 +51,7 @@ fn card_ui(ui: &mut Ui, t: &Tokens, card: &Card, queue: &mut Vec<Request>) {
             if !card.from.is_empty() {
                 ui.label(ui::text(
                     &t.type_scale.body_sm,
-                    format!("from {}", card.from),
+                    t.f(Key::FromName, &[("from", &card.from)]),
                     t.text_muted,
                 ));
             }
@@ -80,20 +84,20 @@ fn card_ui(ui: &mut Ui, t: &Tokens, card: &Card, queue: &mut Vec<Request>) {
         }
         ui.add_space(t.m.space.xs);
         ui.horizontal(|ui| {
-            if ui::primary(ui, t, "Approve send", None, card.ready) {
+            if ui::primary(ui, t, t.s(Key::ApproveSend), None, card.ready) {
                 queue.push(Request::user(Command::ApproveRequest { id: card.id }));
             }
-            if ui::secondary(ui, t, "Edit", None, true) {
+            if ui::secondary(ui, t, t.s(Key::Edit), None, true) {
                 queue.push(Request::user(Command::OpenComposer { id: card.draft }));
             }
-            let reject = ui::text(&t.type_scale.body_md, "Reject", t.text_secondary);
+            let reject = ui::text(&t.type_scale.body_md, t.s(Key::Reject), t.text_secondary);
             if ui::ghost(ui, t, reject).clicked() {
                 queue.push(Request::user(Command::RejectRequest { id: card.id }));
             }
             if !card.ready {
                 ui.label(ui::text(
                     &t.type_scale.body_sm,
-                    "attachments are still being checked",
+                    t.s(Key::StillChecked),
                     t.text_muted,
                 ));
             }

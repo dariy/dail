@@ -253,7 +253,8 @@ fn incremental_fetches_resync_the_cached_window() {
     else {
         unreachable!()
     };
-    assert_eq!((*from_uid, *to_uid, *uid_validity), (3, 8, 7));
+    // The cached window, with what this fetch brought.
+    assert_eq!((*from_uid, *to_uid, *uid_validity), (3, 9, 7));
     assert_eq!(engine.state().status.sync[&account].pending, 1);
 
     let m3 = message(&engine, archive, 3);
@@ -267,7 +268,7 @@ fn incremental_fetches_resync_the_cached_window() {
                 mailbox: archive,
                 uid_validity: 7,
                 from_uid: 3,
-                to_uid: 8,
+                to_uid: 9,
                 flags: vec![
                     UidFlags {
                         uid: 3,
@@ -284,8 +285,13 @@ fn incremental_fetches_resync_the_cached_window() {
                             ..Flags::default()
                         },
                     },
+                    UidFlags {
+                        uid: 9,
+                        flags: Flags::default(),
+                    },
                 ],
                 existing: None,
+                vanished: None,
                 highest_modseq: None,
             },
             &ctx(5),
@@ -330,6 +336,7 @@ fn stale_or_foreign_flag_resyncs_are_ignored() {
                     to_uid: 10,
                     flags: Vec::new(),
                     existing: None,
+                    vanished: None,
                     highest_modseq: None,
                 },
                 &ctx(4),

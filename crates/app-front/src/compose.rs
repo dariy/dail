@@ -1,6 +1,7 @@
 //! Composer rules that do not depend on a toolkit: address parsing, recipient fields, the
 //! draft's status line and whether it can be sent.
 
+use crate::i18n::Key;
 use app_core::{Addr, AppState, AttachmentState, Command, Draft};
 
 /// A recipient field.
@@ -19,11 +20,11 @@ impl Field {
     pub const ALL: [Self; 3] = [Self::To, Self::Cc, Self::Bcc];
 
     /// `To`, `Cc` or `Bcc`.
-    pub const fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
-            Self::To => "To",
+            Self::To => crate::i18n::s(Key::ToLabel),
             Self::Cc => "Cc",
-            Self::Bcc => "Bcc",
+            Self::Bcc => crate::i18n::s(Key::BccX),
         }
     }
 
@@ -122,17 +123,20 @@ pub const fn seconds_left(send_at: i64, now_ms: i64) -> i64 {
 /// The draft's state in a word or two: `sending…`, `sending in 7 s`, `saving…`, `saved`, …
 pub fn draft_status(state: &AppState, draft: &Draft, now_ms: i64) -> String {
     if draft.sending {
-        "sending…".to_owned()
+        crate::i18n::s(Key::SendingX).to_owned()
     } else if let Some(at) = draft.send_at {
-        format!("sending in {} s", seconds_left(at, now_ms))
+        crate::i18n::f(
+            Key::SendingInS,
+            &[("n", &seconds_left(at, now_ms).to_string())],
+        )
     } else if draft.save_error.is_some() {
-        "not saved to the server".to_owned()
+        crate::i18n::s(Key::NotSavedToTheServer).to_owned()
     } else if state.status.drafts_saving.contains(&draft.id) {
-        "saving…".to_owned()
+        crate::i18n::s(Key::Saving).to_owned()
     } else if draft.saved_ms == Some(draft.updated_ms) {
-        "saved".to_owned()
+        crate::i18n::s(Key::Saved).to_owned()
     } else {
-        "draft".to_owned()
+        crate::i18n::s(Key::DraftX).to_owned()
     }
 }
 
@@ -148,9 +152,9 @@ pub fn sendable(draft: &Draft) -> bool {
 /// The composer's title for `draft`: `Reply`, `Forward` or `New message`.
 pub fn title(draft: &Draft) -> &'static str {
     match &draft.quote {
-        Some(q) if q.style == app_core::QuoteStyle::Forward => "Forward",
-        Some(_) => "Reply",
-        None => "New message",
+        Some(q) if q.style == app_core::QuoteStyle::Forward => crate::i18n::s(Key::Forward),
+        Some(_) => crate::i18n::s(Key::Reply),
+        None => crate::i18n::s(Key::NewMessage),
     }
 }
 

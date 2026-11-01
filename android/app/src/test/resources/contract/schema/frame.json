@@ -2399,6 +2399,13 @@
       ],
       "description": "The floating button (compose)."
     },
+    "labels": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "The few texts the apps compose themselves: English template → the current language.\nEmpty in English: the apps fall back to the template.",
+      "type": "object"
+    },
     "layout": {
       "$ref": "#/$defs/Layout",
       "description": "The window class and the panes on screen."

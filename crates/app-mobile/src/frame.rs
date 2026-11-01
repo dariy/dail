@@ -17,6 +17,10 @@ pub type ActionId = u32;
 pub struct Frame {
     /// Counts the frames this presenter made.
     pub revision: u64,
+    /// The few texts the apps compose themselves: English template → the current language.
+    /// Empty in English: the apps fall back to the template.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub labels: std::collections::BTreeMap<String, String>,
     /// The window class and the panes on screen.
     pub layout: Layout,
     /// The top app bar.

@@ -3,6 +3,7 @@
 
 use app_core::Category;
 use app_core::{AppState, Command};
+use app_front::i18n::Key as Text;
 use app_front::palette::{Ask, Palette, Row, Target};
 use app_theme::Icon;
 use egui::{Key, Modifiers, Sense, Ui, Vec2};
@@ -146,7 +147,7 @@ impl PaletteState {
                     .show(ui, |ui| {
                         ui.add_space(t.m.space.xs);
                         if rows.is_empty() {
-                            ui::empty_state(ui, t, "Nothing matches.", &[]);
+                            ui::empty_state(ui, t, t.s(Text::NothingMatches), &[]);
                             ui.add_space(t.m.space.md);
                         }
                         for (i, row) in rows.iter().enumerate() {
@@ -195,8 +196,8 @@ impl PaletteState {
                                 &[
                                     ("↑", "up"),
                                     ("↓", "down"),
-                                    ("Enter", "choose"),
-                                    ("Esc", "back"),
+                                    ("Enter", t.s(Text::HintChoose)),
+                                    ("Esc", t.s(Text::HintBack)),
                                 ],
                             );
                             ui.with_layout(

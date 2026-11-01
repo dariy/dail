@@ -6,6 +6,7 @@
 //! Senders and subjects are untrusted: the texts are cleaned of control characters and cut short,
 //! and the delivery must still escape them for its format (markup, XML).
 
+use crate::i18n::Key;
 use app_core::{AppState, DraftId, FocusTarget, MailboxRole, ThreadId};
 
 use crate::format;
@@ -94,7 +95,7 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
     }
     let sender = |m: &app_core::Envelope| {
         m.from.first().map_or_else(
-            || "(unknown sender)".to_owned(),
+            || crate::i18n::s(Key::UnknownSender).to_owned(),
             |a| format::name(a).to_owned(),
         )
     };
@@ -103,7 +104,7 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
             kind: AlertKind::NewMail,
             title: clean(&sender(only)),
             body: clean(if only.subject.trim().is_empty() {
-                "(no subject)"
+                crate::i18n::s(Key::NoSubject)
             } else {
                 &only.subject
             }),
@@ -122,11 +123,11 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
         senders.truncate(MAX_SENDERS);
         let mut body = senders.join(", ");
         if more > 0 {
-            body.push_str(&format!(" and {more} more"));
+            body.push_str(&crate::i18n::f(Key::AndMore, &[("n", &more.to_string())]));
         }
         Alert {
             kind: AlertKind::NewMail,
-            title: format!("{} new messages", fresh.len()),
+            title: crate::i18n::f(Key::NewMessages, &[("n", &fresh.len().to_string())]),
             body: clean(&body),
             threads,
             draft: None,
@@ -146,7 +147,7 @@ fn send_failed(before: &AppState, after: &AppState) -> Option<Alert> {
         .collect();
     let first = failed.first()?;
     let subject = if first.subject.trim().is_empty() {
-        "(no subject)"
+        crate::i18n::s(Key::NoSubject)
     } else {
         &first.subject
     };
@@ -154,9 +155,12 @@ fn send_failed(before: &AppState, after: &AppState) -> Option<Alert> {
     Some(Alert {
         kind: AlertKind::SendFailed,
         title: if failed.len() == 1 {
-            "Sending failed".to_owned()
+            crate::i18n::s(Key::SendingFailed).to_owned()
         } else {
-            format!("{} messages could not be sent", failed.len())
+            crate::i18n::f(
+                Key::MessagesCouldNotBeSent,
+                &[("n", &failed.len().to_string())],
+            )
         },
         body: clean(&format!("{subject}: {error}")),
         threads: Vec::new(),
@@ -177,14 +181,20 @@ fn approvals(before: &AppState, after: &AppState) -> Option<Alert> {
         .get(&first.draft)
         .map_or_else(String::new, |d| {
             let to: Vec<_> = d.to.iter().collect();
-            format!("To {}: {}", format::names(&to), d.subject)
+            crate::i18n::f(
+                Key::ToX,
+                &[("to", &format::names(&to)), ("subject", &d.subject)],
+            )
         });
     Some(Alert {
         kind: AlertKind::ApprovalNeeded,
         title: if new.len() == 1 {
-            "An agent wants to send a message".to_owned()
+            crate::i18n::s(Key::AnAgentWantsToSendAMessage).to_owned()
         } else {
-            format!("Agents want to send {} messages", new.len())
+            crate::i18n::f(
+                Key::AgentsWantToSendMessages,
+                &[("n", &new.len().to_string())],
+            )
         },
         body: clean(&body),
         threads: Vec::new(),

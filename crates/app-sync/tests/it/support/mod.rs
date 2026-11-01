@@ -1,7 +1,9 @@
 //! A scripted in-memory IMAP server for `LiveBackend` tests. It speaks just enough IMAP4rev1
 //! (greeting, LOGIN, CAPABILITY, LIST, CREATE, EXAMINE / SELECT, UID SEARCH (a few keys) / HEADER,
 //! FETCH / UID FETCH, UID STORE / MOVE / COPY / EXPUNGE, EXPUNGE, APPEND, NOOP, IDLE, LOGOUT)
-//! over `tokio::io::duplex`; no network is involved.
+//! over `tokio::io::duplex`; no network is involved. As a CONDSTORE server it keeps mod-sequences;
+//! as a QRESYNC one it also takes `ENABLE QRESYNC`, after which it reports expunges as `VANISHED`,
+//! answers `UID FETCH … (CHANGEDSINCE n VANISHED)` and marks a mailbox switch with `[CLOSED]`.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
@@ -24,6 +26,8 @@ pub struct FakeFolder {
     pub uid_validity: u32,
     /// Messages in UID order.
     pub messages: Vec<FakeMail>,
+    /// Expunged UIDs with the mod-sequence of their expunge, for `VANISHED (EARLIER)`.
+    pub expunged: Vec<(u32, u64)>,
 }
 
 /// One message in a [`FakeFolder`].
@@ -44,7 +48,34 @@ impl FakeFolder {
             attributes: attributes.to_owned(),
             uid_validity: 1,
             messages: Vec::new(),
+            expunged: Vec::new(),
         }
+    }
+
+    /// The next mod-sequence: above every message and every expunge.
+    fn next_modseq(&self) -> u64 {
+        self.messages
+            .iter()
+            .map(|m| m.modseq)
+            .chain(self.expunged.iter().map(|(_, modseq)| *modseq))
+            .max()
+            .unwrap_or(1)
+            + 1
+    }
+
+    /// Removes the messages `pick` selects, as an expunge does: each leaves a
+    /// tombstone with a new mod-sequence. Returns their UIDs.
+    fn expunge_where(&mut self, pick: impl Fn(&FakeMail) -> bool) -> Vec<u32> {
+        let modseq = self.next_modseq();
+        let gone: Vec<u32> = self
+            .messages
+            .iter()
+            .filter(|m| pick(m))
+            .map(|m| m.uid)
+            .collect();
+        self.messages.retain(|m| !gone.contains(&m.uid));
+        self.expunged.extend(gone.iter().map(|uid| (*uid, modseq)));
+        gone
     }
 
     /// Adds a message with `Message-ID: <id>`, the given subject and flags.
@@ -74,6 +105,12 @@ pub struct FakeServer {
     /// Announce CONDSTORE: `SELECT … (CONDSTORE)` reports HIGHESTMODSEQ, `UID FETCH … (CHANGEDSINCE n)`
     /// lists only messages changed since.
     pub condstore: bool,
+    /// Announce QRESYNC (and CONDSTORE, ENABLE).
+    pub qresync: bool,
+    /// Refuse `ENABLE QRESYNC` although it is announced.
+    pub refuse_enable: bool,
+    /// Report every vanished UID in a `VANISHED (EARLIER)` of its own.
+    pub split_vanished: bool,
     /// Commands received, without tags (passwords replaced by `***`).
     pub log: Vec<String>,
 }
@@ -112,6 +149,23 @@ impl FakeImap {
 
     pub fn log(&self) -> Vec<String> {
         self.server.lock().unwrap().log.clone()
+    }
+
+    /// Another client expunges `uid` from `path`.
+    pub fn expunge(&self, path: &str, uid: u32) {
+        let mut server = self.server.lock().unwrap();
+        let folder = server.folders.iter_mut().find(|f| f.path == path).unwrap();
+        assert_eq!(folder.expunge_where(|m| m.uid == uid), [uid]);
+    }
+
+    /// Another client sets the flags of `uid` in `path` to `flags`.
+    pub fn set_flags(&self, path: &str, uid: u32, flags: &str) {
+        let mut server = self.server.lock().unwrap();
+        let folder = server.folders.iter_mut().find(|f| f.path == path).unwrap();
+        let modseq = folder.next_modseq();
+        let mail = folder.messages.iter_mut().find(|m| m.uid == uid).unwrap();
+        mail.flags = flags.to_owned();
+        mail.modseq = modseq;
     }
 
     /// New mail in `path`: appended with the next UID, and announced to a connection in IDLE.
@@ -196,6 +250,8 @@ async fn serve(
     let (read, mut write) = tokio::io::split(stream);
     let mut lines = BufReader::new(read).lines();
     let mut selected: Option<String> = None;
+    // `ENABLE QRESYNC` went through on this connection.
+    let mut qresync = false;
     if write.write_all(b"* OK fake IMAP ready\r\n").await.is_err() {
         return;
     }
@@ -277,7 +333,7 @@ async fn serve(
             } else {
                 rest.to_owned()
             });
-            respond(&mut server, &mut selected, tag, &verb, args)
+            respond(&mut server, &mut selected, &mut qresync, tag, &verb, args)
         };
         if write.write_all(reply.as_bytes()).await.is_err() || verb == "LOGOUT" {
             return;
@@ -429,8 +485,24 @@ fn apply_flags(flags: &mut String, query: &str) {
     *flags = current.join(" ");
 }
 
+/// `* VANISHED uids` for expunges this connection made, if it enabled QRESYNC.
+fn vanished_line(qresync: bool, uids: &[u32]) -> String {
+    if !qresync || uids.is_empty() {
+        return String::new();
+    }
+    let uids: Vec<String> = uids.iter().map(u32::to_string).collect();
+    format!("* VANISHED {}\r\n", uids.join(","))
+}
+
 /// Mutating UID commands on the selected folder: STORE, MOVE, COPY, EXPUNGE.
-fn uid_change(server: &mut FakeServer, path: &str, tag: &str, sub: &str, rest: &str) -> String {
+fn uid_change(
+    server: &mut FakeServer,
+    path: &str,
+    qresync: bool,
+    tag: &str,
+    sub: &str,
+    rest: &str,
+) -> String {
     let (set, tail) = rest.split_once(' ').unwrap_or((rest, ""));
     let set = uid_ranges(set);
     let Some(index) = server.folders.iter().position(|f| f.path == path) else {
@@ -438,13 +510,7 @@ fn uid_change(server: &mut FakeServer, path: &str, tag: &str, sub: &str, rest: &
     };
     match sub {
         "STORE" => {
-            let next = server.folders[index]
-                .messages
-                .iter()
-                .map(|m| m.modseq)
-                .max()
-                .unwrap_or(1)
-                + 1;
+            let next = server.folders[index].next_modseq();
             for mail in server.folders[index]
                 .messages
                 .iter_mut()
@@ -469,11 +535,11 @@ fn uid_change(server: &mut FakeServer, path: &str, tag: &str, sub: &str, rest: &
                 .filter(|m| in_set(m.uid, &set))
                 .cloned()
                 .collect();
-            if sub == "MOVE" {
-                server.folders[index]
-                    .messages
-                    .retain(|m| !in_set(m.uid, &set));
-            }
+            let moved = if sub == "MOVE" {
+                server.folders[index].expunge_where(|m| in_set(m.uid, &set))
+            } else {
+                Vec::new()
+            };
             for mut mail in picked {
                 mail.uid = server.folders[target]
                     .messages
@@ -481,13 +547,18 @@ fn uid_change(server: &mut FakeServer, path: &str, tag: &str, sub: &str, rest: &
                     .map_or(1, |m| m.uid + 1);
                 server.folders[target].messages.push(mail);
             }
-            format!("{tag} OK {sub} completed\r\n")
+            format!(
+                "{}{tag} OK {sub} completed\r\n",
+                vanished_line(qresync, &moved)
+            )
         }
         "EXPUNGE" => {
-            server.folders[index]
-                .messages
-                .retain(|m| !(in_set(m.uid, &set) && m.flags.contains("\\Deleted")));
-            format!("{tag} OK EXPUNGE completed\r\n")
+            let gone = server.folders[index]
+                .expunge_where(|m| in_set(m.uid, &set) && m.flags.contains("\\Deleted"));
+            format!(
+                "{}{tag} OK EXPUNGE completed\r\n",
+                vanished_line(qresync, &gone)
+            )
         }
         _ => format!("{tag} BAD unsupported UID command\r\n"),
     }
@@ -496,6 +567,7 @@ fn uid_change(server: &mut FakeServer, path: &str, tag: &str, sub: &str, rest: &
 fn respond(
     server: &mut FakeServer,
     selected: &mut Option<String>,
+    qresync: &mut bool,
     tag: &str,
     verb: &str,
     args: &str,
@@ -507,17 +579,30 @@ fn respond(
             let Some(path) = selected.clone() else {
                 return format!("{tag} BAD no mailbox selected\r\n");
             };
-            return uid_change(server, &path, tag, &sub, rest);
+            return uid_change(server, &path, *qresync, tag, &sub, rest);
         }
     }
     match verb {
         "CAPABILITY" => {
             let extra = if server.no_move { "" } else { " MOVE UIDPLUS" };
             let idle = if server.no_idle { "" } else { " IDLE" };
-            let condstore = if server.condstore { " CONDSTORE" } else { "" };
+            let condstore = if server.qresync {
+                " CONDSTORE QRESYNC ENABLE"
+            } else if server.condstore {
+                " CONDSTORE"
+            } else {
+                ""
+            };
             return format!(
                 "* CAPABILITY IMAP4rev1{extra}{idle}{condstore}\r\n{tag} OK CAPABILITY completed\r\n"
             );
+        }
+        "ENABLE" => {
+            if !server.qresync || server.refuse_enable || selected.is_some() {
+                return format!("{tag} NO [CANNOT] not now\r\n");
+            }
+            *qresync = true;
+            return format!("* ENABLED QRESYNC\r\n{tag} OK ENABLE completed\r\n");
         }
         "CREATE" => {
             let path = arguments(args).into_iter().next().unwrap_or_default();
@@ -528,13 +613,15 @@ fn respond(
             return format!("{tag} OK CREATE completed\r\n");
         }
         "EXPUNGE" => {
-            if let Some(folder) = selected
+            let gone = selected
                 .as_ref()
                 .and_then(|path| server.folders.iter_mut().find(|f| &f.path == path))
-            {
-                folder.messages.retain(|m| !m.flags.contains("\\Deleted"));
-            }
-            return format!("{tag} OK EXPUNGE completed\r\n");
+                .map(|folder| folder.expunge_where(|m| m.flags.contains("\\Deleted")))
+                .unwrap_or_default();
+            return format!(
+                "{}{tag} OK EXPUNGE completed\r\n",
+                vanished_line(*qresync, &gone)
+            );
         }
         _ => {}
     }
@@ -547,16 +634,22 @@ fn respond(
             let Some(folder) = server.folders.iter().find(|f| f.path == path) else {
                 return format!("{tag} NO [NONEXISTENT] no such mailbox\r\n");
             };
+            // RFC 7162: with QRESYNC, `[CLOSED]` separates the old mailbox from the new one.
+            let closed = if *qresync && selected.is_some() {
+                "* OK [CLOSED] Previous mailbox closed.\r\n"
+            } else {
+                ""
+            };
             *selected = Some(path);
             let next = folder.messages.last().map_or(1, |m| m.uid + 1);
-            let modseq = if server.condstore {
-                let highest = folder.messages.iter().map(|m| m.modseq).max().unwrap_or(1);
+            let modseq = if server.condstore || server.qresync {
+                let highest = folder.next_modseq() - 1;
                 format!("* OK [HIGHESTMODSEQ {highest}] highest\r\n")
             } else {
                 String::new()
             };
             format!(
-                "* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n* {} EXISTS\r\n\
+                "{closed}* FLAGS (\\Answered \\Flagged \\Deleted \\Seen \\Draft)\r\n* {} EXISTS\r\n\
                  * 0 RECENT\r\n* OK [UIDVALIDITY {}] UIDs valid\r\n* OK [UIDNEXT {next}] next\r\n\
                  {modseq}{tag} OK [READ-ONLY] EXAMINE completed\r\n",
                 folder.messages.len(),
@@ -601,10 +694,20 @@ fn respond(
                 }
                 "FETCH" => {
                     let set = uid_ranges(rest.split(' ').next().unwrap_or_default());
-                    let since: Option<u64> = rest
+                    let modifiers = rest
                         .to_ascii_uppercase()
                         .split_once("CHANGEDSINCE ")
-                        .and_then(|(_, n)| n.trim_end_matches(')').trim().parse().ok());
+                        .map(|(_, tail)| tail.to_owned());
+                    let since: Option<u64> = modifiers.as_ref().and_then(|tail| {
+                        let number = tail.split([' ', ')']).next().unwrap_or_default();
+                        number.parse().ok()
+                    });
+                    let vanished = modifiers
+                        .as_ref()
+                        .is_some_and(|tail| tail.contains("VANISHED"));
+                    if vanished && !*qresync {
+                        return format!("{tag} BAD VANISHED without ENABLE QRESYNC\r\n");
+                    }
                     let hi = set.iter().map(|(_, hi)| *hi).max().unwrap_or(0);
                     let mut hits: Vec<(usize, &FakeMail)> = folder
                         .messages
@@ -627,6 +730,21 @@ fn respond(
                         .iter()
                         .map(|(seq, m)| fetch_line(*seq, m, rest))
                         .collect();
+                    if let (true, Some(since)) = (vanished, since) {
+                        let gone: Vec<String> = folder
+                            .expunged
+                            .iter()
+                            .filter(|(uid, modseq)| *modseq > since && in_set(*uid, &set))
+                            .map(|(uid, _)| uid.to_string())
+                            .collect();
+                        if server.split_vanished {
+                            for uid in &gone {
+                                out.push_str(&format!("* VANISHED (EARLIER) {uid}\r\n"));
+                            }
+                        } else if !gone.is_empty() {
+                            out.push_str(&format!("* VANISHED (EARLIER) {}\r\n", gone.join(",")));
+                        }
+                    }
                     out.push_str(&format!("{tag} OK FETCH completed\r\n"));
                     out
                 }
