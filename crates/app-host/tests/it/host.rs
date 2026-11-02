@@ -402,7 +402,7 @@ fn the_debug_bridge_submits_as_cli_or_mcp_only() {
     let remove = serde_json::json!({ "cmd": "add_account", "args": { "preset": "hostinger", "email": "eve@example.com" } });
     let refused = exec("mcp", remove).unwrap();
     assert_eq!(
-        refused["rejected"]["error"], "origin_not_allowed",
+        refused["rejected"]["error"], "error_008_origin_not_allowed",
         "{refused}"
     );
 

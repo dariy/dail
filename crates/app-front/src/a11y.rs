@@ -1,6 +1,7 @@
 //! Accessible names: what a screen reader says for a row. AccessKit (the GUI) and TalkBack (the
 //! mobile frames) read the same names.
 
+use crate::i18n::Key;
 use app_core::ThreadSummary;
 
 use crate::format;
@@ -10,33 +11,36 @@ use crate::format;
 pub fn thread_row(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> String {
     let mut parts: Vec<String> = Vec::new();
     if checked {
-        parts.push("checked".to_owned());
+        parts.push(crate::i18n::s(Key::Checked).to_owned());
     }
     if summary.unread > 0 {
-        parts.push("unread".to_owned());
+        parts.push(crate::i18n::s(Key::UnreadX).to_owned());
     }
     if summary.flagged {
-        parts.push("starred".to_owned());
+        parts.push(crate::i18n::s(Key::StarredX).to_owned());
     }
     if summary.pinned {
-        parts.push("pinned".to_owned());
+        parts.push(crate::i18n::s(Key::PinnedX).to_owned());
     }
     if summary.has_attachments {
-        parts.push("with attachments".to_owned());
+        parts.push(crate::i18n::s(Key::WithAttachments).to_owned());
     }
     let senders = format::names(&summary.senders);
     parts.push(if senders.is_empty() {
-        "(no sender)".to_owned()
+        crate::i18n::s(Key::NoSender).to_owned()
     } else {
         senders
     });
     parts.push(if summary.thread.subject.trim().is_empty() {
-        "(no subject)".to_owned()
+        crate::i18n::s(Key::NoSubject).to_owned()
     } else {
         summary.thread.subject.clone()
     });
     if summary.messages.len() > 1 {
-        parts.push(format!("{} messages", summary.messages.len()));
+        parts.push(crate::i18n::f(
+            Key::NMessages,
+            &[("n", &summary.messages.len().to_string())],
+        ));
     }
     parts.push(format::short_date(summary.thread.last_date_ms, now_ms));
     parts.join(", ")
@@ -45,7 +49,10 @@ pub fn thread_row(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> St
 /// What a screen reader says for a mailbox (or other nav) row: the label and the unread count.
 pub fn nav_row(label: &str, unread: u32) -> String {
     if unread > 0 {
-        format!("{label}, {unread} unread")
+        crate::i18n::f(
+            Key::UnreadXXX,
+            &[("label", label), ("n", &unread.to_string())],
+        )
     } else {
         label.to_owned()
     }

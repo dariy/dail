@@ -293,7 +293,7 @@ fn attachments_are_saved_into_a_chosen_folder() {
     };
     let mut h = gui(state);
     let shell = std::mem::take(&mut h.state_mut().shell);
-    h.state_mut().shell = shell.with_folder_picker(|| Some("/home/me/Downloads".into()));
+    h.state_mut().shell = shell.with_folder_picker(|_| Some("/home/me/Downloads".into()));
     apply(&mut h, Command::OpenMailbox { id: inbox });
     apply(&mut h, Command::OpenThread { id: threads[0] });
     h.state_mut().out.clear();

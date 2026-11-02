@@ -183,7 +183,7 @@ fn a_rejected_send_shows_the_error() {
     let sent = h.state_mut().pump();
     assert!(matches!(sent[..], [Command::SendDraft { .. }]));
     h.run();
-    h.get_by_label_contains("Send: draft");
+    h.get_by_label_contains("Send: ERR009: draft");
 }
 
 #[test]

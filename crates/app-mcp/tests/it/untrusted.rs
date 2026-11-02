@@ -220,7 +220,7 @@ async fn email_content_appears_only_inside_untrusted_content() {
         let asked = agent.tool("send_draft", json!({ "id": draft })).await;
         // A forward has no recipients yet and is refused; the answers become requests.
         if answer == "forward" {
-            assert_eq!(asked["error"]["error"], "not_sendable", "{asked}");
+            assert_eq!(asked["error"]["error"], "error_009_not_sendable", "{asked}");
         } else {
             assert_eq!(asked["data"]["state"], "awaiting_approval", "{asked}");
         }
@@ -258,7 +258,7 @@ fn instructions_cover_injection_approvals_user_only_tools_and_undo() {
         "undo",
         "links",
         "attach",
-        "origin_not_allowed",
+        "error_008_origin_not_allowed",
     ] {
         assert!(text.contains(needle), "instructions mention {needle}");
     }

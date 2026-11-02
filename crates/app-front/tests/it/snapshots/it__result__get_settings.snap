@@ -33,6 +33,10 @@ ResultDoc {
                     value: "500",
                 },
                 Field {
+                    label: "Language",
+                    value: "0",
+                },
+                Field {
                     label: "List density",
                     value: "0",
                 },

@@ -4,8 +4,10 @@
 //! [`Request`] returned by [`Tui::input`]; the runner hands them to the session. A resize never
 //! dispatches a command: the view is shared with the GUI and with agents.
 
+use crate::text::{f, s};
 use app_core::{AppState, Command, CommandName, DraftId, Pane, ThreadSummary, listing};
 use app_front::body::Bodies;
+use app_front::i18n::Key as Text;
 use app_front::keymap::{Action, Chord, Key, KeyState, Press};
 use app_front::notice::{self, LastAction};
 
@@ -90,6 +92,8 @@ pub struct Tui {
     no_color: bool,
     /// The language of the shared texts (`app_front::i18n`).
     lang: app_front::i18n::Lang,
+    /// The language when the `language` setting follows the system.
+    system_lang: app_front::i18n::Lang,
     quit: bool,
     setup_hint: String,
     /// The first visible row of the thread list.
@@ -135,6 +139,7 @@ impl Default for Tui {
             autoread: app_front::autoread::AutoRead::default(),
             no_color: false,
             lang: app_front::i18n::Lang::default(),
+            system_lang: app_front::i18n::Lang::default(),
             quit: false,
             setup_hint: "dail account add --preset gmail --email you@gmail.com".to_owned(),
             list_offset: 0,
@@ -169,10 +174,6 @@ impl std::fmt::Debug for Tui {
     }
 }
 
-/// The question before quitting an owned session while a send waits.
-const QUIT_PROMPT: &str =
-    "Quitting cancels the send still in its undo window. q quits, any other key stays";
-
 /// How long a notice stays in the status line.
 const NOTICE_MS: i64 = 6_000;
 
@@ -197,7 +198,10 @@ impl Tui {
     /// Shows the shared texts in the language of `tag` (`$DAIL_LANG`, `app_front::i18n`).
     #[must_use]
     pub fn with_lang_tag(mut self, tag: Option<&str>) -> Self {
-        let lang = app_front::i18n::Lang::from_tag(tag);
+        let lang = tag.map_or_else(app_front::i18n::system_lang, |t| {
+            app_front::i18n::Lang::from_tag(Some(t))
+        });
+        self.system_lang = lang;
         self.lang = lang;
         self.composer.lang = lang;
         self
@@ -248,6 +252,9 @@ impl Tui {
     /// Draws one frame of `state`, in the theme's colours when `tui_colors` asks for them and
     /// `NO_COLOR` is unset (UI-16).
     pub fn draw(&mut self, frame: &mut Frame, state: &AppState) {
+        self.lang = app_front::i18n::Lang::resolve(state.settings.language, self.system_lang);
+        self.composer.lang = self.lang;
+        app_front::i18n::set_current(self.lang);
         self.draw_widgets(frame, state);
         if state.settings.tui_colors == 1 && !self.no_color {
             crate::colors::paint(
@@ -318,7 +325,7 @@ impl Tui {
             .sending
             .filter(|id| notice::send_pending(state, *id))
             .map(|id| notice::sending_text(state, id, now));
-        let prompt = self.confirm_quit.then_some(QUIT_PROMPT);
+        let prompt = self.confirm_quit.then_some(s(Text::QuitConfirm));
         let parts = view::StatusParts {
             prompt,
             sending,
@@ -381,11 +388,11 @@ impl Tui {
         let rows = listing::visible_threads(state);
         if rows.is_empty() {
             let text = if state.view.search.is_some() {
-                "No matching conversations."
+                s(Text::NoMatches)
             } else if state.view.mailbox.is_some() {
-                "No conversations here."
+                s(Text::NoConversations)
             } else {
-                "Pick a mailbox: g i for the inbox."
+                s(Text::PickMailboxTui)
             };
             return vec![Line::from(Span::styled(text, view::dim()))];
         }
@@ -432,15 +439,15 @@ impl Tui {
     fn setup(&self) -> Paragraph<'static> {
         Paragraph::new(vec![
             Line::from(Span::styled(
-                "No accounts yet.",
+                s(Text::NoAccountsYet),
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
-            Line::from("Press Enter to add one here, or run in another shell:"),
+            Line::from(s(Text::PressEnterToAdd)),
             Line::from(""),
             Line::from(format!("  {}", self.setup_hint)),
             Line::from(""),
-            Line::from("The account shows up here once it is added."),
+            Line::from(s(Text::AccountShowsUp)),
         ])
         .wrap(ratatui::widgets::Wrap { trim: false })
     }
@@ -511,11 +518,11 @@ impl Tui {
                 }
             }
             EditOutcome::Failed(reason) => {
-                self.notify(format!("The editor failed: {reason}"));
+                self.notify(f(Text::EditorFailed, &[("reason", &reason)]));
                 Vec::new()
             }
             EditOutcome::NoEditor => {
-                self.notify("Set $VISUAL or $EDITOR to write the body in your editor");
+                self.notify(s(Text::SetEditor));
                 Vec::new()
             }
         }
@@ -594,7 +601,7 @@ impl Tui {
             if ctrl_c || (plain && key.code == KeyCode::Char('q')) {
                 self.quit = true;
             } else {
-                self.notify("Still here; the send goes out when its window closes.");
+                self.notify(s(Text::StillHere));
             }
             return Vec::new();
         }
@@ -705,14 +712,18 @@ impl Tui {
                 self.mouse = !self.mouse;
                 self.external = Some(External::MouseCapture(self.mouse));
                 self.notify(if self.mouse {
-                    "Mouse on: tap to select, swipe to scroll"
+                    s(Text::MouseOn)
                 } else {
-                    "Mouse off: select text with the terminal; m turns it back on"
+                    s(Text::MouseOff)
                 });
                 return Vec::new();
             }
             KeyCode::Char('?') if !self.keys.is_pending() => {
-                self.result = Some(ResultView::text("Keys", HELP_NOTE, help(state, self.lang)));
+                self.result = Some(ResultView::text(
+                    s(Text::Keys),
+                    s(Text::HelpNote),
+                    help(state, self.lang),
+                ));
                 return Vec::new();
             }
             KeyCode::Backspace if key.modifiers.is_empty() && !self.keys.is_pending() => {
@@ -892,7 +903,7 @@ impl Tui {
                             }
                         }
                         Ok(Err(err)) => {
-                            let title = reply.name.spec().title;
+                            let title = app_front::i18n::title(reply.name);
                             self.notify(notice::rejection(title, err));
                         }
                         Err(err) => self.notify(format!("dail: {err}")),
@@ -924,8 +935,6 @@ impl Tui {
     }
 }
 
-const HELP_NOTE: &str = "Problems, the keys of the registry, the TUI's own. q, Esc or ? closes.";
-
 /// The help text: the full text of current problems, every registry binding that a terminal
 /// delivers (with the command's title), and the TUI-local keys.
 fn help(state: &AppState, lang: app_front::i18n::Lang) -> String {
@@ -933,7 +942,7 @@ fn help(state: &AppState, lang: app_front::i18n::Lang) -> String {
     let mut out = String::new();
     let problems = app_front::status::problems(state, lang);
     if !problems.is_empty() {
-        out.push_str("Problems\n");
+        out.push_str(s(Text::Problems));
         for problem in problems {
             let _ = writeln!(out, "{}: {}", problem.text, problem.detail);
             if let Some(hint) = problem.hint {

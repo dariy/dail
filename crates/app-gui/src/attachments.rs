@@ -5,6 +5,7 @@
 //! [`Previews`]); a PDF has *Open*, a private temporary copy in the browser's viewer. Previews
 //! and opening are presentation, like *open original*: not commands.
 
+use app_front::i18n::{self, Key, Lang};
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc;
 
@@ -21,11 +22,11 @@ use crate::theme::Tokens;
 use crate::ui;
 
 /// Asks the user for a folder (blocking; runs on a helper thread).
-pub type FolderPicker = fn() -> Option<String>;
+pub type FolderPicker = fn(Lang) -> Option<String>;
 
-fn pick_folder() -> Option<String> {
+fn pick_folder(lang: Lang) -> Option<String> {
     rfd::FileDialog::new()
-        .set_title("Save attachments into")
+        .set_title(i18n::text(lang, Key::SaveAttachmentsInto))
         .pick_folder()
         .and_then(|path| path.to_str().map(str::to_owned))
 }
@@ -54,7 +55,7 @@ impl Saver {
         }
     }
 
-    fn ask(&mut self, ctx: &egui::Context, message: MessageId, parts: Vec<usize>) {
+    fn ask(&mut self, ctx: &egui::Context, lang: Lang, message: MessageId, parts: Vec<usize>) {
         if self.pending.is_some() {
             return;
         }
@@ -63,7 +64,7 @@ impl Saver {
         let spawned = std::thread::Builder::new()
             .name("dail-folder-dialog".to_owned())
             .spawn(move || {
-                let _ = tx.send(picker());
+                let _ = tx.send(picker(lang));
                 ctx.request_repaint();
             });
         match spawned {
@@ -179,7 +180,10 @@ pub fn preview_data(content_type: &str, bytes: &[u8]) -> Result<PreviewData, Str
             String::from_utf8_lossy(&bytes[..end]).into_owned(),
         ))
     } else {
-        Err(format!("no preview for {content_type}"))
+        Err(app_front::i18n::f(
+            app_front::i18n::Key::NoPreviewFor,
+            &[("type", content_type)],
+        ))
     }
 }
 
@@ -227,20 +231,29 @@ pub fn show(
         let total: u64 = body.attachments.iter().map(|a| a.size).sum();
         let n = body.attachments.len();
         let files = if n == 1 {
-            "1 file".to_owned()
+            t.s(Key::OneFile).to_owned()
         } else {
-            format!("{n} files")
+            t.f(Key::NFiles, &[("n", &n.to_string())])
         };
         ui::caption(
             ui,
             t,
-            &format!("Attachments ({files} · {})", format::size(total)),
+            &t.f(
+                Key::AttachmentsSummary,
+                &[("files", &files), ("size", &format::size(total))],
+            ),
         );
         if n > 1 {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if icon_save_button(ui, t, Icon::Download, "Save all", "Save all…") {
+                if icon_save_button(
+                    ui,
+                    t,
+                    Icon::Download,
+                    t.s(Key::SaveAll),
+                    t.s(Key::SaveAllDots),
+                ) {
                     let parts = body.attachments.iter().map(|a| a.part).collect();
-                    saver.ask(ui.ctx(), message, parts);
+                    saver.ask(ui.ctx(), t.lang, message, parts);
                 }
             });
         }
@@ -274,8 +287,14 @@ pub fn show(
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if attachment.content_type == "application/pdf"
                         && let Some(blob) = blob
-                        && ui::icon_button(ui, t, t.text_secondary, Icon::OpenInNew, "Open ↗")
-                            .clicked()
+                        && ui::icon_button(
+                            ui,
+                            t,
+                            t.text_secondary,
+                            Icon::OpenInNew,
+                            t.s(Key::OpenArrow),
+                        )
+                        .clicked()
                     {
                         externals.push(External::OpenAttachment(PartKey {
                             blob: blob.to_owned(),
@@ -285,17 +304,18 @@ pub fn show(
                     if blob.is_some() && previewable(&attachment.content_type) {
                         let open = previews.open.contains(&(message, attachment.part));
                         let (icon, name) = if open {
-                            (Icon::VisibilityOff, "Hide preview")
+                            (Icon::VisibilityOff, t.s(Key::HidePreview))
                         } else {
-                            (Icon::Visibility, "Preview")
+                            (Icon::Visibility, t.s(Key::Preview))
                         };
                         if ui::icon_button(ui, t, t.text_secondary, icon, name).clicked() {
                             previews.toggle(message, attachment.part);
                         }
                     }
-                    if ui::icon_button(ui, t, t.text_secondary, Icon::Download, "Save…").clicked()
+                    if ui::icon_button(ui, t, t.text_secondary, Icon::Download, t.s(Key::SaveDots))
+                        .clicked()
                     {
-                        saver.ask(ui.ctx(), message, vec![attachment.part]);
+                        saver.ask(ui.ctx(), t.lang, message, vec![attachment.part]);
                     }
                     ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
                         ui.spacing_mut().item_spacing.y = t.m.space.xs / 2.0;
@@ -350,24 +370,24 @@ pub fn show(
         SaveState::Saving => {
             ui.label(ui::text(
                 &t.type_scale.body_sm,
-                format!("Saving into {}…", save.dir),
+                t.f(Key::SavingInto, &[("dir", &save.dir)]),
                 t.text_muted,
             ));
         }
         SaveState::Saved { files } => {
             ui.label(ui::text(
                 &t.type_scale.body_sm,
-                saved_text(files),
+                saved_text(t, files),
                 t.text_muted,
             ));
         }
         SaveState::Failed { files, error } => {
             ui.colored_label(
                 ui.visuals().error_fg_color,
-                format!("Could not save the attachments: {error}"),
+                t.f(Key::SaveFailed, &[("error", error)]),
             );
             if !files.is_empty() {
-                ui.label(RichText::new(saved_text(files)).color(t.text_muted));
+                ui.label(RichText::new(saved_text(t, files)).color(t.text_muted));
             }
         }
     }
@@ -376,14 +396,14 @@ pub fn show(
 fn preview(ui: &mut Ui, t: &Tokens, preview: &Preview, key: &PartKey) {
     ui::card_base(t).show(ui, |ui| match preview {
         Preview::Loading => {
-            ui.label(RichText::new("Loading the preview…").color(t.text_muted));
+            ui.label(RichText::new(t.s(Key::LoadingPreview)).color(t.text_muted));
         }
         Preview::Image(texture) => {
             let width = texture.size_vec2().x.min(ui.available_width());
             ui.add(
                 egui::Image::new(texture)
                     .max_width(width)
-                    .alt_text("Preview"),
+                    .alt_text(t.s(Key::Preview)),
             );
         }
         Preview::Text(text) => {
@@ -395,15 +415,21 @@ fn preview(ui: &mut Ui, t: &Tokens, preview: &Preview, key: &PartKey) {
                 });
         }
         Preview::Failed(error) => {
-            ui.label(RichText::new(format!("No preview: {error}")).color(t.text_muted));
+            ui.label(RichText::new(t.f(Key::NoPreview, &[("error", error)])).color(t.text_muted));
         }
     });
 }
 
-fn saved_text(files: &[String]) -> String {
+fn saved_text(t: &Tokens, files: &[String]) -> String {
     match files {
-        [one] => format!("Saved as {one}"),
-        _ => format!("Saved {} files: {}", files.len(), files.join(", ")),
+        [one] => t.f(Key::SavedAs, &[("name", one)]),
+        _ => t.f(
+            Key::SavedFiles,
+            &[
+                ("n", &files.len().to_string()),
+                ("names", &files.join(", ")),
+            ],
+        ),
     }
 }
 

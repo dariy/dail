@@ -10,9 +10,11 @@
 //! [`Setup::reenter`] opens the same password step for an existing account (`set_password`:
 //! keyring, then a login test); another try keeps the account.
 
+use crate::text::{f, s};
 use app_core::{
     AccountId, AccountStatus, AppState, Command, CommandName, Endpoint, ProviderPreset, Secret,
 };
+use app_front::i18n::Key;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
@@ -24,21 +26,21 @@ use crate::request::{Purpose, Reply, Request};
 use crate::text::{clean, wrap};
 use crate::view::{bold, dim, reverse};
 
-const PRESETS: &[(ProviderPreset, &str, &str)] = &[
+const PRESETS: &[(ProviderPreset, Key, Key)] = &[
     (
         ProviderPreset::Gmail,
-        "Gmail",
-        "Needs an App Password (2-Step Verification on).",
+        Key::PresetGmail,
+        Key::PresetGmailHint,
     ),
     (
         ProviderPreset::Hostinger,
-        "Hostinger Mail",
-        "Your mailbox password.",
+        Key::PresetHostinger,
+        Key::PresetHostingerHint,
     ),
     (
         ProviderPreset::Custom,
-        "Other IMAP / SMTP",
-        "Enter the servers yourself.",
+        Key::PresetOther,
+        Key::PresetCustomHint,
     ),
 ];
 
@@ -127,7 +129,7 @@ impl Setup {
     fn address_problem(&self) -> Option<String> {
         let [email, _, imap, smtp] = &self.fields;
         if app_front::compose::parse_addr(email.trim()).is_none_or(|a| a.name.is_some()) {
-            return Some("Enter an email address like you@example.com.".to_owned());
+            return Some(s(Key::EnterEmail).to_owned());
         }
         if self.preset() == ProviderPreset::Custom {
             for (name, text) in [("IMAP", imap), ("SMTP", smtp)] {
@@ -203,8 +205,8 @@ impl Setup {
             // A refused lookup shows; its answer otherwise arrives in the state.
             match &reply.result {
                 Ok(Ok(_)) => {}
-                Ok(Err(err)) => self.error = Some(err.to_string()),
-                Err(err) => self.error = Some(err.to_string()),
+                Ok(Err(err)) => self.error = Some(app_front::i18n::message(&err.to_string())),
+                Err(err) => self.error = Some(app_front::i18n::message(&err.to_string())),
             }
             return None;
         }
@@ -221,11 +223,13 @@ impl Setup {
                             cmd: Command::TestAccount { id },
                         });
                     }
-                    Err(err) => self.fail(format!("unexpected receipt: {err}")),
+                    Err(err) => {
+                        self.fail(f(Key::UnexpectedReceipt, &[("error", &err.to_string())]))
+                    }
                 }
             }
-            Ok(Err(err)) => self.fail(err.to_string()),
-            Err(err) => self.fail(err.to_string()),
+            Ok(Err(err)) => self.fail(app_front::i18n::message(&err.to_string())),
+            Err(err) => self.fail(app_front::i18n::message(&err.to_string())),
         }
         None
     }
@@ -388,7 +392,7 @@ impl Setup {
         let block = if borders {
             Block::bordered()
                 .border_style(bold())
-                .title(" Add account ")
+                .title(s(Key::AddAccountTitle))
         } else {
             Block::new()
         };
@@ -397,18 +401,18 @@ impl Setup {
         let columns = usize::from(inner.width);
         let mut lines: Vec<(String, Style)> = Vec::new();
         let step = match self.step {
-            Step::Preset => "1/4 Provider",
-            Step::Address => "2/4 Address",
-            Step::Password => "3/4 Password",
-            Step::Test => "4/4 Connection",
+            Step::Preset => s(Key::Step1),
+            Step::Address => s(Key::Step2),
+            Step::Password => s(Key::Step3),
+            Step::Test => s(Key::Step4),
         };
         if self.existing {
             lines.push((
-                format!("Change the password · {}", clean(&self.fields[0])),
+                f(Key::ChangePasswordOf, &[("email", &clean(&self.fields[0]))]),
                 bold(),
             ));
         } else {
-            lines.push((format!("Add account · {step}"), bold()));
+            lines.push((f(Key::AddAccountStep, &[("step", step)]), bold()));
         }
         lines.push((String::new(), Style::default()));
         let footer = match self.step {
@@ -416,19 +420,19 @@ impl Setup {
                 for (i, (_, title, hint)) in PRESETS.iter().enumerate() {
                     let here = i == self.preset;
                     lines.push((
-                        format!("{} {title}", if here { "›" } else { " " }),
+                        format!("{} {}", if here { "›" } else { " " }, s(*title)),
                         if here { reverse() } else { Style::default() },
                     ));
-                    lines.push((format!("    {hint}"), dim()));
+                    lines.push((format!("    {}", s(*hint)), dim()));
                 }
-                "↑↓ choose · Enter next · Esc cancel"
+                s(Key::ChooseFooter)
             }
             Step::Address => {
                 let labels = [
-                    "Email",
-                    "Name (optional)",
-                    "IMAP host:port",
-                    "SMTP host:port",
+                    s(Key::Email),
+                    s(Key::NameOptional),
+                    s(Key::ImapHostPort),
+                    s(Key::SmtpHostPort),
                 ];
                 for (i, label) in labels.iter().enumerate().take(self.field_count()) {
                     let here = i == self.field;
@@ -440,47 +444,39 @@ impl Setup {
                     ));
                 }
                 if self.preset() == ProviderPreset::Custom {
-                    lines.push((
-                        "Ports 143 and 587 use STARTTLS, others TLS; add :tls or :starttls to choose."
-                            .to_owned(),
-                        dim(),
-                    ));
+                    lines.push((s(Key::PortsHint).to_owned(), dim()));
                     let email = self.fields[0].trim();
                     let note = match &state.status.discovery {
                         Some(d) if d.email == email => match &d.found {
-                            Ok(found) => format!(
-                                "Found at {}: {} and {}. Ctrl+F fills them in.",
-                                clean(&found.source),
-                                found.imap,
-                                found.smtp
+                            Ok(found) => f(
+                                Key::FoundFill,
+                                &[
+                                    ("source", &clean(&found.source)),
+                                    ("imap", &found.imap.to_string()),
+                                    ("smtp", &found.smtp.to_string()),
+                                ],
                             ),
-                            Err(error) => {
-                                format!("Not found ({}); enter them yourself.", clean(error))
-                            }
+                            Err(error) => f(Key::NotFound, &[("error", &clean(error))]),
                         },
-                        _ => "Ctrl+F finds the servers (asks the provider's web server, then Mozilla's list)."
-                            .to_owned(),
+                        _ => s(Key::CtrlFHint).to_owned(),
                     };
                     lines.push((note, dim()));
                 }
-                "Tab field · Enter next · Esc back"
+                s(Key::FieldFooter)
             }
             Step::Password => {
                 let label = if self.preset() == ProviderPreset::Gmail {
-                    "App Password"
+                    s(Key::AppPassword)
                 } else {
-                    "Password"
+                    s(Key::Password)
                 };
                 let masked = "•".repeat(self.password.chars().count());
                 lines.push((format!("{label}: {masked}▏"), bold()));
-                lines.push((
-                    "It goes to the system keyring, never into dail's files.".to_owned(),
-                    dim(),
-                ));
+                lines.push((s(Key::KeyringTui).to_owned(), dim()));
                 if self.existing {
-                    "Enter save and test · Esc cancel"
+                    s(Key::SaveTestFooter)
                 } else {
-                    "Enter add and test · Esc back"
+                    s(Key::AddTestFooter)
                 }
             }
             Step::Test => {
@@ -490,20 +486,20 @@ impl Setup {
                     .map(|a| &a.status);
                 match status {
                     Some(AccountStatus::Verified { .. }) => {
-                        lines.push(("Connected.".to_owned(), bold()));
-                        "Enter syncs now · Esc closes"
+                        lines.push((s(Key::ConnectedCap).to_owned(), bold()));
+                        s(Key::SyncCloseFooter)
                     }
                     Some(AccountStatus::Failed { error, .. }) => {
-                        lines.push(("The login failed:".to_owned(), bold()));
-                        lines.push((clean(error), Style::default()));
+                        lines.push((s(Key::LoginFailedCap).to_owned(), bold()));
+                        lines.push((clean(&app_front::i18n::message(error)), Style::default()));
                         if self.existing {
-                            "p another password · k close"
+                            s(Key::PasswordClose)
                         } else {
-                            "p another password · k keep it anyway"
+                            s(Key::PasswordKeep)
                         }
                     }
                     _ => {
-                        lines.push(("Testing the login…".to_owned(), dim()));
+                        lines.push((s(Key::TestingLogin).to_owned(), dim()));
                         ""
                     }
                 }

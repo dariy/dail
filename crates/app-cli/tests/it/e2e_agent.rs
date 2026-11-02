@@ -178,7 +178,7 @@ fn an_agent_triages_the_inbox_and_drafts_a_reply_that_waits_for_approval() {
     );
     assert_eq!(
         refused["structuredContent"]["error"]["error"],
-        "origin_not_allowed"
+        "error_008_origin_not_allowed"
     );
     user_adds_the_account(&profile);
     agent.tool("sync_now", json!({}));
@@ -250,7 +250,7 @@ fn an_agent_triages_the_inbox_and_drafts_a_reply_that_waits_for_approval() {
     assert_eq!(refused["isError"], true);
     assert_eq!(
         refused["structuredContent"]["error"]["error"],
-        "origin_not_allowed"
+        "error_008_origin_not_allowed"
     );
     let pending = agent.tool("list_approvals", json!({}));
     assert_eq!(pending["data"]["approvals"][0]["draft"], draft);

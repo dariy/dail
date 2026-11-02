@@ -36,7 +36,7 @@ class DebugBridgeTest {
     fun execAgentMeetsTheAgentPolicy() {
         val add = """{"cmd":"add_account","args":{"preset":"hostinger","email":"eve@example.com"}}"""
         val answer = call("exec_agent", add)
-        assertTrue(answer, answer.contains("origin_not_allowed"))
+        assertTrue(answer, answer.contains("error_008_origin_not_allowed"))
     }
 
     @Test

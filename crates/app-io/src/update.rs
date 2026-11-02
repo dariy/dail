@@ -17,19 +17,19 @@ pub const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum UpdateError {
     /// No key is built in.
-    #[error("this build trusts no update signing key")]
+    #[error("ERR151: this build trusts no update signing key")]
     NoKey,
     /// The signature file does not parse.
-    #[error("the manifest signature is malformed: {0}")]
+    #[error("ERR152: the manifest signature is malformed: {0}")]
     BadSignatureFile(String),
     /// No trusted key verifies the signature.
-    #[error("the manifest signature does not verify")]
+    #[error("ERR153: the manifest signature does not verify")]
     BadSignature,
     /// The manifest is too large or not the expected JSON.
-    #[error("the manifest is malformed: {0}")]
+    #[error("ERR154: the manifest is malformed: {0}")]
     BadManifest(String),
     /// The trusted comment does not name the manifest's version.
-    #[error("the signature is for {signed}, the manifest says {manifest}")]
+    #[error("ERR155: the signature is for {signed}, the manifest says {manifest}")]
     VersionMismatch {
         /// The version in the trusted comment.
         signed: String,
@@ -37,7 +37,7 @@ pub enum UpdateError {
         manifest: String,
     },
     /// The manifest's version is not newer than the running one.
-    #[error("the manifest's version {manifest} is not newer than {running}")]
+    #[error("ERR156: the manifest's version {manifest} is not newer than {running}")]
     NotNewer {
         /// The manifest's version.
         manifest: String,
@@ -45,7 +45,7 @@ pub enum UpdateError {
         running: String,
     },
     /// The downloaded file has another size.
-    #[error("the download has {got} bytes, the manifest says {want}")]
+    #[error("ERR157: the download has {got} bytes, the manifest says {want}")]
     SizeMismatch {
         /// Bytes received.
         got: u64,
@@ -53,7 +53,7 @@ pub enum UpdateError {
         want: u64,
     },
     /// The downloaded file has another SHA-256.
-    #[error("the download's sha256 does not match the manifest")]
+    #[error("ERR158: the download's sha256 does not match the manifest")]
     HashMismatch,
 }
 

@@ -5,6 +5,7 @@
 //! whenever the open thread or one of its body states changes, and keeps the answer until then.
 //! Everything here is email content: it is only displayed, never interpreted.
 
+use crate::i18n::Key;
 use std::collections::HashMap;
 
 use app_core::document::Document;
@@ -148,7 +149,7 @@ fn parse_body(text: &str, body: &Value) -> Body {
             name: a["filename"]
                 .as_str()
                 .filter(|n| !n.is_empty())
-                .unwrap_or("(unnamed)")
+                .unwrap_or(crate::i18n::s(Key::Unnamed))
                 .to_owned(),
             content_type: a["content_type"].as_str().unwrap_or("").to_owned(),
             size: a["size"].as_u64().unwrap_or(0),
@@ -156,7 +157,10 @@ fn parse_body(text: &str, body: &Value) -> Body {
         .collect();
     Body {
         text: text.to_owned(),
-        source: body["text_source"].as_str().unwrap_or("none").to_owned(),
+        source: body["text_source"]
+            .as_str()
+            .unwrap_or(crate::i18n::s(Key::None))
+            .to_owned(),
         document: body
             .get("document")
             .and_then(|d| serde_json::from_value(d.clone()).ok()),

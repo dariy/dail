@@ -21,9 +21,7 @@ impl DailApp {
     /// An app over a started bridge.
     pub fn new(bridge: Bridge) -> Self {
         let mut shell = Shell::default();
-        shell.set_lang(app_front::i18n::Lang::from_tag(
-            std::env::var("DAIL_LANG").ok().as_deref(),
-        ));
+        shell.set_lang(app_front::i18n::system_lang());
         Self {
             bridge,
             shell,

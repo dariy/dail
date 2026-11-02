@@ -411,7 +411,7 @@ async fn trash_without_a_trash_folder_is_a_structured_error() {
         .unwrap_err();
     assert_eq!(
         serde_json::to_value(&err).unwrap()["error"],
-        "no_mailbox_for_role"
+        "error_007_no_mailbox_for_role"
     );
     session.shutdown().await.unwrap();
 }

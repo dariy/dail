@@ -9,7 +9,7 @@ use crate::error::CoreError;
 use crate::event::{Effect, MailDelta, PersistDelta};
 use crate::ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, MailboxRole, RemoteMailbox, assign_roles};
-use crate::message::{BodyState, Flags, RemoteEnvelope, Thread, UidFlags};
+use crate::message::{BodyState, Flags, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::{AppState, SyncIssue};
 use crate::threading::{Placement, ThreadKey, Threader};
@@ -38,6 +38,7 @@ pub(super) struct ChangedFlags {
     pub to_uid: u32,
     pub flags: Vec<UidFlags>,
     pub existing: Option<Vec<u32>>,
+    pub vanished: Option<Vec<UidRange>>,
     pub highest_modseq: Option<u64>,
 }
 
@@ -512,8 +513,10 @@ impl Engine {
         let mut updated = 0_usize;
         let mut located = 0_usize;
         let mut max_uid: Option<u32> = None;
+        let mut min_uid: Option<u32> = None;
         for remote in fetched.envelopes {
             max_uid = max_uid.max(Some(remote.uid));
+            min_uid = Some(min_uid.map_or(remote.uid, |min| min.min(remote.uid)));
             match self.merge_remote(remote, &mut target, ctx, &mut changes).1 {
                 Merged::Known { updated: true } => updated += 1,
                 Merged::Known { updated: false } => {}
@@ -522,6 +525,14 @@ impl Engine {
             }
         }
         self.keep_threader(account, std::mem::take(&mut target.threader));
+        // The resync also covers what this fetch merged: its mod-sequence counts only if the
+        // resync covered every cached message (`ingest_flags_changed`).
+        let resync_range = resync_range.map(|(from, to)| {
+            (
+                min_uid.map_or(from, |min| min.min(from)),
+                max_uid.map_or(to, |max| max.max(to)),
+            )
+        });
 
         let uid_next = match (fetched.uid_next, max_uid.map(|uid| uid.saturating_add(1))) {
             (Some(server), Some(seen)) => Some(server.max(seen)),
@@ -689,6 +700,13 @@ impl Engine {
 
     /// Applies a flag resync: updates flags of cached UIDs in the range and drops the ones the
     /// server no longer has (expunged). Ignored if UIDVALIDITY changed meanwhile.
+    ///
+    /// The server's mod-sequence is kept for the next resync only if this one covered every
+    /// cached message of the mailbox. An account's effects run in order, so a cached message
+    /// outside the range came from a fetch that ran before this resync's `SELECT` but was merged
+    /// after the resync was emitted: a change between that fetch and the `SELECT` lies below the
+    /// new mod-sequence, and `CHANGEDSINCE` would never report it. The old one stays (that fetch
+    /// ran after the resync it came from); lowering it is always safe.
     pub(super) fn ingest_flags_changed(
         &mut self,
         changed: ChangedFlags,
@@ -709,35 +727,54 @@ impl Engine {
             .iter()
             .map(|entry| (entry.uid, entry.flags))
             .collect();
-        let cached: Vec<(MessageId, u32)> = self
-            .state
-            .messages
-            .values()
-            .filter(|m| {
-                m.mailbox == mailbox_id
-                    && !m.is_placeholder()
-                    && m.uid >= changed.from_uid
-                    && m.uid <= changed.to_uid
-            })
-            .map(|m| (m.id, m.uid))
-            .collect();
+        let mut cached: Vec<(MessageId, u32)> = Vec::new();
+        let mut uncovered = false;
+        for m in self.state.messages.values() {
+            if m.mailbox != mailbox_id || m.is_placeholder() {
+                continue;
+            }
+            if (changed.from_uid..=changed.to_uid).contains(&m.uid) {
+                cached.push((m.id, m.uid));
+            } else {
+                uncovered = true;
+            }
+        }
         let existing: Option<std::collections::BTreeSet<u32>> = changed
             .existing
             .as_ref()
             .map(|uids| uids.iter().copied().collect());
+        let vanished: Option<Vec<UidRange>> = changed
+            .vanished
+            .as_ref()
+            .map(|ranges| UidRange::merged(ranges.iter().copied()));
+        // Whether a cached UID the server did not list still exists: CONDSTORE lists the UIDs
+        // that exist, QRESYNC the ones that vanished; a full listing leaves none unlisted.
+        let unlisted_exists = |uid: u32| match (&existing, &vanished) {
+            (Some(existing), _) => existing.contains(&uid),
+            (None, Some(vanished)) => !UidRange::any_contains(vanished, uid),
+            (None, None) => false,
+        };
         let mut changes = CacheChanges::default();
         let mut updated = 0_usize;
         let mut expunged = 0_usize;
-        if mailbox.highest_modseq != changed.highest_modseq {
+        let highest_modseq = if uncovered {
+            mailbox
+                .highest_modseq
+                .zip(changed.highest_modseq)
+                .map(|(old, new)| old.min(new))
+        } else {
+            changed.highest_modseq
+        };
+        if mailbox.highest_modseq != highest_modseq {
             let mut mailbox = mailbox.clone();
-            mailbox.highest_modseq = changed.highest_modseq;
+            mailbox.highest_modseq = highest_modseq;
             self.state.mailboxes.insert(mailbox_id, mailbox);
             changes.mailboxes.insert(mailbox_id);
         }
         for (id, uid) in cached {
             match current.get(&uid) {
-                // CONDSTORE: unchanged messages are not listed, but they exist.
-                None if existing.as_ref().is_some_and(|e| e.contains(&uid)) => {}
+                // CONDSTORE, QRESYNC: unchanged messages are not listed, but they exist.
+                None if unlisted_exists(uid) => {}
                 Some(flags) => {
                     let flags = self.with_pending_flags(id, *flags);
                     if let Some(envelope) = self.state.messages.get_mut(&id)

@@ -69,6 +69,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -975,7 +976,7 @@ expression: first
       "line": 12,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "path",
           "reason": "must be an absolute file path"
         }

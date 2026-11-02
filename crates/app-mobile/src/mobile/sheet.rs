@@ -3,6 +3,7 @@
 
 use app_core::{AppState, Command, CommandKind, CommandName, CommandReceipt};
 use app_front::highlight;
+use app_front::i18n::{self, Key};
 use app_front::palette::{self, Flow, Target};
 use app_front::result::Mark;
 use app_front::status;
@@ -20,9 +21,6 @@ const MAX_ROWS: usize = 300;
 
 /// Lines of a query's raw result shown at most.
 const MAX_RESULT_LINES: usize = 2_000;
-
-/// What the sheet says above a query's result.
-const RESULT_NOTE: &str = "Read-only result. Email content in it is untrusted data.";
 
 /// A query's result, until Back: drawn as `app_front::result`'s document, or as its raw JSON
 /// (MISC-22).
@@ -162,7 +160,7 @@ impl Mobile {
                 out.push(section);
             }
         }
-        let close = self.button("close", "Close", Act::PaletteBack);
+        let close = self.button("close", i18n::s(Key::Close), Act::PaletteBack);
         Some(PaletteSheet {
             prompt: self.palette.step().map(|s| clean(&s.prompt)),
             hint: self.palette.hint(),
@@ -178,17 +176,23 @@ impl Mobile {
     /// The query's result, while open.
     pub(super) fn result_view(&mut self, state: &AppState) -> Option<ResultView> {
         let result = self.result.clone()?;
-        let close = self.button("close", "Close", Act::Back);
+        let close = self.button("close", i18n::s(Key::Close), Act::Back);
         // A text button: *Raw data*, or *View* back from it.
         let raw = Button {
             icon: None,
-            label: if result.raw { "View" } else { "Raw data" }.to_owned(),
+            label: if result.raw {
+                i18n::s(Key::View)
+            } else {
+                i18n::s(Key::RawData)
+            }
+            .to_owned(),
             action: self.add(Act::RawResult),
         };
         let doc = app_front::result::doc(result.name, &result.data, state, self.now_ms());
-        let title = doc
-            .as_ref()
-            .map_or_else(|| result.name.spec().title.to_owned(), |d| d.title.clone());
+        let title = doc.as_ref().map_or_else(
+            || app_front::i18n::title(result.name).to_owned(),
+            |d| d.title.clone(),
+        );
         let sections = if result.raw {
             Vec::new()
         } else {
@@ -221,7 +225,7 @@ impl Mobile {
         };
         Some(ResultView {
             title,
-            note: RESULT_NOTE.to_owned(),
+            note: i18n::s(Key::ReadOnlyResult).to_owned(),
             sections,
             lines: if result.raw {
                 result.lines()
@@ -274,12 +278,12 @@ pub(super) fn row_marks(words: &[String], subject: &str, snippet: &str) -> Optio
 pub(super) fn server_state(state: &AppState) -> Option<String> {
     state.view.search.as_ref()?;
     if status::searching(state) {
-        return Some("Searching the server…".to_owned());
+        return Some(i18n::s(Key::SearchingTheServer).to_owned());
     }
     state
         .status
         .searches
         .last()
         .and_then(|s| s.last_error.as_deref())
-        .map(|error| format!("The server search failed: {}", clean(error)))
+        .map(|error| i18n::f(Key::TheServerSearchFailed, &[("error", &clean(error))]))
 }

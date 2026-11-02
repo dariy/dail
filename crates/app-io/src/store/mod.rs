@@ -24,10 +24,10 @@ pub use profile::ProfileStore;
 #[derive(Debug, thiserror::Error)]
 pub enum IoError {
     /// The store could not be read or written.
-    #[error("store unavailable: {0}")]
+    #[error("ERR101: store unavailable: {0}")]
     Unavailable(String),
     /// A file or directory could not be read or written.
-    #[error("{path}: {source}")]
+    #[error("ERR102: {path}: {source}")]
     Fs {
         /// The path involved.
         path: String,
@@ -35,7 +35,7 @@ pub enum IoError {
         source: std::io::Error,
     },
     /// `config.toml` is not valid TOML or holds invalid values.
-    #[error("invalid config {path}: {reason}")]
+    #[error("ERR103: invalid config {path}: {reason}")]
     Config {
         /// The config file.
         path: String,
@@ -43,13 +43,15 @@ pub enum IoError {
         reason: String,
     },
     /// The platform has no home/data directory to put profiles in.
-    #[error("no data directory found for profiles (is $HOME set?)")]
+    #[error("ERR104: no data directory found for profiles (is $HOME set?)")]
     NoDataDir,
     /// A profile name contains characters that are not allowed.
-    #[error("invalid profile name `{0}`: use letters, digits, `-` and `_` only")]
+    #[error("ERR105: invalid profile name `{0}`: use letters, digits, `-` and `_` only")]
     InvalidProfile(String),
     /// `state.redb` was written by a newer dail.
-    #[error("{path}: schema version {found} is newer than this dail supports ({supported})")]
+    #[error(
+        "ERR106: {path}: schema version {found} is newer than this dail supports ({supported})"
+    )]
     SchemaTooNew {
         /// The database file.
         path: String,
@@ -59,7 +61,7 @@ pub enum IoError {
         supported: u64,
     },
     /// A blob ID is not a lower-case hex SHA-256.
-    #[error("invalid blob id `{0}`")]
+    #[error("ERR107: invalid blob id `{0}`")]
     InvalidBlobId(String),
 }
 

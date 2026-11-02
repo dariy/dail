@@ -139,6 +139,7 @@ class Host(
             return
         }
         val decoded = contract.decodeFromJsonElement(Answer.serializer(), answer)
+        net.darii.dail.ui.labels = decoded.frame.labels
         lastFrame = answer["frame"].toString()
         decoded.frame.theme?.let { theme = it }
         state.value = Screen.Ready(decoded.frame, theme)
