@@ -43,7 +43,7 @@ pub enum AgentAccess {
     /// Agents run it, but their sends wait for the user's approval (unless the user started
     /// `dail mcp --allow-send`).
     Approval,
-    /// Only the user (GUI, CLI, batch) may run it; agents get `origin_not_allowed`.
+    /// Only the user (GUI, CLI, batch) may run it; agents get `error_008_origin_not_allowed`.
     UserOnly,
 }
 

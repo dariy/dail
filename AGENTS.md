@@ -23,7 +23,7 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
   4. The built-in MCP server (`dail mcp`)
 
   Every surface lists every command. The registry's agent policy (`CommandSpec.agents`, ADR 0002) refuses the few
-  `user_only` commands from MCP with `origin_not_allowed`.
+  `user_only` commands from MCP with `error_008_origin_not_allowed`.
 - **Android exception (ADR 0009).** Android release builds have the palette only: no MCP server, no approvals. The palette must still reach every command (parity walk). Debug builds expose an adb bridge (shell UID only) that submits as `cli` or `mcp`.
 - **Sans-IO core.** `app-core` never touches network, disk, clocks or RNG. It *describes* side effects (`Effect`) and *ingests* their results (`Event`).
 
@@ -150,6 +150,7 @@ pub enum Command {
 - **Kotlin (`android/`).** No rules in Kotlin: it draws frames, returns events and performs host actions. Versions live in the Gradle version catalog, with dependency verification (checksums) and a licence allowlist. The APK carries no native code but `libdail.so`.
 - **Pure-Rust deps.** No C/C++ is compiled or linked at build time, without exception: rustls's crypto comes from `app-tls` (ADR 0003), and `ring` is banned. No `cc` (its remaining parents compile nothing), no `cmake`, `bindgen`, `openssl`, `native-tls`, `aws-lc-*` or `libsqlite3-sys`; `pkg-config` only for crates that load their library at run time (`wayland-sys` and `yeslogic-fontconfig-sys` with `dlopen`, `x11-dl`). `deny.toml` enforces this. A new dependency must be added to `[workspace.dependencies]` first.
 - **Serialization stability.** Command/Event JSON is a public API: agents and replay logs depend on it. Renaming a variant or field needs a `#[serde(alias = ...)]` or an ADR.
+- **Error codes (ADR 0013).** Every `#[error]` message starts with a unique `ERR<code>: ` (a wrapper is `transparent`). A code is never changed or reused.
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 
 ## 6. Verification Loop (Gatekeeper Protocol)

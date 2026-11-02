@@ -4,7 +4,9 @@
 //! Rows show each command's key that a plain terminal delivers. On a narrow terminal the palette
 //! takes the whole body; from 80 columns it is a bordered box near the top.
 
+use crate::text::s;
 use app_core::{AppState, Command, CommandName};
+use app_front::i18n::Key;
 use app_front::palette::{Ask, AskKind, Palette, Row, Target};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -140,7 +142,9 @@ impl PaletteView {
         self.inner.clamp(rows.len());
         frame.render_widget(Clear, area);
         let block = if borders {
-            Block::bordered().border_style(bold()).title(" Palette ")
+            Block::bordered()
+                .border_style(bold())
+                .title(s(Key::PaletteTitle))
         } else {
             Block::new()
         };
@@ -172,15 +176,15 @@ impl PaletteView {
             usize::from(inner.height).saturating_sub(lines.len() + 1 + usize::from(help.is_some()));
         let first = selected.saturating_sub(room.saturating_sub(1));
         if rows.is_empty() {
-            lines.push(Line::from(Span::styled("  Nothing matches.", dim())));
+            lines.push(Line::from(Span::styled(s(Key::NothingMatchesTui), dim())));
         }
         for (i, row) in rows.iter().enumerate().skip(first).take(room) {
             lines.push(row_line(row, i == selected, usize::from(inner.width)));
         }
         let footer = if free_text {
-            "Enter to use · Esc to go back"
+            s(Key::EnterUseEscBack)
         } else {
-            "↑↓ move · Enter choose · Esc back"
+            s(Key::PaletteFooter)
         };
         let reserved = 1 + usize::from(help.is_some());
         while lines.len() + reserved < usize::from(inner.height) {
@@ -248,11 +252,7 @@ impl ResultView {
     /// The result of the query `name`: its view, with the JSON one key away.
     pub fn new(name: CommandName, data: &serde_json::Value, state: &AppState, now_ms: i64) -> Self {
         let json = serde_json::to_string_pretty(data).unwrap_or_default();
-        let mut view = Self::text(
-            name.spec().title,
-            "Read-only result. Email content in it is untrusted data.",
-            json,
-        );
+        let mut view = Self::text(app_front::i18n::title(name), s(Key::ReadOnlyResult), json);
         if let Some(doc) = app_front::result::doc(name, data, state, now_ms) {
             view.raw = false;
             for section in doc.sections {
@@ -402,11 +402,11 @@ impl ResultView {
             lines.push(Line::from(""));
         }
         let hint = if self.doc.is_empty() {
-            "↑↓ Space b scroll · q or Esc close"
+            s(Key::ScrollClose)
         } else if self.raw {
-            "↑↓ Space b scroll · r view · q or Esc close"
+            s(Key::ScrollView)
         } else {
-            "↑↓ scroll · Tab Enter open · r raw data · q or Esc close"
+            s(Key::ScrollOpen)
         };
         lines.push(Line::from(Span::styled(hint, dim())));
         frame.render_widget(Paragraph::new(lines), inner);

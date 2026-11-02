@@ -179,6 +179,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -1150,7 +1151,7 @@ expression: first
       "result": {
         "err": {
           "entity": "mailbox",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0002-0000-000000000009"
         }
       }

@@ -211,6 +211,7 @@ fn the_kept_threading_index_matches_a_fresh_one() {
             to_uid: 22,
             flags: vec![],
             existing: Some(vec![10, 20, 21, 22]),
+            vanished: None,
             highest_modseq: None,
         },
         Event::OlderFetched {

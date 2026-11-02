@@ -53,7 +53,7 @@ struct ListPane: View {
                 }
                 .swipeActions(edge: .trailing) {
                     SwiftUI.Button(role: .destructive) { send(.swipe(row.swipeEnd)) } label: { Image(systemName: "trash") }
-                        .accessibilityLabel("Trash")
+                        .accessibilityLabel(tr("Trash"))
                 }
                 .listRowBackground(
                     row.checked
@@ -62,7 +62,7 @@ struct ListPane: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(row.a11y)
                 .accessibilityAddTraits(.isButton)
-                .accessibilityAction(named: "Select") { send(.longPress(row.longPress)) }
+                .accessibilityAction(named: tr("Select")) { send(.longPress(row.longPress)) }
         } else {
             Text(" ").frame(height: list.density == .compact ? 24 : 56).redacted(reason: .placeholder)
                 .listRowInsets(Self.textInsets)
@@ -112,7 +112,7 @@ struct ThreadRowView: View {
                     Spacer()
                     if row.attachments { Image(systemName: "paperclip").font(.caption) }
                     if row.starred { Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow) }
-                    if row.pinned == true { Image(systemName: "pin.fill").font(.caption).accessibilityLabel("Pinned") }
+                    if row.pinned == true { Image(systemName: "pin.fill").font(.caption).accessibilityLabel(tr("Pinned")) }
                     Text(verbatim: row.date).font(.caption).foregroundStyle(.secondary)
                 }
                 .fontWeight(row.unread ? .semibold : .regular)

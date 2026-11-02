@@ -98,7 +98,7 @@ fn the_agent_policy_is_pinned() {
         );
         if spec.agents == AgentAccess::UserOnly {
             assert!(
-                spec.description().contains("origin_not_allowed"),
+                spec.description().contains("error_008_origin_not_allowed"),
                 "{}: the description tells agents",
                 spec.name
             );

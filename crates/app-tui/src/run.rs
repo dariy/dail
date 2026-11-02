@@ -8,6 +8,8 @@
 //! SIGHUP or SIGTERM (closing the console on Windows) ends the loop like quitting: the bridge
 //! closes and an owned session shuts down, saving unsaved drafts.
 
+use crate::text::{f, s};
+use app_front::i18n::Key;
 use std::io::{self, Stdout, Write as _};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -211,20 +213,23 @@ pub fn event_loop<B: Backend>(
             return Ok(Exit::SessionGone);
         }
         if let Err(err) = terminal.draw(|frame| tui.draw(frame, &state)) {
-            return Ok(Exit::Hangup(format!("the terminal can't be drawn: {err}")));
+            return Ok(Exit::Hangup(f(
+                Key::TerminalCantDraw,
+                &[("error", &err.to_string())],
+            )));
         }
         let first = if tui.wants_tick(&state) {
             match events.recv_timeout(Duration::from_secs(1)) {
                 Ok(event) => Some(event),
                 Err(mpsc::RecvTimeoutError::Timeout) => None,
                 Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    return Ok(Exit::Hangup("input closed".to_owned()));
+                    return Ok(Exit::Hangup(s(Key::InputClosed).to_owned()));
                 }
             }
         } else {
             match events.recv() {
                 Ok(event) => Some(event),
-                Err(_) => return Ok(Exit::Hangup("input closed".to_owned())),
+                Err(_) => return Ok(Exit::Hangup(s(Key::InputClosed).to_owned())),
             }
         };
         let batch: Vec<Event> = first.into_iter().chain(events.try_iter()).collect();
@@ -245,9 +250,11 @@ pub fn event_loop<B: Backend>(
                 }
                 Event::Wake => {}
                 Event::TerminalGone => {
-                    return Ok(Exit::Hangup("the terminal went away".to_owned()));
+                    return Ok(Exit::Hangup(s(Key::TerminalWentAway).to_owned()));
                 }
-                Event::Signal(name) => return Ok(Exit::Hangup(format!("received {name}"))),
+                Event::Signal(name) => {
+                    return Ok(Exit::Hangup(f(Key::ReceivedSignal, &[("name", name)])));
+                }
             }
         }
         match tui.take_external() {
@@ -255,7 +262,10 @@ pub fn event_loop<B: Backend>(
                 let outcome = host.edit(&text);
                 // The editor drew over the screen: draw everything again.
                 if let Err(err) = terminal.clear() {
-                    return Ok(Exit::Hangup(format!("the terminal can't be drawn: {err}")));
+                    return Ok(Exit::Hangup(f(
+                        Key::TerminalCantDraw,
+                        &[("error", &err.to_string())],
+                    )));
                 }
                 for request in tui.edited(draft, outcome, &bridge.state()) {
                     bridge.submit(request.purpose, request.cmd);
@@ -398,6 +408,6 @@ async fn watch_signals(tx: mpsc::Sender<Event>) {
             return;
         };
         close.recv().await;
-        let _ = tx.send(Event::Signal("console close"));
+        let _ = tx.send(Event::Signal(s(Key::ConsoleClose)));
     }
 }

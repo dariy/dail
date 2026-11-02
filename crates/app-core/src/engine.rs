@@ -77,6 +77,11 @@ impl Applied {
 }
 
 impl Engine {
+    /// Leaves the settings page: a navigation command shows its target (MISC-26).
+    fn close_settings(&mut self) {
+        self.state.view.settings = None;
+    }
+
     /// An engine over an existing state (e.g. a snapshot loaded from the store). Ops that were
     /// running when the state was saved are queued again (every remote step is safe to repeat).
     pub fn new(state: AppState) -> Self {
@@ -264,6 +269,7 @@ impl Engine {
                 to_uid,
                 flags,
                 existing,
+                vanished,
                 highest_modseq,
             } => Ok(self.ingest_flags_changed(
                 sync::ChangedFlags {
@@ -274,6 +280,7 @@ impl Engine {
                     to_uid,
                     flags,
                     existing,
+                    vanished,
                     highest_modseq,
                 },
                 ctx,
@@ -676,16 +683,26 @@ impl Engine {
             }
             Command::OpenMailbox { id } => self
                 .open_mailbox(id, ctx.now_ms, receipt)
+                .inspect(|_| self.close_settings())
                 .map(Applied::plain),
-            Command::OpenUnifiedInbox {} => Ok(Applied::plain(self.open_unified_inbox(receipt))),
-            Command::SelectThreads { ids } => self.select_threads(ids, receipt).map(Applied::plain),
+            Command::OpenUnifiedInbox {} => {
+                self.close_settings();
+                Ok(Applied::plain(self.open_unified_inbox(receipt)))
+            }
+            Command::SelectThreads { ids } => self
+                .select_threads(ids, receipt)
+                .inspect(|_| self.close_settings())
+                .map(Applied::plain),
             Command::CheckThreads { ids } => {
                 self.check_threads(ids, true, receipt).map(Applied::plain)
             }
             Command::UncheckThreads { ids } => {
                 self.check_threads(ids, false, receipt).map(Applied::plain)
             }
-            Command::OpenThread { id } => self.open_thread(id, receipt).map(Applied::plain),
+            Command::OpenThread { id } => self
+                .open_thread(id, receipt)
+                .inspect(|_| self.close_settings())
+                .map(Applied::plain),
             Command::CloseThread {} => Ok(Applied::plain(self.close_thread(receipt))),
             Command::ExpandMessages { ids } => {
                 self.set_expanded(ids, true, receipt).map(Applied::plain)
@@ -858,9 +875,10 @@ impl Engine {
                     receipt,
                 )
                 .map(Applied::plain),
-            Command::SetSearch { query } => {
-                self.set_search(query, ctx, receipt).map(Applied::plain)
-            }
+            Command::SetSearch { query } => self
+                .set_search(query, ctx, receipt)
+                .inspect(|_| self.close_settings())
+                .map(Applied::plain),
             Command::ClearSearch {} => Ok(Applied::plain(self.clear_search(receipt))),
             Command::OpenComposer { id } => self.open_composer(id, receipt).map(Applied::plain),
             Command::CloseComposer {} => Ok(Applied::plain(self.close_composer(receipt))),
@@ -1011,7 +1029,7 @@ fn check_origin(cmd: &Command, ctx: &Ctx) -> Result<(), CoreError> {
     Ok(())
 }
 
-/// `not_found` for an `entity` (e.g. `"draft"`) and the ID that was looked up.
+/// `error_004_not_found` for an `entity` (e.g. `"draft"`) and the ID that was looked up.
 fn not_found(entity: &str, id: impl ToString) -> CoreError {
     CoreError::NotFound {
         entity: entity.to_owned(),
@@ -1019,7 +1037,7 @@ fn not_found(entity: &str, id: impl ToString) -> CoreError {
     }
 }
 
-/// `invalid_argument` for `field`, with the reason and the fix.
+/// `error_002_invalid_argument` for `field`, with the reason and the fix.
 fn invalid(field: &str, reason: impl Into<String>) -> CoreError {
     CoreError::InvalidArgument {
         field: field.to_owned(),

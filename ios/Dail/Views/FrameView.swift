@@ -245,11 +245,11 @@ struct ResultPane: View {
         HStack(spacing: 0) {
             Group {
                 if marks.contains("failed") {
-                    Image(systemName: "xmark.circle").foregroundStyle(.red).accessibilityLabel("Failed")
+                    Image(systemName: "xmark.circle").foregroundStyle(.red).accessibilityLabel(tr("Failed"))
                 } else if marks.contains("passed") {
-                    Image(systemName: "checkmark.circle").foregroundStyle(.green).accessibilityLabel("Passed")
+                    Image(systemName: "checkmark.circle").foregroundStyle(.green).accessibilityLabel(tr("Passed"))
                 } else if marks.contains("pending") {
-                    Image(systemName: "clock").accessibilityLabel("Pending")
+                    Image(systemName: "clock").accessibilityLabel(tr("Pending"))
                 } else {
                     Circle().fill(unread ? Color.accentColor : .clear).frame(width: 8, height: 8)
                 }

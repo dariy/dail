@@ -118,6 +118,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -880,7 +881,7 @@ expression: first
       "line": 13,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "ids",
           "reason": "message 00000000-0000-0000-0000-000000000063 is not in the open conversation"
         }
@@ -995,7 +996,7 @@ expression: first
       "result": {
         "err": {
           "entity": "thread",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0000-0000-000000000063"
         }
       }

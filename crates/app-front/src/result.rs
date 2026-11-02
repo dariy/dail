@@ -6,6 +6,7 @@
 //! Email content in a result is untrusted: every string here goes through [`clean`], nothing is
 //! interpreted, and a row's tap is one of dail's own `View` commands.
 
+use crate::i18n::Key;
 use app_core::{
     AccountId, AccountStatus, AppState, Command, CommandKind, CommandName, MailboxId, ThreadId,
 };
@@ -155,7 +156,7 @@ pub fn doc(name: CommandName, data: &Value, state: &AppState, now_ms: i64) -> Op
         Some(View::Fields) | None => grouped(data),
     };
     Some(ResultDoc {
-        title: name.spec().title.to_owned(),
+        title: crate::i18n::title(name).to_owned(),
         sections,
     })
 }
@@ -169,28 +170,45 @@ impl Cx<'_> {
     fn message(&self, m: &Value) -> Vec<Section> {
         let u = &m["untrusted_content"];
         let mut fields = Vec::new();
-        push(&mut fields, "From", addrs(&u["from"]));
-        push(&mut fields, "To", addrs(&u["to"]));
+        push(&mut fields, crate::i18n::s(Key::From), addrs(&u["from"]));
+        push(&mut fields, crate::i18n::s(Key::ToLabel), addrs(&u["to"]));
         push(&mut fields, "Cc", addrs(&u["cc"]));
         push(
             &mut fields,
-            "Date",
+            crate::i18n::s(Key::Date),
             m["date_ms"].as_i64().map(format::long_date),
         );
-        push(&mut fields, "Subject", text(&u["subject"]));
-        push(&mut fields, "Mailbox", self.mailbox(&m["mailbox"]));
-        push(&mut fields, "Size", m["size"].as_u64().map(format::size));
-        push(&mut fields, "Flags", flags(&m["flags"]));
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Subject),
+            text(&u["subject"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Mailbox),
+            self.mailbox(&m["mailbox"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Size),
+            m["size"].as_u64().map(format::size),
+        );
+        push(&mut fields, crate::i18n::s(Key::Flags), flags(&m["flags"]));
         push(&mut fields, "Message-ID", text(&u["message_id"]));
         push(
             &mut fields,
-            "Attachments",
-            m["has_attachments"]
-                .as_bool()
-                .map(|a| if a { "yes" } else { "none" }.to_owned()),
+            crate::i18n::s(Key::Attachments),
+            m["has_attachments"].as_bool().map(|a| {
+                if a {
+                    crate::i18n::s(Key::Yes)
+                } else {
+                    crate::i18n::s(Key::None)
+                }
+                .to_owned()
+            }),
         );
         let open = id::<ThreadId>(&m["thread"]).map(|id| ResultRow {
-            title: "Open conversation".to_owned(),
+            title: crate::i18n::s(Key::OpenConversation).to_owned(),
             detail: None,
             meta: None,
             marks: Vec::new(),
@@ -208,12 +226,12 @@ impl Cx<'_> {
         let mut fields = Vec::new();
         push(
             &mut fields,
-            "Subject",
+            crate::i18n::s(Key::Subject),
             text(&t["untrusted_content"]["subject"]),
         );
         push(
             &mut fields,
-            "Last message",
+            crate::i18n::s(Key::LastMessage),
             t["last_date_ms"].as_i64().map(format::long_date),
         );
         let rows = items(&t["messages"])
@@ -255,11 +273,19 @@ impl Cx<'_> {
         };
         let rows: Vec<ResultRow> = items(threads).map(|t| self.thread_row(t)).collect();
         let mut fields = Vec::new();
-        push(&mut fields, "Mailbox", self.mailbox(&data["mailbox"]));
-        push(&mut fields, "Query", text(&data["query"]));
         push(
             &mut fields,
-            "Threads",
+            crate::i18n::s(Key::Mailbox),
+            self.mailbox(&data["mailbox"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Query),
+            text(&data["query"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Threads),
             data["total"]
                 .as_u64()
                 .map(|n| format::thousands(usize::try_from(n).unwrap_or(usize::MAX))),
@@ -325,9 +351,15 @@ impl Cx<'_> {
             let indent = "  ".repeat(usize::try_from(depth).unwrap_or(0));
             let unread = m["unread"].as_u64().unwrap_or(0);
             let total = m["total"].as_u64().unwrap_or(0);
-            let mut meta = format!("{unread} unread · {total}");
+            let mut meta = crate::i18n::f(
+                Key::UnreadXX,
+                &[
+                    ("unread", &unread.to_string()),
+                    ("total", &total.to_string()),
+                ],
+            );
             if let Some(window) = m["window"].as_u64() {
-                meta.push_str(&format!(" · window {window}"));
+                meta.push_str(&crate::i18n::f(Key::WindowN, &[("n", &window.to_string())]));
             }
             let row = ResultRow {
                 title: format!("{indent}{name}"),
@@ -355,7 +387,7 @@ impl Cx<'_> {
             }
         }
         if sections.is_empty() {
-            return vec![empty("No mailboxes")];
+            return vec![empty(crate::i18n::s(Key::NoMailboxes))];
         }
         sections.into_iter().map(|(_, s)| s).collect()
     }
@@ -380,7 +412,7 @@ impl Cx<'_> {
             })
             .collect();
         if rows.is_empty() {
-            return vec![empty("No contacts")];
+            return vec![empty(crate::i18n::s(Key::NoContacts))];
         }
         vec![Section {
             rows,
@@ -407,7 +439,10 @@ impl Cx<'_> {
                 ResultRow {
                     title,
                     detail: text(&op["last_error"]),
-                    meta: Some(format!("{state} · {attempts} attempts")),
+                    meta: Some(crate::i18n::f(
+                        Key::Attempts,
+                        &[("state", &state), ("n", &attempts.to_string())],
+                    )),
                     marks: if op["last_error"].is_null() {
                         Vec::new()
                     } else {
@@ -418,7 +453,7 @@ impl Cx<'_> {
             })
             .collect();
         if rows.is_empty() {
-            return vec![empty("No pending changes")];
+            return vec![empty(crate::i18n::s(Key::NoPendingChanges))];
         }
         vec![Section {
             rows,
@@ -431,8 +466,9 @@ impl Cx<'_> {
             .map(|a| {
                 let u = &a["message"]["untrusted_content"];
                 ResultRow {
-                    title: text(&u["subject"]).unwrap_or_else(|| "(no subject)".to_owned()),
-                    detail: addrs(&u["to"]).map(|to| format!("To {to}")),
+                    title: text(&u["subject"])
+                        .unwrap_or_else(|| crate::i18n::s(Key::NoSubject).to_owned()),
+                    detail: addrs(&u["to"]).map(|to| crate::i18n::f(Key::ToName, &[("to", &to)])),
                     meta: self.date(&a["requested_ms"]),
                     marks: Vec::new(),
                     command: None,
@@ -440,7 +476,7 @@ impl Cx<'_> {
             })
             .collect();
         if rows.is_empty() {
-            return vec![empty("No send requests")];
+            return vec![empty(crate::i18n::s(Key::NoSendRequestsX))];
         }
         vec![Section {
             rows,
@@ -455,10 +491,15 @@ impl Cx<'_> {
             return grouped(data);
         };
         let (mark, detail) = match &account.status {
-            AccountStatus::Unverified => (Mark::Pending, Some("Testing…".to_owned())),
+            AccountStatus::Unverified => {
+                (Mark::Pending, Some(crate::i18n::s(Key::Testing).to_owned()))
+            }
             AccountStatus::Verified { at_ms } => (
                 Mark::Passed,
-                Some(format!("Signed in {}", format::age(*at_ms, self.now_ms))),
+                Some(crate::i18n::f(
+                    Key::SignedIn,
+                    &[("age", &format::age(*at_ms, self.now_ms))],
+                )),
             ),
             AccountStatus::Failed { error, .. } => (Mark::Failed, Some(clean(error))),
         };
@@ -481,9 +522,21 @@ impl Cx<'_> {
 
     fn discovery(&self, data: &Value) -> Vec<Section> {
         let mut fields = Vec::new();
-        push(&mut fields, "Address", text(&data["email"]));
-        push(&mut fields, "Domain", text(&data["domain"]));
-        push(&mut fields, "Found in", text(&data["source"]));
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Address),
+            text(&data["email"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::Domain),
+            text(&data["domain"]),
+        );
+        push(
+            &mut fields,
+            crate::i18n::s(Key::FoundIn),
+            text(&data["source"]),
+        );
         let server = |name: &str, e: &Value| {
             let host = text(&e["host"])?;
             let port = e["port"].as_u64().unwrap_or(0);
@@ -502,10 +555,10 @@ impl Cx<'_> {
         if rows.is_empty() {
             push(
                 &mut fields,
-                "State",
+                crate::i18n::s(Key::State),
                 text(&data["state"]).map(|s| {
                     if s == "started" {
-                        "Looking…".to_owned()
+                        crate::i18n::s(Key::Looking).to_owned()
                     } else {
                         s
                     }
@@ -537,7 +590,7 @@ impl Cx<'_> {
 fn grouped(data: &Value) -> Vec<Section> {
     let Some(object) = data.as_object() else {
         let mut fields = Vec::new();
-        push(&mut fields, "Value", scalar(data));
+        push(&mut fields, crate::i18n::s(Key::Value), scalar(data));
         return vec![Section {
             fields,
             ..Section::default()
@@ -613,7 +666,14 @@ fn label(key: &str) -> String {
 fn scalar(value: &Value) -> Option<String> {
     match value {
         Value::Null => None,
-        Value::Bool(b) => Some(if *b { "yes" } else { "no" }.to_owned()),
+        Value::Bool(b) => Some(
+            if *b {
+                crate::i18n::s(Key::Yes)
+            } else {
+                crate::i18n::s(Key::No)
+            }
+            .to_owned(),
+        ),
         Value::Number(n) => Some(n.to_string()),
         Value::String(s) => Some(clean(s)),
         Value::Array(list) => Some(
@@ -658,18 +718,18 @@ fn addrs(value: &Value) -> Option<String> {
 fn flags(value: &Value) -> Option<String> {
     let flags = value.as_object()?;
     let on: Vec<&str> = [
-        ("seen", "read"),
-        ("flagged", "starred"),
-        ("answered", "answered"),
-        ("draft", "draft"),
-        ("pinned", "pinned"),
+        ("seen", crate::i18n::s(Key::ReadFlag)),
+        ("flagged", crate::i18n::s(Key::StarredX)),
+        ("answered", crate::i18n::s(Key::AnsweredFlag)),
+        ("draft", crate::i18n::s(Key::DraftX)),
+        ("pinned", crate::i18n::s(Key::PinnedX)),
     ]
     .into_iter()
     .filter(|(k, _)| flags.get(*k).and_then(Value::as_bool) == Some(true))
     .map(|(_, name)| name)
     .collect();
     Some(if on.is_empty() {
-        "unread".to_owned()
+        crate::i18n::s(Key::UnreadX).to_owned()
     } else {
         on.join(", ")
     })

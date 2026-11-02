@@ -1,12 +1,24 @@
 //! Display formatting of dates, addresses and sizes. Dates are shown in UTC: the core has no
 //! time zone data and the front-ends add no dependency for it yet.
 
+use crate::i18n::Key;
 use app_core::Addr;
 use app_core::date::civil_from_days;
 
 const DAY_MS: i64 = 86_400_000;
-const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+const MONTHS: [Key; 12] = [
+    Key::Jan,
+    Key::Feb,
+    Key::Mar,
+    Key::Apr,
+    Key::May,
+    Key::Jun,
+    Key::Jul,
+    Key::Aug,
+    Key::Sep,
+    Key::Oct,
+    Key::Nov,
+    Key::Dec,
 ];
 
 fn hm(ms: i64) -> (i64, i64) {
@@ -17,8 +29,7 @@ fn hm(ms: i64) -> (i64, i64) {
 fn month_name(month: u32) -> &'static str {
     MONTHS
         .get(month.saturating_sub(1) as usize)
-        .copied()
-        .unwrap_or("?")
+        .map_or("?", |&key| crate::i18n::s(key))
 }
 
 /// Short list date: `09:41` today, `Nov 14` this year, `2023-11-14` otherwise.
@@ -37,19 +48,19 @@ pub fn short_date(ms: i64, now_ms: i64) -> String {
     }
 }
 
-const FULL_MONTHS: [&str; 12] = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+const FULL_MONTHS: [Key; 12] = [
+    Key::January,
+    Key::February,
+    Key::March,
+    Key::April,
+    Key::May,
+    Key::June,
+    Key::July,
+    Key::August,
+    Key::September,
+    Key::October,
+    Key::November,
+    Key::December,
 ];
 
 /// The list's date group of a thread dated `ms` (UX-13): `Today`, `Yesterday`, `This week`
@@ -62,20 +73,19 @@ pub fn date_group(ms: i64, now_ms: i64) -> String {
     let (year, month, _) = civil_from_days(day);
     let (this_year, this_month, _) = civil_from_days(today);
     if day > today {
-        "Later".to_owned()
+        crate::i18n::s(Key::Later).to_owned()
     } else if day == today {
-        "Today".to_owned()
+        crate::i18n::s(Key::Today).to_owned()
     } else if day == today - 1 {
-        "Yesterday".to_owned()
+        crate::i18n::s(Key::Yesterday).to_owned()
     } else if day >= today - since_monday {
-        "This week".to_owned()
+        crate::i18n::s(Key::ThisWeek).to_owned()
     } else if (year, month) == (this_year, this_month) {
-        "Earlier this month".to_owned()
+        crate::i18n::s(Key::EarlierThisMonth).to_owned()
     } else {
         let name = FULL_MONTHS
             .get(month.saturating_sub(1) as usize)
-            .copied()
-            .unwrap_or("?");
+            .map_or("?", |&key| crate::i18n::s(key));
         format!("{name} {year}")
     }
 }
@@ -91,10 +101,10 @@ pub fn long_date(ms: i64) -> String {
 pub fn until(at_ms: i64, now_ms: i64) -> String {
     let secs = (at_ms - now_ms).max(0) / 1000;
     match secs {
-        0 => "now".to_owned(),
-        1..60 => format!("in {secs}s"),
-        60..3600 => format!("in {}m", secs / 60),
-        _ => format!("in {}h", secs / 3600),
+        0 => crate::i18n::s(Key::Now).to_owned(),
+        1..60 => crate::i18n::f(Key::InS, &[("n", &secs.to_string())]),
+        60..3600 => crate::i18n::f(Key::InM, &[("n", &(secs / 60).to_string())]),
+        _ => crate::i18n::f(Key::InH, &[("n", &(secs / 3600).to_string())]),
     }
 }
 
@@ -102,10 +112,10 @@ pub fn until(at_ms: i64, now_ms: i64) -> String {
 pub fn age(ms: i64, now_ms: i64) -> String {
     let secs = (now_ms - ms).max(0) / 1000;
     match secs {
-        0..60 => "just now".to_owned(),
-        60..3600 => format!("{}m ago", secs / 60),
-        3600..86_400 => format!("{}h ago", secs / 3600),
-        _ => format!("{}d ago", secs / 86_400),
+        0..60 => crate::i18n::s(Key::JustNow).to_owned(),
+        60..3600 => crate::i18n::f(Key::MAgo, &[("n", &(secs / 60).to_string())]),
+        3600..86_400 => crate::i18n::f(Key::HAgo, &[("n", &(secs / 3600).to_string())]),
+        _ => crate::i18n::f(Key::DAgo, &[("n", &(secs / 86_400).to_string())]),
     }
 }
 

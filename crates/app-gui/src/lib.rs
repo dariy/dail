@@ -40,10 +40,10 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Debug, thiserror::Error)]
 pub enum GuiError {
     /// The window or the graphics context could not be created.
-    #[error("GUI: {0}")]
+    #[error("ERR401: GUI: {0}")]
     Window(String),
     /// The session did not shut down in time.
-    #[error("session did not shut down within {0:?}")]
+    #[error("ERR402: session did not shut down within {0:?}")]
     ShutdownTimeout(Duration),
 }
 

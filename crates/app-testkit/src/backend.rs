@@ -261,6 +261,7 @@ impl MemoryBackend {
                     to_uid,
                     flags,
                     existing: None,
+                    vanished: None,
                     highest_modseq: None,
                 },
                 Err(error) => Event::SyncFailed {

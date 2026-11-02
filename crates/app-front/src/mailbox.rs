@@ -1,5 +1,6 @@
 //! Mailbox labels and the folder tree (UX-2).
 
+use crate::i18n::Key;
 use app_core::{
     AccountId, AppState, FocusTarget, FolderKey, Mailbox, MailboxId, MailboxRole, listing,
 };
@@ -18,16 +19,16 @@ pub fn mailbox_name(mailbox: &Mailbox) -> String {
 }
 
 /// The display name of a role.
-pub const fn role_title(role: MailboxRole) -> &'static str {
+pub fn role_title(role: MailboxRole) -> &'static str {
     match role {
-        MailboxRole::Inbox => "Inbox",
-        MailboxRole::Sent => "Sent",
-        MailboxRole::Drafts => "Drafts",
-        MailboxRole::Trash => "Trash",
-        MailboxRole::Archive => "Archive",
-        MailboxRole::Junk => "Junk",
-        MailboxRole::All => "All Mail",
-        MailboxRole::Flagged => "Starred",
+        MailboxRole::Inbox => crate::i18n::s(Key::Inbox),
+        MailboxRole::Sent => crate::i18n::s(Key::Sent),
+        MailboxRole::Drafts => crate::i18n::s(Key::Drafts),
+        MailboxRole::Trash => crate::i18n::s(Key::Trash),
+        MailboxRole::Archive => crate::i18n::s(Key::Archive),
+        MailboxRole::Junk => crate::i18n::s(Key::Junk),
+        MailboxRole::All => crate::i18n::s(Key::AllMail),
+        MailboxRole::Flagged => crate::i18n::s(Key::Starred),
     }
 }
 

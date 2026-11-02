@@ -20,6 +20,7 @@ expression: first
         "shop@example.net"
       ],
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -79,6 +80,7 @@ expression: first
                       "news@example.org"
                     ],
                     "initial_window": 500,
+                    "language": 0,
                     "list_density": 0,
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
@@ -163,6 +165,7 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "language": 0,
                     "list_density": 0,
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
@@ -222,6 +225,7 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "language": 0,
                     "list_density": 0,
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
@@ -282,6 +286,7 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "language": 0,
                     "list_density": 0,
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
@@ -339,6 +344,7 @@ expression: first
                       "shop@example.net"
                     ],
                     "initial_window": 500,
+                    "language": 0,
                     "list_density": 0,
                     "mark_read_after_ms": 2000,
                     "notifications": 1,
@@ -381,7 +387,7 @@ expression: first
       "line": 8,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "sender",
           "reason": "expected an email address like news@example.org"
         }
@@ -408,6 +414,7 @@ expression: first
                 "shop@example.net"
               ],
               "initial_window": 500,
+              "language": 0,
               "list_density": 0,
               "mark_read_after_ms": 2000,
               "notifications": 1,

@@ -8,6 +8,7 @@
 
 use app_core::{AppState, Command, DraftId, SettingKey, ThreadId, WatchState};
 use app_front::alerts::{AlertKind, alerts};
+use app_front::i18n::{self, Key};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -146,22 +147,22 @@ pub fn notifications(before: &AppState, after: &AppState) -> Vec<Notification> {
                     tag: "new_mail".to_owned(),
                     channel: Channel::NewMail,
                     public_title: if count == 1 {
-                        "New mail".to_owned()
+                        i18n::s(Key::NewMail).to_owned()
                     } else {
-                        format!("New mail in {count} conversations")
+                        i18n::f(Key::NewMailInConversations, &[("n", &count.to_string())])
                     },
                     title: alert.title,
                     body: alert.body,
                     open,
                     actions: vec![
                         NoteAction {
-                            label: "Archive".to_owned(),
+                            label: i18n::s(Key::Archive).to_owned(),
                             act: NoteAct::Archive {
                                 threads: alert.threads.clone(),
                             },
                         },
                         NoteAction {
-                            label: "Mark read".to_owned(),
+                            label: i18n::s(Key::MarkRead).to_owned(),
                             act: NoteAct::MarkRead {
                                 threads: alert.threads,
                             },
@@ -174,7 +175,7 @@ pub fn notifications(before: &AppState, after: &AppState) -> Vec<Notification> {
                     .draft
                     .map_or_else(|| "not_sent".to_owned(), |d| format!("not_sent:{d}")),
                 channel: Channel::NotSent,
-                public_title: "A message was not sent".to_owned(),
+                public_title: i18n::s(Key::AMessageWasNotSent).to_owned(),
                 title: alert.title,
                 body: alert.body,
                 open: alert.draft.map(|draft| NoteAct::OpenDraft { draft }),
@@ -201,15 +202,15 @@ pub fn push_status(before: &AppState, after: &AppState) -> Option<Notification> 
         channel: Channel::Background,
         public_title: text.clone(),
         title: text,
-        body: "New mail arrives as it comes".to_owned(),
+        body: i18n::s(Key::NewMailArrivesAsItComes).to_owned(),
         open: None,
         actions: vec![
             NoteAction {
-                label: "Stop".to_owned(),
+                label: i18n::s(Key::Stop).to_owned(),
                 act: NoteAct::StopPush,
             },
             NoteAction {
-                label: "Battery".to_owned(),
+                label: i18n::s(Key::Battery).to_owned(),
                 act: NoteAct::BatterySettings,
             },
         ],
@@ -227,8 +228,8 @@ fn push_text(state: &AppState) -> Option<String> {
         .filter(|s| s.watch == WatchState::Watching)
         .count();
     Some(match watching {
-        0 => "Connecting to your inboxes".to_owned(),
-        1 => "Watching 1 inbox".to_owned(),
-        n => format!("Watching {n} inboxes"),
+        0 => i18n::s(Key::ConnectingToYourInboxes).to_owned(),
+        1 => i18n::s(Key::Watching1Inbox).to_owned(),
+        n => i18n::f(Key::WatchingInboxes, &[("n", &n.to_string())]),
     })
 }

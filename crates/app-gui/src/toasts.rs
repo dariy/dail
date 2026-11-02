@@ -3,6 +3,7 @@
 //! and shown in the status bar with *Undo*.
 
 use app_core::{AppState, Command, CommandReceipt, CoreError, DraftId};
+use app_front::i18n::Key;
 use app_front::notice::{self, LastAction};
 use egui::{Align2, Vec2};
 
@@ -68,9 +69,9 @@ impl Toasts {
     }
 
     /// The toast for a user command's receipt, if it deserves one.
-    pub fn receipt(&mut self, receipt: &CommandReceipt, now: f64) {
+    pub fn receipt(&mut self, receipt: &CommandReceipt, sending: &str, now: f64) {
         if let Some(id) = self.undo.observe(receipt) {
-            self.push("Sending…", ToastKind::Sending(id), now);
+            self.push(sending, ToastKind::Sending(id), now);
         }
     }
 
@@ -127,7 +128,11 @@ impl Toasts {
                                     false,
                                 );
                                 icon.widget_info(|| {
-                                    egui::WidgetInfo::labeled(egui::Role::Image, true, "Error")
+                                    egui::WidgetInfo::labeled(
+                                        egui::Role::Image,
+                                        true,
+                                        t.s(Key::Error),
+                                    )
                                 });
                                 t.inverse_danger
                             } else {
@@ -137,7 +142,7 @@ impl Toasts {
                             if let ToastKind::Sending(id) = toast.kind {
                                 let button = egui::Button::new(ui::text(
                                     &t.type_scale.body_md,
-                                    "Cancel send",
+                                    t.s(Key::CancelSend),
                                     t.inverse_text,
                                 ))
                                 .fill(egui::Color32::TRANSPARENT)
@@ -152,7 +157,7 @@ impl Toasts {
                                 t,
                                 t.inverse_text,
                                 app_theme::Icon::Close,
-                                "Dismiss",
+                                t.s(Key::Dismiss),
                             )
                             .clicked()
                             {

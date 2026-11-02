@@ -53,7 +53,7 @@ private struct DocumentLoader: View {
                 ZStack(alignment: .bottom) {
                     DocumentView(source: source) { page = $0 }
                     if preview.kind == .pdf {
-                        Text("Page \(page + 1) of \(source.pages.count)")
+                        Text(verbatim: tr("Page {n} of {m}", ["n": String(page + 1), "m": String(source.pages.count)]))
                             .font(.caption)
                             .padding(.horizontal, 12).padding(.vertical, 6)
                             .background(.thinMaterial, in: Capsule())

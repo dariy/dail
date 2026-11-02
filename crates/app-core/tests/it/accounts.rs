@@ -224,7 +224,7 @@ fn duplicate_email_is_already_exists() {
         .unwrap_err();
     assert_eq!(
         serde_json::to_value(&err).unwrap(),
-        json!({"error": "already_exists", "entity": "account", "key": "ME@gmail.com"})
+        json!({"error": "error_005_already_exists", "entity": "account", "key": "ME@gmail.com"})
     );
     assert_eq!(engine.state(), &before);
 }
@@ -326,7 +326,7 @@ fn unknown_account_is_not_found() {
         let err = engine.dispatch(cmd, &ctx()).unwrap_err();
         assert_eq!(
             serde_json::to_value(&err).unwrap(),
-            json!({"error": "not_found", "entity": "account", "id": id.to_string()})
+            json!({"error": "error_004_not_found", "entity": "account", "id": id.to_string()})
         );
     }
 }
@@ -613,7 +613,7 @@ fn remove_account_requires_confirmation_and_is_not_undoable() {
         .unwrap_err();
     assert_eq!(
         serde_json::to_value(&err).unwrap(),
-        json!({"error": "confirmation_required", "command": "remove_account"})
+        json!({"error": "error_006_confirmation_required", "command": "remove_account"})
     );
     assert_eq!(engine.state(), &before);
 

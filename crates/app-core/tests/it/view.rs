@@ -162,6 +162,7 @@ fn view_references_are_pruned_when_threads_vanish() {
         to_uid: 3,
         flags: vec![],
         existing: None,
+        vanished: None,
         highest_modseq: None,
     });
     let view = &m.engine.state().view;
@@ -325,6 +326,28 @@ fn visible_threads_follow_the_open_mailbox_and_the_search() {
         app_core::listing::visible_threads(m.engine.state()).len(),
         2
     );
+}
+
+/// MISC-26: navigation shows its target; a refused one leaves the settings page open.
+#[test]
+fn navigation_closes_the_settings_page() {
+    let mut engine = Engine::default();
+    engine
+        .dispatch(Command::OpenSettings { section: None }, &ctx(1))
+        .unwrap();
+    engine
+        .dispatch(
+            Command::OpenThread {
+                id: serde_json::from_value(json!("00000000-0000-0000-0000-000000000001")).unwrap(),
+            },
+            &ctx(2),
+        )
+        .unwrap_err();
+    assert!(engine.state().view.settings.is_some());
+    engine
+        .dispatch(Command::OpenUnifiedInbox {}, &ctx(3))
+        .unwrap();
+    assert_eq!(engine.state().view.settings, None);
 }
 
 #[test]

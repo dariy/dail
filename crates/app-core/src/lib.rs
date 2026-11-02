@@ -45,7 +45,8 @@ pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId,
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{
-    Addr, BodyState, Envelope, Flags, RemoteEnvelope, SNIPPET_CHARS, Thread, UidFlags, snippet,
+    Addr, BodyState, Envelope, Flags, RemoteEnvelope, SNIPPET_CHARS, Thread, UidFlags, UidRange,
+    snippet,
 };
 pub use ops::{CopyRef, FlagKind, OpState, PendingOp, RemoteOp, RemoteStep};
 pub use receipt::{CommandReceipt, EntityRef, Outcome};

@@ -7,7 +7,7 @@ use app_sync::SubmitResult;
 use serde_json::{Value, json};
 
 /// The JSON document for one result. Rejections look like
-/// `{"ok":false,"name":"undo","error":{"error":"nothing_to_undo"}}`; batch results add `line`.
+/// `{"ok":false,"name":"undo","error":{"error":"error_010_nothing_to_undo"}}`; batch results add `line`.
 pub fn result_json(name: Option<&str>, line: Option<usize>, result: &SubmitResult) -> Value {
     let mut value = match result {
         // reason: a receipt is plain data; serializing it cannot fail.

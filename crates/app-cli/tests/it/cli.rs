@@ -96,7 +96,7 @@ fn exec_rejection_exits_1_with_structured_error() {
     assert_eq!(output.status.code(), Some(1));
     let lines = json_lines(&output);
     assert_eq!(lines[0]["ok"], false);
-    assert_eq!(lines[0]["error"]["error"], "nothing_to_undo");
+    assert_eq!(lines[0]["error"]["error"], "error_010_nothing_to_undo");
 }
 
 #[test]
@@ -121,7 +121,10 @@ fn batch_stops_at_first_failure_unless_keep_going() {
 fn batch_reports_invalid_lines() {
     let output = dail(&["batch", "-", "--backend", "memory"], Some("{oops\n"));
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(json_lines(&output)[0]["error"]["error"], "invalid_command");
+    assert_eq!(
+        json_lines(&output)[0]["error"]["error"],
+        "error_001_invalid_command"
+    );
 }
 
 #[test]
@@ -225,7 +228,7 @@ fn mcp_stdio_lists_and_calls_tools() {
     assert_eq!(redo["isError"], true);
     assert_eq!(
         redo["structuredContent"]["error"]["error"],
-        "nothing_to_redo"
+        "error_011_nothing_to_redo"
     );
 }
 
@@ -373,7 +376,10 @@ fn live_backend_persists_accounts_in_the_profile_config() {
         None,
     );
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(json_lines(&output)[0]["error"]["error"], "already_exists");
+    assert_eq!(
+        json_lines(&output)[0]["error"]["error"],
+        "error_005_already_exists"
+    );
     std::fs::remove_dir_all(dir).unwrap();
 }
 
@@ -546,7 +552,7 @@ fn replay_runs_hand_written_fixtures_and_rejects_bad_logs() {
         .iter()
         .find(|l| l["name"] == "approve_request")
         .unwrap();
-    assert_eq!(refused["error"]["error"], "origin_not_allowed");
+    assert_eq!(refused["error"]["error"], "error_008_origin_not_allowed");
 
     let bad = std::env::temp_dir().join(format!("dail-cli-{}-bad.jsonl", std::process::id()));
     std::fs::write(&bad, "# fine\nnot json\n").unwrap();
