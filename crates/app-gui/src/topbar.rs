@@ -4,7 +4,8 @@
 //! The texts come from the shared status projections (`app_front::status`).
 
 use app_core::{AccountId, AppState, Command, CommandName};
-use app_front::i18n::Lang;
+use app_front::i18n::Key;
+use app_front::i18n::{self, Lang};
 use app_front::status::{self, Fix, problems, sync_text};
 use app_theme::Icon;
 use egui::{Align, Layout, Ui};
@@ -36,14 +37,14 @@ pub fn show(
                 .unwrap_or_else(|| "Ctrl+K".to_owned());
         let width =
             (ui.available_width() * 0.45).clamp(t.m.frame.sidebar, t.m.overlays.palette_width);
-        if ui::search_pill(ui, t, "Search or run a command", &palette_keys, width).clicked() {
+        if ui::search_pill(ui, t, t.s(Key::SearchOrRun), &palette_keys, width).clicked() {
             queue.push(Request::user(Command::OpenPalette {}));
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.md;
             ui.label(ui::text(
                 &t.type_scale.label_sm,
-                "j / k to move",
+                t.s(Key::MoveHint),
                 t.text_muted,
             ));
             password = status_chip(ui, t, state, lang, queue);
@@ -103,8 +104,8 @@ fn sync_state(
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &text));
     let sync_keys = app_front::keymap::KeyState::hint(&state.settings, CommandName::SyncNow);
     let hover = match sync_keys {
-        Some(keys) => format!("Sync now ({keys})"),
-        None => "Sync now".to_owned(),
+        Some(keys) => t.f(Key::SyncNowKeys, &[("keys", &keys)]),
+        None => t.s(Key::SyncNow).to_owned(),
     };
     if response.on_hover_text(hover).clicked() && status::can_sync(state) {
         queue.push(Request::user(Command::SyncNow { account: None }));
@@ -127,7 +128,7 @@ fn chip_text(state: &AppState, lang: Lang) -> Option<(String, bool)> {
         }
     }
     if status::searching(state) {
-        parts.push("searching the server…".to_owned());
+        parts.push(i18n::text(lang, Key::SearchingServer).to_owned());
     }
     (!parts.is_empty()).then(|| (parts.join(" · "), alarming))
 }
@@ -199,8 +200,8 @@ fn details(
                 label.on_hover_text(errors.join("\n"));
             }
             if failed
-                && ui::ghost(ui, t, small("retry".to_owned(), t.text_strong))
-                    .on_hover_text("Retry failed changes")
+                && ui::ghost(ui, t, small(t.s(Key::FixRetry).to_owned(), t.text_strong))
+                    .on_hover_text(t.s(Key::RetryFailed))
                     .clicked()
             {
                 queue.push(Request::user(Command::RetryPendingOps { id: None }));
@@ -208,7 +209,7 @@ fn details(
         });
     }
     if status::searching(state) {
-        ui.label(small("searching the server…".to_owned(), t.text_muted));
+        ui.label(small(t.s(Key::SearchingServer).to_owned(), t.text_muted));
     }
     for problem in problems(state, lang) {
         ui.horizontal(|ui| {
@@ -241,6 +242,6 @@ pub fn undo_offer(ui: &mut Ui, t: &Tokens, label: &str, keys: Option<&str>) -> b
         format!("“{label}”"),
         t.text_secondary,
     ));
-    let button = egui::Button::new(ui::hinted(t, "Undo", keys, t.text_strong)).frame(false);
+    let button = egui::Button::new(ui::hinted(t, t.s(Key::Undo), keys, t.text_strong)).frame(false);
     ui.add(button).clicked()
 }

@@ -4,6 +4,7 @@
 use app_core::{
     AccountId, AppState, Command, CommandName, FolderKey, Mailbox, MailboxRole, Pane, listing,
 };
+use app_front::i18n::Key;
 use app_front::mailbox::FolderNode;
 use app_front::mailbox::mailbox_name;
 use app_theme::Icon;
@@ -99,7 +100,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         |ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.sm;
             let tile = t.m.controls.icon_button;
-            let (rect, _) = ui.allocate_exact_size(Vec2::splat(tile), Sense::hover());
+            let (rect, icon) = ui.allocate_exact_size(Vec2::splat(tile), Sense::click());
             ui.painter()
                 .rect_filled(rect, ui::radius(t.m.radius.md), t.inverse_bg);
             ui::paint_icon(
@@ -110,14 +111,27 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 t.inverse_text,
                 false,
             );
-            ui.label(ui::text(&t.type_scale.headline_md, "dail", t.text_strong));
+            let name = ui.add(
+                egui::Label::new(ui::text(&t.type_scale.headline_md, "dail", t.text_strong))
+                    .sense(Sense::click())
+                    .selectable(false),
+            );
+            // The title is the way to About (MISC-27).
+            let title = icon.union(name);
+            let about = t.s(Key::AboutDail);
+            title.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, about));
+            if title.on_hover_text(about).clicked() {
+                queue.push(Request::user(Command::OpenSettings {
+                    section: Some(app_core::SettingsSection::About),
+                }));
+            }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui::icon_button(
                     ui,
                     t,
                     t.text_secondary,
                     Icon::DockToLeft,
-                    "Collapse sidebar (Ctrl+B)",
+                    t.s(Key::CollapseSidebar),
                 )
                 .clicked()
                 {
@@ -133,7 +147,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             // Full width: the padding centres the label.
             ui.spacing_mut().button_padding.x =
                 (width / 2.0 - t.m.space.xl * 2.0).max(t.m.space.sm);
-            if ui::primary(ui, t, "Compose", Some("C"), true)
+            if ui::primary(ui, t, t.s(Key::Compose), Some("C"), true)
                 && let Some(cmd) = compose(state)
             {
                 queue.push(Request::user(cmd));
@@ -158,11 +172,11 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 app_front::keymap::KeyState::hint(&state.settings, CommandName::OpenSettings);
             let nav = ui::Nav {
                 icon: Icon::Settings,
-                label: "Settings",
+                label: t.s(Key::Settings),
                 trailing: keys.map_or(ui::Trailing::None, ui::Trailing::Keys),
                 open: state.view.settings.is_some(),
                 focused: false,
-                name: "Settings",
+                name: t.s(Key::Settings),
             };
             if ui::nav_row(ui, t, &nav).clicked() {
                 actions.settings = true;
@@ -180,13 +194,13 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     t,
                     ui::icon_text(
                         Icon::ChevronLeft,
-                        "Show all folders",
+                        t.s(Key::ShowAllFolders),
                         ui::font(&t.type_scale.body_md),
                         t.text_secondary,
                     ),
                 );
                 response.widget_info(|| {
-                    egui::WidgetInfo::labeled(egui::Role::Button, true, "Show all folders")
+                    egui::WidgetInfo::labeled(egui::Role::Button, true, t.s(Key::ShowAllFolders))
                 });
                 if response.clicked() {
                     queue.push(Request::user(Command::ClearFocus {}));
@@ -201,7 +215,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     .sum();
                 let row = Row {
                     icon: Icon::AllInbox,
-                    label: "All inboxes",
+                    label: t.s(Key::AllInboxes),
                     unread,
                     keys: None,
                     open: state.view.unified && state.view.search.is_none(),
@@ -215,7 +229,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             let favourites = app_front::mailbox::favourites(state);
             if !favourites.is_empty() {
                 // UX-8: pinned folders above the accounts.
-                ui::caption(ui, t, "Favourites");
+                ui::caption(ui, t, t.s(Key::Favourites));
                 ui.add_space(t.m.space.xs / 2.0);
                 for mailbox in favourites {
                     let label = favourite_label(state, mailbox);
@@ -252,7 +266,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     }
                     let caption = ui::caption(ui, t, &account.display_name);
                     account_state(ui, t, state, account.id);
-                    let name = format!("{} folders", account.display_name);
+                    let name = t.f(Key::FolderList, &[("name", &account.display_name)]);
                     if chevron(ui, t, !account_folded, &name, caption.rect.height()).clicked() {
                         queue.push(Request::user(fold(account_key.clone(), !account_folded)));
                     }
@@ -289,7 +303,7 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                         ui.add_space(indent);
                         if let Some(gutter) = gutter {
                             if node.is_parent() {
-                                let name = format!("{} subfolders", node.label);
+                                let name = t.f(Key::SubfolderList, &[("name", &node.label)]);
                                 if chevron(ui, t, !folded, &name, t.m.rows.nav).clicked() {
                                     queue.push(Request::user(fold(node.key.clone(), !folded)));
                                 }
@@ -329,9 +343,9 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 let hidden = app_front::mailbox::hidden_count(state, account.id);
                 if hidden > 0 && !account_folded {
                     let label = if show_hidden {
-                        "Hide hidden folders".to_owned()
+                        t.s(Key::HideHiddenFolders).to_owned()
                     } else {
-                        format!("Show hidden ({hidden})")
+                        t.f(Key::ShowHidden, &[("n", &hidden.to_string())])
                     };
                     let response = ui::ghost(
                         ui,
@@ -350,20 +364,20 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             if state.accounts.is_empty() {
                 ui.label(ui::text(
                     &t.type_scale.body_md,
-                    "No accounts yet.",
+                    t.s(Key::NoAccountsYet),
                     t.text_secondary,
                 ));
             }
             ui.add_space(t.m.space.xs);
             let job = ui::icon_text(
                 Icon::Add,
-                "Add account",
+                t.s(Key::AddAccount),
                 ui::font(&t.type_scale.body_md),
                 t.text_secondary,
             );
             let response = ui::ghost(ui, t, job);
             response.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::Role::Button, true, "+ Add account")
+                egui::WidgetInfo::labeled(egui::Role::Button, true, t.s(Key::AddAccountPlus))
             });
             if response.clicked() {
                 actions.add_account = true;
@@ -388,14 +402,18 @@ fn account_state(ui: &mut Ui, t: &Tokens, state: &AppState, account: AccountId) 
     match app_front::status::account_state(state, account) {
         AccountState::Idle => {}
         AccountState::Syncing => {
-            ui::status_dot(ui, t, ui::Dot::Busy).on_hover_text("Syncing");
+            ui::status_dot(ui, t, ui::Dot::Busy).on_hover_text(t.s(Key::SyncingNow));
         }
         AccountState::Failed(error) => {
             ui::status_dot(ui, t, ui::Dot::Failed).on_hover_text(error);
         }
         AccountState::Offline { waiting } => {
-            ui.label(ui::text(&t.type_scale.label_sm, "offline", t.text_muted))
-                .on_hover_text(format!("{waiting} change(s) wait for the server"));
+            ui.label(ui::text(
+                &t.type_scale.label_sm,
+                t.s(Key::Offline),
+                t.text_muted,
+            ))
+            .on_hover_text(t.f(Key::ChangesWait, &[("n", &waiting.to_string())]));
         }
     }
 }
@@ -426,9 +444,9 @@ fn chevron(ui: &mut Ui, t: &Tokens, expanded: bool, what: &str, height: f32) -> 
     let side = t.m.controls.icon_sm + t.m.space.xs;
     let (rect, response) = ui.allocate_exact_size(Vec2::new(side, height), Sense::click());
     let label = if expanded {
-        format!("Collapse {what}")
+        t.f(Key::CollapseWhat, &[("what", what)])
     } else {
-        format!("Expand {what}")
+        t.f(Key::ExpandWhat, &[("what", what)])
     };
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, expanded, label.as_str())
@@ -538,18 +556,18 @@ fn mailbox_row(
         let not_inbox = mailbox.role != Some(MailboxRole::Inbox);
         let entries: [(&str, Option<RowOut>); 7] = [
             (
-                "New subfolder…",
+                t.s(Key::NewSubfolder),
                 Some(RowOut::Menu(FolderMenu::NewSubfolder(id))),
             ),
             (
-                "Rename…",
+                t.s(Key::Rename),
                 not_inbox.then_some(RowOut::Menu(FolderMenu::Rename(id))),
             ),
             (
                 if pinned {
-                    "Unpin from Favourites"
+                    t.s(Key::UnpinFavourites)
                 } else {
-                    "Pin to Favourites"
+                    t.s(Key::PinFavourites)
                 },
                 Some(RowOut::Run(if pinned {
                     Command::UnpinMailbox { id }
@@ -558,7 +576,11 @@ fn mailbox_row(
                 })),
             ),
             (
-                if hidden { "Show folder" } else { "Hide folder" },
+                if hidden {
+                    t.s(Key::ShowFolder)
+                } else {
+                    t.s(Key::HideFolder)
+                },
                 Some(RowOut::Run(if hidden {
                     Command::ShowMailbox { id }
                 } else {
@@ -566,18 +588,18 @@ fn mailbox_row(
                 })),
             ),
             (
-                "Focus this mailbox",
+                t.s(Key::FocusMailbox),
                 Some(RowOut::Run(Command::FocusMailbox {
                     id: Some(id),
                     account: None,
                 })),
             ),
             (
-                "Mark all as read",
+                t.s(Key::MarkAllRead),
                 Some(RowOut::Run(Command::MarkMailboxRead { id })),
             ),
             (
-                "Delete…",
+                t.s(Key::Delete),
                 not_inbox.then_some(RowOut::Menu(FolderMenu::Delete(id))),
             ),
         ];
@@ -616,9 +638,12 @@ fn mailbox_row(
                 format!("↓{percent}%"),
                 t.text_muted,
             ))
-            .on_hover_text(format!(
-                "Fetching older mail: {} of {} cached",
-                history.cached, history.wanted
+            .on_hover_text(t.f(
+                Key::FetchingOlder,
+                &[
+                    ("cached", &history.cached.to_string()),
+                    ("wanted", &history.wanted.to_string()),
+                ],
             ));
     }
     out
@@ -636,7 +661,7 @@ pub fn rail(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             t,
             t.text_secondary,
             Icon::DockToLeft,
-            "Expand sidebar (Ctrl+B)",
+            t.s(Key::ExpandSidebar),
         )
         .clicked()
         {
@@ -644,7 +669,7 @@ pub fn rail(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         }
         ui.add_space(t.m.space.sm);
         ui.add_enabled_ui(!state.accounts.is_empty(), |ui| {
-            if ui::icon_button(ui, t, t.text_strong, Icon::Edit, "Compose (C)").clicked()
+            if ui::icon_button(ui, t, t.text_strong, Icon::Edit, t.s(Key::ComposeKey)).clicked()
                 && let Some(cmd) = compose(state)
             {
                 queue.push(Request::user(cmd));
@@ -669,7 +694,7 @@ pub fn rail(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             }
         }
         ui.add_space(t.m.space.sm);
-        if ui::icon_button(ui, t, t.text_secondary, Icon::Settings, "Settings").clicked() {
+        if ui::icon_button(ui, t, t.text_secondary, Icon::Settings, t.s(Key::Settings)).clicked() {
             actions.settings = true;
         }
     });

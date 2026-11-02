@@ -32,6 +32,8 @@ const COMPACT_GRACE: Duration = Duration::from_secs(60 * 60);
 struct CachedSession {
     login: ImapLogin,
     session: ImapSession,
+    /// Whether QRESYNC is enabled on it ([`imap::enable_qresync`]).
+    qresync: bool,
 }
 
 /// Production backend: local store, OS keyring and IMAP/SMTP servers. Keeps one IMAP session
@@ -134,6 +136,7 @@ impl LiveBackend {
                         CachedSession {
                             login: login.clone(),
                             session,
+                            qresync: false,
                         },
                     );
                     return Event::MailboxWatched {
@@ -255,6 +258,16 @@ impl LiveBackend {
             .await
     }
 
+    /// Opens a new session for effects: [`LiveBackend::open_imap`], then QRESYNC if the server
+    /// has it (only possible before the first `SELECT`). Returns whether QRESYNC is on.
+    async fn open_shared(&self, login: &ImapLogin) -> Result<(ImapSession, bool), String> {
+        let mut session = self.open_imap(login).await?;
+        match tokio::time::timeout(OP_TIMEOUT, imap::enable_qresync(&mut session)).await {
+            Ok(qresync) => Ok((session, qresync?)),
+            Err(_) => Err(format!("IMAP {}: timed out", imap::address(&login.server))),
+        }
+    }
+
     /// Runs `op` on the account's cached session (or a new one). A failure on a reused session
     /// is retried once on a fresh connection, since servers drop idle connections. A session
     /// that saw an error is discarded.
@@ -267,35 +280,50 @@ impl LiveBackend {
     where
         F: for<'s> Fn(&'s mut ImapSession) -> BoxFuture<'s, Result<T, String>>,
     {
+        self.with_session(account, login, |session, _| op(session))
+            .await
+    }
+
+    /// [`LiveBackend::with_imap`], with whether QRESYNC is enabled on the session.
+    async fn with_session<T, F>(
+        &self,
+        account: AccountId,
+        login: &ImapLogin,
+        op: F,
+    ) -> Result<T, String>
+    where
+        F: for<'s> Fn(&'s mut ImapSession, bool) -> BoxFuture<'s, Result<T, String>>,
+    {
         let cached = self
             .sessions
             .lock()
             .remove(&account)
             .filter(|cached| cached.login == *login);
         let mut reused = false;
-        let mut session = match cached {
+        let (mut session, mut qresync) = match cached {
             // A cached session may have been dropped by the server meanwhile; a lost connection
             // can look like an empty response, so check it before use.
             Some(mut cached) => match cached.session.noop().await {
                 Ok(()) => {
                     reused = true;
-                    cached.session
+                    (cached.session, cached.qresync)
                 }
                 Err(err) => {
                     tracing::debug!(error = %err, "cached IMAP session is gone; reconnecting");
-                    self.open_imap(login).await?
+                    self.open_shared(login).await?
                 }
             },
-            None => self.open_imap(login).await?,
+            None => self.open_shared(login).await?,
         };
         loop {
-            let error = match tokio::time::timeout(OP_TIMEOUT, op(&mut session)).await {
+            let error = match tokio::time::timeout(OP_TIMEOUT, op(&mut session, qresync)).await {
                 Ok(Ok(value)) => {
                     self.sessions.lock().insert(
                         account,
                         CachedSession {
                             login: login.clone(),
                             session,
+                            qresync,
                         },
                     );
                     return Ok(value);
@@ -308,7 +336,7 @@ impl LiveBackend {
             }
             tracing::debug!(%error, "IMAP operation failed on a reused session; reconnecting");
             reused = false;
-            session = self.open_imap(login).await?;
+            (session, qresync) = self.open_shared(login).await?;
         }
     }
 
@@ -440,10 +468,18 @@ impl LiveBackend {
                 changed_since,
             } => {
                 let fetched = self
-                    .with_imap(account, &imap, move |session| {
+                    .with_session(account, &imap, move |session, qresync| {
                         let path = path.clone();
                         Box::pin(async move {
-                            imap::fetch_flags(session, &path, from_uid, to_uid, changed_since).await
+                            imap::fetch_flags(
+                                session,
+                                &path,
+                                from_uid,
+                                to_uid,
+                                changed_since,
+                                qresync,
+                            )
+                            .await
                         })
                     })
                     .await;
@@ -463,6 +499,7 @@ impl LiveBackend {
                             })
                             .collect(),
                         existing: resynced.existing,
+                        vanished: resynced.vanished,
                         highest_modseq: resynced.highest_modseq,
                     },
                     Err(error) => Event::SyncFailed {

@@ -97,6 +97,7 @@ final class Host: ObservableObject {
             let value = (try? JSONDecoder().decode(JSON.self, from: data)) ?? .string(json)
             return publish(.failed(Self.error(value)))
         }
+        frameLabels = answer.frame.labels ?? [:]
         if let theme = answer.frame.theme { self.theme = theme }
         publish(.ready(answer.frame, theme))
         let externals = answer.externals ?? []

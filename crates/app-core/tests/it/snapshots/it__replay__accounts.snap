@@ -41,6 +41,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -180,7 +181,7 @@ expression: first
       "line": 6,
       "result": {
         "err": {
-          "error": "invalid_argument",
+          "error": "error_002_invalid_argument",
           "field": "imap",
           "reason": "required for the custom preset"
         }
@@ -191,7 +192,7 @@ expression: first
       "result": {
         "err": {
           "entity": "account",
-          "error": "already_exists",
+          "error": "error_005_already_exists",
           "key": "ME@gmail.com"
         }
       }
@@ -616,7 +617,7 @@ expression: first
       "result": {
         "err": {
           "command": "remove_account",
-          "error": "confirmation_required"
+          "error": "error_006_confirmation_required"
         }
       }
     },
@@ -690,7 +691,7 @@ expression: first
       "result": {
         "err": {
           "entity": "account",
-          "error": "not_found",
+          "error": "error_004_not_found",
           "id": "00000000-0000-0004-0000-000000000000"
         }
       }
@@ -700,7 +701,7 @@ expression: first
       "result": {
         "err": {
           "command": "update_account",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp"
         }
       }
@@ -710,7 +711,7 @@ expression: first
       "result": {
         "err": {
           "command": "add_account",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp_allow_send"
         }
       }
@@ -808,7 +809,7 @@ expression: first
       "result": {
         "err": {
           "command": "set_password",
-          "error": "origin_not_allowed",
+          "error": "error_008_origin_not_allowed",
           "origin": "mcp"
         }
       }

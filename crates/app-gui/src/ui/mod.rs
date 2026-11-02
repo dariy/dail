@@ -8,6 +8,7 @@
 pub mod button;
 pub mod gallery;
 
+use app_front::i18n::Key;
 use app_theme::{Icon, TypeToken};
 use egui::text::LayoutJob;
 use egui::{
@@ -186,7 +187,7 @@ fn kbd_in(ui: &mut Ui, t: &Tokens, binding: &str, inverse: bool) -> Response {
             }
             None => {
                 let then = ui.painter().layout_no_wrap(
-                    "then".to_owned(),
+                    t.s(Key::Then).to_owned(),
                     font(&t.type_scale.label_sm),
                     t.text_muted,
                 );

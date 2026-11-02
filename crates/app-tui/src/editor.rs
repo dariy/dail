@@ -7,6 +7,8 @@ use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use app_front::i18n::{self, Key};
+
 /// The editor the user chose: `$VISUAL`, else `$EDITOR` (`None` if neither is set).
 pub fn configured() -> Option<String> {
     ["VISUAL", "EDITOR"]
@@ -92,12 +94,15 @@ pub fn edit(command: &str, text: &str) -> io::Result<Edited> {
     let file = PrivateFile::create(text)?;
     let mut words = command.split_whitespace();
     let Some(program) = words.next() else {
-        return Ok(Edited::Failed("no editor".to_owned()));
+        return Ok(Edited::Failed(i18n::s(Key::NoEditor).to_owned()));
     };
     let status = Command::new(program).args(words).arg(file.path()).status();
     Ok(match status {
         Ok(status) if status.success() => Edited::Text(file.read()?),
-        Ok(status) => Edited::Failed(format!("{program} exited with {status}")),
+        Ok(status) => Edited::Failed(i18n::f(
+            Key::EditorExited,
+            &[("program", program), ("status", &status.to_string())],
+        )),
         Err(err) => Edited::Failed(format!("{program}: {err}")),
     })
 }

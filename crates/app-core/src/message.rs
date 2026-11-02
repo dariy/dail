@@ -42,6 +42,60 @@ pub struct UidFlags {
     pub flags: Flags,
 }
 
+/// The IMAP UIDs `first..=last`, as a QRESYNC `VANISHED` response reports expunged messages.
+/// Kept as a range: a server may report `1:4294967295`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UidRange {
+    /// First UID.
+    pub first: u32,
+    /// Last UID (not below `first`).
+    pub last: u32,
+}
+
+impl UidRange {
+    /// `a..=b` or `b..=a`, whichever is ascending (IMAP reads `5:3` as `3:5`).
+    pub fn new(a: u32, b: u32) -> Self {
+        Self {
+            first: a.min(b),
+            last: a.max(b),
+        }
+    }
+
+    /// Whether `uid` is in the range.
+    pub fn contains(&self, uid: u32) -> bool {
+        (self.first..=self.last).contains(&uid)
+    }
+
+    /// `ranges` sorted and merged: ascending, disjoint and not adjacent. A reversed range counts
+    /// as [`UidRange::new`] reads it.
+    pub fn merged(ranges: impl IntoIterator<Item = UidRange>) -> Vec<UidRange> {
+        let mut sorted: Vec<UidRange> = ranges
+            .into_iter()
+            .map(|range| UidRange::new(range.first, range.last))
+            .collect();
+        sorted.sort_unstable_by_key(|range| range.first);
+        let mut out: Vec<UidRange> = Vec::with_capacity(sorted.len());
+        for range in sorted {
+            match out.last_mut() {
+                Some(last) if range.first <= last.last.saturating_add(1) => {
+                    last.last = last.last.max(range.last);
+                }
+                _ => out.push(range),
+            }
+        }
+        out
+    }
+
+    /// Whether `uid` is in one of `ranges`, which must be [`UidRange::merged`].
+    pub fn any_contains(ranges: &[UidRange], uid: u32) -> bool {
+        let after = ranges.partition_point(|range| range.first <= uid);
+        after
+            .checked_sub(1)
+            .and_then(|at| ranges.get(at))
+            .is_some_and(|range| range.contains(uid))
+    }
+}
+
 /// Whether the message body is in the local store.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]

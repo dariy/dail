@@ -8,6 +8,7 @@ use app_core::{
     AccountStatus, AppState, Command, CommandName, KeyPreset, SettingKey, SettingsSection,
     ThemeMode,
 };
+use app_front::i18n::{self, Key};
 use app_front::text::clean;
 use app_theme::{Appearance, builtin};
 
@@ -16,24 +17,24 @@ use crate::event::{External, SystemScreen};
 use crate::frame::{Button, Choice, SettingRow, SettingsGroup, SettingsPage};
 
 /// The tabs, in order.
-const TABS: [(SettingsSection, &str); 4] = [
-    (SettingsSection::Appearance, "Appearance"),
-    (SettingsSection::Keys, "Keyboard"),
-    (SettingsSection::General, "General"),
-    (SettingsSection::Accounts, "Accounts"),
+const TABS: [(SettingsSection, Key); 4] = [
+    (SettingsSection::Appearance, Key::Appearance),
+    (SettingsSection::Keys, Key::Keyboard),
+    (SettingsSection::General, Key::General),
+    (SettingsSection::Accounts, Key::Accounts),
 ];
 
 /// The values offered for a numeric setting, with their labels.
-fn presets(key: SettingKey) -> &'static [(u64, &'static str)] {
+fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
     match key {
-        SettingKey::UndoSendMs => &[
-            (0, "Off"),
+        SettingKey::UndoSendMs => vec![
+            (0, i18n::s(Key::Off)),
             (5_000, "5 s"),
             (10_000, "10 s"),
             (20_000, "20 s"),
             (30_000, "30 s"),
         ],
-        SettingKey::PollSecs => &[
+        SettingKey::PollSecs => vec![
             (60, "1 min"),
             (120, "2 min"),
             (300, "5 min"),
@@ -41,12 +42,17 @@ fn presets(key: SettingKey) -> &'static [(u64, &'static str)] {
             (3_600, "1 h"),
         ],
         SettingKey::InitialWindow => {
-            &[(200, "200"), (500, "500"), (1_000, "1000"), (5_000, "5000")]
+            vec![(200, "200"), (500, "500"), (1_000, "1000"), (5_000, "5000")]
         }
-        SettingKey::ListDensity => &[(0, "Cozy"), (1, "Compact"), (2, "Preview")],
-        SettingKey::Notifications => &[(0, "Off"), (1, "On")],
-        SettingKey::BackgroundSync => &[(0, "Only while open"), (1, "Periodic"), (2, "Push")],
-        SettingKey::BackgroundIntervalMins => &[
+        SettingKey::Language => vec![
+            (0, i18n::s(Key::System)),
+            (1, "English"),
+            (2, "Français"),
+        ],
+        SettingKey::ListDensity => vec![(0, i18n::s(Key::CozyX)), (1, i18n::s(Key::CompactX)), (2, i18n::s(Key::Preview))],
+        SettingKey::Notifications => vec![(0, i18n::s(Key::Off)), (1, i18n::s(Key::On))],
+        SettingKey::BackgroundSync => vec![(0, i18n::s(Key::OnlyWhileOpen)), (1, i18n::s(Key::Periodic)), (2, i18n::s(Key::Push))],
+        SettingKey::BackgroundIntervalMins => vec![
             (15, "15 min"),
             (30, "30 min"),
             (60, "1 h"),
@@ -62,41 +68,42 @@ fn presets(key: SettingKey) -> &'static [(u64, &'static str)] {
         | SettingKey::MarkReadAfterMs
         | SettingKey::StaleSecs
         | SettingKey::FullSyncSecs
-        | SettingKey::AfterTriage => &[],
+        | SettingKey::AfterTriage => Vec::new(),
     }
 }
 
 /// The label of a setting on the phone.
-const fn label(key: SettingKey) -> &'static str {
+fn label(key: SettingKey) -> &'static str {
     match key {
-        SettingKey::UndoSendMs => "Undo send",
-        SettingKey::PollSecs => "Check the inbox every",
-        SettingKey::InitialWindow => "Messages fetched first",
-        SettingKey::ListDensity => "List density",
-        SettingKey::Notifications => "Notifications",
-        SettingKey::BackgroundSync => "Mail checks in the background",
-        SettingKey::BackgroundIntervalMins => "Check every",
-        SettingKey::HistoryCap => "Undo history",
-        SettingKey::Theme => "Theme",
-        SettingKey::TextScale => "Text size",
-        SettingKey::TuiColors => "Terminal colours",
-        SettingKey::MarkReadAfterMs => "Mark as read after",
-        SettingKey::StaleSecs => "Refresh a mailbox on open after",
-        SettingKey::FullSyncSecs => "Sync every folder every",
-        SettingKey::AfterTriage => "After archiving",
+        SettingKey::UndoSendMs => i18n::s(Key::UndoSend),
+        SettingKey::PollSecs => i18n::s(Key::CheckTheInboxEvery),
+        SettingKey::InitialWindow => i18n::s(Key::MessagesFetchedFirst),
+        SettingKey::Language => i18n::s(Key::LanguageSetting),
+        SettingKey::ListDensity => i18n::s(Key::ListDensity),
+        SettingKey::Notifications => i18n::s(Key::Notifications),
+        SettingKey::BackgroundSync => i18n::s(Key::MailChecksInTheBackground),
+        SettingKey::BackgroundIntervalMins => i18n::s(Key::CheckEvery),
+        SettingKey::HistoryCap => i18n::s(Key::UndoHistory),
+        SettingKey::Theme => i18n::s(Key::Theme),
+        SettingKey::TextScale => i18n::s(Key::TextSize),
+        SettingKey::TuiColors => i18n::s(Key::TerminalColours),
+        SettingKey::MarkReadAfterMs => i18n::s(Key::MarkAsReadAfter),
+        SettingKey::StaleSecs => i18n::s(Key::RefreshAMailboxOnOpenAfter),
+        SettingKey::FullSyncSecs => i18n::s(Key::SyncEveryFolderEvery),
+        SettingKey::AfterTriage => i18n::s(Key::AfterArchiving),
     }
 }
 
-const fn hint(key: SettingKey) -> Option<&'static str> {
+fn hint(key: SettingKey) -> Option<&'static str> {
     match key {
-        SettingKey::UndoSendMs => Some("How long a send can still be cancelled."),
-        SettingKey::PollSecs => Some("While the app is open."),
+        SettingKey::UndoSendMs => Some(i18n::s(Key::HowLongASendCanStillBe)),
+        SettingKey::PollSecs => Some(i18n::s(Key::WhileTheAppIsOpen)),
         SettingKey::BackgroundSync => Some(
             "Periodic checks wait for the phone's maintenance windows. Push keeps a silent \
              notification while it watches the inboxes.",
         ),
-        SettingKey::Notifications => Some("New mail and failed sends, while dail is off screen."),
-        SettingKey::InitialWindow => Some("Per mailbox, on its first sync."),
+        SettingKey::Notifications => Some(i18n::s(Key::NewMailAndFailedSendsWhileDail)),
+        SettingKey::InitialWindow => Some(i18n::s(Key::PerMailboxOnItsFirstSync)),
         _ => None,
     }
 }
@@ -157,12 +164,16 @@ impl Mobile {
 
     /// The settings page, while open.
     pub(super) fn settings_page(&mut self, state: &AppState) -> Option<SettingsPage> {
-        let section = state.view.settings?;
+        // The phones have an About screen of their own (MISC-3): this section is the desktop's.
+        let section = match state.view.settings? {
+            SettingsSection::About => SettingsSection::General,
+            other => other,
+        };
         let tabs = TABS
             .iter()
             .map(|(s, title)| {
                 self.choice(
-                    title,
+                    i18n::s(*title),
                     *s == section,
                     Command::OpenSettings { section: Some(*s) },
                 )
@@ -171,13 +182,13 @@ impl Mobile {
         let groups = match section {
             SettingsSection::Appearance => self.appearance(state),
             SettingsSection::Keys => self.keyboard(state),
-            SettingsSection::General => self.general(state),
+            SettingsSection::General | SettingsSection::About => self.general(state),
             SettingsSection::Accounts => self.accounts(state),
         };
         let name = match section {
             SettingsSection::Appearance => "appearance",
             SettingsSection::Keys => "keys",
-            SettingsSection::General => "general",
+            SettingsSection::General | SettingsSection::About => "general",
             SettingsSection::Accounts => "accounts",
         };
         Some(SettingsPage {
@@ -191,14 +202,14 @@ impl Mobile {
         let mut settings = state.settings.clone();
         settings.migrate_legacy_theme();
         let modes = [
-            (ThemeMode::System, "System", 0),
-            (ThemeMode::Light, "Light", 1),
-            (ThemeMode::Dark, "Dark", 2),
+            (ThemeMode::System, i18n::s(Key::System), 0),
+            (ThemeMode::Light, i18n::s(Key::Light), 1),
+            (ThemeMode::Dark, i18n::s(Key::Dark), 2),
         ];
         let current = modes
             .iter()
             .find(|m| m.2 == settings.theme)
-            .map_or("System", |m| m.1);
+            .map_or(i18n::s(Key::System), |m| m.1);
         let choices = modes
             .iter()
             .map(|(mode, label, value)| {
@@ -214,15 +225,23 @@ impl Mobile {
             })
             .collect();
         let mut rows = vec![SettingRow {
-            label: "Mode".to_owned(),
+            label: i18n::s(Key::Mode).to_owned(),
             value: current.to_owned(),
-            hint: Some("System follows Android's dark theme.".to_owned()),
+            hint: Some(i18n::s(Key::SystemFollowsAndroidSDarkTheme).to_owned()),
             choices,
             actions: Vec::new(),
         }];
         for (appearance, label, chosen) in [
-            (Appearance::Light, "Light theme", &settings.theme_light),
-            (Appearance::Dark, "Dark theme", &settings.theme_dark),
+            (
+                Appearance::Light,
+                i18n::s(Key::LightTheme),
+                &settings.theme_light,
+            ),
+            (
+                Appearance::Dark,
+                i18n::s(Key::DarkTheme),
+                &settings.theme_dark,
+            ),
         ] {
             let themes: Vec<_> = builtin::all()
                 .into_iter()
@@ -259,10 +278,11 @@ impl Mobile {
                 actions: Vec::new(),
             });
         }
+        rows.push(self.setting_row(state, SettingKey::Language));
         rows.push(self.setting_row(state, SettingKey::ListDensity));
         vec![SettingsGroup {
-            title: "Appearance".to_owned(),
-            hint: Some("Text size follows Android's font size.".to_owned()),
+            title: i18n::s(Key::Appearance).to_owned(),
+            hint: Some(i18n::s(Key::TextSizeFollowsAndroidSFontSize).to_owned()),
             rows,
         }]
     }
@@ -273,9 +293,12 @@ impl Mobile {
             .into_iter()
             .map(|(p, label)| self.choice(label, p == preset, Command::SetKeyPreset { preset: p }))
             .collect();
-        let change = self.link("Change a key…", Act::Flow(CommandName::SetKeybinding));
+        let change = self.link(
+            i18n::s(Key::ChangeAKey),
+            Act::Flow(CommandName::SetKeybinding),
+        );
         let top = SettingRow {
-            label: "Keys".to_owned(),
+            label: i18n::s(Key::Keys).to_owned(),
             value: match preset {
                 KeyPreset::Gmail => "Gmail",
                 KeyPreset::Vim => "Vim",
@@ -292,7 +315,7 @@ impl Mobile {
                 continue;
             }
             bound.push(SettingRow {
-                label: name.spec().title.to_owned(),
+                label: app_front::i18n::title(name).to_owned(),
                 value: keys.join(", "),
                 hint: None,
                 choices: Vec::new(),
@@ -301,14 +324,12 @@ impl Mobile {
         }
         vec![
             SettingsGroup {
-                title: "Hardware keyboard".to_owned(),
-                hint: Some(
-                    "For a keyboard on a tablet or a Chromebook: the desktop's keys.".to_owned(),
-                ),
+                title: i18n::s(Key::HardwareKeyboard).to_owned(),
+                hint: Some(i18n::s(Key::ForAKeyboardOnATabletOr).to_owned()),
                 rows: vec![top],
             },
             SettingsGroup {
-                title: "Bindings".to_owned(),
+                title: i18n::s(Key::Bindings).to_owned(),
                 hint: None,
                 rows: bound,
             },
@@ -332,13 +353,16 @@ impl Mobile {
             background.push(self.setting_row(state, SettingKey::BackgroundIntervalMins));
         }
         background.push(self.setting_row(state, SettingKey::Notifications));
-        let battery = self.link("Battery optimization", Act::System(SystemScreen::Battery));
+        let battery = self.link(
+            i18n::s(Key::BatteryOptimization),
+            Act::System(SystemScreen::Battery),
+        );
         let channels = self.link(
-            "Notification settings",
+            i18n::s(Key::NotificationSettings),
             Act::System(SystemScreen::Notifications),
         );
         background.push(SettingRow {
-            label: "System settings".to_owned(),
+            label: i18n::s(Key::SystemSettings).to_owned(),
             value: String::new(),
             hint: Some(
                 "Some phones stop background checks until dail is exempt from battery \
@@ -350,12 +374,12 @@ impl Mobile {
         });
         vec![
             SettingsGroup {
-                title: "General".to_owned(),
+                title: i18n::s(Key::General).to_owned(),
                 hint: None,
                 rows: general,
             },
             SettingsGroup {
-                title: "Background & notifications".to_owned(),
+                title: i18n::s(Key::BackgroundNotifications).to_owned(),
                 hint: None,
                 rows: background,
             },
@@ -367,14 +391,16 @@ impl Mobile {
         for account in state.accounts.values() {
             let id = account.id;
             let value = match &account.status {
-                AccountStatus::Unverified => "Not tested".to_owned(),
-                AccountStatus::Verified { .. } => "Connected".to_owned(),
-                AccountStatus::Failed { error, .. } => clean(&format!("Failed: {error}")),
+                AccountStatus::Unverified => i18n::s(Key::NotTestedX).to_owned(),
+                AccountStatus::Verified { .. } => i18n::s(Key::ConnectedX).to_owned(),
+                AccountStatus::Failed { error, .. } => {
+                    clean(&i18n::f(Key::Failed, &[("error", error)]))
+                }
             };
             let actions = vec![
-                self.link("Test", Act::Run(Command::TestAccount { id })),
-                self.link("Password", Act::Reenter(id)),
-                self.link("Remove", Act::RemoveAccount(id)),
+                self.link(i18n::s(Key::Test), Act::Run(Command::TestAccount { id })),
+                self.link(i18n::s(Key::Password), Act::Reenter(id)),
+                self.link(i18n::s(Key::Remove), Act::RemoveAccount(id)),
             ];
             rows.push(SettingRow {
                 label: clean(&account.email),
@@ -384,16 +410,19 @@ impl Mobile {
                 actions,
             });
         }
-        let add = self.link("Add an account", Act::Setup(super::setup::SetupAct::Open));
+        let add = self.link(
+            i18n::s(Key::AddAnAccount),
+            Act::Setup(super::setup::SetupAct::Open),
+        );
         rows.push(SettingRow {
-            label: "Another account".to_owned(),
+            label: i18n::s(Key::AnotherAccount).to_owned(),
             value: String::new(),
-            hint: Some("Gmail, Hostinger Mail or any IMAP and SMTP server.".to_owned()),
+            hint: Some(i18n::s(Key::GmailHostingerMailOrAnyIMAPAnd).to_owned()),
             choices: Vec::new(),
             actions: vec![add],
         });
         vec![SettingsGroup {
-            title: "Accounts".to_owned(),
+            title: i18n::s(Key::Accounts).to_owned(),
             hint: None,
             rows,
         }]

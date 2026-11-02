@@ -4,6 +4,7 @@
 use std::collections::BTreeMap;
 
 use app_core::Settings;
+use app_front::i18n::Key;
 use app_theme::{Icon, Rgba, Surface, Theme, TypeToken, builtin, fonts, icon};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -152,7 +153,10 @@ pub fn frame_theme(theme: &Theme) -> FrameTheme {
 
 /// The About screen's title, with the running version: `About dail (0.1.0)`.
 pub fn about_title() -> String {
-    format!("About dail ({})", env!("CARGO_PKG_VERSION"))
+    app_front::i18n::f(
+        Key::AboutDailVersion,
+        &[("version", env!("CARGO_PKG_VERSION"))],
+    )
 }
 
 /// The About screen.
@@ -170,29 +174,27 @@ pub fn about() -> About {
     });
     // Written by `cargo xtask android licences`; `android check` fails when they are stale.
     licences.push(Licence {
-        name: "Rust crates".to_owned(),
+        name: app_front::i18n::s(Key::RustCrates).to_owned(),
         text: include_str!("../licences/rust-crates.txt").to_owned(),
     });
     licences.push(Licence {
-        name: "Android libraries".to_owned(),
+        name: app_front::i18n::s(Key::AndroidLibraries).to_owned(),
         text: include_str!("../licences/android-libraries.txt").to_owned(),
     });
     licences.push(Licence {
-        name: "PDF fonts and CMaps".to_owned(),
+        name: app_front::i18n::s(Key::PdfFontsAndCmaps).to_owned(),
         text: include_str!("../licences/pdf-assets.txt").to_owned(),
     });
     licences.push(Licence {
-        name: "PdfCraft for Android (adapted viewer)".to_owned(),
+        name: app_front::i18n::s(Key::PdfCraftViewer).to_owned(),
         text: include_str!("../licences/pdfcraft-viewer.txt").to_owned(),
     });
     About {
         title: about_title(),
         // The phone has no MCP server and no keyboard-first use: neither is said here (MISC-13).
-        text: format!(
-            "Email client for IMAP and SMTP accounts ({}). The app bundles these typefaces, \
-             icons, PDF fonts, Rust crates and Android libraries under their licences (SPDX identifiers: \
-             name, version, licence).",
-            env!("CARGO_PKG_LICENSE")
+        text: app_front::i18n::f(
+            Key::AboutMobileText,
+            &[("licence", env!("CARGO_PKG_LICENSE"))],
         ),
         licences,
     }

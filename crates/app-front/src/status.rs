@@ -5,7 +5,7 @@
 use app_core::{AccountId, AccountStatus, AppState, OpState, ProviderPreset};
 
 use crate::format;
-use crate::i18n::{Key, Lang, tr};
+use crate::i18n::{self, Key, Lang, tr};
 
 /// One problem to show.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,7 +144,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     if let Some(error) = &state.status.persist_error {
         out.push(Problem {
             text: tr(lang, Key::StoreFailed, &[]),
-            detail: error.clone(),
+            detail: i18n::message_in(lang, error),
             hint: None,
             fix: None,
         });
@@ -152,7 +152,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     if let Some(error) = &state.status.keyring_error {
         out.push(Problem {
             text: tr(lang, Key::KeyringFailed, &[]),
-            detail: error.clone(),
+            detail: i18n::message_in(lang, error),
             hint: Some(tr(lang, Key::KeyringHint, &[])),
             fix: None,
         });
@@ -166,7 +166,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
             };
             out.push(Problem {
                 text: tr(lang, Key::LoginFailed, &[("email", &account.email)]),
-                detail: error.clone(),
+                detail: i18n::message_in(lang, error),
                 hint: hint(cause, account.preset, lang),
                 fix: Some(fix),
             });
@@ -175,7 +175,8 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     for (id, sync) in &state.status.sync {
         if let Some(issue) = &sync.last_error {
             let account = state.accounts.get(id);
-            let email = account.map_or("account", |a| a.email.as_str());
+            let email =
+                account.map_or(crate::i18n::text(lang, Key::AccountX), |a| a.email.as_str());
             let preset = account.map_or(ProviderPreset::Custom, |a| a.preset);
             let cause = cause(&issue.error);
             let fix = if cause == Cause::Password {
@@ -185,7 +186,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
             };
             out.push(Problem {
                 text: tr(lang, Key::SyncFailed, &[("email", email)]),
-                detail: issue.error.clone(),
+                detail: i18n::message_in(lang, &issue.error),
                 hint: hint(cause, preset, lang),
                 fix: Some(fix),
             });
@@ -258,7 +259,7 @@ pub fn pending_errors(state: &AppState) -> Vec<String> {
     state
         .outbox
         .values()
-        .filter_map(|op| op.last_error.clone())
+        .filter_map(|op| op.last_error.as_deref().map(i18n::message))
         .collect()
 }
 
@@ -293,11 +294,11 @@ pub fn account_state(state: &AppState, account: AccountId) -> AccountState {
     if let Some(AccountStatus::Failed { error, .. }) =
         state.accounts.get(&account).map(|a| &a.status)
     {
-        return AccountState::Failed(crate::text::clean(error));
+        return AccountState::Failed(crate::text::clean(&i18n::message(error)));
     }
     let sync = state.status.sync.get(&account);
     if let Some(issue) = sync.and_then(|s| s.last_error.as_ref().or(s.folder_error.as_ref())) {
-        return AccountState::Failed(crate::text::clean(&issue.error));
+        return AccountState::Failed(crate::text::clean(&i18n::message(&issue.error)));
     }
     if sync.is_some_and(app_core::SyncStatus::is_syncing) {
         return AccountState::Syncing;

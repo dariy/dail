@@ -6,6 +6,7 @@ mod advance;
 mod alerts;
 mod autoread;
 mod body;
+mod i18n_engine;
 mod keys;
 mod palette;
 mod result;

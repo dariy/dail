@@ -2,7 +2,9 @@
 //! Only the terminal's own colours: default foreground and background, bold, dim and reverse.
 //! Email text goes through [`text::clean`](crate::text::clean).
 
+use crate::text::{f, s};
 use app_core::{AppState, ThreadSummary};
+use app_front::i18n::Key;
 use app_front::{format, mailbox::mailbox_name};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Rect};
@@ -31,7 +33,7 @@ pub fn reverse() -> Style {
 /// The notice below 40×12.
 pub fn too_small(frame: &mut Frame, area: Rect) {
     let text = vec![
-        Line::from("Terminal too small"),
+        Line::from(s(Key::TerminalTooSmall)),
         Line::from(format!("{}×{} needed", MIN_WIDTH, MIN_HEIGHT)),
     ];
     frame.render_widget(Paragraph::new(text).alignment(Alignment::Center), area);
@@ -40,42 +42,45 @@ pub fn too_small(frame: &mut Frame, area: Rect) {
 /// The title of a slot (in its border, or in the header line on one pane).
 pub fn slot_title(slot: Slot, state: &AppState) -> String {
     match slot {
-        Slot::Mailboxes => "Mailboxes".to_owned(),
+        Slot::Mailboxes => s(Key::Mailboxes).to_owned(),
         Slot::List => list_title(state),
-        Slot::Reader => "Message".to_owned(),
-        Slot::Composer => "Draft".to_owned(),
+        Slot::Reader => s(Key::Message).to_owned(),
+        Slot::Composer => s(Key::Draft).to_owned(),
     }
 }
 
 /// The list's title: the search, or the open mailbox.
 pub fn list_title(state: &AppState) -> String {
     if let Some(search) = &state.view.search {
-        return format!("Search: {}", clean(search));
+        return f(Key::SearchTitle, &[("query", &clean(search))]);
     }
     if state.view.unified {
-        return "All inboxes".to_owned();
+        return s(Key::AllInboxes).to_owned();
     }
     let title = state
         .view
         .mailbox
         .and_then(|id| state.mailboxes.get(&id))
-        .map_or_else(|| "Conversations".to_owned(), mailbox_name);
+        .map_or_else(|| s(Key::Conversations).to_owned(), mailbox_name);
     let mut title = if state.view.focused.is_some() {
-        format!("{title} · Focus")
+        f(Key::TitleFocus, &[("title", &title)])
     } else {
         title
     };
     let filter = state.view.filter;
     let only: Vec<&str> = [
-        (filter.unread, "unread"),
-        (filter.starred, "starred"),
-        (filter.attachments, "attachments"),
+        (filter.unread, s(Key::UnreadX)),
+        (filter.starred, s(Key::StarredX)),
+        (filter.attachments, s(Key::AttachmentsX)),
     ]
     .into_iter()
     .filter_map(|(on, name)| on.then_some(name))
     .collect();
     if !only.is_empty() {
-        title = format!("{title} · only {}", only.join(", "));
+        title = f(
+            Key::TitleOnly,
+            &[("title", &title), ("only", &only.join(", "))],
+        );
     }
     title
 }
@@ -114,15 +119,12 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
     let mut lines = Vec::new();
     if state.view.focused.is_some() {
         // Focus mode (UX-4): `Exit focus` in the palette shows every folder again.
-        lines.push((
-            Line::from(Span::styled("Focus · palette: Exit focus", dim())),
-            None,
-        ));
+        lines.push((Line::from(Span::styled(s(Key::FocusFooter), dim())), None));
     }
     let favourites = app_front::mailbox::favourites(state);
     if !favourites.is_empty() {
         // UX-8: pinned folders first.
-        lines.push((Line::from(Span::styled("Favourites", bold())), None));
+        lines.push((Line::from(Span::styled(s(Key::Favourites), bold())), None));
         for mailbox in favourites {
             let open = state.view.mailbox == Some(mailbox.id) && state.view.search.is_none();
             let mut spans = vec![
@@ -154,7 +156,7 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
             app_front::status::AccountState::Syncing => name.push(Span::raw(" ⟳")),
             app_front::status::AccountState::Failed(_) => name.push(Span::styled(" ⚠", bold())),
             app_front::status::AccountState::Offline { .. } => {
-                name.push(Span::styled(" offline", dim()));
+                name.push(Span::styled(s(Key::OfflineSuffix), dim()));
             }
         }
         let name = Line::from(name);
@@ -231,9 +233,9 @@ pub fn thread_row(
     let sender = summary
         .senders
         .first()
-        .map_or_else(|| "(no sender)".to_owned(), |a| clean(format::name(a)));
+        .map_or_else(|| s(Key::NoSender).to_owned(), |a| clean(format::name(a)));
     let subject = match summary.thread.subject.trim() {
-        "" => "(no subject)".to_owned(),
+        "" => s(Key::NoSubject).to_owned(),
         s => clean(s),
     };
     // MISC-4: pinned threads (at the top) say so before the subject.
@@ -306,7 +308,7 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
     }
     let mut segments: Vec<(String, Style)> = Vec::new();
     if let Some(sending) = &parts.sending {
-        segments.push((format!("{sending} · z cancels"), bold()));
+        segments.push((f(Key::SendingCancel, &[("sending", sending)]), bold()));
     }
     if let Some(notice) = parts.notice {
         segments.push((clean(notice), bold()));
@@ -315,20 +317,20 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
     if let Some(first) = problems.first() {
         let more = match problems.len() {
             1 => String::new(),
-            n => format!(" (+{} more, ? for details)", n - 1),
+            n => f(Key::MoreDetails, &[("n", &(n - 1).to_string())]),
         };
         // The fix is in the palette (no buttons in a status line).
         let fix = match first.fix {
-            Some(status::Fix::Password(_)) => " (palette: Change account password)",
-            Some(status::Fix::Retry(_)) => " (palette: Sync now)",
-            Some(status::Fix::Test(_)) => " (palette: Test account connection)",
+            Some(status::Fix::Password(_)) => s(Key::FixPalettePassword),
+            Some(status::Fix::Retry(_)) => s(Key::FixPaletteSync),
+            Some(status::Fix::Test(_)) => s(Key::FixPaletteTest),
             None => "",
         };
         segments.push((format!("{}{fix}{more}", clean(&first.text)), bold()));
     }
     if let Some((text, failed)) = status::pending_text(state, parts.lang) {
         let text = if failed {
-            format!("{text} (retry: palette)")
+            f(Key::RetryPalette, &[("text", &text)])
         } else {
             text
         };
@@ -336,20 +338,20 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
     }
     // While a send counts down, `z` cancels it: the countdown says so.
     if let Some(label) = parts.undo.filter(|_| parts.sending.is_none()) {
-        segments.push((format!("“{}” z undo", clean(label)), Style::default()));
-    }
-    // Wave 7 F1/F3: a waiting update, or the unanswered question about checks.
-    if let Some(badge) = app_front::updates::badge(state) {
-        segments.push((format!("{badge} (settings)"), bold()));
-    } else if app_front::updates::ask_first_run(state) {
         segments.push((
-            "Check for updates? (settings: update_checks)".to_owned(),
+            f(Key::UndoLabel, &[("label", &clean(label))]),
             Style::default(),
         ));
     }
+    // Wave 7 F1/F3: a waiting update, or the unanswered question about checks.
+    if let Some(badge) = app_front::updates::badge(state) {
+        segments.push((f(Key::BadgeSettings, &[("badge", &badge)]), bold()));
+    } else if app_front::updates::ask_first_run(state) {
+        segments.push((s(Key::UpdatesQuestion).to_owned(), Style::default()));
+    }
     segments.push((status::sync_text(state, now_ms, parts.lang), dim()));
     if status::searching(state) {
-        segments.push(("searching the server…".to_owned(), dim()));
+        segments.push((s(Key::SearchingServer).to_owned(), dim()));
     }
     let width = usize::from(width);
     let mut used = 0;
@@ -370,7 +372,7 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
         used += w;
         spans.push(Span::styled(text, style));
     }
-    let help = "? help";
+    let help = s(Key::HelpHint);
     if used + help.len() + 2 <= width {
         spans.push(Span::raw(" ".repeat(width - used - help.len())));
         spans.push(Span::styled(help, dim()));

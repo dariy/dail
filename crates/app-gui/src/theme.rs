@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use app_front::i18n::{self, Key, Lang};
 use app_theme::fonts::{self, WEIGHTS};
 use app_theme::icon::{ICON_FAMILY, ICON_FONT};
 use app_theme::{Face, Icon, Metrics, Rgba, Surface, Theme, TypeScale, TypeToken, builtin};
@@ -76,6 +77,8 @@ impl Roles {
 /// tags, the metrics and the type scale of one theme.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tokens {
+    /// The language of the labels; the frame's tokens carry it to every widget.
+    pub lang: Lang,
     /// The theme's ID (`dail-dark`).
     pub id: String,
     /// List, reader, composer, dialogs.
@@ -101,6 +104,7 @@ impl Tokens {
     /// The tokens of `theme`.
     pub fn of(theme: &Theme) -> Self {
         Self {
+            lang: Lang::default(),
             id: theme.id.to_string(),
             content: Roles::of(&theme.content),
             chrome_roles: Roles::of(&theme.chrome),
@@ -158,6 +162,18 @@ fn installed_id() -> egui::Id {
 }
 
 /// The tokens in effect for `ctx`.
+impl Tokens {
+    /// The label `key`.
+    pub fn s(&self, key: Key) -> &'static str {
+        i18n::text(self.lang, key)
+    }
+
+    /// The label `key` with its placeholders filled.
+    pub fn f(&self, key: Key, args: &[(&str, &str)]) -> String {
+        i18n::tr(self.lang, key, args)
+    }
+}
+
 pub fn tokens(ctx: &egui::Context) -> Tokens {
     let dark = ctx.global_style().visuals.dark_mode;
     ctx.data(|d| d.get_temp::<Installed>(installed_id()))

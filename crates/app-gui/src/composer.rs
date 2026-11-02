@@ -7,6 +7,7 @@
 //! pressing Enter (or a comma) adds one. Attachments come from the native file dialog (`rfd`,
 //! run on its own thread so the UI never blocks).
 
+use app_front::i18n::Key;
 use std::sync::mpsc;
 
 use app_core::{Addr, AppState, AttachmentState, Command, Draft, DraftId, Pane, listing};
@@ -114,11 +115,11 @@ impl ComposerState {
                 let title = compose::title(draft);
                 ui.label(ui::text(&t.type_scale.headline_md, title, t.text_strong));
                 if let Some(error) = &draft.save_error {
-                    ui::badge(ui, t, "NOT SAVED", ui::Badge::Outline)
-                        .on_hover_text(format!("Draft save failed: {error}"));
+                    ui::badge(ui, t, t.s(Key::NotSaved), ui::Badge::Outline)
+                        .on_hover_text(t.f(Key::DraftSaveFailed, &[("error", error)]));
                     ui.label(ui::text(
                         &t.type_scale.label_sm,
-                        format!("Draft save failed: {error}"),
+                        t.f(Key::DraftSaveFailed, &[("error", error)]),
                         t.danger,
                     ));
                 } else {
@@ -126,7 +127,7 @@ impl ComposerState {
                     ui.label(ui::text(&t.type_scale.label_sm, status, t.text_muted));
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui::icon_button(ui, t, t.text_secondary, Icon::Close, "Close (Esc)")
+                    if ui::icon_button(ui, t, t.text_secondary, Icon::Close, t.s(Key::CloseEsc))
                         .clicked()
                     {
                         self.flush(state, queue);
@@ -149,7 +150,7 @@ impl ComposerState {
             ui.add_space(t.m.space.sm);
             ui.label(ui::text(
                 &t.type_scale.body_md,
-                format!("Not sent: {error}"),
+                t.f(Key::NotSent, &[("error", error)]),
                 t.danger,
             ));
             if let Some(hint) = app_front::status::send_hint(state, draft.account, error, self.lang)
@@ -165,7 +166,7 @@ impl ComposerState {
                 |from| from.email.clone(),
             );
             ui.horizontal(|ui| {
-                let label = field_label(ui, t, "From");
+                let label = field_label(ui, t, t.s(Key::From));
                 let aliases: Vec<String> = account
                     .map(|a| {
                         std::iter::once(a.email.clone())
@@ -200,7 +201,7 @@ impl ComposerState {
                 }
                 if !self.show_cc {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let cc = ui::text(&t.type_scale.label_md, "Cc/Bcc", t.text_muted);
+                        let cc = ui::text(&t.type_scale.label_md, t.s(Key::CcBcc), t.text_muted);
                         if ui::ghost(ui, t, cc).clicked() {
                             self.show_cc = true;
                         }
@@ -216,11 +217,11 @@ impl ComposerState {
                 ui::divider(ui, t);
             }
             ui.horizontal(|ui| {
-                let label = field_label(ui, t, "Subject");
+                let label = field_label(ui, t, t.s(Key::Subject));
                 let edit = egui::TextEdit::singleline(&mut self.subject)
                     .font(ui::font(&t.type_scale.body_md))
                     .frame(egui::Frame::NONE)
-                    .hint_text("Subject")
+                    .hint_text(t.s(Key::Subject))
                     .desired_width(f32::INFINITY);
                 let response = ui.add(edit).labelled_by(label.id);
                 if response.has_focus() {
@@ -246,7 +247,7 @@ impl ComposerState {
                     let edit = egui::TextEdit::multiline(&mut self.body)
                         .font(ui::font(&t.type_scale.body_lg))
                         .frame(egui::Frame::NONE)
-                        .hint_text("Write your message…")
+                        .hint_text(t.s(Key::WriteMessage))
                         .desired_width(f32::INFINITY)
                         .desired_rows(12);
                     let response = ui.add(edit);
@@ -267,7 +268,7 @@ impl ComposerState {
                             &quote.header,
                             t.text_secondary,
                         ));
-                        ui::caption(ui, t, "The original is added below when sent");
+                        ui::caption(ui, t, t.s(Key::OriginalBelow));
                     }
                 });
         });
@@ -279,27 +280,33 @@ impl ComposerState {
             if locked {
                 if draft.send_at.is_some()
                     && !draft.sending
-                    && ui::primary(ui, t, "Cancel send", None, true)
+                    && ui::primary(ui, t, t.s(Key::CancelSend), None, true)
                 {
                     queue.push(Request::user(Command::CancelSend { id: draft.id }));
                 }
                 return;
             }
             ui.add_enabled_ui(self.files.is_none(), |ui| {
-                if ui::icon_button(ui, t, t.text_secondary, Icon::AttachFile, "Attach files…")
-                    .clicked()
+                if ui::icon_button(
+                    ui,
+                    t,
+                    t.text_secondary,
+                    Icon::AttachFile,
+                    t.s(Key::AttachFiles),
+                )
+                .clicked()
                 {
-                    self.pick_files(ui.ctx());
+                    self.pick_files(ui.ctx(), t.s(Key::AttachFilesTitle));
                 }
             });
             self.attachments(ui, t, draft, queue);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let ready = compose::sendable(draft);
-                if ui::primary(ui, t, "Send", Some("Ctrl+Enter"), ready) {
+                if ui::primary(ui, t, t.s(Key::Send), Some("Ctrl+Enter"), ready) {
                     self.flush(state, queue);
                     queue.push(Request::user(Command::SendDraft { id: draft.id }));
                 }
-                let discard = ui::text(&t.type_scale.body_md, "Discard", t.text_secondary);
+                let discard = ui::text(&t.type_scale.body_md, t.s(Key::Discard), t.text_secondary);
                 if ui::ghost(ui, t, discard).clicked() {
                     queue.push(Request::user(Command::DiscardDraft { id: draft.id }));
                 }
@@ -372,7 +379,7 @@ impl ComposerState {
                             t,
                             t.text_muted,
                             Icon::Close,
-                            &format!("Remove {}", addr.email),
+                            &t.f(Key::RemoveName, &[("name", &addr.email)]),
                         )
                         .clicked()
                         {
@@ -391,7 +398,7 @@ impl ComposerState {
                 .font(ui::font(&t.type_scale.body_md))
                 .frame(egui::Frame::NONE)
                 .hint_text(if current.is_empty() {
-                    "name@example.com"
+                    t.s(Key::NameExample)
                 } else {
                     ""
                 })
@@ -427,7 +434,7 @@ impl ComposerState {
                         let label =
                             ui::text(&t.type_scale.body_sm, format::full(&addr), t.text_secondary);
                         if ui::ghost(ui, t, label)
-                            .on_hover_text("Add this recipient")
+                            .on_hover_text(t.s(Key::AddRecipient))
                             .clicked()
                         {
                             let mut list = current.to_vec();
@@ -453,7 +460,7 @@ impl ComposerState {
         ui.horizontal_wrapped(|ui| {
             for (index, attachment) in (0_u32..).zip(&draft.attachments) {
                 let (detail, failed) = match &attachment.state {
-                    AttachmentState::Checking => ("checking…".to_owned(), false),
+                    AttachmentState::Checking => (t.s(Key::Checking).to_owned(), false),
                     AttachmentState::Ready { size, .. } => (format::size(*size), false),
                     AttachmentState::Failed { error } => (error.clone(), true),
                 };
@@ -475,7 +482,7 @@ impl ComposerState {
                             t,
                             t.text_muted,
                             Icon::Close,
-                            &format!("Remove {}", attachment.name),
+                            &t.f(Key::RemoveName, &[("name", &attachment.name)]),
                         )
                         .clicked()
                         {
@@ -491,14 +498,14 @@ impl ComposerState {
         ui.separator();
     }
 
-    fn pick_files(&mut self, ctx: &egui::Context) {
+    fn pick_files(&mut self, ctx: &egui::Context, title: &'static str) {
         let (tx, rx) = mpsc::channel();
         let ctx = ctx.clone();
         let spawned = std::thread::Builder::new()
             .name("dail-file-dialog".to_owned())
             .spawn(move || {
                 let paths = rfd::FileDialog::new()
-                    .set_title("Attach files")
+                    .set_title(title)
                     .pick_files()
                     .unwrap_or_default();
                 let paths: Vec<String> = paths
@@ -570,7 +577,7 @@ fn dropped_files(ui: &Ui, t: &Tokens, draft: DraftId, queue: &mut Vec<Request>) 
                         ui.centered_and_justified(|ui| {
                             ui.label(ui::text(
                                 &t.type_scale.headline_lg,
-                                "Drop the files to attach them",
+                                t.s(Key::DropToAttach),
                                 t.text_strong,
                             ));
                         });

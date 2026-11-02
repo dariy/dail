@@ -2,6 +2,7 @@
 //! laid out).
 
 use app_core::{AppState, Command, Pane, ThreadId, ThreadSummary, listing};
+use app_front::i18n::Key;
 use app_theme::Icon;
 use egui::{Align, Layout, Sense, Ui, Vec2};
 
@@ -76,11 +77,11 @@ pub fn show(
     ui::divider(ui, t);
     if rows.is_empty() {
         let text = if state.view.search.is_some() {
-            "No matching conversations."
+            t.s(Key::NoMatches)
         } else if state.view.mailbox.is_some() {
-            "No conversations here."
+            t.s(Key::NoConversations)
         } else {
-            "Pick a mailbox."
+            t.s(Key::PickMailbox)
         };
         ui::empty_state(ui, t, text, &[]);
         return;
@@ -183,8 +184,8 @@ pub fn show(
 fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut Vec<Request>) {
     // The search lives in the top bar's pill (the palette, UI-5).
     let title = match (&state.view.search, state.view.mailbox) {
-        (Some(query), _) => format!("Search: {query}"),
-        (None, _) if state.view.unified => "All inboxes".to_owned(),
+        (Some(query), _) => t.f(Key::SearchTitle, &[("query", query)]),
+        (None, _) if state.view.unified => t.s(Key::AllInboxes).to_owned(),
         (None, Some(mailbox)) => state
             .mailboxes
             .get(&mailbox)
@@ -204,15 +205,20 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
                             .truncate(),
                     );
                     if unread > 0 {
-                        ui::count(ui, t, format!("{unread} unread"), true);
+                        ui::count(
+                            ui,
+                            t,
+                            t.f(Key::UnreadCount, &[("n", &unread.to_string())]),
+                            true,
+                        );
                     }
                     if state.view.focused.is_some() {
-                        ui::count(ui, t, "Focus".to_owned(), false);
+                        ui::count(ui, t, t.s(Key::Focus).to_owned(), false);
                     }
                     // The right side: *Clear* during a search (room for the list toolbar later).
                     if state.view.search.is_some() {
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            if ui::secondary(ui, t, "Clear", None, true) {
+                            if ui::secondary(ui, t, t.s(Key::Clear), None, true) {
                                 queue.push(Request::user(Command::ClearSearch {}));
                             }
                         });
@@ -245,9 +251,9 @@ fn toolbar(
         let mut on = all;
         let response = ui.add(egui::Checkbox::new(&mut on, "").indeterminate(some));
         response.widget_info(|| {
-            egui::WidgetInfo::selected(egui::Role::CheckBox, true, all, "Select all")
+            egui::WidgetInfo::selected(egui::Role::CheckBox, true, all, t.s(Key::SelectAll))
         });
-        if response.on_hover_text("Select all").clicked() {
+        if response.on_hover_text(t.s(Key::SelectAll)).clicked() {
             queue.push(Request::user(if all || some {
                 Command::UncheckThreads { ids: Vec::new() }
             } else {
@@ -256,9 +262,9 @@ fn toolbar(
         }
         let filter = state.view.filter;
         let chips = [
-            ("Unread", filter.unread, 0),
-            ("Starred", filter.starred, 1),
-            ("Attachments", filter.attachments, 2),
+            (t.s(Key::Unread), filter.unread, 0),
+            (t.s(Key::Starred), filter.starred, 1),
+            (t.s(Key::Attachments), filter.attachments, 2),
         ];
         for (label, on, which) in chips {
             if ui.selectable_label(on, label).clicked() {
@@ -286,13 +292,16 @@ fn toolbar(
                 .is_some_and(app_core::SyncStatus::is_syncing)
                 || state.status.fetching.contains(&mailbox.id);
             if syncing {
-                ui.add(egui::Spinner::new()).on_hover_text("Refreshing");
-            } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, "Refresh").clicked() {
+                ui.add(egui::Spinner::new())
+                    .on_hover_text(t.s(Key::Refreshing));
+            } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, t.s(Key::Refresh))
+                .clicked()
+            {
                 queue.push(Request::user(Command::SyncNow {
                     account: Some(mailbox.account),
                 }));
             }
-            if ui::secondary(ui, t, "Mark all as read", None, mailbox.unread > 0) {
+            if ui::secondary(ui, t, t.s(Key::MarkAllRead), None, mailbox.unread > 0) {
                 match app_front::palette::flow(app_core::CommandName::MarkMailboxRead, state) {
                     app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
                     app_front::palette::Flow::Ask(step) => local.ask = Some(step),
@@ -313,41 +322,41 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
         ui.label(ui::text_at(
             &t.type_scale.body_md,
             600,
-            format!("{} checked", checked.len()),
+            t.f(Key::CheckedCount, &[("n", &checked.len().to_string())]),
             t.text_strong,
         ));
         let ids = || checked.clone();
         let actions: [(&str, Command); 5] = [
             (
-                "Archive",
+                t.s(Key::Archive),
                 Command::ArchiveThreads {
                     ids: ids(),
                     messages: Vec::new(),
                 },
             ),
             (
-                "Trash",
+                t.s(Key::Trash),
                 Command::TrashThreads {
                     ids: ids(),
                     messages: Vec::new(),
                 },
             ),
             (
-                "Mark read",
+                t.s(Key::MarkRead),
                 Command::MarkRead {
                     ids: ids(),
                     messages: Vec::new(),
                 },
             ),
             (
-                "Mark unread",
+                t.s(Key::MarkUnread),
                 Command::MarkUnread {
                     ids: ids(),
                     messages: Vec::new(),
                 },
             ),
             (
-                "Star",
+                t.s(Key::Star),
                 Command::Star {
                     ids: ids(),
                     messages: Vec::new(),
@@ -359,7 +368,7 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                 queue.push(Request::user(cmd));
             }
         }
-        if ui::secondary(ui, t, "Uncheck all", None, true) {
+        if ui::secondary(ui, t, t.s(Key::UncheckAll), None, true) {
             queue.push(Request::user(Command::UncheckThreads { ids: Vec::new() }));
         }
     });
@@ -384,7 +393,15 @@ pub fn footer(
                 queue.push(Request::user(Command::Undo {}));
             }
         } else {
-            ui::footer_hint(ui, t, &[("j", "next"), ("k", "previous"), ("x", "select")]);
+            ui::footer_hint(
+                ui,
+                t,
+                &[
+                    ("j", t.s(Key::HintNext)),
+                    ("k", t.s(Key::HintPrevious)),
+                    ("x", t.s(Key::HintSelect)),
+                ],
+            );
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let n = rows.ids.len();
@@ -416,12 +433,12 @@ enum Click {
 
 /// The actions a row offers on hover and in its context menu: archive, trash, star or unstar,
 /// read or unread, pin or unpin (by its current state).
-fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5] {
+fn row_actions(t: &Tokens, summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5] {
     let ids = || vec![summary.thread.id];
     let star = if summary.flagged {
         (
             Icon::Star,
-            "Unstar",
+            t.s(Key::Unstar),
             Command::Unstar {
                 ids: ids(),
                 messages: Vec::new(),
@@ -430,7 +447,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
     } else {
         (
             Icon::Star,
-            "Star",
+            t.s(Key::Star),
             Command::Star {
                 ids: ids(),
                 messages: Vec::new(),
@@ -440,7 +457,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
     let read = if summary.unread > 0 {
         (
             Icon::MarkEmailRead,
-            "Mark read",
+            t.s(Key::MarkRead),
             Command::MarkRead {
                 ids: ids(),
                 messages: Vec::new(),
@@ -449,7 +466,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
     } else {
         (
             Icon::MarkEmailUnread,
-            "Mark unread",
+            t.s(Key::MarkUnread),
             Command::MarkUnread {
                 ids: ids(),
                 messages: Vec::new(),
@@ -459,7 +476,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
     [
         (
             Icon::Archive,
-            "Archive",
+            t.s(Key::Archive),
             Command::ArchiveThreads {
                 ids: ids(),
                 messages: Vec::new(),
@@ -467,7 +484,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
         ),
         (
             Icon::Delete,
-            "Trash",
+            t.s(Key::Trash),
             Command::TrashThreads {
                 ids: ids(),
                 messages: Vec::new(),
@@ -478,7 +495,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
         if summary.pinned {
             (
                 Icon::PushPin,
-                "Unpin",
+                t.s(Key::Unpin),
                 Command::UnpinThreads {
                     ids: ids(),
                     messages: Vec::new(),
@@ -487,7 +504,7 @@ fn row_actions(summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5
         } else {
             (
                 Icon::PushPin,
-                "Pin",
+                t.s(Key::Pin),
                 Command::PinThreads {
                     ids: ids(),
                     messages: Vec::new(),
@@ -505,7 +522,7 @@ fn hover_actions(
     rect: egui::Rect,
     summary: &ThreadSummary<'_>,
 ) -> Option<Click> {
-    let actions = row_actions(summary);
+    let actions = row_actions(t, summary);
     let side = t.m.controls.icon_button;
     let width = side * actions.len() as f32 + t.m.space.sm;
     let area = egui::Rect::from_min_max(
@@ -525,7 +542,7 @@ fn hover_actions(
     child.spacing_mut().item_spacing.x = 0.0;
     let mut picked = None;
     for (icon, label, cmd) in actions {
-        let name = format!("{label} conversation");
+        let name = t.f(Key::LabelConversation, &[("label", label)]);
         if ui::icon_button(&mut child, t, t.text_secondary, icon, &name).clicked() {
             picked = Some(Click::Run(cmd));
         }
@@ -654,7 +671,7 @@ fn row(
     let sender_text = {
         let senders = format::names(&summary.senders);
         if senders.is_empty() {
-            "(no sender)".to_owned()
+            t.s(Key::NoSender).to_owned()
         } else {
             senders
         }
@@ -665,7 +682,7 @@ fn row(
         ui::text(body, sender_text, t.text_secondary)
     };
     let subject = if summary.thread.subject.trim().is_empty() {
-        "(no subject)"
+        t.s(Key::NoSubject)
     } else {
         summary.thread.subject.as_str()
     };
@@ -741,7 +758,7 @@ fn row(
         }
         if summary.pinned {
             ui::icon(ui, Icon::PushPin, t.m.controls.icon_xs, t.text_strong, true)
-                .on_hover_text("Pinned");
+                .on_hover_text(t.s(Key::Pinned));
         }
     };
     let line = child.available_width();
@@ -818,18 +835,18 @@ fn row(
         action = hover_actions(ui, t, rect, summary);
     }
     response.context_menu(|ui| {
-        for (_, label, cmd) in row_actions(summary) {
+        for (_, label, cmd) in row_actions(t, summary) {
             if ui.button(label).clicked() {
                 action = Some(Click::Run(cmd));
                 ui.close();
             }
         }
-        if ui.button("Move to…").clicked() {
+        if ui.button(t.s(Key::MoveTo)).clicked() {
             action = Some(Click::Move);
             ui.close();
         }
         if let Some(mailbox) = look.mailbox
-            && ui.button("Focus this mailbox").clicked()
+            && ui.button(t.s(Key::FocusMailbox)).clicked()
         {
             action = Some(Click::Run(Command::FocusMailbox {
                 id: Some(mailbox),

@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::support::{FakeFolder, FakeImap};
+use crate::support::{FakeFolder, FakeImap, FakeServer};
 use app_core::{
     AccountId, AccountStatus, Command, Effect, Endpoint, Event, ImapLogin, MailboxId, MailboxRole,
-    Origin, ProviderPreset, Secret, SecretRef, Security,
+    Origin, ProviderPreset, Secret, SecretRef, Security, UidRange,
 };
 use app_io::{Config, ConfigStore, ProfileDirs, ProfileStore, Store};
 use app_sync::{
@@ -1682,6 +1682,272 @@ async fn condstore_resyncs_only_changed_flags() {
         "{:?}",
         imap.log()
     );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// The changed UIDs, `existing`, `vanished` and `highest_modseq` of a `FlagsChanged`.
+type Resynced = (
+    Vec<u32>,
+    Option<Vec<u32>>,
+    Option<Vec<UidRange>>,
+    Option<u64>,
+);
+
+fn resynced(events: Vec<Event>) -> Resynced {
+    match events.as_slice() {
+        [
+            Event::FlagsChanged {
+                flags,
+                existing,
+                vanished,
+                highest_modseq,
+                ..
+            },
+        ] => (
+            flags.iter().map(|f| f.uid).collect(),
+            existing.clone(),
+            vanished.clone(),
+            *highest_modseq,
+        ),
+        other => panic!("{other:?}"),
+    }
+}
+
+/// A resync of INBOX UIDs `from..=to` (UIDVALIDITY 7) for the account of [`mail_backend`]'s
+/// `list` effect.
+fn resync(list: &Effect, (from_uid, to_uid): (u32, u32), changed_since: Option<u64>) -> Effect {
+    let Effect::ListMailboxes { account, imap } = list else {
+        unreachable!()
+    };
+    Effect::ResyncFlags {
+        account: *account,
+        mailbox: MailboxId::from_uuid(uuid::Uuid::from_u128(2)),
+        path: "INBOX".into(),
+        imap: imap.clone(),
+        uid_validity: 7,
+        from_uid,
+        to_uid,
+        changed_since,
+    }
+}
+
+/// A QRESYNC server with `folders`, adjusted by `tweak`.
+fn qresync_server(folders: Vec<FakeFolder>, tweak: impl FnOnce(&mut FakeServer)) -> FakeImap {
+    let imap = FakeImap::new("app-password", folders);
+    {
+        let mut server = imap.server.lock().unwrap();
+        server.qresync = true;
+        tweak(&mut server);
+    }
+    imap
+}
+
+/// INBOX with UIDs 3, 5 and 6 (UIDVALIDITY 7).
+fn plan_inbox() -> Vec<FakeFolder> {
+    let mut inbox = FakeFolder::new("INBOX", "\\HasNoChildren")
+        .with(3, "\\Seen", "a@x", "Plan")
+        .with(5, "", "b@x", "Re: Plan")
+        .with(6, "", "c@x", "Lunch");
+    inbox.uid_validity = 7;
+    vec![inbox]
+}
+
+#[tokio::test]
+async fn qresync_reports_vanished_instead_of_searching() {
+    let dir = scratch("qresync");
+    let imap = qresync_server(plan_inbox(), |_| {});
+    let (backend, list) = mail_backend(&dir, "app-password", &imap);
+
+    // The first resync lists every flag and learns HIGHESTMODSEQ.
+    let first = resynced(backend.execute(resync(&list, (1, 6), None)).await.unwrap());
+    assert_eq!(first, (vec![3, 5, 6], None, None, Some(1)));
+
+    // Another client flags UID 5, then expunges UID 6.
+    imap.set_flags("INBOX", 5, "\\Flagged");
+    imap.expunge("INBOX", 6);
+    let (uids, existing, vanished, modseq) = resynced(
+        backend
+            .execute(resync(&list, (1, 6), Some(1)))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(uids, [5], "only the changed message");
+    assert_eq!(existing, None, "no search");
+    assert_eq!(vanished, Some(vec![UidRange { first: 6, last: 6 }]));
+    assert_eq!(modseq, Some(3));
+    let log = imap.log();
+    assert_eq!(
+        log.iter().filter(|l| *l == "ENABLE QRESYNC").count(),
+        1,
+        "{log:?}"
+    );
+    assert!(
+        log.iter().any(|l| l.ends_with("(CHANGEDSINCE 1 VANISHED)")),
+        "{log:?}"
+    );
+    assert!(!log.iter().any(|l| l.starts_with("UID SEARCH")), "{log:?}");
+    assert_eq!(imap.connects(), 1);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_full_unsolicited_queue_falls_back_to_the_uid_search() {
+    let dir = scratch("qresync-overflow");
+    let mut inbox = FakeFolder::new("INBOX", "\\HasNoChildren");
+    for uid in 1..=130 {
+        inbox = inbox.with(uid, "", &format!("m{uid}@x"), "Bulk");
+    }
+    inbox.uid_validity = 7;
+    let imap = qresync_server(vec![inbox], |server| server.split_vanished = true);
+    let (backend, list) = mail_backend(&dir, "app-password", &imap);
+    backend
+        .execute(resync(&list, (1, 130), None))
+        .await
+        .unwrap();
+    // 120 expunges, each in a VANISHED of its own: more than async-imap queues (100).
+    for uid in 1..=120 {
+        imap.expunge("INBOX", uid);
+    }
+    let (uids, existing, vanished, _) = resynced(
+        backend
+            .execute(resync(&list, (1, 130), Some(1)))
+            .await
+            .unwrap(),
+    );
+    assert!(uids.is_empty());
+    assert_eq!(vanished, None, "some VANISHED may be lost");
+    assert_eq!(existing, Some((121..=130).collect()));
+    let log = imap.log();
+    assert!(log.iter().any(|l| l == "UID SEARCH UID 1:130"), "{log:?}");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test]
+async fn a_refused_enable_keeps_the_condstore_resync() {
+    let dir = scratch("qresync-refused");
+    let imap = qresync_server(plan_inbox(), |server| server.refuse_enable = true);
+    let (backend, list) = mail_backend(&dir, "app-password", &imap);
+    backend.execute(resync(&list, (1, 6), None)).await.unwrap();
+    imap.expunge("INBOX", 6);
+    let resync = resynced(
+        backend
+            .execute(resync(&list, (1, 6), Some(1)))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(resync, (vec![], Some(vec![3, 5]), None, Some(2)));
+    let log = imap.log();
+    assert!(log.iter().any(|l| l == "ENABLE QRESYNC"), "{log:?}");
+    assert!(!log.iter().any(|l| l.contains("VANISHED")), "{log:?}");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[tokio::test]
+async fn remote_ops_work_with_qresync_enabled() {
+    use app_core::{FlagKind, RemoteStep};
+    let dir = scratch("qresync-ops");
+    let mut folders = triage_folders();
+    folders.push(FakeFolder::new("Drafts", "\\HasNoChildren \\Drafts").with(
+        1,
+        "\\Seen \\Draft",
+        "d1@gmail.com",
+        "Old revision",
+    ));
+    let imap = qresync_server(folders, |_| {});
+    let (backend, list) = mail_backend(&dir, "app-password", &imap);
+    let Effect::ListMailboxes {
+        account,
+        imap: login,
+    } = list.clone()
+    else {
+        unreachable!()
+    };
+    let (_, _, _, modseq) = resynced(backend.execute(resync(&list, (1, 3), None)).await.unwrap());
+    let succeeded = |events: Vec<Event>| {
+        assert!(
+            matches!(&events[..], [Event::RemoteOpSucceeded { .. }]),
+            "{events:?}"
+        );
+    };
+
+    // Every expunge below is answered with VANISHED, and every SELECT with [CLOSED] first.
+    succeeded(
+        backend
+            .execute(run_op(vec![
+                RemoteStep::Store {
+                    path: "INBOX".into(),
+                    uid_validity: 7,
+                    uids: vec![1],
+                    flag: FlagKind::Seen,
+                    value: true,
+                },
+                RemoteStep::Move {
+                    path: "INBOX".into(),
+                    uid_validity: 7,
+                    uids: vec![2],
+                    to: "Archive".into(),
+                    create: false,
+                },
+            ]))
+            .await
+            .unwrap(),
+    );
+    // Without MOVE: COPY, STORE \\Deleted and EXPUNGE.
+    imap.server.lock().unwrap().no_move = true;
+    succeeded(
+        backend
+            .execute(run_op(vec![RemoteStep::Move {
+                path: "INBOX".into(),
+                uid_validity: 7,
+                uids: vec![3],
+                to: "Archive".into(),
+                create: false,
+            }]))
+            .await
+            .unwrap(),
+    );
+    imap.server.lock().unwrap().no_move = false;
+    // A draft saved over its old copy (UID EXPUNGE), then deleted.
+    let draft = app_core::DraftId::from_uuid(uuid::Uuid::from_u128(7));
+    let save = Effect::SaveDraft {
+        draft,
+        account,
+        imap: login.clone(),
+        path: "Drafts".into(),
+        revision: 1,
+        message: Box::new(outgoing("d1@gmail.com", "New revision")),
+    };
+    assert_eq!(
+        backend.execute(save).await.unwrap(),
+        [Event::DraftSaved { draft, revision: 1 }]
+    );
+    let delete = Effect::DeleteDraft {
+        draft,
+        account,
+        imap: login,
+        path: "Drafts".into(),
+        message_id: "d1@gmail.com".into(),
+    };
+    assert_eq!(
+        backend.execute(delete).await.unwrap(),
+        [Event::DraftDeleted { draft }]
+    );
+
+    // The same connection still resyncs: the moved UIDs vanished, UID 1 is read.
+    let (uids, existing, vanished, _) = resynced(
+        backend
+            .execute(resync(&list, (1, 3), modseq))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(uids, [1]);
+    assert_eq!(existing, None);
+    assert_eq!(vanished, Some(vec![UidRange { first: 2, last: 3 }]));
+    assert_eq!(imap.connects(), 1, "one connection throughout");
+    let log = imap.log();
+    for command in ["UID MOVE 2 \"Archive\"", "EXPUNGE", "UID EXPUNGE 1"] {
+        assert!(log.iter().any(|l| l == command), "{command}: {log:?}");
+    }
     std::fs::remove_dir_all(dir).unwrap();
 }
 
