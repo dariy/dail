@@ -19,7 +19,7 @@ pub fn tui(global: &GlobalArgs) -> anyhow::Result<ExitCode> {
     let claimed = runtime.block_on(runtime::claim(global, Listen::Yes))?;
     let owns = matches!(claimed, Claimed::Owned(_));
     let tui = Tui::default()
-        .with_lang_tag(std::env::var("DAIL_LANG").ok().as_deref())
+        .with_lang_tag(None)
         // https://no-color.org: set and not empty.
         .with_no_color(std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()))
         .with_setup_hint(setup_line(global))

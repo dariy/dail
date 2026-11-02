@@ -10,6 +10,7 @@
 use std::sync::{Arc, mpsc as std_mpsc};
 
 use app_core::{AppState, Command, CommandName, Origin};
+use app_front::i18n::{self, Key};
 use app_sync::{Session, SessionClient, SubmitResult, SyncError};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -224,11 +225,11 @@ impl Bridge {
 async fn load_image(session: &SessionClient, key: &ImageKey) -> Result<egui::ColorImage, String> {
     let part = match session.inline_part(&key.blob, &key.cid).await {
         Ok(Some(part)) => part,
-        Ok(None) => return Err("the image is not in the message".to_owned()),
+        Ok(None) => return Err(i18n::s(Key::ImageNotInMessage).to_owned()),
         Err(err) => return Err(err.to_string()),
     };
     if !part.content_type.starts_with("image/") {
-        return Err(format!("{} is not an image", part.content_type));
+        return Err(i18n::f(Key::NotAnImage, &[("type", &part.content_type)]));
     }
     tokio::task::spawn_blocking(move || crate::images::decode(&part.bytes))
         .await
@@ -238,7 +239,7 @@ async fn load_image(session: &SessionClient, key: &ImageKey) -> Result<egui::Col
 async fn load_preview(session: &SessionClient, key: &PartKey) -> Result<PreviewData, String> {
     let (_, part) = match session.attachment_part(&key.blob, key.part).await {
         Ok(Some(part)) => part,
-        Ok(None) => return Err("the attachment is not in the local store".to_owned()),
+        Ok(None) => return Err(i18n::s(Key::AttachmentNotStored).to_owned()),
         Err(err) => return Err(err.to_string()),
     };
     tokio::task::spawn_blocking(move || {
@@ -248,21 +249,30 @@ async fn load_preview(session: &SessionClient, key: &PartKey) -> Result<PreviewD
     .map_err(|err| err.to_string())?
 }
 
+fn browser_failed(error: &str) -> String {
+    i18n::f(Key::CouldNotOpenBrowser, &[("error", error)])
+}
+
 async fn open_in_browser(path: std::path::PathBuf) -> Result<(), String> {
     let target = path.display().to_string();
     let opened = tokio::task::spawn_blocking(move || webbrowser::open(&target)).await;
     match opened {
         Ok(Ok(())) => Ok(()),
-        Ok(Err(err)) => Err(format!("Could not open the browser: {err}")),
-        Err(err) => Err(format!("Could not open the browser: {err}")),
+        Ok(Err(err)) => Err(browser_failed(&err.to_string())),
+        Err(err) => Err(browser_failed(&err.to_string())),
     }
 }
 
 async fn open_original(session: &SessionClient, blob: &str) -> Result<(), String> {
     let path = match session.open_original(blob).await {
         Ok(Some(path)) => path,
-        Ok(None) => return Err("The message is not in the local store any more.".to_owned()),
-        Err(err) => return Err(format!("Could not write the original: {err}")),
+        Ok(None) => return Err(i18n::s(Key::MessageGone).to_owned()),
+        Err(err) => {
+            return Err(i18n::f(
+                Key::CouldNotWriteOriginal,
+                &[("error", &err.to_string())],
+            ));
+        }
     };
     open_in_browser(path).await
 }
@@ -270,8 +280,13 @@ async fn open_original(session: &SessionClient, blob: &str) -> Result<(), String
 async fn open_attachment(session: &SessionClient, key: &PartKey) -> Result<(), String> {
     let path = match session.open_attachment(&key.blob, key.part).await {
         Ok(Some(path)) => path,
-        Ok(None) => return Err("The attachment is not in the local store any more.".to_owned()),
-        Err(err) => return Err(format!("Could not write the attachment: {err}")),
+        Ok(None) => return Err(i18n::s(Key::AttachmentGone).to_owned()),
+        Err(err) => {
+            return Err(i18n::f(
+                Key::CouldNotWriteAttachment,
+                &[("error", &err.to_string())],
+            ));
+        }
     };
     open_in_browser(path).await
 }

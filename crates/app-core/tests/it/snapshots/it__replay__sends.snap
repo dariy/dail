@@ -64,6 +64,7 @@ expression: first
       "full_sync_secs": 900,
       "history_cap": 200,
       "initial_window": 500,
+      "language": 0,
       "list_density": 0,
       "mark_read_after_ms": 2000,
       "notifications": 1,
@@ -800,7 +801,7 @@ expression: first
       "result": {
         "err": {
           "draft": "00000000-0000-0003-0000-000000000000",
-          "error": "not_sendable",
+          "error": "error_009_not_sendable",
           "reason": "it is being sent and can't be stopped any more"
         }
       }

@@ -453,6 +453,7 @@ fn sync_keeps_local_changes_that_have_not_reached_the_server() {
             flags: app_core::Flags::default(),
         }],
         existing: None,
+        vanished: None,
         highest_modseq: None,
     });
     assert!(seen(&m, lunch) && !flagged(&m, lunch));
@@ -485,6 +486,7 @@ fn ops_without_server_work_complete_at_once() {
         to_uid: 3,
         flags: vec![],
         existing: None,
+        vanished: None,
         highest_modseq: None,
     });
     let done = m.feed(Event::RemoteOpSucceeded { op: op1 });

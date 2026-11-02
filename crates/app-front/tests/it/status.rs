@@ -171,3 +171,12 @@ fn account_state_reports_failures_then_syncing_then_waiting_changes() {
         AccountState::Offline { waiting: 1 }
     );
 }
+
+#[test]
+fn the_language_setting_beats_the_system() {
+    assert_eq!(Lang::resolve(0, Lang::French), Lang::French);
+    assert_eq!(Lang::resolve(1, Lang::French), Lang::English);
+    assert_eq!(Lang::resolve(2, Lang::English), Lang::French);
+    let title = app_front::i18n::title_in(Lang::French, app_core::CommandName::SyncNow);
+    assert_eq!(title, "Synchroniser");
+}

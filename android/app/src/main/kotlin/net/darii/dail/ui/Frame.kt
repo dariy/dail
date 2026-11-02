@@ -11,6 +11,16 @@ import kotlinx.serialization.json.JsonObject
  */
 val contract = Json { explicitNulls = false }
 
+/** The latest frame's texts for what Kotlin composes itself: English template to the language. */
+@Volatile
+var labels: Map<String, String> = emptyMap()
+
+/** The text of an English [template], placeholders filled from [args]. */
+fun tr(
+    template: String,
+    vararg args: Pair<String, Any>,
+): String = args.fold(labels[template] ?: template) { text, (name, value) -> text.replace("{$name}", value.toString()) }
+
 typealias ActionId = Int
 
 @Serializable
@@ -22,6 +32,7 @@ data class Answer(
 @Serializable
 data class Frame(
     val revision: Long,
+    val labels: Map<String, String> = emptyMap(),
     val layout: Layout,
     @SerialName("top_bar") val topBar: TopBar,
     val drawer: Drawer? = null,

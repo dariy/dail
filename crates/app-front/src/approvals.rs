@@ -4,6 +4,7 @@
 //! every attachment with its full path — so the user sees what the agent wrote before deciding.
 //! The text is the agent's and may quote email: it is shown as plain text, never interpreted.
 
+use crate::i18n::Key;
 use app_core::{Addr, AppState, ApprovalId, AttachmentState, DraftId};
 
 use crate::format;
@@ -48,15 +49,15 @@ pub fn cards(state: &AppState) -> Vec<Card> {
                 })
             };
             let recipients = [
-                line("To:", &draft.to),
-                line("Cc:", &draft.cc),
-                line("Bcc:", &draft.bcc),
+                line(crate::i18n::s(Key::To), &draft.to),
+                line(crate::i18n::s(Key::Cc), &draft.cc),
+                line(crate::i18n::s(Key::Bcc), &draft.bcc),
             ]
             .into_iter()
             .flatten()
             .collect();
             let subject = match draft.subject.trim() {
-                "" => "(no subject)".to_owned(),
+                "" => crate::i18n::s(Key::NoSubject).to_owned(),
                 subject => subject.to_owned(),
             };
             let attachments = draft
@@ -64,9 +65,11 @@ pub fn cards(state: &AppState) -> Vec<Card> {
                 .iter()
                 .map(|attachment| {
                     let state = match &attachment.state {
-                        AttachmentState::Checking => "checking…".to_owned(),
+                        AttachmentState::Checking => crate::i18n::s(Key::Checking).to_owned(),
                         AttachmentState::Ready { size, .. } => format::size(*size),
-                        AttachmentState::Failed { error } => format!("failed: {error}"),
+                        AttachmentState::Failed { error } => {
+                            crate::i18n::f(Key::FailedError, &[("error", error)])
+                        }
                     };
                     format!("{} ({state})", attachment.path)
                 })

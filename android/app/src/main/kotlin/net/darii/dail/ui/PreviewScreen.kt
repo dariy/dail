@@ -291,7 +291,7 @@ private fun PdfViewer(
                     if (images.failed(current)) {
                         preview.failed ?: ""
                     } else {
-                        "Page ${current + 1} of ${pages.size}"
+                        tr("Page {n} of {m}", "n" to current + 1, "m" to pages.size)
                     }
                 Surface(
                     Modifier.align(Alignment.BottomCenter).padding(16.dp),

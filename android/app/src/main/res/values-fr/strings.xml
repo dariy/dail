@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_sending">Envoi</string>
+    <string name="sending">Envoi du courrier…</string>
+    <string name="channel_new_mail">Nouveau courrier</string>
+    <string name="channel_not_sent">Non envoyés</string>
+    <string name="channel_background">Arrière-plan</string>
+    <string name="push_starting">Connexion à vos boîtes de réception</string>
+</resources>

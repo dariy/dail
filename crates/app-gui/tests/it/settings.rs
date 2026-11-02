@@ -93,3 +93,20 @@ fn the_keyboard_tab_lists_every_bound_command() {
     }
     assert!(h.get_all_by_label("Ctrl+K").next().is_some());
 }
+
+#[test]
+fn the_title_opens_about() {
+    let mut h = gui(synced_state());
+    h.run();
+    h.get(By::new().role(Role::Button).label("About dail"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().pump(),
+        [Command::OpenSettings {
+            section: Some(SettingsSection::About)
+        }]
+    );
+    h.run();
+    h.get(By::new().role(Role::Button).label("Source code"));
+}

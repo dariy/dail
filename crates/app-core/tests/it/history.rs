@@ -58,7 +58,7 @@ fn set_setting_rejects_out_of_range() {
         .unwrap_err();
     assert_eq!(
         serde_json::to_value(&err).unwrap(),
-        json!({"error": "invalid_argument", "field": "value",
+        json!({"error": "error_002_invalid_argument", "field": "value",
                "reason": "history_cap must be between 1 and 10000"})
     );
 }

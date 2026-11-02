@@ -9,6 +9,7 @@
 use app_core::document::{Block, FoldKind, Span};
 use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
+use app_front::i18n::{self, Key};
 use app_front::text::{clean, clean_lines};
 use app_front::{fold, format, highlight, palette};
 
@@ -26,10 +27,10 @@ fn clean_text(text: &str) -> String {
 }
 
 /// What a fold says.
-const fn fold_label(kind: FoldKind) -> &'static str {
+fn fold_label(kind: FoldKind) -> &'static str {
     match kind {
-        FoldKind::Quote => "Quoted text",
-        FoldKind::Signature => "Signature",
+        FoldKind::Quote => i18n::s(Key::QuotedTextX),
+        FoldKind::Signature => i18n::s(Key::SignatureX),
     }
 }
 
@@ -172,7 +173,7 @@ impl Doc<'_> {
         if out.is_empty() {
             out.push(DocBlock::Paragraph {
                 spans: vec![DocSpan {
-                    text: "(no text)".to_owned(),
+                    text: i18n::s(Key::NoText).to_owned(),
                     italic: true,
                     ..DocSpan::default()
                 }],
@@ -247,7 +248,7 @@ impl Mobile {
         let (star_icon, star_label, star) = if starred {
             (
                 "star",
-                "Unstar",
+                i18n::s(Key::Unstar),
                 Command::Unstar {
                     ids: ids.clone(),
                     messages: messages(),
@@ -256,7 +257,7 @@ impl Mobile {
         } else {
             (
                 "star",
-                "Star",
+                i18n::s(Key::Star),
                 Command::Star {
                     ids: ids.clone(),
                     messages: messages(),
@@ -266,7 +267,7 @@ impl Mobile {
         let (read_icon, read_label, read) = if unread {
             (
                 "mark_email_read",
-                "Mark read",
+                i18n::s(Key::MarkRead),
                 Command::MarkRead {
                     ids: ids.clone(),
                     messages: messages(),
@@ -275,7 +276,7 @@ impl Mobile {
         } else {
             (
                 "mark_email_unread",
-                "Mark unread",
+                i18n::s(Key::MarkUnread),
                 Command::MarkUnread {
                     ids: ids.clone(),
                     messages: messages(),
@@ -285,7 +286,7 @@ impl Mobile {
         let mut actions = vec![
             self.button(
                 "archive",
-                "Archive",
+                i18n::s(Key::Archive),
                 Act::Run(Command::ArchiveThreads {
                     ids: ids.clone(),
                     messages: messages(),
@@ -293,7 +294,7 @@ impl Mobile {
             ),
             self.button(
                 "delete",
-                "Trash",
+                i18n::s(Key::Trash),
                 Act::Run(Command::TrashThreads {
                     ids: ids.clone(),
                     messages: messages(),
@@ -303,14 +304,14 @@ impl Mobile {
             self.button(read_icon, read_label, Act::Run(read)),
             self.button(
                 "drive_file_move",
-                "Move…",
+                i18n::s(Key::Move),
                 Act::Flow(CommandName::MoveThreads),
             ),
         ];
         if let Some(message) = palette::newest_message(state, thread.id) {
             actions.push(self.button(
                 "reply",
-                "Reply",
+                i18n::s(Key::Reply),
                 Act::Run(Command::Reply {
                     message,
                     body: None,
@@ -378,12 +379,9 @@ impl Mobile {
                 }
                 (true, None, BodyState::Failed { error }) => (
                     None,
-                    Some(format!(
-                        "The body could not be downloaded: {}",
-                        clean(error)
-                    )),
+                    Some(i18n::f(Key::BodyFailed, &[("error", &clean(error))])),
                 ),
-                (true, None, _) => (None, Some("Loading…".to_owned())),
+                (true, None, _) => (None, Some(i18n::s(Key::Loading).to_owned())),
             };
             let links = match (&loaded, expanded) {
                 (Some(loaded), true) => link_targets(loaded)
@@ -400,16 +398,16 @@ impl Mobile {
                 let who = clean(&sender);
                 let (text, label, cmd) = if shown {
                     (
-                        "Showing the pictures in this message.",
-                        format!("Hide images from {who}"),
+                        i18n::s(Key::PicturesShown),
+                        i18n::f(Key::HideImagesFrom, &[("who", &who)]),
                         Command::HideImagesFrom {
                             sender: sender.clone(),
                         },
                     )
                 } else {
                     (
-                        "Pictures in this message are hidden.",
-                        format!("Show images from {who}"),
+                        i18n::s(Key::PicturesHidden),
+                        i18n::f(Key::ShowImagesFrom, &[("who", &who)]),
                         Command::ShowImagesFrom {
                             sender: sender.clone(),
                         },
@@ -464,7 +462,7 @@ impl Mobile {
                     .collect();
                 self.button(
                     "download",
-                    &format!("Save all ({})", files.len()),
+                    &i18n::f(Key::SaveAllX, &[("n", &files.len().to_string())]),
                     Act::Save(blob.clone(), all),
                 )
             });
@@ -476,10 +474,10 @@ impl Mobile {
                 .collect();
             out.push(ReaderMessage {
                 message: message.id,
-                from: message
-                    .from
-                    .first()
-                    .map_or_else(|| "(no sender)".to_owned(), |a| clean(&format::full(a))),
+                from: message.from.first().map_or_else(
+                    || i18n::s(Key::NoSender).to_owned(),
+                    |a| clean(&format::full(a)),
+                ),
                 to: to.join(", "),
                 date: format::short_date(message.date_ms, now),
                 expanded,
@@ -493,13 +491,17 @@ impl Mobile {
                 links,
             });
         }
-        let close = self.button("close", "Close message", Act::Run(Command::CloseThread {}));
+        let close = self.button(
+            "close",
+            i18n::s(Key::CloseMessage),
+            Act::Run(Command::CloseThread {}),
+        );
         Some(Reader {
             close,
             maximize: None,
             thread: thread.id,
             subject: match thread.subject.trim() {
-                "" => "(no subject)".to_owned(),
+                "" => i18n::s(Key::NoSubject).to_owned(),
                 s => clean(s),
             },
             actions,
@@ -523,11 +525,25 @@ impl Mobile {
         let total = rows.len();
         let previous = at.checked_sub(1).and_then(|i| rows.get(i)).copied();
         let next = rows.get(at + 1).copied();
-        let previous = previous
-            .and_then(|id| self.neighbour(state, id, "expand_less", "Previous conversation"));
-        let next =
-            next.and_then(|id| self.neighbour(state, id, "expand_more", "Next conversation"));
-        (previous, next, Some(format!("{} of {total}", at + 1)))
+        let previous = previous.and_then(|id| {
+            self.neighbour(
+                state,
+                id,
+                "expand_less",
+                i18n::s(Key::PreviousConversationX),
+            )
+        });
+        let next = next.and_then(|id| {
+            self.neighbour(state, id, "expand_more", i18n::s(Key::NextConversationX))
+        });
+        (
+            previous,
+            next,
+            Some(i18n::f(
+                Key::NOfM,
+                &[("n", &(at + 1).to_string()), ("m", &total.to_string())],
+            )),
+        )
     }
 
     /// A conversation beside the open one: what opens it, and its peek as its list row shows it.
@@ -551,9 +567,17 @@ impl Mobile {
     /// The sheet of the tapped link, while open.
     pub(super) fn link_sheet(&mut self) -> Option<LinkSheet> {
         let url = self.link.clone()?;
-        let open = self.button("open_in_new", "Open", Act::OpenLink(url.clone()));
-        let copy = self.button("content_copy", "Copy", Act::CopyLink(url.clone()));
-        let close = self.button("close", "Close", Act::Back);
+        let open = self.button(
+            "open_in_new",
+            i18n::s(Key::Open),
+            Act::OpenLink(url.clone()),
+        );
+        let copy = self.button(
+            "content_copy",
+            i18n::s(Key::Copy),
+            Act::CopyLink(url.clone()),
+        );
+        let close = self.button("close", i18n::s(Key::Close), Act::Back);
         Some(LinkSheet {
             url: clean(&url),
             open,
@@ -584,7 +608,7 @@ impl Mobile {
     pub(super) fn copy_link(&mut self, url: String) {
         self.link = None;
         self.externals.push(External::Copy { text: url });
-        self.notify("Link copied.");
+        self.notify(i18n::s(Key::LinkCopied));
     }
 
     /// Opens or folds a message's quote or signature.
@@ -663,10 +687,10 @@ impl Mobile {
         };
         let save = self.button(
             "download",
-            "Save",
+            i18n::s(Key::Save),
             Act::Save(Some(blob.clone()), vec![save]),
         );
-        let close = self.button("close", "Close", Act::Back);
+        let close = self.button("close", i18n::s(Key::Close), Act::Back);
         Some(Preview {
             name: clean(&file.name),
             detail: format!(
@@ -677,14 +701,12 @@ impl Mobile {
             kind,
             blob,
             part,
-            note: (kind == PreviewKind::None).then(|| {
-                "dail does not show this kind of file. Save it to open it in another app."
-                    .to_owned()
-            }),
+            note: (kind == PreviewKind::None)
+                .then(|| i18n::s(Key::DailDoesNotShowThisKindOf).to_owned()),
             failed: match kind {
-                PreviewKind::Image => Some("This picture could not be shown."),
-                PreviewKind::Pdf => Some("This page could not be shown."),
-                PreviewKind::Text => Some("The file could not be read."),
+                PreviewKind::Image => Some(i18n::s(Key::ThisPictureCouldNotBeShown)),
+                PreviewKind::Pdf => Some(i18n::s(Key::ThisPageCouldNotBeShown)),
+                PreviewKind::Text => Some(i18n::s(Key::TheFileCouldNotBeRead)),
                 PreviewKind::None => None,
             }
             .map(str::to_owned),
@@ -699,7 +721,7 @@ impl Mobile {
             Some(blob) if !files.is_empty() => {
                 self.externals.push(External::SaveFiles { blob, files });
             }
-            _ => self.notify("The message is not downloaded yet."),
+            _ => self.notify(i18n::s(Key::TheMessageIsNotDownloadedYet)),
         }
     }
 }

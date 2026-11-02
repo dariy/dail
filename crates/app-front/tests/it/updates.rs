@@ -5,7 +5,7 @@ use app_core::{
 };
 use app_front::palette::Flow;
 use app_front::updates::{
-    Action, INTERVALS, answer, ask_first_run, badge, interval_label, panel, version,
+    Action, answer, ask_first_run, badge, interval_label, intervals, panel, version,
 };
 
 use crate::support::synced_state;
@@ -134,7 +134,7 @@ fn the_question_is_asked_once_after_setup() {
 
 #[test]
 fn intervals_are_within_the_policy() {
-    for (hours, label) in INTERVALS {
+    for (hours, label) in intervals() {
         assert!(
             (app_core::UpdatePolicy::MIN_INTERVAL_HOURS
                 ..=app_core::UpdatePolicy::MAX_INTERVAL_HOURS)

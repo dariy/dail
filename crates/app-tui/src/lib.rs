@@ -29,7 +29,7 @@ pub use tui::{EditOutcome, External, Input, Tui};
 #[derive(Debug, thiserror::Error)]
 pub enum TuiError {
     /// The terminal could not be set up, read or drawn.
-    #[error("terminal: {0}")]
+    #[error("ERR421: terminal: {0}")]
     Terminal(#[from] std::io::Error),
     /// The session failed.
     #[error(transparent)]

@@ -3,8 +3,10 @@
 //! the palette at the step that changes the row. There is no appearance section: the TUI follows
 //! the terminal's colours (ADR 0004), so `appearance` shows the general settings.
 
+use crate::text::{f, s};
 use app_core::{AccountStatus, AppState, Command, CommandName, SettingKey, SettingsSection};
-use app_front::palette::{Flow, flow};
+use app_front::i18n::Key;
+use app_front::palette::{Flow, flow, set_setting};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -16,10 +18,10 @@ use crate::text::clean;
 use crate::view::{bold, dim, reverse};
 
 /// The sections the TUI shows, in `Tab` order.
-const SECTIONS: [(SettingsSection, &str); 3] = [
-    (SettingsSection::General, "General"),
-    (SettingsSection::Keys, "Keys"),
-    (SettingsSection::Accounts, "Accounts"),
+const SECTIONS: [(SettingsSection, Key); 3] = [
+    (SettingsSection::General, Key::General),
+    (SettingsSection::Keys, Key::Keys),
+    (SettingsSection::Accounts, Key::Accounts),
 ];
 
 /// One row: a key, its value, and the command that changes it.
@@ -29,10 +31,10 @@ struct Row {
     change: Option<CommandName>,
 }
 
-/// The section the TUI shows for `section` (appearance has none of its own).
+/// The section the TUI shows for `section` (appearance and about have none of their own).
 const fn shown(section: SettingsSection) -> SettingsSection {
     match section {
-        SettingsSection::Appearance => SettingsSection::General,
+        SettingsSection::Appearance | SettingsSection::About => SettingsSection::General,
         other => other,
     }
 }
@@ -50,7 +52,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 let keys = crate::keys::deliverable(settings, name);
                 if !keys.is_empty() {
                     out.push(Row {
-                        key: name.spec().title.to_owned(),
+                        key: app_front::i18n::title(name).to_owned(),
                         value: keys.join(", "),
                         change: Some(CommandName::SetKeybinding),
                     });
@@ -65,40 +67,44 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 .map(|a| Row {
                     key: clean(&a.email),
                     value: match &a.status {
-                        AccountStatus::Unverified => "not tested".to_owned(),
-                        AccountStatus::Verified { .. } => "connected".to_owned(),
-                        AccountStatus::Failed { error, .. } => clean(&format!("failed: {error}")),
+                        AccountStatus::Unverified => s(Key::NotTested).to_owned(),
+                        AccountStatus::Verified { .. } => s(Key::Connected).to_owned(),
+                        AccountStatus::Failed { error, .. } => {
+                            f(Key::FailedError, &[("error", &clean(error))])
+                        }
                     },
                     change: Some(CommandName::TestAccount),
                 })
                 .collect();
             out.push(Row {
-                key: "Add an account".to_owned(),
+                key: s(Key::AddAnAccount).to_owned(),
                 value: String::new(),
                 change: Some(CommandName::AddAccount),
             });
             out
         }
-        SettingsSection::General | SettingsSection::Appearance => update_rows(state)
-            .into_iter()
-            .chain(SettingKey::ALL.iter().map(|key| Row {
-                key: key.as_str().to_owned(),
-                value: key.get(settings).to_string(),
-                change: Some(CommandName::SetSetting),
-            }))
-            .chain([
-                Row {
-                    key: "theme_light".to_owned(),
-                    value: clean(&settings.theme_light),
-                    change: Some(CommandName::SetTheme),
-                },
-                Row {
-                    key: "theme_dark".to_owned(),
-                    value: clean(&settings.theme_dark),
-                    change: Some(CommandName::SetTheme),
-                },
-            ])
-            .collect(),
+        SettingsSection::General | SettingsSection::Appearance | SettingsSection::About => {
+            update_rows(state)
+                .into_iter()
+                .chain(SettingKey::ALL.iter().map(|key| Row {
+                    key: key.as_str().to_owned(),
+                    value: key.get(settings).to_string(),
+                    change: Some(CommandName::SetSetting),
+                }))
+                .chain([
+                    Row {
+                        key: "theme_light".to_owned(),
+                        value: clean(&settings.theme_light),
+                        change: Some(CommandName::SetTheme),
+                    },
+                    Row {
+                        key: "theme_dark".to_owned(),
+                        value: clean(&settings.theme_dark),
+                        change: Some(CommandName::SetTheme),
+                    },
+                ])
+                .collect()
+        }
     }
 }
 
@@ -125,7 +131,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                 // No browser from a terminal: the address, to copy.
                 Action::Open(url) => {
                     out.push(Row {
-                        key: "  release notes".to_owned(),
+                        key: s(Key::ReleaseNotes).to_owned(),
                         value: clean(url),
                         change: None,
                     });
@@ -206,10 +212,19 @@ impl SettingsView {
                 }));
             }
             KeyCode::Enter => {
-                let Some(name) = rows.get(self.cursor).and_then(|r| r.change) else {
+                let Some(row) = rows.get(self.cursor) else {
                     return outcome;
                 };
-                match (name, flow(name, state)) {
+                let Some(name) = row.change else {
+                    return outcome;
+                };
+                // A setting's row has already chosen the setting.
+                let setting = SettingKey::ALL.iter().find(|k| k.as_str() == row.key);
+                let step = match setting {
+                    Some(key) => set_setting(state, *key),
+                    None => flow(name, state),
+                };
+                match (name, step) {
                     (CommandName::TestAccount, _) => {
                         if let Some(account) = state.accounts.values().nth(self.cursor) {
                             outcome
@@ -243,7 +258,9 @@ impl SettingsView {
         self.cursor = self.cursor.min(rows.len().saturating_sub(1));
         frame.render_widget(Clear, area);
         let block = if borders {
-            Block::bordered().border_style(bold()).title(" Settings ")
+            Block::bordered()
+                .border_style(bold())
+                .title(s(Key::SettingsTitle))
         } else {
             Block::new()
         };
@@ -258,7 +275,10 @@ impl SettingsView {
                 } else {
                     dim()
                 };
-                [Span::styled(format!(" {title} "), style), Span::raw(" ")]
+                [
+                    Span::styled(format!(" {} ", crate::text::s(*title)), style),
+                    Span::raw(" "),
+                ]
             })
             .collect();
         lines.push(Line::from(tabs));
@@ -287,10 +307,7 @@ impl SettingsView {
             ..inner
         };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(
-                "Tab section · j/k move · Enter change · Esc close",
-                dim(),
-            ))),
+            Paragraph::new(Line::from(Span::styled(s(Key::SettingsFooter), dim()))),
             footer,
         );
     }

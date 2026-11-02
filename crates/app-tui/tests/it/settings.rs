@@ -90,3 +90,19 @@ fn updates_in_the_status_line_and_the_settings() {
     assert!(screen.contains("dail 9.0.0 is available"), "{screen}");
     assert!(screen.contains("Update 9.0.0 (settings)"), "{screen}");
 }
+
+/// MISC-33: a setting's row has chosen the setting, so Enter asks for the value.
+#[test]
+fn enter_on_a_setting_asks_for_its_value() {
+    let mut t = Term::new(synced_state(), 80, 24);
+    t.apply(Command::OpenSettings {
+        section: Some(SettingsSection::General),
+    });
+    // The first row is the update policy; the second is the first setting.
+    t.key(KeyCode::Down);
+    t.key(KeyCode::Enter);
+    assert_eq!(t.pump(), [Command::OpenPalette {}]);
+    let screen = t.screen();
+    assert!(screen.contains("New value for"), "{screen}");
+    assert!(!screen.contains("Which setting?"), "{screen}");
+}
