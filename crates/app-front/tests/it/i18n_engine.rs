@@ -1,7 +1,7 @@
 //! Engine texts for display: English unchanged, French translated (MISC-32).
 
 use app_core::{CommandName, CoreError};
-use app_front::i18n::{Lang, error_in, help_in, label_in};
+use app_front::i18n::{self, Lang, error_in, help_in, label_in};
 
 #[test]
 fn every_command_has_a_french_help() {
@@ -73,5 +73,47 @@ fn undo_labels_keep_their_values() {
     ] {
         assert_eq!(label_in(Lang::French, english), french);
         assert_eq!(label_in(Lang::English, english), english);
+    }
+}
+
+#[test]
+fn error_texts_keep_their_code_and_values() {
+    let fr = |text| i18n::message_in(Lang::French, text);
+    assert_eq!(
+        fr("ERR002: invalid argument `keys`: at most 8 keys"),
+        "ERR002 : argument `keys` non valide : 8 touches au maximum"
+    );
+    assert_eq!(fr("ERR207: session closed"), "ERR207 : session fermée");
+    assert_eq!(
+        fr("ERR004: thread t1 not found"),
+        "ERR004 : discussion t1 introuvable"
+    );
+    assert_eq!(
+        fr("ERR201: smtp failed: session closed"),
+        "ERR201 : échec de smtp : session fermée"
+    );
+    assert_eq!(fr("535 denied by server"), "535 denied by server");
+    assert_eq!(
+        i18n::message_in(Lang::English, "ERR207: session closed"),
+        "ERR207: session closed"
+    );
+}
+
+#[test]
+fn the_last_validation_reasons_are_translated() {
+    let fr = |text| i18n::message_in(Lang::French, text);
+    for text in [
+        "expected an address like sales@example.org",
+        "at most 4096 bytes",
+        "x@y.z is not an address of the account",
+        "the body is not downloaded yet (open_thread downloads it)",
+        "expected the absolute path of a folder",
+        "at most 32 parts",
+        "no command is named nope",
+        "not a key: \"?\"",
+        "give a mode, a light theme or a dark theme",
+        "text_scale expects a non-negative integer",
+    ] {
+        assert_ne!(fr(text), text);
     }
 }

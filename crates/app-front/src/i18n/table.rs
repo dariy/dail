@@ -2138,6 +2138,9 @@ strings! {
     ConsoleClose:
         "console close",
         "fermeture de la console";
+    UnexpectedReceipt:
+        "unexpected receipt: {error}",
+        "accusé de réception inattendu : {error}";
     ToNameLower:
         "to {name}",
         "à {name}";

@@ -172,7 +172,7 @@ impl Setup {
         {
             None | Some(AccountStatus::Unverified) => (0, None),
             Some(AccountStatus::Verified { .. }) => (1, None),
-            Some(AccountStatus::Failed { error, .. }) => (2, Some(error.clone())),
+            Some(AccountStatus::Failed { error, .. }) => (2, Some(i18n::message(error))),
         }
     }
 
@@ -231,7 +231,7 @@ impl Setup {
     pub(super) fn accept(&mut self, reply: &Reply) -> Option<Request> {
         let error = match &reply.result {
             Ok(Ok(_)) => None,
-            Ok(Err(err)) => Some(err.to_string()),
+            Ok(Err(err)) => Some(i18n::message(&err.to_string())),
             Err(err) => Some(err.clone()),
         };
         match reply.name {
@@ -257,7 +257,10 @@ impl Setup {
                         Some(Request::user(Command::TestAccount { id }))
                     }
                     Err(err) => {
-                        self.fail(format!("unexpected receipt: {err}"));
+                        self.fail(i18n::f(
+                            Key::UnexpectedReceipt,
+                            &[("error", &err.to_string())],
+                        ));
                         None
                     }
                 }

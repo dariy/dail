@@ -1,6 +1,7 @@
 //! The engine's texts in a language. `app-core` stays in English: its errors and undo labels
 //! are part of the JSON that agents read. The front-ends translate them here, for display.
 //! An English text unknown here (a server's message, a new label) is shown as it is.
+//! Agents read English: the CLI and MCP outputs are not translated.
 
 use app_core::{CommandName, CoreError};
 
@@ -8,6 +9,52 @@ use super::{Lang, commands, pseudo};
 
 /// English reasons of `error_002_invalid_argument` and similar errors, with their French.
 const REASONS: &[(&str, &str)] = &[
+    (
+        "expected an address like sales@example.org",
+        "adresse attendue, par exemple sales@example.org",
+    ),
+    (
+        "the body is not downloaded yet (open_thread downloads it)",
+        "le corps n’est pas encore téléchargé (open_thread le télécharge)",
+    ),
+    (
+        "expected the absolute path of a folder",
+        "chemin absolu d’un dossier attendu",
+    ),
+    (
+        "give a mode, a light theme or a dark theme",
+        "indiquez un mode, un thème clair ou un thème sombre",
+    ),
+    ("nothing to undo", "rien à annuler"),
+    ("nothing to redo", "rien à rétablir"),
+    ("session closed", "session fermée"),
+    ("the session is closed", "la session est fermée"),
+    (
+        "not a PNG, JPEG, GIF or WebP image",
+        "pas une image PNG, JPEG, GIF ou WebP",
+    ),
+    (
+        "this build trusts no update signing key",
+        "cette version ne fait confiance à aucune clé de signature de mise à jour",
+    ),
+    (
+        "the manifest signature does not verify",
+        "la signature du manifeste n’est pas valide",
+    ),
+    (
+        "the download's sha256 does not match the manifest",
+        "le sha256 du téléchargement ne correspond pas au manifeste",
+    ),
+    (
+        "no data directory found for profiles (is $HOME set?)",
+        "aucun dossier de données trouvé pour les profils ($HOME est-il défini ?)",
+    ),
+    (
+        "the page size is out of range",
+        "la taille de la page est hors limites",
+    ),
+    ("the tile is out of range", "la tuile est hors limites"),
+    ("the PDF renderer failed", "le moteur de rendu PDF a échoué"),
     (
         "it is being sent and can't be stopped any more",
         "il est en cours d’envoi et ne peut plus être arrêté",
@@ -159,6 +206,121 @@ const REASONS: &[(&str, &str)] = &[
 
 /// Reasons with variable parts: each `{}` of the English is a value, kept in order in the French.
 const PATTERNS: &[(&str, &str)] = &[
+    (
+        "{} expects a non-negative integer",
+        "{} attend un entier positif ou nul",
+    ),
+    ("at most {} bytes", "{} octets au maximum"),
+    ("at most {} parts", "{} parties au maximum"),
+    ("at most {} keys", "{} touches au maximum"),
+    (
+        "{} is not an address of the account",
+        "{} n’est pas une adresse du compte",
+    ),
+    ("no command is named {}", "aucune commande ne s’appelle {}"),
+    ("not a key: {}", "pas une touche : {}"),
+    ("invalid command: {}", "commande non valide : {}"),
+    ("invalid argument `{}`: {}", "argument `{}` non valide : {}"),
+    (
+        "invalid replay record on line {}: {}",
+        "enregistrement non valide à la ligne {} : {}",
+    ),
+    ("{} {} not found", "{} {} introuvable"),
+    ("{} {} already exists", "{} {} existe déjà"),
+    (
+        "{} is irreversible; repeat it with `confirm: true`",
+        "{} est irréversible ; répétez avec `confirm: true`",
+    ),
+    (
+        "account {} has no {} mailbox",
+        "le compte {} n’a pas de dossier {}",
+    ),
+    (
+        "{} can't be run from {}; the user has to do it in the GUI or the CLI",
+        "{} ne peut pas être lancé depuis {} ; l’utilisateur doit le faire dans l’interface graphique ou la ligne de commande",
+    ),
+    (
+        "draft {} can't be sent: {}",
+        "le brouillon {} ne peut pas être envoyé : {}",
+    ),
+    (
+        "“{}” is larger than 25 MiB and cannot be attached",
+        "« {} » dépasse 25 Mio et ne peut pas être joint",
+    ),
+    (
+        "“{}” could not be copied: {}",
+        "« {} » n’a pas pu être copié : {}",
+    ),
+    ("invalid request: {}", "requête non valide : {}"),
+    ("runtime: {}", "environnement d’exécution : {}"),
+    (
+        "the profile {} is in use by another dail process that does not accept connections; try again when it has finished",
+        "le profil {} est utilisé par un autre processus dail qui n’accepte pas de connexions ; réessayez quand il aura terminé",
+    ),
+    ("the profile {} is in use", "le profil {} est utilisé"),
+    (
+        "the {} backend is not in this build",
+        "le moteur {} n’est pas dans cette version",
+    ),
+    ("demo: {}", "démo : {}"),
+    ("secrets: {}", "secrets : {}"),
+    ("no host with handle {}", "aucun hôte avec l’identifiant {}"),
+    ("debug bridge: {}", "pont de débogage : {}"),
+    (
+        "backend `{}` does not support {}",
+        "le moteur `{}` ne prend pas en charge {}",
+    ),
+    ("keyring: {}", "trousseau : {}"),
+    ("TLS setup failed: {}", "échec de la configuration TLS : {}"),
+    ("IPC: {}", "communication entre processus : {}"),
+    (
+        "the manifest signature is malformed: {}",
+        "la signature du manifeste est mal formée : {}",
+    ),
+    (
+        "the manifest is malformed: {}",
+        "le manifeste est mal formé : {}",
+    ),
+    (
+        "the signature is for {}, the manifest says {}",
+        "la signature est pour {}, le manifeste indique {}",
+    ),
+    (
+        "the manifest's version {} is not newer than {}",
+        "la version {} du manifeste n’est pas plus récente que {}",
+    ),
+    (
+        "the download has {} bytes, the manifest says {}",
+        "le téléchargement fait {} octets, le manifeste indique {}",
+    ),
+    ("store unavailable: {}", "stockage indisponible : {}"),
+    ("invalid config {}: {}", "configuration {} non valide : {}"),
+    (
+        "invalid profile name `{}`: use letters, digits, `-` and `_` only",
+        "nom de profil `{}` non valide : utilisez uniquement des lettres, des chiffres, `-` et `_`",
+    ),
+    (
+        "{}: schema version {} is newer than this dail supports ({})",
+        "{} : la version de schéma {} est plus récente que celle prise en charge par ce dail ({})",
+    ),
+    (
+        "invalid blob id `{}`",
+        "identifiant de blob `{}` non valide",
+    ),
+    (
+        "the PDF is larger than {} bytes",
+        "le PDF dépasse {} octets",
+    ),
+    (
+        "the PDF has more than {} pages",
+        "le PDF a plus de {} pages",
+    ),
+    ("unreadable PDF: {}", "PDF illisible : {}"),
+    ("no page {}", "pas de page {}"),
+    (
+        "session did not shut down within {}",
+        "la session ne s’est pas arrêtée en moins de {}",
+    ),
     ("at column {}: {}", "à la colonne {} : {}"),
     ("{} exists already", "{} existe déjà"),
     (
@@ -214,6 +376,8 @@ const PATTERNS: &[(&str, &str)] = &[
         "`{}` is not a calendar date",
         "`{}` n’est pas une date du calendrier",
     ),
+    // Last: it matches any text with these words.
+    ("{} failed: {}", "échec de {} : {}"),
 ];
 
 /// The values of `text` if it has the shape of `template`.
@@ -311,7 +475,7 @@ fn french_reason(reason: &str) -> String {
             }
             Some(out)
         })
-        .unwrap_or_else(|| reason.to_owned())
+        .unwrap_or_else(|| french_entity(french_role(reason)).to_owned())
 }
 
 fn french_role(role: &str) -> &str {
@@ -351,6 +515,28 @@ pub fn error_in(lang: Lang, err: &CoreError) -> String {
             format!("{prefix}{}", pseudo(message))
         }
         Lang::French => format!("{} : {}", err.code(), french_error(err)),
+    }
+}
+
+/// An error that reached a front-end as text, `ERR<code>: <English>` or plain, in `lang`.
+/// The code stays. A text unknown here (a server's message) is shown as it is.
+pub fn message_in(lang: Lang, text: &str) -> String {
+    let (code, message) = match text.split_once(": ") {
+        Some((code, rest))
+            if code.len() > 3
+                && code.starts_with("ERR")
+                && code[3..].bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            (Some(code), rest)
+        }
+        _ => (None, text),
+    };
+    match (lang, code) {
+        (Lang::English, _) => text.to_owned(),
+        (Lang::Pseudo, Some(code)) => format!("{code}: {}", pseudo(message)),
+        (Lang::Pseudo, None) => pseudo(message),
+        (Lang::French, Some(code)) => format!("{code} : {}", french_reason(message)),
+        (Lang::French, None) => french_reason(message),
     }
 }
 

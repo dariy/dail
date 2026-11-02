@@ -335,7 +335,7 @@ impl Mobile {
     /// Shows `text` in the snackbar for a while: something the host did on its own failed
     /// (a picked file that could not be copied).
     pub fn notify(&mut self, text: &str) {
-        self.notice = Some((clean(text), self.now_ms() + NOTICE_MS));
+        self.notice = Some((clean(&i18n::message(text)), self.now_ms() + NOTICE_MS));
     }
 
     /// What only the host can do, asked for since the last call.

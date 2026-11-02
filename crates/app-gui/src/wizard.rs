@@ -139,8 +139,8 @@ impl Wizard {
         if reply.purpose == Purpose::Background(Background::WizardPassword) {
             match &reply.result {
                 Ok(Ok(_)) => {}
-                Ok(Err(err)) => self.fail(err.to_string()),
-                Err(err) => self.fail(err.to_string()),
+                Ok(Err(err)) => self.fail(app_front::i18n::message(&err.to_string())),
+                Err(err) => self.fail(app_front::i18n::message(&err.to_string())),
             }
             return;
         }
@@ -148,8 +148,8 @@ impl Wizard {
             // A refused lookup ends the wait; its answer otherwise arrives in the state.
             let refused = match &reply.result {
                 Ok(Ok(_)) => None,
-                Ok(Err(err)) => Some(err.to_string()),
-                Err(err) => Some(err.to_string()),
+                Ok(Err(err)) => Some(app_front::i18n::message(&err.to_string())),
+                Err(err) => Some(app_front::i18n::message(&err.to_string())),
             };
             if let Some(error) = refused {
                 self.looking = None;
@@ -167,11 +167,14 @@ impl Wizard {
                         self.account = Some(id);
                         queue.push(Request::user(Command::TestAccount { id }));
                     }
-                    Err(err) => self.fail(format!("unexpected receipt: {err}")),
+                    Err(err) => self.fail(app_front::i18n::f(
+                        Key::UnexpectedReceipt,
+                        &[("error", &err.to_string())],
+                    )),
                 }
             }
-            Ok(Err(err)) => self.fail(err.to_string()),
-            Err(err) => self.fail(err.to_string()),
+            Ok(Err(err)) => self.fail(app_front::i18n::message(&err.to_string())),
+            Err(err) => self.fail(app_front::i18n::message(&err.to_string())),
         }
     }
 
@@ -566,7 +569,13 @@ impl Wizard {
                 });
             }
             Some(AccountStatus::Failed { error, .. }) => {
-                ui.colored_label(t.danger, t.f(Key::LoginFailedError, &[("error", error)]));
+                ui.colored_label(
+                    t.danger,
+                    t.f(
+                        Key::LoginFailedError,
+                        &[("error", &app_front::i18n::message(error))],
+                    ),
+                );
                 ui.add_space(t.m.space.md);
                 ui.horizontal(|ui| {
                     let keep = if self.existing {

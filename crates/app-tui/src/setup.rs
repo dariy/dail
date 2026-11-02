@@ -205,8 +205,8 @@ impl Setup {
             // A refused lookup shows; its answer otherwise arrives in the state.
             match &reply.result {
                 Ok(Ok(_)) => {}
-                Ok(Err(err)) => self.error = Some(err.to_string()),
-                Err(err) => self.error = Some(err.to_string()),
+                Ok(Err(err)) => self.error = Some(app_front::i18n::message(&err.to_string())),
+                Err(err) => self.error = Some(app_front::i18n::message(&err.to_string())),
             }
             return None;
         }
@@ -223,11 +223,13 @@ impl Setup {
                             cmd: Command::TestAccount { id },
                         });
                     }
-                    Err(err) => self.fail(format!("unexpected receipt: {err}")),
+                    Err(err) => {
+                        self.fail(f(Key::UnexpectedReceipt, &[("error", &err.to_string())]))
+                    }
                 }
             }
-            Ok(Err(err)) => self.fail(err.to_string()),
-            Err(err) => self.fail(err.to_string()),
+            Ok(Err(err)) => self.fail(app_front::i18n::message(&err.to_string())),
+            Err(err) => self.fail(app_front::i18n::message(&err.to_string())),
         }
         None
     }
@@ -489,7 +491,7 @@ impl Setup {
                     }
                     Some(AccountStatus::Failed { error, .. }) => {
                         lines.push((s(Key::LoginFailedCap).to_owned(), bold()));
-                        lines.push((clean(error), Style::default()));
+                        lines.push((clean(&app_front::i18n::message(error)), Style::default()));
                         if self.existing {
                             s(Key::PasswordClose)
                         } else {

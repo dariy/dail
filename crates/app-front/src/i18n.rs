@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use app_core::{Category, CommandName};
 
-pub use engine::{error_in, help_in, label_in};
+pub use engine::{error_in, help_in, label_in, message_in};
 pub use table::{Key, english, french};
 
 /// A UI language.
@@ -93,6 +93,11 @@ pub fn f(key: Key, args: &[(&str, &str)]) -> String {
 /// The engine error `err` in the current language.
 pub fn error(err: &app_core::CoreError) -> String {
     error_in(current(), err)
+}
+
+/// The error text `text` in the current language. See [`message_in`].
+pub fn message(text: &str) -> String {
+    message_in(current(), text)
 }
 
 /// The undo label `label` in the current language.

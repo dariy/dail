@@ -162,7 +162,7 @@ fn send_failed(before: &AppState, after: &AppState) -> Option<Alert> {
                 &[("n", &failed.len().to_string())],
             )
         },
-        body: clean(&format!("{subject}: {error}")),
+        body: clean(&format!("{subject}: {}", crate::i18n::message(error))),
         threads: Vec::new(),
         draft: Some(first.id),
     })

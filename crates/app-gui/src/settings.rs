@@ -147,9 +147,10 @@ impl SettingsState {
                         let status = match &account.status {
                             AccountStatus::Unverified => t.s(Key::NotTestedYet).to_owned(),
                             AccountStatus::Verified { .. } => t.s(Key::Connected).to_owned(),
-                            AccountStatus::Failed { error, .. } => {
-                                t.f(Key::FailedError, &[("error", error)])
-                            }
+                            AccountStatus::Failed { error, .. } => t.f(
+                                Key::FailedError,
+                                &[("error", &app_front::i18n::message(error))],
+                            ),
                         };
                         ui.label(ui::text(
                             &t.type_scale.label_sm,
