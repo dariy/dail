@@ -756,6 +756,9 @@ host-only items first (MISC-20, 21, 23, 24), then MISC-22, MISC-17, MISC-18, and
 The requests of 2026-10-29 to 2026-11-01. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-25 to
 MISC-35). Small fixes first, then the mobile composers, then MISC-28. MISC-32 builds on the i18n work and lands with it.
 
+The open items now follow the Android launch's order: MISC-34, MISC-31 and MISC-28 are done in Wave 11's stages A and C;
+MISC-29, MISC-25 and MISC-30 wait until after the launch.
+
 **Exit criteria**
 - The settings page gets out of the way of navigation, and every setting row goes straight to its value.
 - The desktop reaches *About*; Appearance previews density and text size.
@@ -780,12 +783,133 @@ MISC-35). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 
 ---
 
+## Wave 11 — Android stores: "dail on Google Play and F-Droid"
+
+dail 1.0.0 in production on Google Play and published by F-Droid. The engine is strong and most of Play's technical
+baseline is met. What remains is a set of specific gaps: servers that cannot connect, crash and data-loss paths in the
+Android and session layers, the store packaging itself, and no recorded device check. The review, its evidence and the
+source of every store rule are in
+[`docs/reviews/2026-11-02-store-readiness.md`](docs/reviews/2026-11-02-store-readiness.md).
+
+The stages run in order. Sizes follow `docs/requests/misc.md`. **[user]** marks a step only the user can do. All new
+text ships in English and French.
+
+**Exit criteria**
+- 1.0.0 is in production on Google Play and published in F-Droid's main repository.
+- The closed test ends with at least 99.5 % crash-free users and no open data-loss bug.
+- All gates and CI jobs are green, and bot PRs pass unattended.
+- Every signing key is registered for Android developer verification.
+
+**Decisions** (chosen with the user on 2026-11-02)
+- **Play account.** A new personal account, so 12 testers stay opted in to a closed test for 14 straight days before
+  production can be requested.
+- **Accounts in 1.0.** Passwords and app passwords only. Microsoft addresses get a clear "not supported yet"; OAuth2
+  follows the launch.
+- **TLS.** `app-tls` moves to RustCrypto primitives (ADR 0014, amending ADR 0003), dropping about 1,900 lines of dail's
+  own crypto. The crates are widely used but only partly audited.
+- **F-Droid.** F-Droid builds and signs. Reproducible builds are not needed for the launch.
+- **Play signing.** Play generates and holds the app-signing key. The existing release key stays as the upload key and
+  keeps signing the GitHub APKs: one secret, and no change to CI.
+- **No update checks on Android.** The stores and Obtainium do this job. `install: None` turns off the check and the
+  banner, and ADR 0011 is amended. The app then talks only to mail servers, plus autoconfig hosts on *Find servers*.
+- **One build.** The `live` flavour serves every channel, with no store flavours.
+- **Foreground services.** `shortService` and `specialUse` only. Dropping `dataSync` removes one Play declaration.
+- **Fuzzing.** `cargo-fuzz` in a `fuzz/` crate outside the workspace, run nightly. It compiles libFuzzer, so AGENTS.md
+  §5 gets a one-line exception for tooling that never ships.
+- **iOS.** No new features until Android launches. The `ios` CI job stays green.
+- **Versions.** Closed-test builds are 0.9.x and production is 1.0.0. Merges keep releasing on GitHub and uploading to
+  Play's internal track; promotion to users stays manual.
+
+### A — A clean base
+- [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
+  §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator
+- [ ] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
+  stops at `action_required`; merge #19–#21, so that Wave 7's "pass CI unattended" is true again
+- MISC-34 from Wave 10 comes here
+
+### B — Hardening: it survives real users
+- [ ] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
+  of crashing
+- [ ] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
+  event and its worker keeps running; if the engine loop dies, the app says so instead of showing a stale screen
+- [ ] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
+  automatically) replace the raw `Screen.Failed` text. Its strings live in `values` and `values-fr`, because Rust may be
+  dead at that point
+- [ ] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build; every later version opens it with
+  accounts, drafts, queued ops and blobs intact. Unreadable drafts and outbox rows are quarantined and shown, never
+  dropped. AGENTS.md §5's stability rule extends to stored rows and `config.toml`
+- [ ] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
+  fixed. A crash-loop breaker: a message is marked before it is parsed, and if the process dies, that message is skipped
+  and flagged at the next start
+- [ ] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,
+  and prefetch and backfill pause while metered (this answers MISC-29's open question)
+- [ ] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
+  JNI byte array
+- [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
+  compose, send and undo
+- [ ] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
+
+### C — It connects and reads well
+- [ ] STORE-11 (L) [tls]: ADR 0014, then AES-128/256-GCM and P-256/P-384 next to ChaCha20 and X25519, from RustCrypto. The
+  Wycheproof and handshake tests stay. AGENTS.md §2 follows. The provider list is probed again and the results recorded
+- [ ] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
+  the password step; a *Create an App Password* link in Gmail setup
+- MISC-31, then MISC-28, from Wave 10 come here
+
+### D — Store packaging
+- [ ] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned
+  by a test. It must be final before the first upload
+- [ ] STORE-14 (S) [kt]: drop `dataSync`; below Android 14, `startForeground` without a type. Checked on API 29 and 33
+  emulators; `APK_PERMISSIONS` follows
+- [ ] STORE-15 (S) [android]: no update checks on Android; ADR 0011 amended
+- [ ] STORE-16 (M) [kt][xtask]: an AAB through `bundleLiveRelease`, with language splits off because the in-app language
+  can differ from the device's. `dependenciesInfo` off, and `apk-check` fails if the block returns. Native symbols go
+  into the AAB while the APK stays stripped
+- [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
+  feature graphic
+- [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
+  and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
+  `changelogs/<versionCode>.txt` (500 characters at most)
+- [ ] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
+  (Data safety, foreground services, content rating, target audience)
+- [ ] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
+  action pinned to a SHA
+
+### E — Closed test
+- [ ] STORE-21 [user]: Play Console account and identity verification; the app created and enrolled in Play App Signing;
+  `net.darii.dail` and the release key registered for developer verification
+- [ ] STORE-22 [user]: a dedicated reviewer mailbox for *App access*, not `ai@darii.net`, and the declarations submitted.
+  If Play refuses `specialUse`, push leaves the Play build and stays on F-Droid
+- [ ] STORE-23 (L) [user]: the device check of A7 on a Pixel, a Samsung and a tablet or foldable, across Android 10 and
+  16. Provisional budgets: first frame within 2 s on a mid-range phone, under 300 MiB at default settings. Push latency
+  measured overnight (dail holds no wake lock, has no TCP keepalive and refreshes IDLE every 25 minutes). The provider
+  matrix, with human testers: Gmail, Hostinger, Yahoo, iCloud, Fastmail, GMX and one Dovecot server. Results go into
+  ARCHITECTURE §7.5, and A7's box is ticked with this one
+- [ ] STORE-24 [user]: about 20 testers recruited so that at least 12 stay opted in, for 14 days or more (a tester who
+  opts out restarts their own count); weekly triage from Android vitals and diagnostics, and what comes up fixed
+
+### F — Launch
+- [ ] STORE-25 [user]: 1.0.0 tagged, production requested (review usually takes up to 7 days), a staged rollout
+- [ ] STORE-26 (M): the F-Droid recipe (Rust toolchain, `cargo-ndk`, NDK r28, `-Pdail.abis=…` per ABI, `live` only),
+  tested locally, then the inclusion request. F-Droid wants 3 months of active development, which dail reaches on
+  2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier
+- [ ] STORE-27 [user]: after F-Droid's first publish, its signing key added to `net.darii.dail`
+
+### After launch, in this order
+1. Microsoft OAuth2 (needs STORE-11)
+2. System and user CA trust, plus per-account certificate trust for self-hosters
+3. MISC-29 pre-loading, then MISC-25 previews and MISC-30 on iOS
+4. Spanish, then Romanian
+5. targetSdk 37, before the deadline expected in August 2027
+6. At-rest encryption (SEC-1), reproducible builds, and a separate decision on Gmail OAuth2, whose yearly CASA assessment
+   has widely varying reported costs
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
 - OAuth2 XOAUTH2 for Gmail and Microsoft 365 (loopback redirect flow, token refresh in keyring)
-- TLS tiers 2 and 3 in `app-tls`: AES-GCM (Namecheap Private Email) and P-256/P-384 key exchange (Microsoft 365,
-  T-Online), with the Microsoft 365 item (`docs/plan-tls.md` §11)
 - Native Gmail labels (`X-GM-LABELS`, `X-GM-THRID`); optional Gmail API backend
 - JMAP backend (Fastmail, Stalwart) with push
 - Exchange/M365 via Graph API
@@ -827,8 +951,7 @@ MISC-35). Small fixes first, then the mobile composers, then MISC-28. MISC-32 bu
 - macOS build (Keychain via `keyring`)
 - iOS parity after Wave 5: compose with attachments, background refresh, notifications, iPad multi-column, keyboard
   shortcuts, Share sheet and Files, the App Store
-- Android releases on Google Play (an AAB, the `specialUse` declaration, the data safety form) and F-Droid (a build
-  recipe with Rust and the NDK, reproducible builds)
+- Android releases on Google Play and F-Droid: Wave 11
 - Android agent channel: AppFunctions for the system assistant once Gemini's integration opens; MCP on the phone only
   once a mobile MCP client can use a compact tool profile
 - `dail serve`: headless daemon exposing the command bus over WebSocket JSON-RPC + HTTP MCP
