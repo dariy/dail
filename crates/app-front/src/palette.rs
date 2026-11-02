@@ -52,6 +52,8 @@ pub enum Choice {
     Setting(SettingKey),
     /// A pane.
     Pane(Pane),
+    /// A value of the `language` setting.
+    Language(u64),
     /// A position in a list (e.g. an attachment).
     Index(u32),
     /// Typed text.
@@ -80,6 +82,8 @@ pub enum AskKind {
     Approvals,
     /// Settings.
     Settings,
+    /// The choices of the `language` setting, by name.
+    Languages,
     /// Panes that can have the focus.
     Panes,
     /// A draft's attachments.
@@ -259,6 +263,19 @@ fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'sta
 /// The step that asks for `key`'s new value: `set_setting` past its "which setting" step.
 #[must_use]
 pub fn set_setting(state: &AppState, key: SettingKey) -> Flow {
+    if key == SettingKey::Language {
+        return ask(
+            crate::i18n::s(Key::LanguageSetting),
+            AskKind::Languages,
+            move |_, choice| match choice {
+                Choice::Language(value) => Flow::Run(Command::SetSetting {
+                    key,
+                    value: value.into(),
+                }),
+                _ => Flow::Hidden,
+            },
+        );
+    }
     let allowed = key.allowed();
     let current = key.get(&state.settings);
     ask(
@@ -1426,6 +1443,10 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                     format!("{} (range {})", key.get(&state.settings), key.allowed()),
                 )
             })
+            .collect(),
+        AskKind::Languages => crate::i18n::languages(crate::i18n::current())
+            .iter()
+            .map(|(value, name)| row(Choice::Language(*value), (*name).to_owned(), String::new()))
             .collect(),
         AskKind::Panes => Pane::ALL
             .iter()

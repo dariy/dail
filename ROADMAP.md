@@ -249,7 +249,7 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] i18n: move the GUI's and TUI's own labels into the strings table; a first real translation (French)
 - [x] i18n: command titles, shared `app_front` texts, the mobile apps' labels; `language` setting in Settings
 - [x] i18n: engine texts (`app-core` errors and undo labels, translated for display in `app_front::i18n`)
-- [ ] i18n: the TUI's named language choice
+- [x] i18n: the TUI's named language choice
 - [ ] i18n: Spanish, then Romanian
 - [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
@@ -795,8 +795,8 @@ items that stay in Wave 2: attachment drag-out (winit), DNS SRV (needs a pure-Ru
 tray icon (GTK / D-Bus), RTL (egui has no bidi).
 
 **Exit criteria**
-- The TUI's language setting is a named choice, not a raw string; all three implemented languages
-  appear in the list.
+- The TUI's language setting is a named choice, not a raw string; the system choice and both
+  implemented languages (English, French) appear in the list.
 - The TUI's Termius/Blink device report is written and ARCHITECTURE §7.4 is updated.
 - The iOS demo and live IPAs install on the user's iPad; the device report is written and
   ARCHITECTURE §7.6 is updated; I4's box is ticked.
@@ -806,7 +806,7 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
 
 - [ ] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
   a list of implemented locales by display name, not a raw string; the `language` command stays
-  `set_setting { key: "language", value: "<code>" }`)
+  `set_setting { key: "language", value: <0|1|2> }`)
 
 ### T — TUI device check (Wave 1.5, T5)
 

@@ -319,7 +319,7 @@ fn appearance(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request
                 t,
                 state,
                 SettingKey::Language,
-                &[(0, t.s(Key::System)), (1, "English"), (2, "Français")],
+                &app_front::i18n::languages(t.lang),
                 queue,
             );
         },

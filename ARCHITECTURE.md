@@ -833,7 +833,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
 **Strings and languages** (`app_front::i18n`): the texts of the front-ends are keys of a strings table
 (`i18n/table.rs`: one row per `i18n::Key` with its English and French templates, `{name}` placeholders filled by
 `i18n::tr`; `i18n::text` is the plain `&'static str` lookup). Command titles have an exhaustive table
-(`i18n/commands.rs`, read through `i18n::title`). The `language` setting (0 = system, 1 = English, 2 = French) picks
+(`i18n/commands.rs`, read through `i18n::title`). The `language` setting (0 = system, 1 = English, 2 = French; every front-end offers these by name, from `i18n::languages`) picks
 the language: each front-end resolves it per frame (`Lang::resolve`, the system being `$DAIL_LANG`, the POSIX locale
 variables, or the device's locale) and calls `i18n::set_current`; code with no `Lang` at hand uses `i18n::s`/`f`.
 The GUI also carries it on `Tokens` (`t.s`, `t.f`). Kotlin and Swift compose a few texts themselves and read them
