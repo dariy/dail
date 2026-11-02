@@ -92,7 +92,7 @@ struct Frame: Codable {
     let wantsTick: Bool
 
     enum CodingKeys: String, CodingKey {
-        case revision, layout, drawer, list, reader, composer, settings, setup, bulk, fab, banner, snackbar
+        case revision, labels, layout, drawer, list, reader, composer, settings, setup, bulk, fab, banner, snackbar
         case theme, about, palette, result, link, preview, back
         case topBar = "top_bar"
         case wantsTick = "wants_tick"
