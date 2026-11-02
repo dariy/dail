@@ -290,7 +290,7 @@ typeid 1.0.3 MIT OR Apache-2.0
 typenum 1.20.1 MIT OR Apache-2.0
 typetag 0.2.23 MIT OR Apache-2.0
 unicode-segmentation 1.13.3 MIT OR Apache-2.0
-unicode-width 0.2.2 MIT OR Apache-2.0
+unicode-width 0.2.3 MIT OR Apache-2.0
 untrusted 0.9.0 ISC
 unwrap-infallible 1.0.0 MIT OR Apache-2.0
 url 2.5.8 MIT OR Apache-2.0
