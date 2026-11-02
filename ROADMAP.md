@@ -805,8 +805,11 @@ text ships in English and French.
   production can be requested.
 - **Accounts in 1.0.** Passwords and app passwords only. Microsoft addresses get a clear "not supported yet"; OAuth2
   follows the launch.
-- **TLS.** `app-tls` moves to RustCrypto primitives (ADR 0014, amending ADR 0003), dropping about 1,900 lines of dail's
-  own crypto. The crates are widely used but only partly audited.
+- **TLS.** `app-tls` keeps only the rustls glue (ADR 0014, amending ADR 0003). Ciphers, curves and RSA come from crates:
+  `chacha20poly1305`, `aes-gcm`, `x25519-dalek`, `p256`, `p384` and `rsa`. About 1,100 of its 1,720 code lines go, and
+  about 600 lines of glue stay. The audits differ: NCC Group reviewed the AEADs in 2020 and Include Security reviewed
+  `rsa`, but `p256`, `p384` and `ecdsa` say they have never been independently audited. `rsa`'s unpatched Marvin advisory
+  concerns private keys, which dail doesn't have. The review's section 7 has the details.
 - **F-Droid.** F-Droid builds and signs. Reproducible builds are not needed for the launch.
 - **Play signing.** Play generates and holds the app-signing key. The existing release key stays as the upload key and
   keeps signing the GitHub APKs: one secret, and no change to CI.
@@ -850,8 +853,11 @@ text ships in English and French.
 - [ ] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
-- [ ] STORE-11 (L) [tls]: ADR 0014, then AES-128/256-GCM and P-256/P-384 next to ChaCha20 and X25519, from RustCrypto. The
-  Wycheproof and handshake tests stay. AGENTS.md §2 follows. The provider list is probed again and the results recorded
+- [ ] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,
+  `p256`, `p384` and `rsa` (the stable 0.9 line), with AES-128/256-GCM from `aes-gcm` and P-256/P-384 key exchange added.
+  The Wycheproof and handshake tests stay and run against the new crates. `deny.toml` ignores RUSTSEC-2023-0071 with its
+  reason. ADR 0014 retires ADR 0003's review promise, because no hand-written primitive remains, and records each crate's
+  audit status. AGENTS.md §2 follows. The provider list is probed again and the results recorded
 - [ ] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
   the password step; a *Create an App Password* link in Gmail setup
 - MISC-31, then MISC-28, from Wave 10 come here
