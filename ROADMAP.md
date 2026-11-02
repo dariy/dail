@@ -783,6 +783,51 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 
 ---
 
+## Wave 10.5 — Loose ends: "close every open tab before the launch"
+
+Remaining unchecked items from Waves 1.5, 2, 4, 5 and 10 that are achievable now, not blocked by
+external tooling, and not already absorbed into Wave 11. Do them in this order; the device checks
+come last because they are **[user]** steps. Wave 11 starts only when every box here is ticked.
+
+Items explicitly deferred to after the Android launch (per Wave 11's "After launch" list): MISC-25,
+MISC-29, MISC-30, i18n Spanish and Romanian, RTL layout, live diffs in receipts. Technically blocked
+items that stay in Wave 2: attachment drag-out (winit), DNS SRV (needs a pure-Rust resolver ADR),
+tray icon (GTK / D-Bus), RTL (egui has no bidi).
+
+**Exit criteria**
+- The TUI's language setting is a named choice, not a raw string; all three implemented languages
+  appear in the list.
+- The TUI's Termius/Blink device report is written and ARCHITECTURE §7.4 is updated.
+- The iOS demo and live IPAs install on the user's iPad; the device report is written and
+  ARCHITECTURE §7.6 is updated; I4's box is ticked.
+- Every other open box in this wave is ticked and all gates are green.
+
+### P — Pre-launch polish
+
+- [ ] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
+  a list of implemented locales by display name, not a raw string; the `language` command stays
+  `set_setting { key: "language", value: "<code>" }`)
+
+### T — TUI device check (Wave 1.5, T5)
+
+- [ ] T5 [user]: device check with Termius on an iPhone and an iPad (Blink if at hand), against
+  the demo and a live profile — portrait, landscape and rotation, the rows left with the on-screen
+  keyboard up, Esc, Ctrl and arrows from the extra-keys bar, paste, tmux and mosh, a dropped
+  connection. What works and what does not goes into ARCHITECTURE §7.4; adjust the breakpoints
+  and keys; tick T5
+
+### I — iOS device check (Wave 5, I4)
+
+- [ ] I4a [user]: install the demo IPA on the iPad with a free Apple ID (Developer Mode, re-sign
+  with `ios-deploy` or AltStore); walk through the demo mailbox — read, triage, palette, account
+  setup. Steps that worked go into ARCHITECTURE §7.6
+- [ ] I4b [user]: install the live IPA; add a Hostinger account and a Gmail App Password account.
+  Read, triage, search, compose and send with the undo window
+- [ ] I4c [user]: device check — VoiceOver, Dynamic Type, dark mode, rotation, a hardware keyboard,
+  being killed in the background. Results go into ARCHITECTURE §7.6; tick I4
+
+---
+
 ## Wave 11 — Android stores: "dail on Google Play and F-Droid"
 
 dail 1.0.0 in production on Google Play and published by F-Droid. The engine is strong and most of Play's technical
@@ -861,6 +906,9 @@ text ships in English and French.
 - [ ] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
   the password step; a *Create an App Password* link in Gmail setup
 - MISC-31, then MISC-28, from Wave 10 come here
+- [ ] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
+  from any account and moves the draft there, and every composer's From field offers them all. Reproduce the docked reply
+  layout on Linux and fix what is found. Following the iOS decision above, `ios/` only stays green
 
 ### D — Store packaging
 - [ ] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned

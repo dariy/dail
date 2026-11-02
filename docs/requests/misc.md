@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -42,6 +42,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-33 | TUI settings: Enter skips the "which setting" step | S | app-front, app-tui | 2026-11-01 |
 | MISC-34 | Fix the `libdail.rlib` output filename collision | S | app-android, app-ios, xtask, android/, ios/ | 2026-11-01 |
 | MISC-35 | Stable, translation-independent error codes | M | app-core, app-io, app-sync, app-mcp, app-cli, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
+| MISC-36 | Reply from any connected account; check the docked reply layout on Linux | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui, app-mobile, android/ | 2026-11-02 |
 
 ## Details
 
@@ -692,3 +693,22 @@ unifying the scheme with the command ids.
 - **Decided:** errors have their own codes, separate from the command ids; a receipt carries the failed command next to
   the error. Codes cover `CoreError` and every failure that reaches the user; internal error enums map to a code at
   that boundary.
+
+### MISC-36 — Reply from any connected account; check the docked reply layout on Linux
+
+When replying, the user can change the sender to any connected account, not only to an alias of the account that
+received the message. Example: a message arrived on `a@darii.net`, and the answer goes out from
+`b.darii.net@gmail.com`. Today the composer's From field offers only the draft's own account's identities
+(`set_draft_from`), and it is a plain label when that account has no aliases.
+
+Second part: check the reply UI on Linux. The user reports that it seems to mess with the previous content pane. The
+docked composer is a bottom panel inside the reader's pane (`app-gui/src/shell.rs`, `Placement::Docked`, 55% of the
+height); reproduce it first, then fix what is found.
+
+- **Commands:** `set_draft_from` (Mutation, agents allowed, undoable) changes to accept an address from any account, and
+  moves the draft to that account. Sending stays under the outbound policy. Its JSON stays compatible.
+- **Touches:** `app-core` (engine, tests, replay fixture), `app-sync` and `app-testkit` (the saved server draft moves to
+  the new account), `app-front`, `app-gui`, `app-tui`, `app-mobile`, `android/`. `ios/` takes no new features before the Android launch
+  (Wave 11).
+- **Open questions:** should the threading headers and the quote stay when the account changes? (Default: yes, the
+  reply stays a reply, and only the sender changes.)
