@@ -1596,6 +1596,9 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds. A panic hook logs every
   panic, on any thread, with its thread and location before the default hook (STORE-4). If the engine's task ends while
   the host is open, the bridge's watcher wakes the app and `event`/`frame` answer `ERR310` instead of a stale frame.
+  Any `{"error"}` answer becomes `Screen.Failed`, drawn by Kotlin alone with Android string resources (Rust may be
+  dead): *Restart* starts a new process, and *Copy diagnostics* copies the version, the device, the error and the last
+  40 lines of `android.log` to the clipboard. Nothing is sent automatically (STORE-5).
 - **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
   allows unsafe code. `tests/it/lints.rs` pins both.
 - **Tests** (`app-host/tests/it`; `app-android/tests/it` keeps the lints and the Keystore round trip): a live profile with no accounts (the lock, the background tasks), a synced

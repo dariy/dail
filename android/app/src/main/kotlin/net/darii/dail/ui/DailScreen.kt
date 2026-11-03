@@ -35,6 +35,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.darii.dail.R
 import net.darii.dail.Screen
 
 /**
@@ -53,6 +55,8 @@ import net.darii.dail.Screen
 fun DailScreen(
     screen: Screen,
     send: (UiEvent) -> Unit,
+    onRestart: () -> Unit = {},
+    onCopyDiagnostics: (String) -> Unit = {},
 ) {
     when (screen) {
         Screen.Opening -> {
@@ -60,7 +64,7 @@ fun DailScreen(
         }
 
         is Screen.Failed -> {
-            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text(screen.error) }
+            FailedScreen(onRestart) { onCopyDiagnostics(screen.error) }
         }
 
         is Screen.Ready -> {
@@ -289,6 +293,33 @@ private fun AboutScreen(
                 Text(licence.text, style = MaterialTheme.typography.labelSmall)
             }
             HorizontalDivider()
+        }
+    }
+}
+
+/**
+ * Why nothing can be shown, and the two ways out (STORE-5): *Restart* and *Copy diagnostics*.
+ * Its strings are Android resources, not frame labels, because Rust may be dead here.
+ */
+@Composable
+private fun FailedScreen(
+    onRestart: () -> Unit,
+    onCopy: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.failed_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.failed_body),
+                modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row {
+                TextButton(onClick = onCopy) { Text(stringResource(R.string.failed_copy)) }
+                androidx.compose.material3.Button(onClick = onRestart, modifier = Modifier.padding(start = 8.dp)) {
+                    Text(stringResource(R.string.failed_restart))
+                }
+            }
         }
     }
 }

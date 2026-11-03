@@ -880,7 +880,7 @@ text ships in English and French.
   of crashing
 - [x] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
   event and its worker keeps running; if the engine loop dies, the app says so instead of showing a stale screen
-- [ ] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
+- [x] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
   automatically) replace the raw `Screen.Failed` text. Its strings live in `values` and `values-fr`, because Rust may be
   dead at that point
 - [ ] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build; every later version opens it with

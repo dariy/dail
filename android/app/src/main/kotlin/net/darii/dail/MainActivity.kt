@@ -293,7 +293,17 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = bars(chromeDark), navigationBarStyle = bars(contentDark))
             }
             CompositionLocalProvider(LocalBlobs provides host::blob) {
-                DailTheme(theme, dark) { DailScreen(screen, host::send) }
+                DailTheme(theme, dark) {
+                    DailScreen(
+                        screen,
+                        host::send,
+                        onRestart = { Diagnostics.restart(this) },
+                        onCopyDiagnostics = { error ->
+                            Diagnostics.copy(this, error)
+                            Toast.makeText(this, R.string.failed_copied, Toast.LENGTH_SHORT).show()
+                        },
+                    )
+                }
             }
         }
     }

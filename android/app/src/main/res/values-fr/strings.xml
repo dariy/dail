@@ -6,4 +6,9 @@
     <string name="channel_not_sent">Non envoyés</string>
     <string name="channel_background">Arrière-plan</string>
     <string name="push_starting">Connexion à vos boîtes de réception</string>
+    <string name="failed_title">dail a cessé de fonctionner</string>
+    <string name="failed_body">Vos messages et brouillons sont enregistrés sur cet appareil. Redémarrez dail pour continuer. Pour signaler le problème, copiez les diagnostics : la version, l’appareil et les dernières lignes du journal. Rien n’est envoyé automatiquement.</string>
+    <string name="failed_restart">Redémarrer</string>
+    <string name="failed_copy">Copier les diagnostics</string>
+    <string name="failed_copied">Diagnostics copiés</string>
 </resources>
