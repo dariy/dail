@@ -929,7 +929,7 @@ text ships in English and French.
   emulator or device, with STORE-23)*
 - [x] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
-- [ ] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
+- [x] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
   action pinned to a SHA
 
 ### E — Closed test

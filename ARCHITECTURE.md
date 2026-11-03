@@ -1952,7 +1952,10 @@ The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, sho
 single source for Google Play and F-Droid (STORE-18); `release bump` also writes each language's
 `changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters. `PRIVACY.md` is the privacy
 policy, linked from the phone's About (`About.privacy`) and the listings; `docs/store/play-console.md` drafts the
-Play declarations (Data safety, foreground services, content rating, target audience; STORE-19).
+Play declarations (Data safety, foreground services, content rating, target audience; STORE-19). A tag's `play` job
+(`release.yml`, environment `release`) uploads the signed AAB (`scripts/release-android.sh` writes it to `aab/`, outside
+the GitHub Release and the manifest) to Play's internal track with `r0adkll/upload-google-play` pinned to a SHA;
+without the `DAIL_PLAY_SERVICE_ACCOUNT` secret it says so and skips. Promotion stays manual (STORE-20).
 `bump.yml` makes the tag: after `ci` passes on a merge into `main` (`workflow_run`), it bumps the version (patch unless
 a `release:minor|major|skip` label), commits it and pushes `vX.Y.Z` with a GitHub App token, so `main` runs
 ci → bump → release; `ci` skips the bump commit, and a commit a tag already holds is not released again (MISC-9,

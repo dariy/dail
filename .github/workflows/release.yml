@@ -103,6 +103,12 @@ jobs:
           name: dail-android
           path: dist/*
           if-no-files-found: error
+      # The AAB for Google Play only: not a release asset, not in the manifest (STORE-20).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dail-aab
+          path: aab/*.aab
+          if-no-files-found: error
 
   # The unsigned IPAs, live and demo, with their .sha256 (ADR 0010, plan §6): the user re-signs them with their own
   # Apple ID. No signing secret is involved.
@@ -154,3 +160,38 @@ jobs:
           cargo xtask release notes >"$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "dail ${GITHUB_REF_NAME#v}" \
             --notes-file "$RUNNER_TEMP/notes.md" dist/*
+
+  # Tags only (STORE-20): the AAB to Google Play's internal track, from the `release` environment, which holds the
+  # service account. Promotion to testers and production stays manual in the Play Console. Until the Play account
+  # exists (STORE-21) the secret is absent and the job says so without failing the release.
+  play:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [android, publish]
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dail-aab
+          path: aab
+      - name: Check the Play service account
+        id: account
+        env:
+          DAIL_PLAY_SERVICE_ACCOUNT: ${{ secrets.DAIL_PLAY_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$DAIL_PLAY_SERVICE_ACCOUNT" ]; then
+            echo "::notice::secret DAIL_PLAY_SERVICE_ACCOUNT is not set; the AAB is not uploaded to Play"
+            echo "ready=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >>"$GITHUB_OUTPUT"
+          fi
+      # `status` is `draft` until the app's first release is out of draft in the Console (the API refuses anything
+      # else before); then set the repository variable DAIL_PLAY_STATUS to `completed`.
+      - if: steps.account.outputs.ready == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.DAIL_PLAY_SERVICE_ACCOUNT }}
+          packageName: net.darii.dail
+          releaseFiles: aab/*.aab
+          track: internal
+          status: ${{ vars.DAIL_PLAY_STATUS || 'draft' }}
