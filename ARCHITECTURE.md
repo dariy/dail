@@ -1690,7 +1690,9 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `DAIL_SIGNING_KEY_PASSWORD` (CI decodes the keystore from the `DAIL_ANDROID_KEYSTORE_BASE64` secret into the
   runner's temp directory; without the variables the release APKs are unsigned and the script refuses), then
   `apk-check`, `apksigner verify`, and `dist/dail-<version>-<abi>.apk` with a `.sha256` each. The version name is the
-  workspace version and the version code `major·10⁴ + minor·10² + patch`, the same for both ABIs. R8 minifies and
+  workspace version and the version code `major·10⁸ + minor·10⁵ + patch·10 + abi` (AAB 0, arm64 1, x86_64 2;
+  STORE-13), so each ABI is its own build with x86_64 above arm64, as F-Droid wants. xtask's `version_code` pins the
+  formula and `apk-check` reads each APK's code. R8 minifies and
   shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
   the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
   `libdail.so`.

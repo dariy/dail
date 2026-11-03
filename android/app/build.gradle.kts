@@ -1,4 +1,5 @@
 import com.android.build.api.variant.ApplicationVariant
+import com.android.build.api.variant.FilterConfiguration
 
 plugins {
     alias(libs.plugins.android.application)
@@ -19,6 +20,26 @@ val workspaceVersion: String =
         .first { it.startsWith("version = ") }
         .substringAfter('"')
         .substringBefore('"')
+
+/**
+ * The version code (STORE-13): `major×10⁸ + minor×10⁵ + patch×10 + abi`, with the ABI digit last as F-Droid wants
+ * (each ABI its own build) and x86_64 above arm64. The AAB is 0, the arm64 APK 1, the x86_64 APK 2. Room for
+ * 1,000 minors and 10,000 patches. It must never go down: xtask's `version_code` and `apk-check` pin it.
+ */
+fun versionCodeOf(
+    version: String,
+    abi: String?,
+): Int {
+    val (major, minor, patch) = version.split('.').map(String::toInt)
+    val digit =
+        when (abi) {
+            null -> 0
+            "arm64-v8a" -> 1
+            "x86_64" -> 2
+            else -> error("no version code digit for ABI $abi")
+        }
+    return major * 100_000_000 + minor * 100_000 + patch * 10 + digit
+}
 
 /**
  * The release signing key, from the environment only (CI decodes it from repository secrets; it is
@@ -45,7 +66,8 @@ android {
         targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionName = workspaceVersion
-        versionCode = workspaceVersion.split('.').fold(0) { code, part -> code * 100 + part.toInt() }
+        // The AAB's; each ABI split's APK gets its own below.
+        versionCode = versionCodeOf(workspaceVersion, null)
     }
 
     flavorDimensions += "backend"
@@ -211,6 +233,10 @@ androidComponents {
                 outputs.upToDateWhen { false }
             }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargo, CargoNdk::output)
+        variant.outputs.forEach { output ->
+            val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier
+            output.versionCode.set(versionCodeOf(workspaceVersion, abi))
+        }
     }
 }
 

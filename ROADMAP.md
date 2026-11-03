@@ -913,7 +913,7 @@ text ships in English and French.
   layout on Linux and fix what is found. Following the iOS decision above, `ios/` only stays green
 
 ### D — Store packaging
-- [ ] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned
+- [x] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned
   by a test. It must be final before the first upload
 - [ ] STORE-14 (S) [kt]: drop `dataSync`; below Android 14, `startForeground` without a type. Checked on API 29 and 33
   emulators; `APK_PERMISSIONS` follows

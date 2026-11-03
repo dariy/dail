@@ -681,6 +681,29 @@ fn tool_output(tool: &Path, args: &[&str], apk: &Path) -> Result<(bool, String)>
 }
 
 /// What is wrong with one APK.
+/// The Android version code of `version` for `abi` (`None`: the AAB), as `build.gradle.kts` computes it (STORE-13):
+/// `major×10⁸ + minor×10⁵ + patch×10 + abi digit`, with arm64 1 and x86_64 2.
+fn version_code(version: &str, abi: Option<&str>) -> Option<u64> {
+    let parts: Vec<u64> = version
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let [major, minor, patch] = parts[..] else {
+        return None;
+    };
+    if minor >= 1_000 || patch >= 10_000 {
+        return None;
+    }
+    let digit = match abi {
+        None => 0,
+        Some("arm64-v8a") => 1,
+        Some("x86_64") => 2,
+        Some(_) => return None,
+    };
+    Some(major * 100_000_000 + minor * 100_000 + patch * 10 + digit)
+}
+
 fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
     let mut problems = Vec::new();
     let release = apk.to_string_lossy().contains("release");
@@ -717,6 +740,18 @@ fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
         .and_then(|rest| rest.split('\'').next())
         .unwrap_or_default()
         .to_owned();
+    // STORE-13: the version code of the APK's ABI, from the file name Gradle gives a split.
+    let file = apk.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let abi = ["arm64-v8a", "x86_64"].into_iter().find(|abi| file.contains(abi));
+    let found = badging
+        .split("versionCode='")
+        .nth(1)
+        .and_then(|rest| rest.split('\'').next())
+        .and_then(|code| code.parse::<u64>().ok());
+    let expected = version_code(env!("CARGO_PKG_VERSION"), abi);
+    if found != expected {
+        problems.push(format!("versionCode {found:?}, expected {expected:?}"));
+    }
     let (_, permissions) = tool_output(&aapt2, &["dump", "permissions"], apk)?;
     let mut asked: Vec<String> = permissions
         .lines()
@@ -1018,4 +1053,28 @@ fn path_str(path: &Path) -> Result<String> {
 /// Quotes `arg` for the device's shell.
 fn shell_quote(arg: &str) -> String {
     format!("'{}'", arg.replace('\'', "'\\''"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::version_code;
+
+    /// STORE-13: the scheme is final before the first upload; a later version never gets a lower code.
+    #[test]
+    fn version_codes_are_pinned() {
+        assert_eq!(version_code("0.9.0", None), Some(900_000));
+        assert_eq!(version_code("0.9.3", Some("arm64-v8a")), Some(900_031));
+        assert_eq!(version_code("1.0.0", None), Some(100_000_000));
+        assert_eq!(version_code("1.0.0", Some("arm64-v8a")), Some(100_000_001));
+        assert_eq!(version_code("1.2.3", Some("x86_64")), Some(100_200_032));
+        // Every ABI of a patch is below the next patch, and x86_64 above arm64.
+        assert!(version_code("1.0.9999", Some("x86_64")) < version_code("1.1.0", None));
+        assert!(version_code("0.999.9999", Some("x86_64")) < version_code("1.0.0", None));
+        assert!(version_code("1.0.0", Some("arm64-v8a")) < version_code("1.0.0", Some("x86_64")));
+        // Play's ceiling is 2,100,000,000: majors up to 20.
+        assert!(version_code("20.999.9999", Some("x86_64")).unwrap() <= 2_100_000_000);
+        assert_eq!(version_code("1.1000.0", None), None);
+        assert_eq!(version_code("1.0", None), None);
+        assert_eq!(version_code("1.0.0", Some("armeabi-v7a")), None);
+    }
 }
