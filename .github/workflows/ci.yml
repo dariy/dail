@@ -133,7 +133,8 @@ jobs:
           arch: x86_64
           target: default
           disable-animations: true
-          # The Rust tests on the device, then the instrumented tests (the debug bridge) over the demo build.
+          # The Rust tests on the device, then the instrumented tests over the demo build: the debug bridge and the golden
+          # path (STORE-9b: open, read, archive and undo, compose, send and undo).
           script: |
             cargo xtask android test
             cd android && ./gradlew connectedDemoDebugAndroidTest -Pdail.abis=x86_64

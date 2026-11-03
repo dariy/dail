@@ -894,7 +894,8 @@ text ships in English and French.
 - [x] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
   JNI byte array
 - [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
-  compose, send and undo
+  compose, send and undo *(written as `GoldenPathTest`; no local emulator (no KVM), so it is ticked once CI's
+  `android-emulator` job passes it)*
 - [ ] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
