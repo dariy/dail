@@ -1,0 +1,51 @@
+# Fuzz targets for the parsers of hostile mail (STORE-7): `cargo +nightly fuzz run <target>`.
+# Outside the workspace on purpose: cargo-fuzz needs nightly and libFuzzer, which is C++ compiled at build time.
+# That is AGENTS.md §5's one exception, for tooling that never ships. `.github/workflows/fuzz.yml` runs every target
+# nightly.
+[package]
+name = "dail-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+app-io = { path = "../crates/app-io" }
+
+# Not a member of dail's workspace.
+[workspace]
+
+# The workspace's patch, which a crate outside it does not inherit (ADR 0012, vendor/README.md).
+[patch."https://github.com/LaurenzV/hayro"]
+hayro-postscript = { path = "../vendor/hayro-postscript" }
+
+[[bin]]
+name = "mime"
+path = "fuzz_targets/mime.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "html"
+path = "fuzz_targets/html.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "images"
+path = "fuzz_targets/images.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pdf"
+path = "fuzz_targets/pdf.rs"
+test = false
+doc = false
+bench = false

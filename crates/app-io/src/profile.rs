@@ -88,6 +88,11 @@ impl ProfileDirs {
         self.root.join("updates")
     }
 
+    /// `breaker/`: the crash-loop breaker's marks (STORE-7, [`crate::breaker`]).
+    pub fn breaker_dir(&self) -> PathBuf {
+        self.root.join("breaker")
+    }
+
     /// `lock`: single-instance lock (M7).
     pub fn lock_file(&self) -> PathBuf {
         self.root.join("lock")

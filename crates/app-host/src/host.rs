@@ -553,7 +553,8 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
         (platform.secrets)()?,
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
-    );
+    )
+    .with_breaker(Arc::new(app_io::breaker::Breaker::open(dirs.breaker_dir())));
     // Without an index, search still matches headers and asks the servers.
     let backend: Arc<dyn Backend> =
         match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {

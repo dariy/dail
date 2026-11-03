@@ -886,7 +886,7 @@ text ships in English and French.
 - [x] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build (v0.1.5 now; that build adds its own with `DAIL_GOLDEN_FREEZE`); every later version opens it with
   accounts, drafts, queued ops and blobs intact. Unreadable drafts and outbox rows are quarantined and shown, never
   dropped. AGENTS.md §5's stability rule extends to stored rows and `config.toml`
-- [ ] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
+- [x] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
   fixed. A crash-loop breaker: a message is marked before it is parsed, and if the process dies, that message is skipped
   and flagged at the next start
 - [ ] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,

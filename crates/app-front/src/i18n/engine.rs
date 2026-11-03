@@ -29,6 +29,10 @@ const REASONS: &[(&str, &str)] = &[
     ("nothing to redo", "rien à rétablir"),
     ("session closed", "session fermée"),
     (
+        "dail stopped while reading this message, so it is not read again",
+        "dail s’est arrêté en lisant ce message, il n’est donc plus lu",
+    ),
+    (
         "dail hit an internal error; the log has the details",
         "dail a rencontré une erreur interne ; le journal contient les détails",
     ),

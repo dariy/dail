@@ -523,7 +523,10 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    fetches `BODY.PEEK[]` (stays unread), checks UIDVALIDITY, stores the raw RFC 822 with `Store::put_blob` and reports
    `BodyFetched` (the envelope's `body` becomes `fetched{blob}` and `has_attachments` is corrected from the full parse,
    `app_io::mime::has_attachments`, and `snippet` set from `app_io::mime::snippet`; the engine cleans it again with
-   `app_core::snippet`: quoted lines, controls and bidi formatting dropped, whitespace collapsed, at most 140 chars) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending.
+   `app_core::snippet`: quoted lines, controls and bidi formatting dropped, whitespace collapsed, at most 140 chars) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending. A crash-loop breaker guards the
+   parse (`app_io::breaker`, STORE-7): a mark `breaker/parsing-<message>` is on disk while a body is parsed; a mark
+   left by a dead process poisons that message at the next open (`breaker/poisoned`), and its fetch then fails with a
+   fixed reason instead of parsing it again. The parsers are fuzzed nightly (`fuzz/`, `.github/workflows/fuzz.yml`).
 5. Remote ops: triage commands change the cache first and queue one `PendingOp` per account in `state.outbox` (persisted with
    the cache, in the same `MailDelta`). Each account runs one op at a time, oldest first: when an op starts the engine resolves
    its messages' *current* server locations into `RemoteStep`s (`Store` per mailbox, UIDs ascending) and emits
