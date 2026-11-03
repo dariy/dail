@@ -35,6 +35,12 @@ strings! {
     StoreFailed:
         "local store failed",
         "échec du stockage local";
+    Quarantined:
+        "{count} saved items could not be read",
+        "{count} éléments enregistrés n’ont pas pu être lus";
+    QuarantinedHint:
+        "They are kept aside in the profile, not deleted: a later version of dail may read them. Report it with the version you updated from.",
+        "Ils sont mis de côté dans le profil, pas supprimés : une version ultérieure de dail pourra peut-être les lire. Signalez-le en indiquant la version précédente.";
     KeyringFailed:
         "keyring failed",
         "échec du trousseau";

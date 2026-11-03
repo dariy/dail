@@ -3,6 +3,7 @@
 
 mod compose;
 mod config;
+mod golden;
 mod images;
 mod mime;
 mod original;

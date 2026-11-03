@@ -2,10 +2,18 @@
 //!
 //! Tables map 128-bit IDs to JSON records: `mailboxes`, `messages` (envelopes), `threads`,
 //! `outbox` (pending ops), `drafts`, `approvals` (agents' send requests); `meta` holds `schema_version`. Each [`MailDelta`] is applied in one ACID write transaction.
+//!
+//! An unreadable row of the cache proper (mailboxes, messages, threads) is skipped: sync
+//! fetches it again. An unreadable draft, queued operation or approval is the user's own work, so
+//! opening the store moves it into `quarantine` with its raw bytes, and the state lists it
+//! (`StatusState::quarantined`). Nothing is ever dropped (STORE-6).
 
 use std::path::{Path, PathBuf};
 
-use app_core::{AppState, ApprovalRequest, Draft, Envelope, MailDelta, Mailbox, PendingOp, Thread};
+use app_core::{
+    AppState, ApprovalRequest, Draft, Envelope, MailDelta, Mailbox, PendingOp, QuarantinedRow,
+    Thread,
+};
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -20,6 +28,8 @@ const THREADS: TableDefinition<u128, &[u8]> = TableDefinition::new("threads");
 const OUTBOX: TableDefinition<u128, &[u8]> = TableDefinition::new("outbox");
 const DRAFTS: TableDefinition<u128, &[u8]> = TableDefinition::new("drafts");
 const APPROVALS: TableDefinition<u128, &[u8]> = TableDefinition::new("approvals");
+/// Rows of `drafts`, `outbox` and `approvals` that did not read, moved aside (STORE-6).
+const QUARANTINE: TableDefinition<u128, &[u8]> = TableDefinition::new("quarantine");
 const SCHEMA_VERSION: &str = "schema_version";
 
 /// The mail cache of one profile.
@@ -47,6 +57,7 @@ impl RedbStore {
             db: parking_lot::RwLock::new(db),
         };
         store.migrate()?;
+        store.quarantine()?;
         Ok(store)
     }
 
@@ -97,7 +108,9 @@ impl RedbStore {
         // Creates missing tables (fresh databases; `drafts` and `approvals` are additive within
         // version 1) and
         // stamps the version.
-        for table in [MAILBOXES, MESSAGES, THREADS, OUTBOX, DRAFTS, APPROVALS] {
+        for table in [
+            MAILBOXES, MESSAGES, THREADS, OUTBOX, DRAFTS, APPROVALS, QUARANTINE,
+        ] {
             txn.open_table(table).map_err(|e| self.err(e))?;
         }
         txn.open_table(META)
@@ -105,6 +118,48 @@ impl RedbStore {
             .insert(SCHEMA_VERSION, migrations::CURRENT)
             .map_err(|e| self.err(e))?;
         txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Moves the rows of `drafts`, `outbox` and `approvals` that do not read into `quarantine`.
+    fn quarantine(&self) -> Result<(), IoError> {
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        let mut moved = self.quarantine_table::<Draft>(&txn, DRAFTS)?;
+        moved += self.quarantine_table::<PendingOp>(&txn, OUTBOX)?;
+        moved += self.quarantine_table::<ApprovalRequest>(&txn, APPROVALS)?;
+        if moved > 0 {
+            tracing::warn!(rows = moved, "quarantined unreadable rows");
+        }
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    fn quarantine_table<T: DeserializeOwned>(
+        &self,
+        txn: &redb::WriteTransaction,
+        table: TableDefinition<u128, &[u8]>,
+    ) -> Result<usize, IoError> {
+        let name = redb::TableHandle::name(&table).to_owned();
+        let mut source = txn.open_table(table).map_err(|e| self.err(e))?;
+        let mut bad = Vec::new();
+        for row in source.iter().map_err(|e| self.err(e))? {
+            let (key, value) = row.map_err(|e| self.err(e))?;
+            if let Err(err) = serde_json::from_slice::<T>(value.value()) {
+                bad.push((key.value(), value.value().to_vec(), err.to_string()));
+            }
+        }
+        let mut quarantine = txn.open_table(QUARANTINE).map_err(|e| self.err(e))?;
+        for (key, raw, error) in &bad {
+            let held = Held {
+                table: name.clone(),
+                error: error.clone(),
+                raw: String::from_utf8_lossy(raw).into_owned(),
+            };
+            let bytes = self.encode(&held)?;
+            quarantine
+                .insert(*key, bytes.as_slice())
+                .map_err(|e| self.err(e))?;
+            source.remove(*key).map_err(|e| self.err(e))?;
+        }
+        Ok(bad.len())
     }
 
     /// The schema version recorded in the file.
@@ -117,9 +172,23 @@ impl RedbStore {
             .map_or(0, |v| v.value()))
     }
 
-    /// Fills the mail collections of `state` from the cache. Unreadable records are skipped.
+    /// Fills the mail collections of `state` from the cache, and `status.quarantined` from the
+    /// rows kept aside. Unreadable cache records are skipped.
     pub fn load_into(&self, state: &mut AppState) -> Result<(), IoError> {
         let txn = self.db.read().begin_read().map_err(|e| self.err(e))?;
+        {
+            let quarantine = txn.open_table(QUARANTINE).map_err(|e| self.err(e))?;
+            for row in quarantine.iter().map_err(|e| self.err(e))? {
+                let (key, value) = row.map_err(|e| self.err(e))?;
+                if let Ok(held) = serde_json::from_slice::<Held>(value.value()) {
+                    state.status.quarantined.push(QuarantinedRow {
+                        table: held.table,
+                        key: uuid::Uuid::from_u128(key.value()).to_string(),
+                        error: held.error,
+                    });
+                }
+            }
+        }
         for mailbox in self.read_all::<Mailbox>(&txn, MAILBOXES)? {
             state.mailboxes.insert(mailbox.id, mailbox);
         }
@@ -254,4 +323,13 @@ impl RedbStore {
     fn encode(&self, record: &impl Serialize) -> Result<Vec<u8>, IoError> {
         serde_json::to_vec(record).map_err(|e| self.err(e))
     }
+}
+
+/// A quarantined row: where it came from, why it did not read, and its bytes as they were
+/// (rows are JSON, so text).
+#[derive(Serialize, serde::Deserialize)]
+struct Held {
+    table: String,
+    error: String,
+    raw: String,
 }

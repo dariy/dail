@@ -782,8 +782,12 @@ steps + final state with `insta` and checks that replaying twice is identical.
   routes `Mail` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable records are skipped
-  with a warning on load.
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
+  queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
+  `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
+  The golden profiles in `crates/app-testkit/fixtures/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
+  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>`.
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,

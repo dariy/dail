@@ -1,0 +1,45 @@
+# dail configuration, written by dail. Passwords are stored in the OS keyring, never in this file.
+
+[settings]
+undo_send_ms = 15000
+poll_secs = 300
+initial_window = 500
+history_cap = 200
+theme = 0
+theme_light = "dail-light"
+theme_dark = "dail-dark"
+list_density = 0
+language = 0
+tui_colors = 0
+text_scale = 100
+notifications = 1
+background_sync = 1
+background_interval_mins = 30
+mark_read_after_ms = 2000
+stale_secs = 60
+full_sync_secs = 900
+after_triage = 0
+
+[settings.updates]
+checks = "unset"
+interval_hours = 24
+
+[[account]]
+id = "00000000-0000-0000-0000-000000000001"
+display_name = "Me"
+email = "me1@example.org"
+preset = "custom"
+
+[account.imap]
+host = "mail.example.org"
+port = 993
+security = "tls"
+
+[account.smtp]
+host = "mail.example.org"
+port = 993
+security = "tls"
+
+[account.secret]
+service = "dail"
+user = "account/00000000-0000-0000-0000-000000000001"

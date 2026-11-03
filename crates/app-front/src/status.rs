@@ -149,6 +149,21 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
             fix: None,
         });
     }
+    let quarantined = &state.status.quarantined;
+    if !quarantined.is_empty() {
+        let count = quarantined.len().to_string();
+        let detail = quarantined
+            .iter()
+            .map(|row| format!("{} {}: {}", row.table, row.key, row.error))
+            .collect::<Vec<_>>()
+            .join("\n");
+        out.push(Problem {
+            text: tr(lang, Key::Quarantined, &[("count", &count)]),
+            detail,
+            hint: Some(tr(lang, Key::QuarantinedHint, &[])),
+            fix: None,
+        });
+    }
     if let Some(error) = &state.status.keyring_error {
         out.push(Problem {
             text: tr(lang, Key::KeyringFailed, &[]),

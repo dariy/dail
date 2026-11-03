@@ -21,11 +21,11 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
-fn uuid(n: u128) -> uuid::Uuid {
+pub(super) fn uuid(n: u128) -> uuid::Uuid {
     uuid::Uuid::from_u128(n)
 }
 
-fn account(n: u128) -> Account {
+pub(super) fn account(n: u128) -> Account {
     let id = AccountId::from_uuid(uuid(n));
     let endpoint = Endpoint {
         host: "mail.example.org".into(),
@@ -45,7 +45,7 @@ fn account(n: u128) -> Account {
     }
 }
 
-fn cache(account: u128, n: u128) -> MailDelta {
+pub(super) fn cache(account: u128, n: u128) -> MailDelta {
     let account = AccountId::from_uuid(uuid(account));
     let mailbox = MailboxId::from_uuid(uuid(n));
     let thread = ThreadId::from_uuid(uuid(n + 1));
@@ -132,7 +132,7 @@ fn redb_store_round_trips_and_survives_reopen() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
-fn op(n: u128, created_ms: i64) -> PendingOp {
+pub(super) fn op(n: u128, created_ms: i64) -> PendingOp {
     PendingOp {
         id: OpId::from_uuid(uuid(n)),
         account: AccountId::from_uuid(uuid(1)),
@@ -181,7 +181,7 @@ fn redb_store_keeps_the_outbox_in_queue_order() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
-fn draft(n: u128, created_ms: i64) -> Draft {
+pub(super) fn draft(n: u128, created_ms: i64) -> Draft {
     Draft {
         id: DraftId::from_uuid(uuid(n)),
         account: AccountId::from_uuid(uuid(1)),
@@ -245,6 +245,60 @@ fn redb_store_keeps_drafts_in_creation_order() {
             (DraftId::from_uuid(uuid(900)), "Edited".to_owned()),
         ]
     );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// STORE-6: a draft this version cannot read is moved aside with its bytes and listed, never
+/// dropped; the readable ones load as before, and reopening keeps the quarantine.
+#[test]
+fn unreadable_drafts_are_quarantined_not_dropped() {
+    use redb::ReadableTableMetadata as _;
+    let dir = scratch("quarantine");
+    let path = dir.join("state.redb");
+    {
+        let store = RedbStore::open(&path).unwrap();
+        store
+            .apply_mail(&MailDelta {
+                drafts: vec![draft(800, 1)],
+                ..MailDelta::default()
+            })
+            .unwrap();
+    }
+    {
+        // A row as a future (or broken) version might have written it.
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        {
+            let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("drafts");
+            let mut drafts = txn.open_table(table).unwrap();
+            drafts
+                .insert(900, br#"{"id":"not a draft"}"#.as_slice())
+                .unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    for _ in 0..2 {
+        let store = RedbStore::open(&path).unwrap();
+        let mut state = AppState::default();
+        store.load_into(&mut state).unwrap();
+        assert_eq!(state.drafts.len(), 1);
+        assert_eq!(state.status.quarantined.len(), 1);
+        let row = &state.status.quarantined[0];
+        assert_eq!(row.table, "drafts");
+        assert_eq!(row.key, uuid(900).to_string());
+        assert!(!row.error.is_empty());
+    }
+    let db = redb::Database::create(&path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
+    let held = txn.open_table(table).unwrap();
+    assert_eq!(held.len().unwrap(), 1);
+    let raw = held.get(900).unwrap().unwrap();
+    let raw: serde_json::Value = serde_json::from_slice(raw.value()).unwrap();
+    assert_eq!(raw["raw"], r#"{"id":"not a draft"}"#);
+    drop(held);
+    drop(txn);
+    drop(db);
     std::fs::remove_dir_all(dir).unwrap();
 }
 

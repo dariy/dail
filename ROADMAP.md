@@ -883,7 +883,7 @@ text ships in English and French.
 - [x] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
   automatically) replace the raw `Screen.Failed` text. Its strings live in `values` and `values-fr`, because Rust may be
   dead at that point
-- [ ] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build; every later version opens it with
+- [x] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build (v0.1.5 now; that build adds its own with `DAIL_GOLDEN_FREEZE`); every later version opens it with
   accounts, drafts, queued ops and blobs intact. Unreadable drafts and outbox rows are quarantined and shown, never
   dropped. AGENTS.md §5's stability rule extends to stored rows and `config.toml`
 - [ ] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
