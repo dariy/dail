@@ -1,5 +1,5 @@
 //! The golden profiles (STORE-6): profiles written by released builds and frozen under
-//! `crates/app-testkit/fixtures/golden/<name>/`. Every later version must open each of them
+//! `crates/app-io/testdata/golden/<name>/` (inside app-io, so that the device tests find it; `cargo xtask android test` pushes a crate's `testdata`). Every later version must open each of them
 //! with its accounts, settings, drafts, queued operations, approvals and blobs intact, and with
 //! nothing quarantined. A golden profile is never edited or regenerated once a store build wrote
 //! it; a format change adds a migration (or a serde default) instead.
@@ -27,7 +27,7 @@ fn golden_root() -> PathBuf {
     // The run-time manifest dir first, for test runs on a device (AGENTS.md §6).
     let manifest = std::env::var("CARGO_MANIFEST_DIR")
         .unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned());
-    Path::new(&manifest).join("../app-testkit/fixtures/golden")
+    Path::new(&manifest).join("testdata/golden")
 }
 
 fn copy_dir(from: &Path, to: &Path) {

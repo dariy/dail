@@ -10,7 +10,7 @@ fn a_password_round_trips_through_the_store() {
     if std::env::var_os("DAIL_IT_ANDROID_KEYSTORE").is_none() {
         return;
     }
-    let store = dail::secrets::store().unwrap();
+    let store = dail_android::secrets::store().unwrap();
     let key = SecretRef {
         service: "dail-it".to_owned(),
         user: "round-trip@example.com".to_owned(),

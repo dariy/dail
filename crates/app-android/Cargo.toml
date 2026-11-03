@@ -9,7 +9,9 @@ repository.workspace = true
 publish = false
 
 [lib]
-name = "dail"
+# Not `dail`: app-cli's binary is `dail`, and on Windows both wrote `target/debug/deps/dail.pdb` (MISC-34). Gradle's
+# CargoNdk task ships the library as `libdail.so`.
+name = "dail_android"
 crate-type = ["cdylib", "rlib"]
 
 # The workspace's lints with `unsafe_code = "deny"` instead of `forbid`, so that `src/jni.rs` alone may allow it

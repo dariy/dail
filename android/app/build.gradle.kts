@@ -201,11 +201,13 @@ abstract class CargoNdk : DefaultTask() {
             environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS", pages)
             environment("CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS", pages)
         }
-        // cargo-ndk copies every cdylib it built, a dependency's too; the APK carries only ours.
+        // cargo-ndk copies every cdylib it built, a dependency's too; the APK carries only ours, as `libdail.so`
+        // (the crate's library is `dail_android`, MISC-34).
         files.sync {
             from(built)
             into(output)
-            include("*/libdail.so")
+            include("*/libdail_android.so")
+            rename("libdail_android.so", "libdail.so")
         }
     }
 }

@@ -5,4 +5,4 @@ crates/app-theme/assets/fonts/*.txt text eol=lf
 # Signed update fixtures: a CRLF checkout (Windows) would change the signed bytes. Never convert them.
 crates/app-io/testdata/updates/** -text
 # Golden profiles (STORE-6): bytes written by a released build. Never convert them.
-crates/app-testkit/fixtures/golden/** -text
+crates/app-io/testdata/golden/** -text

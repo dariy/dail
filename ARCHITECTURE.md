@@ -814,7 +814,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
   (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
-  The golden profiles in `crates/app-testkit/fixtures/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
+  The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
   build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>`.
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
@@ -1580,7 +1580,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
 
-**The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail"`, cdylib + rlib, over it). `app_host::Host`
+**The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail_android"`, cdylib + rlib, shipped as `libdail.so`, over it; MISC-34). `app_host::Host`
 is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
 `app_host::Platform` (the credential store and the logs, two plain functions, and the install kind for update checks):
 `app_android::PLATFORM` on Android, `app_host::DESKTOP` (the OS keyring, no logs, no install kind) in tests. With an

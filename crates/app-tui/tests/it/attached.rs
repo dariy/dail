@@ -37,6 +37,7 @@ impl Attached {
             self.bridge.submit(r.purpose, r.cmd);
         }
         let tui = &mut self.tui;
+        let _one = crate::support::drawing();
         self.terminal.draw(|f| tui.draw(f, &state)).unwrap();
         let buffer = self.terminal.backend().buffer();
         let width = usize::from(buffer.area.width);
