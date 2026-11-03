@@ -29,6 +29,9 @@ struct Buffer {
     text: String,
     /// The draft's value when the buffer was loaded or written back.
     loaded: String,
+    /// The draft's value just before the last write-back, until the engine has applied it: a frame drawn in between
+    /// still sees it, and must not take it for a change made elsewhere (MISC-31: a save reset the editor).
+    superseded: Option<String>,
     dirty: bool,
     version: u64,
 }
@@ -116,15 +119,22 @@ impl Buffers {
             (Field::Body, &draft.body_text),
         ] {
             let fresh = self.buffer(field).is_some_and(|b| b.version == 0);
-            let changed = self
-                .buffer(field)
-                .is_some_and(|b| !b.dirty && b.loaded != *value);
+            if let Some(buffer) = self.buffer_mut(field)
+                && buffer.loaded == *value
+            {
+                // The write-back arrived.
+                buffer.superseded = None;
+            }
+            let changed = self.buffer(field).is_some_and(|b| {
+                !b.dirty && b.loaded != *value && b.superseded.as_ref() != Some(value)
+            });
             if fresh || changed {
                 let version = self.bump();
                 if let Some(buffer) = self.buffer_mut(field) {
                     *buffer = Buffer {
                         text: scrub(value),
                         loaded: value.clone(),
+                        superseded: None,
                         dirty: false,
                         version,
                     };
@@ -262,7 +272,11 @@ impl Buffers {
         let take = |buffer: &mut Buffer, current: &str| {
             let dirty = std::mem::take(&mut buffer.dirty);
             buffer.loaded.clone_from(&buffer.text);
-            (dirty && buffer.text != current).then(|| buffer.text.clone())
+            let sent = (dirty && buffer.text != current).then(|| buffer.text.clone());
+            if sent.is_some() {
+                buffer.superseded = Some(current.to_owned());
+            }
+            sent
         };
         let subject = take(&mut self.subject, &draft.subject);
         let body = take(&mut self.body, &draft.body_text);

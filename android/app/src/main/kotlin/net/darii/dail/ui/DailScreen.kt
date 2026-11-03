@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -174,7 +175,9 @@ private fun FrameScaffold(
             PaletteScreen(sheet, send, Modifier.padding(padding))
             return@Scaffold
         }
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        // The scaffold's insets are taken here, so a pane's `imePadding` adds only what the keyboard covers beyond
+        // the navigation bar.
+        Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize()) {
             frame.banner?.let { BannerCard(it, send) }
             Row(Modifier.fillMaxSize()) {
                 frame.layout.panes.forEach { pane ->

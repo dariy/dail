@@ -773,7 +773,8 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
 - [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
-- [ ] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves
+- [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
+  auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
 - [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [x] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision

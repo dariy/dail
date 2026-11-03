@@ -1418,7 +1418,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the app never strands a send. If the system refuses the foreground start, a `DailJobService` job runs the same task
   instead (STORE-3); a refused `PushService` start runs the flush job and leaves the periodic check as the fallback. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
-  composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
+  composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`). The pane scrolls as a
+  whole and takes the keyboard's inset itself (`imePadding`; edge-to-edge drawing makes `adjustResize` a no-op). A
+  write-back in flight does not reload its field: `Buffers` remembers the value it replaced until the engine has
+  applied it, so an auto-save never resets the editor (MISC-31).
 - **Leaving the app** (A5). With the first frame and whenever `background_sync` or `background_interval_mins`
   changes, the presenter asks for `External::Schedule{sync, interval_mins}`; `Host.kt` applies it with or without an
   activity. `DailJobService` (JobScheduler; no WorkManager) runs two jobs through the host's `background` call, which

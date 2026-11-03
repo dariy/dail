@@ -352,3 +352,31 @@ fn a_send_a_restart_cancelled_is_told_once() {
     assert!(phone.frame().snackbar.is_none(), "told once");
     advance(-7_000);
 }
+
+/// MISC-31: between a write-back and the engine applying it, a frame still sees the old text; that must not reload
+/// the field (it reset the editor's caret and text on each auto-save). A change made elsewhere still reloads it.
+#[test]
+fn a_write_back_in_flight_does_not_reload_the_field() {
+    let (phone, id) = composing();
+    let before = phone.state().clone();
+    let mut buffers = app_mobile::composer::Buffers::default();
+    buffers.sync(&before);
+    buffers.text(Field::Body, "Noon".to_owned(), &before, 0);
+    let shown = buffers.value(Field::Body);
+    assert!(buffers.flush(&before).is_some());
+    // The engine has not applied it yet.
+    buffers.sync(&before);
+    assert_eq!(buffers.value(Field::Body), shown);
+    // It has.
+    let mut after = before.clone();
+    after.drafts.get_mut(&id).unwrap().body_text = "Noon".to_owned();
+    buffers.sync(&after);
+    assert_eq!(buffers.value(Field::Body), shown);
+    // Another device changed it.
+    let mut elsewhere = after.clone();
+    elsewhere.drafts.get_mut(&id).unwrap().body_text = "Lunch at one".to_owned();
+    buffers.sync(&elsewhere);
+    let reloaded = buffers.value(Field::Body);
+    assert_eq!(reloaded.text, "Lunch at one");
+    assert!(reloaded.version > shown.version);
+}
