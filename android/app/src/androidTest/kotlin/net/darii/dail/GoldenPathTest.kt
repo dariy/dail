@@ -98,8 +98,13 @@ class GoldenPathTest {
     ): Node {
         val deadline = System.currentTimeMillis() + seconds * 1000L
         while (true) {
-            nodes().firstOrNull(find)?.let { return it }
-            check(System.currentTimeMillis() < deadline) { "not on screen: $what" }
+            val seen = nodes()
+            seen.firstOrNull(find)?.let { return it }
+            check(System.currentTimeMillis() < deadline) {
+                // What was there instead, so a failure in CI says why.
+                val shown = seen.map { listOf(it.text, it.description).filter(String::isNotEmpty).joinToString("|") }
+                "not on screen: $what; seen: ${shown.filter(String::isNotEmpty).take(40)}"
+            }
             Thread.sleep(250)
         }
     }
@@ -117,7 +122,8 @@ class GoldenPathTest {
         }
     }
 
-    private fun labelled(label: String) = { node: Node -> node.text == label || node.description == label }
+    private fun labelled(label: String) =
+        { node: Node -> node.text == label || node.description == label || node.description.startsWith("$label,") }
 
     private fun tap(node: Node) {
         shell("input tap ${node.x} ${node.y}")
@@ -164,7 +170,8 @@ class GoldenPathTest {
     @Test
     fun openReadArchiveUndoComposeSendUndo() {
         // Open and read.
-        tap(await("the demo inbox") { it.text == SUBJECT || it.description.contains(SUBJECT) })
+        // Compose may merge a row's texts into one node: match on containment.
+        tap(await("the demo inbox", seconds = 60) { it.text.contains(SUBJECT) || it.description.contains(SUBJECT) })
         await("the reader's Archive", find = labelled("Archive"))
         awaitState("the conversation read") { read(it, SUBJECT) }
 
