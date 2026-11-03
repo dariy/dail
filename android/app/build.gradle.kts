@@ -94,8 +94,28 @@ android {
         }
     }
 
+    // STORE-16: no dependency metadata block (Google encrypts it; F-Droid flags the APK block 0x504b4453), and
+    // `apk-check` fails if it comes back.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    // STORE-16: every language in every install. dail chooses its language in-app, which can differ from the
+    // device's, so a split would leave the chosen language out.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     buildTypes {
         release {
+            // STORE-16: `libdail.so` is built unstripped; Gradle strips it in the APKs and puts its symbol table in
+            // the AAB, so Play's crash reports name Rust functions.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
@@ -103,9 +123,11 @@ android {
         }
     }
 
+    // One APK per ABI, but not while bundling: AGP refuses an AAB with ABI splits (issuetracker 402800800), and the
+    // AAB carries every ABI itself. xtask runs `bundleLiveRelease` as a Gradle call of its own (STORE-16).
     splits {
         abi {
-            isEnable = true
+            isEnable = gradle.startParameter.taskNames.none { it.contains("bundle", ignoreCase = true) }
             reset()
             include(*dailAbis.toTypedArray())
             isUniversalApk = false
@@ -174,6 +196,8 @@ abstract class CargoNdk : DefaultTask() {
             workingDir = workspace.get().asFile
             commandLine(listOf("cargo") + args)
             environment("ANDROID_NDK_HOME", ndk.get().asFile.path)
+            // Gradle strips the APK's copy and keeps the symbols for the AAB (STORE-16).
+            environment("CARGO_PROFILE_RELEASE_STRIP", "false")
             environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS", pages)
             environment("CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS", pages)
         }

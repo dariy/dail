@@ -1693,7 +1693,11 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `apk-check`, `apksigner verify`, and `dist/dail-<version>-<abi>.apk` with a `.sha256` each. The version name is the
   workspace version and the version code `major·10⁸ + minor·10⁵ + patch·10 + abi` (AAB 0, arm64 1, x86_64 2;
   STORE-13), so each ABI is its own build with x86_64 above arm64, as F-Droid wants. xtask's `version_code` pins the
-  formula and `apk-check` reads each APK's code. R8 minifies and
+  formula and `apk-check` reads each APK's code. Google Play gets an AAB (`bundleLiveRelease`, a Gradle call of its own because AGP
+  refuses ABI splits while bundling; STORE-16): language splits are off, since the in-app language can differ from the
+  device's; `dependenciesInfo` is off in APK and AAB; `libdail.so` is built unstripped and Gradle strips the APKs'
+  copies while the AAB keeps the symbol table (`debugSymbolLevel = SYMBOL_TABLE`). `apk-check` fails on the signing
+  block `0x504b4453` or an unstripped release `libdail.so`, and checks the AAB for symbols and no dependency metadata. R8 minifies and
   shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
   the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
   `libdail.so`.

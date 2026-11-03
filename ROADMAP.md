@@ -918,7 +918,7 @@ text ships in English and French.
 - [x] STORE-14 (S) [kt]: drop `dataSync`; below Android 14, `startForeground` without a type. Checked on API 29 and 33
   emulators; `APK_PERMISSIONS` follows *(the API 29 and 33 runs wait for a machine with KVM or CI; STORE-23 covers devices)*
 - [x] STORE-15 (S) [android]: no update checks on Android; ADR 0011 amended
-- [ ] STORE-16 (M) [kt][xtask]: an AAB through `bundleLiveRelease`, with language splits off because the in-app language
+- [x] STORE-16 (M) [kt][xtask]: an AAB through `bundleLiveRelease`, with language splits off because the in-app language
   can differ from the device's. `dependenciesInfo` off, and `apk-check` fails if the block returns. Native symbols go
   into the AAB while the APK stays stripped
 - [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
