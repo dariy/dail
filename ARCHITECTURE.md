@@ -680,6 +680,11 @@ A handshake that fails for lack of a common version, suite or group (`HandshakeF
 implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384)" in the IMAP and SMTP error
 (`app_sync::tls::incompatible_server_hint`).
 
+Setup knows, as data, which address domains need OAuth2 (`app_front::providers::OAUTH_ONLY`: Microsoft's consumer
+domains). The mobile setup stops such an address at the address step with "{provider} addresses need a sign-in that
+dail does not support yet", and Gmail's password step offers *Create an App Password*, which opens Google's page
+(`External::OpenUrl`, STORE-12).
+
 ### 5.4 Single instance & IPC attach
 One process owns a profile at a time: it holds `profile_dir/lock` (`ProfileLock`, an exclusive `File::try_lock`, released by
 the OS when the process dies). Long-running owners — the GUI, `dail tui` and `dail mcp` — also listen on the profile's local socket

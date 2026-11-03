@@ -605,6 +605,12 @@ strings! {
     Back:
         "Back",
         "Retour";
+    OauthOnly:
+        "{provider} addresses need a sign-in that dail does not support yet. Use another address for now.",
+        "Les adresses {provider} demandent une connexion que dail ne prend pas encore en charge. Utilisez une autre adresse pour l’instant.";
+    CreateAppPassword:
+        "Create an App Password",
+        "Créer un mot de passe d’application";
     AppPassword:
         "App Password",
         "Mot de passe d’application";

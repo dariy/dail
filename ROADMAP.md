@@ -904,7 +904,7 @@ text ships in English and French.
   The Wycheproof and handshake tests stay and run against the new crates. `deny.toml` ignores RUSTSEC-2023-0071 with its
   reason. ADR 0014 retires ADR 0003's review promise, because no hand-written primitive remains, and records each crate's
   audit status. AGENTS.md §2 follows. The provider list is probed again and the results recorded
-- [ ] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
+- [x] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
   the password step; a *Create an App Password* link in Gmail setup
 - MISC-31, then MISC-28, from Wave 10 come here
 - [ ] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
