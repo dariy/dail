@@ -2,7 +2,7 @@
 //! logd's socket. `warn` and above in release builds, `info` in debug builds. Never secrets.
 
 use std::fs::OpenOptions;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, Once};
 
 use tracing_subscriber::filter::LevelFilter;
@@ -60,9 +60,71 @@ fn log_panics() {
     }));
 }
 
-fn log_file(profile_dir: &Path) -> Option<std::fs::File> {
+fn log_file(profile_dir: &Path) -> Option<Rotating> {
     let dir = app_io::ProfileDirs::at(profile_dir).logs_dir();
     std::fs::create_dir_all(&dir).ok()?;
+    Rotating::open(dir.join("android.log"), ROTATE_BYTES).ok()
+}
+
+/// `android.log` is renamed to `android.log.1` (replacing the last one) once it passes this,
+/// so the logs take at most about twice it (STORE-10).
+pub const ROTATE_BYTES: u64 = 1024 * 1024;
+
+/// An append-only log file that rotates once it passes `limit` bytes.
+#[derive(Debug)]
+pub struct Rotating {
+    path: PathBuf,
+    file: std::fs::File,
+    written: u64,
+    limit: u64,
+}
+
+impl Rotating {
+    /// Opens `path` for appending (user-only on Unix), rotating it first if it is already full.
+    pub fn open(path: PathBuf, limit: u64) -> std::io::Result<Self> {
+        let file = open_append(&path)?;
+        let written = file.metadata()?.len();
+        let mut log = Self {
+            path,
+            file,
+            written,
+            limit,
+        };
+        if log.written >= limit {
+            log.rotate()?;
+        }
+        Ok(log)
+    }
+
+    fn rotate(&mut self) -> std::io::Result<()> {
+        let mut old = self.path.clone().into_os_string();
+        old.push(".1");
+        std::fs::rename(&self.path, &old)?;
+        self.file = open_append(&self.path)?;
+        self.written = 0;
+        Ok(())
+    }
+}
+
+impl std::io::Write for Rotating {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let n = self.file.write(buf)?;
+        self.written += n as u64;
+        // `tracing` writes one whole event per call, so a rotation never splits a line.
+        // A failed rotation keeps writing to the full file rather than lose the log (and cannot
+        // log itself: this is the log).
+        if self.written >= self.limit && self.rotate().is_err() {
+            self.written = 0;
+        }
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.file.flush()
+    }
+}
+
+fn open_append(path: &Path) -> std::io::Result<std::fs::File> {
     let mut options = OpenOptions::new();
     options.create(true).append(true);
     #[cfg(unix)]
@@ -70,7 +132,7 @@ fn log_file(profile_dir: &Path) -> Option<std::fs::File> {
         use std::os::unix::fs::OpenOptionsExt as _;
         options.mode(0o600);
     }
-    options.open(dir.join("android.log")).ok()
+    options.open(path)
 }
 
 #[cfg(target_os = "android")]

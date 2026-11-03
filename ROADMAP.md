@@ -896,7 +896,7 @@ text ships in English and French.
 - [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
   compose, send and undo *(written as `GoldenPathTest`; no local emulator (no KVM), so it is ticked once CI's
   `android-emulator` job passes it)*
-- [ ] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
+- [x] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
 - [ ] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,

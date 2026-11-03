@@ -575,6 +575,9 @@ fn update_host(platform: Platform) -> Option<app_core::UpdateHost> {
     })
 }
 
+/// How many days of replay logs a mobile host keeps (STORE-10).
+pub const REPLAY_KEEP_DAYS: i64 = 14;
+
 /// The profile's session, as `app-cli` opens it: store, keyring, servers, the full-text index
 /// and the audit log.
 async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, HostError> {
@@ -596,6 +599,14 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
             }
         };
     let audit = AuditLog::new(dirs.logs_dir());
+    // Replay logs are kept for 14 days on a phone (STORE-10), swept at each open.
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX));
+    let swept = audit.sweep(now_ms, REPLAY_KEEP_DAYS);
+    if swept > 0 {
+        tracing::info!(files = swept, "old replay logs swept");
+    }
     Ok(Session::open_audited(
         backend,
         Arc::new(SystemClock),

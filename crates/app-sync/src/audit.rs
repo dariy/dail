@@ -37,6 +37,29 @@ impl AuditLog {
             .join(format!("replay-{year:04}{month:02}{day:02}.jsonl"))
     }
 
+    /// Deletes the day files older than `keep_days` before the UTC day of `now_ms` (STORE-10);
+    /// returns how many went. Files that are not day files are left alone; failures are logged.
+    pub fn sweep(&self, now_ms: i64, keep_days: i64) -> usize {
+        let today = now_ms.div_euclid(86_400_000);
+        let Ok(entries) = std::fs::read_dir(&self.dir) else {
+            return 0;
+        };
+        let mut removed = 0;
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(day) = name.to_str().and_then(day_of) else {
+                continue;
+            };
+            if today - day > keep_days {
+                match std::fs::remove_file(entry.path()) {
+                    Ok(()) => removed += 1,
+                    Err(err) => tracing::warn!(file = ?name, error = %err, "replay log not swept"),
+                }
+            }
+        }
+        removed
+    }
+
     /// Starts the writer task. Must be called inside a tokio runtime.
     pub(crate) fn start(self, opened_ms: i64) -> AuditWriter {
         let (tx, mut rx) = mpsc::unbounded_channel::<Line>();
@@ -61,6 +84,18 @@ impl AuditLog {
         });
         AuditWriter { tx, task }
     }
+}
+
+/// The day number (days since 1970-01-01) of a `replay-YYYYMMDD.jsonl` name.
+fn day_of(name: &str) -> Option<i64> {
+    let digits = name.strip_prefix("replay-")?.strip_suffix(".jsonl")?;
+    if digits.len() != 8 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let year: i64 = digits.get(0..4)?.parse().ok()?;
+    let month: u32 = digits.get(4..6)?.parse().ok()?;
+    let day: u32 = digits.get(6..8)?.parse().ok()?;
+    Some(app_core::date::days_from_civil(year, month, day))
 }
 
 struct Line {

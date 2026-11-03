@@ -1605,7 +1605,9 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   uses `KeyringSecrets`. The round trip on a device is an ignored test (`DAIL_IT_ANDROID_KEYSTORE=1`, inside the app's
   process).
 - **Logs** (`app-android`'s `dail::logging`). `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
-  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds. A panic hook logs every
+  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds. `android.log` rotates to
+  `android.log.1` at 1 MiB (`logging::Rotating`), and a mobile host sweeps replay logs older than 14 days at each open
+  (`AuditLog::sweep`, STORE-10). A panic hook logs every
   panic, on any thread, with its thread and location before the default hook (STORE-4). If the engine's task ends while
   the host is open, the bridge's watcher wakes the app and `event`/`frame` answer `ERR310` instead of a stale frame.
   Any `{"error"}` answer becomes `Screen.Failed`, drawn by Kotlin alone with Android string resources (Rust may be
