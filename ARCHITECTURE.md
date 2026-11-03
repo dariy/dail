@@ -1683,7 +1683,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `frame` (the frame last drawn, kept by `Host`, so the bridge never takes the UI's replies or action IDs). It opens the
   session if no activity has. With `uiautomator dump`, `screencap` and `input` an agent drives and reads the app.
   `app/src/androidTest` (`connectedDemoDebugAndroidTest`) calls it through the shell (`UiAutomation`), as adb does.
-  `GoldenPathTest` (STORE-9b) drives the demo build the same way, with `uiautomator dump` and `input`, and checks the
+  `GoldenPathTest` (STORE-9b) drives the demo build with the window's accessibility tree (`UiAutomation`) and `input`, and checks the
   bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. It needs no test
   library beyond the runner; CI's `android-emulator` job runs it.
 - **The Gradle side of `cargo deny`.** `gradle/verification-metadata.xml` holds a SHA-256 per artifact (regenerate

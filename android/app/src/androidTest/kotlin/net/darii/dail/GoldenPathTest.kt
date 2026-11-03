@@ -1,7 +1,8 @@
 package net.darii.dail
 
+import android.graphics.Rect
 import android.os.ParcelFileDescriptor
-import android.util.Xml
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
@@ -9,12 +10,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.xmlpull.v1.XmlPullParser
-import java.io.StringReader
 
 /**
- * The golden path over the demo build (STORE-9b), driven the way an agent drives the app over adb:
- * `uiautomator dump` to find what is on screen, `input` to tap and type, and the debug bridge's
+ * The golden path over the demo build (STORE-9b), driven like an agent drives the app over adb:
+ * the active window's accessibility tree to find what is on screen, `input` to tap and type, and the debug bridge's
  * `state` to check what happened. Open and read a conversation, archive it and undo, compose a
  * message, send it and undo the send. No test dependency beyond the runner.
  */
@@ -68,25 +67,28 @@ class GoldenPathTest {
         }
     }
 
+    /**
+     * The nodes of the active window, from the instrumentation's own `UiAutomation`: a shell
+     * `uiautomator dump` cannot connect while the instrumentation holds it.
+     */
     private fun nodes(): List<Node> {
-        shell("uiautomator dump /data/local/tmp/window.xml")
-        val xml = shell("cat /data/local/tmp/window.xml")
-        val parser = Xml.newPullParser().apply { setInput(StringReader(xml)) }
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return emptyList()
         val out = mutableListOf<Node>()
-        val bounds = Regex("""\[(\d+),(\d+)]\[(\d+),(\d+)]""")
-        while (parser.next() != XmlPullParser.END_DOCUMENT) {
-            if (parser.eventType != XmlPullParser.START_TAG || parser.name != "node") continue
-            val box = bounds.find(parser.getAttributeValue(null, "bounds").orEmpty()) ?: continue
-            val (left, top, right, bottom) = box.destructured
+        val bounds = Rect()
+
+        fun walk(info: AccessibilityNodeInfo) {
+            info.getBoundsInScreen(bounds)
             out +=
                 Node(
-                    text = parser.getAttributeValue(null, "text").orEmpty(),
-                    description = parser.getAttributeValue(null, "content-desc").orEmpty(),
-                    className = parser.getAttributeValue(null, "class").orEmpty(),
-                    x = (left.toInt() + right.toInt()) / 2,
-                    y = (top.toInt() + bottom.toInt()) / 2,
+                    text = info.text?.toString().orEmpty(),
+                    description = info.contentDescription?.toString().orEmpty(),
+                    className = info.className?.toString().orEmpty(),
+                    x = bounds.centerX(),
+                    y = bounds.centerY(),
                 )
+            for (i in 0 until info.childCount) info.getChild(i)?.let(::walk)
         }
+        walk(root)
         return out
     }
 
