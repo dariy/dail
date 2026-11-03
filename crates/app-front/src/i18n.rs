@@ -56,6 +56,24 @@ impl Lang {
     }
 }
 
+/// The choices of the `language` setting in `lang`: each value and its name. A language is
+/// named in its own tongue, so that a reader can find it whatever the UI's language is.
+pub fn languages(lang: Lang) -> [(u64, &'static str); 3] {
+    [
+        (0, text(lang, Key::System)),
+        (1, "English"),
+        (2, "Français"),
+    ]
+}
+
+/// The name in `lang` of a value of the `language` setting.
+pub fn language_name(lang: Lang, value: u64) -> &'static str {
+    languages(lang)
+        .iter()
+        .find(|(v, _)| *v == value)
+        .map_or_else(|| text(lang, Key::System), |(_, name)| *name)
+}
+
 static CURRENT: AtomicU8 = AtomicU8::new(0);
 
 /// The language of the system: `$DAIL_LANG`, else the POSIX locale variables.

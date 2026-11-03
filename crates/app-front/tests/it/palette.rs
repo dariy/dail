@@ -4,7 +4,9 @@
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
-use app_core::{Addr, AppState, Command, CommandName, Ctx, Engine, MailboxRole, Origin, Pane};
+use app_core::{
+    Addr, AppState, Command, CommandName, Ctx, Engine, MailboxRole, Origin, Pane, SettingKey,
+};
 use app_front::palette::{self, AskKind, Choice, Flow, Palette, Target};
 
 use crate::support::{self, inbox_of, synced_state};
@@ -109,6 +111,25 @@ fn walk(state: &AppState, mut flow: Flow, text: &str) -> Flow {
         flow = step.answer(state, choice);
     }
     flow
+}
+
+#[test]
+fn the_language_setting_offers_names_and_submits_the_value() {
+    let state = rich_state();
+    let Flow::Ask(step) = palette::set_setting(&state, SettingKey::Language) else {
+        panic!("no step");
+    };
+    assert_eq!(step.kind, AskKind::Languages);
+    let rows = palette::ask_rows(&state, &step.kind, "");
+    let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
+    assert_eq!(titles, ["System", "English", "Français"]);
+    let Some(Target::Choice(choice)) = rows.last().map(|r| r.target.clone()) else {
+        panic!("no choice");
+    };
+    assert!(matches!(
+        step.answer(&state, choice),
+        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 2
+    ));
 }
 
 #[test]

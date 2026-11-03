@@ -35,8 +35,8 @@ finding names its Wave 11 item.
 - **H1. Many servers cannot connect, and the crypto is unreviewed.** `crates/app-tls/src/lib.rs:37` offers ChaCha20-Poly1305
   and X25519 only. ADR 0003 records that T-Online, Namecheap Private Email and Microsoft 365 therefore fail the
   handshake, and any other server without those algorithms will too. ADR 0003 also says about 1,900 lines of unreviewed
-  crypto need an outside review before a public release; none has happened. *Fix:* RustCrypto primitives, ADR 0014
-  (STORE-11).
+  crypto need an outside review before a public release; none has happened. *Fix:* replace every hand-written primitive
+  with maintained crates, ADR 0014 (STORE-11; section 7).
 - **H2. Foreground-service starts can crash the app** *(not reproduced)*. `SendService.start`
   (`SendService.kt:78`, called at `MainActivity.kt:209`) is unguarded, while `PushService.start` has `runCatching`.
   `startForeground` at `SendService.kt:35` and `PushService.kt:36` is unguarded too, and `PushService` is `START_STICKY`,
@@ -144,10 +144,44 @@ Protection accounts, so the store listing should say so.
 - **F-Droid after enforcement.** No statement from F-Droid after 2026-09-30 was found, so how its users fared is unknown.
 - **Microsoft sign-in.** That Microsoft accounts need OAuth2 is prior knowledge and the roadmap's assumption; it was not
   tried on a live account.
-- **RustCrypto's audit status** is prior knowledge, to be checked crate by crate in ADR 0014. What was checked:
-  RUSTSEC-2026-0387 affects `crypto-bigint` below 0.7.6, and `Cargo.lock` has 0.7.10.
+- **X25519's audit history.** The `x25519-dalek` README mentions no audit, and nothing further was checked. ADR 0014
+  settles this.
+- **`rsa` under dail's tests.** Whether `rsa` 0.9 passes every Wycheproof vector that dail's own code passes is unknown
+  until STORE-11. Its README gives no audit scope or version.
 - **targetSdk 37 in August 2027** is the yearly pattern, not an announcement.
 - **CASA cost.** Reported figures vary widely and none is official.
+
+## 7. TLS crates, as checked
+
+Added on 2026-11-02, after the first version of this review and of Wave 11 overstated what the move to RustCrypto would
+replace. ADR 0003 assessed only the packaged provider `rustls-rustcrypto`. The separate crates were test oracles, and
+`rsa` was kept out over RUSTSEC-2023-0071 (TLS plan §7.2). Using the crates behind dail's own glue was never weighed.
+
+`app-tls` has about 1,720 lines of code, without tests, comments or blank lines; ADR 0003's "about 1,900" is its own
+figure. The split between primitive and glue in `aead.rs`, `x25519.rs` and `ec.rs` is approximate.
+
+| What | Lines | After STORE-11 |
+|---|---|---|
+| ChaCha20, Poly1305, constant-time helpers, the AEAD construction | about 300 | Replaced |
+| X25519 arithmetic | about 190 | Replaced |
+| P-256/P-384 arithmetic and ECDSA | about 240 | Replaced |
+| RSA verification, big integers, DER reader | about 410 | Replaced |
+| rustls glue: suites, record layer, verifiers, hashes, randomness | about 580 | Stays, and grows with the new suites |
+
+| Need | Crate | Independent audit | Notes |
+|---|---|---|---|
+| ChaCha20-Poly1305 | `chacha20poly1305` 0.11 | NCC Group, early 2020, five person-days | The review is more than six years old and did not cover this version |
+| AES-GCM | `aes-gcm` 0.11, `aes` 0.9 | The same review | `aes-gcm` is not yet in the tree |
+| X25519 | `x25519-dalek` 3.0 (dalek-cryptography, not RustCrypto) | Its README mentions none | See section 6 |
+| P-256, P-384 | `p256`, `p384` 0.14 | None: "never been independently audited" | `p256` has about 225 million downloads. RUSTSEC-2026-0387 affects `crypto-bigint` below 0.7.6, and `Cargo.lock` has 0.7.10 |
+| ECDSA verification | `ecdsa` 0.17 | None: "never been independently audited" | |
+| RSA verification | `rsa` 0.9.10 | Include Security, one minor finding, since fixed | RUSTSEC-2023-0071 (Marvin) is unpatched. It concerns private keys, and dail has none, so `deny.toml` ignores it with that reason. 0.10 is still a release candidate |
+| SHA-2 | `sha2` | Its README mentions none | Ships today |
+
+- **The curves are still the better choice.** A hand-written P-256 would have no audit either, and far fewer users.
+- **The review promise.** With no hand-written primitive left, ADR 0014 retires ADR 0003's outside review. About 600 lines
+  of glue stay unreviewed.
+- **"Safe Rust".** These crates use `unsafe` for CPU acceleration, so ADR 0003's "safe Rust" then covers only the glue.
 
 ## Sources
 
@@ -167,4 +201,10 @@ Third-party sources are marked.
 - [F-Droid Inclusion How-To](https://f-droid.org/docs/Inclusion_How-To/)
 - [F-Droid Reproducible Builds](https://f-droid.org/docs/Reproducible_Builds/)
 - [Google: app passwords](https://support.google.com/accounts/answer/185833)
+- [RustCrypto on GitHub](https://github.com/RustCrypto)
+- [`aes-gcm` README](https://github.com/RustCrypto/AEADs/blob/master/aes-gcm/README.md)
+- [`p256` README](https://github.com/RustCrypto/elliptic-curves/blob/master/p256/README.md)
+- [`rsa` README](https://github.com/RustCrypto/RSA/blob/master/README.md)
+- [NCC Group public report](https://www.nccgroup.com/research/public-report-rustcrypto-aesgcm-and-chacha20pluspoly1305-implementation-review/)
+- [`p256` on crates.io](https://crates.io/crates/p256)
 - CASA costs (third party, self-reported): [Truto](https://truto.one/google.md), [Indie Hackers](https://www.indiehackers.com/product/mailnotes)

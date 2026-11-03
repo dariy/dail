@@ -40,6 +40,44 @@ fn tab_enter_and_escape() {
     assert_eq!(sent.last(), Some(&Command::CloseSettings {}), "{sent:?}");
 }
 
+/// Wave 10.5: `language` shows its value by name and is chosen from a list of names.
+#[test]
+fn the_language_is_a_named_choice() {
+    use app_core::SettingKey;
+
+    let mut t = Term::new(synced_state(), 80, 40);
+    t.apply(Command::OpenSettings {
+        section: Some(SettingsSection::General),
+    });
+    let screen = t.screen();
+    let row = screen.lines().find(|l| l.contains("language")).unwrap();
+    assert!(row.contains("System"), "{screen}");
+
+    // The last rows are language, theme_light and theme_dark.
+    for _ in 0..40 {
+        t.key(KeyCode::Down);
+    }
+    t.key(KeyCode::Up);
+    t.key(KeyCode::Up);
+    t.key(KeyCode::Enter);
+    assert_eq!(t.pump(), [Command::OpenPalette {}]);
+    let screen = t.screen();
+    for name in ["System", "English", "Français"] {
+        assert!(screen.contains(name), "{screen}");
+    }
+
+    t.typed("fran");
+    t.pump();
+    t.key(KeyCode::Enter);
+    assert_eq!(
+        t.pump().first(),
+        Some(&Command::SetSetting {
+            key: SettingKey::Language,
+            value: 2_u64.into(),
+        })
+    );
+}
+
 /// Wave 7 F1/F3: the question and a waiting update in the status line, the update rows in the
 /// general section.
 #[test]

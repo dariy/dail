@@ -1,6 +1,6 @@
 //! The settings view (UI-12): `view.settings` shows the sections as lists of keys and values
 //! over the panes. `Tab` moves between the sections, `j`/`k` between the rows, and `Enter` opens
-//! the palette at the step that changes the row. There is no appearance section: the TUI follows
+//! the palette at the step that changes the row (`language`: a list of names). There is no appearance section: the TUI follows
 //! the terminal's colours (ADR 0004), so `appearance` shows the general settings.
 
 use crate::text::{f, s};
@@ -86,10 +86,19 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
         SettingsSection::General | SettingsSection::Appearance | SettingsSection::About => {
             update_rows(state)
                 .into_iter()
-                .chain(SettingKey::ALL.iter().map(|key| Row {
-                    key: key.as_str().to_owned(),
-                    value: key.get(settings).to_string(),
-                    change: Some(CommandName::SetSetting),
+                .chain(SettingKey::ALL.iter().map(|key| {
+                    Row {
+                        key: key.as_str().to_owned(),
+                        value: match key {
+                            SettingKey::Language => app_front::i18n::language_name(
+                                app_front::i18n::current(),
+                                key.get(settings),
+                            )
+                            .to_owned(),
+                            _ => key.get(settings).to_string(),
+                        },
+                        change: Some(CommandName::SetSetting),
+                    }
                 }))
                 .chain([
                     Row {

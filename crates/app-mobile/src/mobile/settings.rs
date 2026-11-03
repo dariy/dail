@@ -44,11 +44,7 @@ fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
         SettingKey::InitialWindow => {
             vec![(200, "200"), (500, "500"), (1_000, "1000"), (5_000, "5000")]
         }
-        SettingKey::Language => vec![
-            (0, i18n::s(Key::System)),
-            (1, "English"),
-            (2, "Français"),
-        ],
+        SettingKey::Language => i18n::languages(i18n::current()).to_vec(),
         SettingKey::ListDensity => vec![(0, i18n::s(Key::CozyX)), (1, i18n::s(Key::CompactX)), (2, i18n::s(Key::Preview))],
         SettingKey::Notifications => vec![(0, i18n::s(Key::Off)), (1, i18n::s(Key::On))],
         SettingKey::BackgroundSync => vec![(0, i18n::s(Key::OnlyWhileOpen)), (1, i18n::s(Key::Periodic)), (2, i18n::s(Key::Push))],
