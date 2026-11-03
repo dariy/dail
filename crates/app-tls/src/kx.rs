@@ -1,211 +1,24 @@
-//! X25519 key agreement (RFC 7748 §5): the Montgomery ladder over GF(2^255 − 19), with field elements in five 51-bit
-//! limbs and `u128` products (the layout of curve25519-donna-c64). The ladder runs 255 steps whatever the scalar, and
-//! nothing branches on, or indexes with, the scalar or a field value.
+//! Key exchange groups (RFC 8446 §4.2.7, §7.4): X25519 from `x25519-dalek` (RFC 7748) and the NIST curves P-256 and
+//! P-384 from `p256` and `p384` (ADR 0014). Only the TLS framing is dail's: key shares, point encoding and the
+//! checks RFC 8446 asks for.
 
 use rustls::crypto::{ActiveKeyExchange, GetRandomFailed, SharedSecret, SupportedKxGroup};
 use rustls::{NamedGroup, PeerMisbehaved};
 use zeroize::Zeroize;
 
-use crate::{Error, ct};
+use crate::Error;
 
-/// Bytes in a scalar, a u-coordinate and a shared secret.
+/// X25519 key and u-coordinate length in bytes.
 pub(crate) const LEN: usize = 32;
 
-/// The u-coordinate of the base point, 9 (RFC 7748 §4.1).
-pub(crate) const BASE_POINT: [u8; LEN] = {
-    let mut u = [0u8; LEN];
-    u[0] = 9;
-    u
-};
+/// The X25519 base point, u = 9 (RFC 7748 §4.1).
+#[cfg(test)]
+pub(crate) const BASE_POINT: [u8; LEN] = x25519_dalek::X25519_BASEPOINT_BYTES;
 
-const MASK51: u64 = (1 << 51) - 1;
-
-/// An element of GF(2^255 − 19): Σ limb[i]·2^(51·i). The limbs may exceed 51 bits by a little between operations.
-type Fe = [u64; 5];
-
-const ONE: Fe = [1, 0, 0, 0, 0];
-const ZERO: Fe = [0; 5];
-
-fn load64(bytes: &[u8; LEN], at: usize) -> u64 {
-    let mut word = [0u8; 8];
-    word.copy_from_slice(&bytes[at..at + 8]);
-    u64::from_le_bytes(word)
-}
-
-/// Decodes a u-coordinate: little-endian, with the top bit masked (RFC 7748 §5). A non-canonical value (≥ p) is kept
-/// as it is and reduces in the arithmetic.
-fn fe_from_bytes(bytes: &[u8; LEN]) -> Fe {
-    [
-        load64(bytes, 0) & MASK51,
-        (load64(bytes, 6) >> 3) & MASK51,
-        (load64(bytes, 12) >> 6) & MASK51,
-        (load64(bytes, 19) >> 1) & MASK51,
-        (load64(bytes, 24) >> 12) & MASK51,
-    ]
-}
-
-/// Carries every limb into the next and folds the top carry back times 19 (2^255 ≡ 19): afterwards every limb is
-/// below 2^51 except limb 0, which may exceed it by 19 times a small carry.
-fn fe_carry(mut f: Fe) -> Fe {
-    for i in 0..4 {
-        f[i + 1] += f[i] >> 51;
-        f[i] &= MASK51;
-    }
-    f[0] += 19 * (f[4] >> 51);
-    f[4] &= MASK51;
-    f
-}
-
-/// Encodes `f` canonically: fully reduced mod p, little-endian (RFC 7748 §5).
-fn fe_to_bytes(f: &Fe) -> [u8; LEN] {
-    let mut t = fe_carry(fe_carry(*f));
-    // q = 1 when t ≥ p, i.e. when t + 19 reaches 2^255; then t − p = t + 19 − 2^255.
-    let mut q = (t[0] + 19) >> 51;
-    for limb in &t[1..] {
-        q = (limb + q) >> 51;
-    }
-    t[0] += 19 * q;
-    for i in 0..4 {
-        t[i + 1] += t[i] >> 51;
-        t[i] &= MASK51;
-    }
-    t[4] &= MASK51;
-    let words = [
-        t[0] | (t[1] << 51),
-        (t[1] >> 13) | (t[2] << 38),
-        (t[2] >> 26) | (t[3] << 25),
-        (t[3] >> 39) | (t[4] << 12),
-    ];
-    let mut out = [0u8; LEN];
-    for (chunk, word) in out.as_chunks_mut::<8>().0.iter_mut().zip(words) {
-        *chunk = word.to_le_bytes();
-    }
-    t.zeroize();
-    out
-}
-
-fn fe_add(f: &Fe, g: &Fe) -> Fe {
-    fe_carry(core::array::from_fn(|i| f[i] + g[i]))
-}
-
-/// `f − g`, computed as `f + 2p − g` so no limb goes negative. Both inputs have limbs below 2^52.
-fn fe_sub(f: &Fe, g: &Fe) -> Fe {
-    const TWO_P: Fe = [
-        0xf_ffff_ffff_ffda,
-        0xf_ffff_ffff_fffe,
-        0xf_ffff_ffff_fffe,
-        0xf_ffff_ffff_fffe,
-        0xf_ffff_ffff_fffe,
-    ];
-    fe_carry(core::array::from_fn(|i| f[i] + TWO_P[i] - g[i]))
-}
-
-/// Carries the five `u128` column sums of a product into a field element.
-fn fe_reduce_wide(mut r: [u128; 5]) -> Fe {
-    for i in 0..4 {
-        r[i + 1] += r[i] >> 51;
-        r[i] &= u128::from(MASK51);
-    }
-    let mut f: Fe = core::array::from_fn(|i| r[i] as u64);
-    f[0] += 19 * ((r[4] >> 51) as u64);
-    f[4] &= MASK51;
-    r.zeroize();
-    fe_carry(f)
-}
-
-/// `f · g` mod p: schoolbook, with the limbs that overflow 2^255 folded back times 19.
-fn fe_mul(f: &Fe, g: &Fe) -> Fe {
-    let wide = |a: u64, b: u64| u128::from(a) * u128::from(b);
-    let [f0, f1, f2, f3, f4] = *f;
-    let [g0, g1, g2, g3, g4] = *g;
-    let (g1_19, g2_19, g3_19, g4_19) = (g1 * 19, g2 * 19, g3 * 19, g4 * 19);
-    fe_reduce_wide([
-        wide(f0, g0) + wide(f1, g4_19) + wide(f2, g3_19) + wide(f3, g2_19) + wide(f4, g1_19),
-        wide(f0, g1) + wide(f1, g0) + wide(f2, g4_19) + wide(f3, g3_19) + wide(f4, g2_19),
-        wide(f0, g2) + wide(f1, g1) + wide(f2, g0) + wide(f3, g4_19) + wide(f4, g3_19),
-        wide(f0, g3) + wide(f1, g2) + wide(f2, g1) + wide(f3, g0) + wide(f4, g4_19),
-        wide(f0, g4) + wide(f1, g3) + wide(f2, g2) + wide(f3, g1) + wide(f4, g0),
-    ])
-}
-
-fn fe_sq(f: &Fe) -> Fe {
-    fe_mul(f, f)
-}
-
-/// `f` squared `n` times.
-fn fe_sq_n(f: &Fe, n: usize) -> Fe {
-    let mut r = *f;
-    for _ in 0..n {
-        r = fe_sq(&r);
-    }
-    r
-}
-
-/// `f · k` for a small constant `k`.
-fn fe_mul_small(f: &Fe, k: u64) -> Fe {
-    fe_reduce_wide(core::array::from_fn(|i| u128::from(f[i]) * u128::from(k)))
-}
-
-/// `z^(p − 2)` = `z^(2^255 − 21)`, the inverse of `z` by Fermat (0 for 0). The addition chain of ref10; the exponent
-/// is public, the steps don't depend on `z`.
-fn fe_invert(z: &Fe) -> Fe {
-    let z2 = fe_sq(z);
-    let z9 = fe_mul(&fe_sq_n(&z2, 2), z);
-    let z11 = fe_mul(&z9, &z2);
-    let z_5_0 = fe_mul(&fe_sq(&z11), &z9); // z^(2^5 − 1)
-    let z_10_0 = fe_mul(&fe_sq_n(&z_5_0, 5), &z_5_0);
-    let z_20_0 = fe_mul(&fe_sq_n(&z_10_0, 10), &z_10_0);
-    let z_40_0 = fe_mul(&fe_sq_n(&z_20_0, 20), &z_20_0);
-    let z_50_0 = fe_mul(&fe_sq_n(&z_40_0, 10), &z_10_0);
-    let z_100_0 = fe_mul(&fe_sq_n(&z_50_0, 50), &z_50_0);
-    let z_200_0 = fe_mul(&fe_sq_n(&z_100_0, 100), &z_100_0);
-    let z_250_0 = fe_mul(&fe_sq_n(&z_200_0, 50), &z_50_0);
-    fe_mul(&fe_sq_n(&z_250_0, 5), &z11) // z^(2^255 − 32 + 11)
-}
-
-/// The X25519 function (RFC 7748 §5): the u-coordinate of `scalar · u`. The scalar is clamped; the top bit of `u` is
-/// masked and a non-canonical `u` is reduced; the result is encoded canonically.
+/// The X25519 function (RFC 7748 §5): the u-coordinate of `scalar · u`, with the scalar clamped.
+#[cfg(test)]
 pub(crate) fn x25519(scalar: &[u8; LEN], u: &[u8; LEN]) -> [u8; LEN] {
-    let mut k = *scalar;
-    k[0] &= 248;
-    k[31] &= 127;
-    k[31] |= 64;
-
-    let x1 = fe_from_bytes(u);
-    let (mut x2, mut z2, mut x3, mut z3) = (ONE, ZERO, x1, ONE);
-    let mut swap = 0u64;
-    for t in (0..255).rev() {
-        let bit = u64::from((k[t / 8] >> (t % 8)) & 1);
-        swap ^= bit;
-        let mask = ct::mask(swap);
-        ct::swap(mask, &mut x2, &mut x3);
-        ct::swap(mask, &mut z2, &mut z3);
-        swap = bit;
-
-        let a = fe_add(&x2, &z2);
-        let aa = fe_sq(&a);
-        let b = fe_sub(&x2, &z2);
-        let bb = fe_sq(&b);
-        let e = fe_sub(&aa, &bb);
-        let c = fe_add(&x3, &z3);
-        let d = fe_sub(&x3, &z3);
-        let da = fe_mul(&d, &a);
-        let cb = fe_mul(&c, &b);
-        x3 = fe_sq(&fe_add(&da, &cb));
-        z3 = fe_mul(&x1, &fe_sq(&fe_sub(&da, &cb)));
-        x2 = fe_mul(&aa, &bb);
-        z2 = fe_mul(&e, &fe_add(&aa, &fe_mul_small(&e, 121_665)));
-    }
-    let mask = ct::mask(swap);
-    ct::swap(mask, &mut x2, &mut x3);
-    ct::swap(mask, &mut z2, &mut z3);
-
-    let out = fe_to_bytes(&fe_mul(&x2, &fe_invert(&z2)));
-    k.zeroize();
-    for fe in [&mut x2, &mut z2, &mut x3, &mut z3] {
-        fe.zeroize();
-    }
-    out
+    x25519_dalek::x25519(*scalar, *u)
 }
 
 /// An X25519 private key: 32 bytes from the OS random source, wiped on drop.
@@ -219,21 +32,27 @@ impl PrivateKey {
         Ok(Self(key))
     }
 
+    fn secret(&self) -> x25519_dalek::StaticSecret {
+        x25519_dalek::StaticSecret::from(self.0)
+    }
+
     /// The public key, `X25519(key, 9)` (RFC 7748 §6.1).
     pub(crate) fn public_key(&self) -> [u8; LEN] {
-        x25519(&self.0, &BASE_POINT)
+        x25519_dalek::PublicKey::from(&self.secret()).to_bytes()
     }
 
     /// The shared secret with the peer's public key `peer` (RFC 7748 §6.1). Refuses a peer key that isn't exactly 32
-    /// bytes, and an all-zero secret (a low-order peer key; RFC 8446 §7.4.2), checked in constant time.
+    /// bytes, and an all-zero secret (a low-order peer key; RFC 8446 §7.4.2), checked in constant time by
+    /// `was_contributory`.
     pub(crate) fn agree(&self, peer: &[u8]) -> Result<[u8; LEN], Error> {
-        let peer: &[u8; LEN] = peer.try_into().map_err(|_| Error)?;
-        let mut shared = x25519(&self.0, peer);
-        if ct::eq(&shared, &[0u8; LEN]) {
-            shared.zeroize();
+        let peer: [u8; LEN] = peer.try_into().map_err(|_| Error)?;
+        let shared = self
+            .secret()
+            .diffie_hellman(&x25519_dalek::PublicKey::from(peer));
+        if !shared.was_contributory() {
             return Err(Error);
         }
-        Ok(shared)
+        Ok(shared.to_bytes())
     }
 }
 
@@ -251,7 +70,7 @@ impl SupportedKxGroup for X25519 {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, rustls::Error> {
         let key = PrivateKey::generate().map_err(|Error| GetRandomFailed)?;
         let public = key.public_key();
-        Ok(Box::new(KeyExchange { key, public }))
+        Ok(Box::new(X25519Exchange { key, public }))
     }
 
     fn name(&self) -> NamedGroup {
@@ -259,13 +78,13 @@ impl SupportedKxGroup for X25519 {
     }
 }
 
-/// One handshake's key pair. The private key is wiped when the exchange completes or is dropped.
-struct KeyExchange {
+/// One handshake's X25519 key pair. The private key is wiped when the exchange completes or is dropped.
+struct X25519Exchange {
     key: PrivateKey,
     public: [u8; LEN],
 }
 
-impl ActiveKeyExchange for KeyExchange {
+impl ActiveKeyExchange for X25519Exchange {
     /// Refuses a peer key that isn't 32 bytes and an all-zero shared secret (RFC 8446 §7.4.2).
     fn complete(self: Box<Self>, peer: &[u8]) -> Result<SharedSecret, rustls::Error> {
         let mut shared = self
@@ -283,6 +102,109 @@ impl ActiveKeyExchange for KeyExchange {
 
     fn group(&self) -> NamedGroup {
         NamedGroup::X25519
+    }
+}
+
+/// A NIST curve as a TLS key exchange group: ECDHE with uncompressed points (RFC 8446 §4.2.8.2, RFC 8422 §5.4.1).
+#[derive(Debug)]
+pub(crate) struct Nist(Curve);
+
+#[derive(Debug, Clone, Copy)]
+enum Curve {
+    P256,
+    P384,
+}
+
+pub(crate) static SECP256R1: Nist = Nist(Curve::P256);
+pub(crate) static SECP384R1: Nist = Nist(Curve::P384);
+
+impl SupportedKxGroup for Nist {
+    fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, rustls::Error> {
+        Ok(match self.0 {
+            Curve::P256 => Box::new(NistExchange::<p256::NistP256>::generate(
+                NamedGroup::secp256r1,
+            )?),
+            Curve::P384 => Box::new(NistExchange::<p384::NistP384>::generate(
+                NamedGroup::secp384r1,
+            )?),
+        })
+    }
+
+    fn name(&self) -> NamedGroup {
+        match self.0 {
+            Curve::P256 => NamedGroup::secp256r1,
+            Curve::P384 => NamedGroup::secp384r1,
+        }
+    }
+}
+
+/// One handshake's key pair on curve `C`; the secret key zeroizes itself on drop.
+struct NistExchange<C: p256::elliptic_curve::CurveArithmetic> {
+    group: NamedGroup,
+    secret: p256::elliptic_curve::SecretKey<C>,
+    public: Vec<u8>,
+}
+
+impl<C> NistExchange<C>
+where
+    C: p256::elliptic_curve::CurveArithmetic,
+    p256::elliptic_curve::AffinePoint<C>:
+        p256::elliptic_curve::sec1::FromSec1Point<C> + p256::elliptic_curve::sec1::ToSec1Point<C>,
+    p256::elliptic_curve::FieldBytesSize<C>: p256::elliptic_curve::sec1::ModulusSize,
+{
+    /// A fresh key: random bytes from the OS until they are a valid scalar (all but a negligible share are).
+    fn generate(group: NamedGroup) -> Result<Self, rustls::Error> {
+        let mut bytes = p256::elliptic_curve::FieldBytes::<C>::default();
+        for _ in 0..16 {
+            getrandom::fill(&mut bytes).map_err(|_| GetRandomFailed)?;
+            let made = p256::elliptic_curve::SecretKey::<C>::from_bytes(&bytes);
+            bytes.zeroize();
+            if let Ok(secret) = made {
+                let public = p256::elliptic_curve::sec1::ToSec1Point::to_sec1_point(
+                    secret.public_key().as_affine(),
+                    false,
+                )
+                .as_bytes()
+                .to_vec();
+                return Ok(Self {
+                    group,
+                    secret,
+                    public,
+                });
+            }
+        }
+        Err(GetRandomFailed.into())
+    }
+}
+
+impl<C> ActiveKeyExchange for NistExchange<C>
+where
+    C: p256::elliptic_curve::CurveArithmetic,
+    p256::elliptic_curve::AffinePoint<C>:
+        p256::elliptic_curve::sec1::FromSec1Point<C> + p256::elliptic_curve::sec1::ToSec1Point<C>,
+    p256::elliptic_curve::FieldBytesSize<C>: p256::elliptic_curve::sec1::ModulusSize,
+{
+    /// Refuses a peer key that is not an uncompressed point on the curve (RFC 8446 §4.2.8.2 forbids the compressed
+    /// form; the crate checks the point is on the curve and not the identity).
+    fn complete(self: Box<Self>, peer: &[u8]) -> Result<SharedSecret, rustls::Error> {
+        if peer.first() != Some(&4) {
+            return Err(PeerMisbehaved::InvalidKeyShare.into());
+        }
+        let peer = p256::elliptic_curve::PublicKey::<C>::from_sec1_bytes(peer)
+            .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
+        let shared = p256::elliptic_curve::ecdh::diffie_hellman(
+            self.secret.to_nonzero_scalar(),
+            peer.as_affine(),
+        );
+        Ok(SharedSecret::from(shared.raw_secret_bytes().as_slice()))
+    }
+
+    fn pub_key(&self) -> &[u8] {
+        &self.public
+    }
+
+    fn group(&self) -> NamedGroup {
+        self.group
     }
 }
 
@@ -463,17 +385,34 @@ mod tests {
     }
 
     proptest! {
-        /// Cross-check against `x25519-dalek` (`docs/plan-tls.md` §7.2).
-        #[test]
-        fn matches_x25519_dalek(scalar in any::<[u8; LEN]>(), u in any::<[u8; LEN]>()) {
-            prop_assert_eq!(x25519(&scalar, &u), x25519_dalek::x25519(scalar, u));
-        }
 
-        /// Both sides of a key agreement compute the same secret.
+        /// Both sides of an X25519 agreement compute the same secret.
         #[test]
         fn diffie_hellman_agrees(a in any::<[u8; LEN]>(), b in any::<[u8; LEN]>()) {
             let (a, b) = (PrivateKey(a), PrivateKey(b));
             prop_assert_eq!(a.agree(&b.public_key()).unwrap(), b.agree(&a.public_key()).unwrap());
+        }
+    }
+
+    /// Both sides of a P-256 and a P-384 exchange through rustls's interface agree, and a malformed or compressed
+    /// peer key is refused.
+    #[test]
+    fn nist_groups_agree_and_refuse_bad_points() {
+        for group in [&SECP256R1 as &dyn SupportedKxGroup, &SECP384R1] {
+            let (a, b) = (group.start().unwrap(), group.start().unwrap());
+            assert_eq!(a.pub_key()[0], 4, "{:?}: uncompressed", group.name());
+            let (a_public, b_public) = (a.pub_key().to_vec(), b.pub_key().to_vec());
+            let ab = a.complete(&b_public).unwrap();
+            let ba = b.complete(&a_public).unwrap();
+            assert_eq!(ab.secret_bytes(), ba.secret_bytes());
+            let mut off_curve = a_public.clone();
+            let last = off_curve.len() - 1;
+            off_curve[last] ^= 1;
+            assert!(group.start().unwrap().complete(&off_curve).is_err());
+            let mut compressed = a_public[..a_public.len().div_ceil(2)].to_vec();
+            compressed[0] = 2;
+            assert!(group.start().unwrap().complete(&compressed).is_err());
+            assert!(group.start().unwrap().complete(&[4]).is_err());
         }
     }
 }

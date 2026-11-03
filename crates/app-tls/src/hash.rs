@@ -1,5 +1,5 @@
-//! Hash functions, all from the `sha2` crate: SHA-256 and HMAC-SHA256 for the cipher suites, and SHA-256, SHA-384
-//! and SHA-512 inside signature verification.
+//! Hash functions, all from the `sha2` crate: SHA-256 and SHA-384 with their HMAC for the cipher suites (transcript,
+//! HKDF, TLS 1.2 PRF), and SHA-256, SHA-384 and SHA-512 inside signature verification.
 
 use sha2::Digest;
 use zeroize::Zeroize;
@@ -39,97 +39,166 @@ impl SigHash {
     }
 }
 
-/// SHA-256 as the hash of the cipher suites: the handshake transcript, HKDF and the TLS 1.2 PRF.
-pub(crate) struct Sha256;
+/// The hash of a cipher suite.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SuiteHash {
+    Sha256,
+    Sha384,
+}
 
-impl rustls::crypto::hash::Hash for Sha256 {
+impl SuiteHash {
+    const fn output_len(self) -> usize {
+        match self {
+            Self::Sha256 => 32,
+            Self::Sha384 => 48,
+        }
+    }
+
+    /// The block size, which is also the HMAC key block size (RFC 2104 §2).
+    const fn block_len(self) -> usize {
+        match self {
+            Self::Sha256 => 64,
+            Self::Sha384 => 128,
+        }
+    }
+
+    fn sig(self) -> SigHash {
+        match self {
+            Self::Sha256 => SigHash::Sha256,
+            Self::Sha384 => SigHash::Sha384,
+        }
+    }
+
+    fn context(self) -> Running {
+        match self {
+            Self::Sha256 => Running::Sha256(sha2::Sha256::new()),
+            Self::Sha384 => Running::Sha384(sha2::Sha384::new()),
+        }
+    }
+}
+
+/// A suite hash as rustls's `Hash`: the handshake transcript, HKDF and the TLS 1.2 PRF.
+pub(crate) struct Hash(SuiteHash);
+
+pub(crate) static SHA256: Hash = Hash(SuiteHash::Sha256);
+pub(crate) static SHA384: Hash = Hash(SuiteHash::Sha384);
+
+impl rustls::crypto::hash::Hash for Hash {
     fn start(&self) -> Box<dyn rustls::crypto::hash::Context> {
-        Box::new(Sha256Context(sha2::Sha256::new()))
+        Box::new(self.0.context())
     }
 
     fn hash(&self, data: &[u8]) -> rustls::crypto::hash::Output {
-        rustls::crypto::hash::Output::new(&sha2::Sha256::digest(data))
+        rustls::crypto::hash::Output::new(&self.0.sig().digest(&[data]))
     }
 
     fn output_len(&self) -> usize {
-        32
+        self.0.output_len()
     }
 
     fn algorithm(&self) -> rustls::crypto::hash::HashAlgorithm {
-        rustls::crypto::hash::HashAlgorithm::SHA256
+        match self.0 {
+            SuiteHash::Sha256 => rustls::crypto::hash::HashAlgorithm::SHA256,
+            SuiteHash::Sha384 => rustls::crypto::hash::HashAlgorithm::SHA384,
+        }
     }
 }
 
-/// A running SHA-256; `fork` clones the state.
-struct Sha256Context(sha2::Sha256);
+/// A running hash; `fork` clones the state.
+#[derive(Clone)]
+enum Running {
+    Sha256(sha2::Sha256),
+    Sha384(sha2::Sha384),
+}
 
-impl rustls::crypto::hash::Context for Sha256Context {
+impl Running {
+    fn update(&mut self, data: &[u8]) {
+        match self {
+            Self::Sha256(h) => h.update(data),
+            Self::Sha384(h) => h.update(data),
+        }
+    }
+
+    fn finish(self) -> Vec<u8> {
+        match self {
+            Self::Sha256(h) => h.finalize().to_vec(),
+            Self::Sha384(h) => h.finalize().to_vec(),
+        }
+    }
+}
+
+impl rustls::crypto::hash::Context for Running {
     fn fork_finish(&self) -> rustls::crypto::hash::Output {
-        rustls::crypto::hash::Output::new(&self.0.clone().finalize())
+        rustls::crypto::hash::Output::new(&self.clone().finish())
     }
 
     fn fork(&self) -> Box<dyn rustls::crypto::hash::Context> {
-        Box::new(Self(self.0.clone()))
+        Box::new(self.clone())
     }
 
     fn finish(self: Box<Self>) -> rustls::crypto::hash::Output {
-        rustls::crypto::hash::Output::new(&self.0.finalize())
+        rustls::crypto::hash::Output::new(&(*self).finish())
     }
 
     fn update(&mut self, data: &[u8]) {
-        self.0.update(data);
+        Running::update(self, data);
     }
 }
 
-/// The SHA-256 block size, which is also the HMAC key block size (RFC 2104 §2).
-const BLOCK_LEN: usize = 64;
+/// HMAC (RFC 2104) over a suite hash. rustls builds HKDF (`HkdfUsingHmac`) and the TLS 1.2 PRF (`PrfUsingHmac`) on it.
+pub(crate) struct Hmac(SuiteHash);
 
-/// HMAC-SHA256 (RFC 2104). rustls builds HKDF (`HkdfUsingHmac`) and the TLS 1.2 PRF (`PrfUsingHmac`) on it.
-pub(crate) struct HmacSha256;
+pub(crate) static HMAC_SHA256: Hmac = Hmac(SuiteHash::Sha256);
+pub(crate) static HMAC_SHA384: Hmac = Hmac(SuiteHash::Sha384);
 
-impl rustls::crypto::hmac::Hmac for HmacSha256 {
+impl rustls::crypto::hmac::Hmac for Hmac {
     fn with_key(&self, key: &[u8]) -> Box<dyn rustls::crypto::hmac::Key> {
-        Box::new(HmacKey::new(key))
+        Box::new(HmacKey::new(self.0, key))
     }
 
     fn hash_output_len(&self) -> usize {
-        32
+        self.0.output_len()
     }
 }
 
-/// An HMAC key as its 64-byte block: the key itself, or its SHA-256 if it is longer than a block, padded with zeros
-/// (RFC 2104 §2). Wiped on drop.
-pub(crate) struct HmacKey([u8; BLOCK_LEN]);
+/// An HMAC key as its block: the key itself, or its hash if it is longer than a block, padded with zeros (RFC 2104
+/// §2). Wiped on drop.
+pub(crate) struct HmacKey {
+    hash: SuiteHash,
+    block: Vec<u8>,
+}
 
 impl HmacKey {
-    pub(crate) fn new(key: &[u8]) -> Self {
-        let mut block = [0u8; BLOCK_LEN];
-        if key.len() > BLOCK_LEN {
-            let mut digest: [u8; 32] = sha2::Sha256::digest(key).into();
-            block[..32].copy_from_slice(&digest);
+    pub(crate) fn new(hash: SuiteHash, key: &[u8]) -> Self {
+        let mut block = vec![0u8; hash.block_len()];
+        if key.len() > block.len() {
+            let mut digest = hash.sig().digest(&[key]);
+            block[..digest.len()].copy_from_slice(&digest);
             digest.zeroize();
         } else {
             block[..key.len()].copy_from_slice(key);
         }
-        Self(block)
+        Self { hash, block }
     }
 
     /// `H(K ⊕ opad ‖ H(K ⊕ ipad ‖ message))` over the concatenation of `parts`.
-    pub(crate) fn sign(&self, parts: &[&[u8]]) -> [u8; 32] {
-        let mut pad = self.0.map(|byte| byte ^ 0x36);
-        let mut inner = sha2::Sha256::new();
-        inner.update(pad);
+    pub(crate) fn sign(&self, parts: &[&[u8]]) -> Vec<u8> {
+        let mut pad: Vec<u8> = self.block.iter().map(|byte| byte ^ 0x36).collect();
+        let mut inner = self.hash.context();
+        inner.update(&pad);
         for part in parts {
             inner.update(part);
         }
-        let mut inner_hash: [u8; 32] = inner.finalize().into();
-        pad = self.0.map(|byte| byte ^ 0x5c);
-        let mut outer = sha2::Sha256::new();
-        outer.update(pad);
-        outer.update(inner_hash);
+        let mut inner_hash = inner.finish();
+        pad.iter_mut()
+            .zip(&self.block)
+            .for_each(|(p, k)| *p = k ^ 0x5c);
+        let mut outer = self.hash.context();
+        outer.update(&pad);
+        outer.update(&inner_hash);
         pad.zeroize();
         inner_hash.zeroize();
-        outer.finalize().into()
+        outer.finish()
     }
 }
 
@@ -148,27 +217,28 @@ impl rustls::crypto::hmac::Key for HmacKey {
     }
 
     fn tag_len(&self) -> usize {
-        32
+        self.hash.output_len()
     }
 }
 
 impl Drop for HmacKey {
     fn drop(&mut self) {
-        self.0.zeroize();
+        self.block.zeroize();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use rustls::crypto::hash::Hash as _;
+    use rustls::crypto::hmac::Hmac as _;
     use rustls::crypto::tls13::{Hkdf, HkdfUsingHmac};
     use serde::Deserialize;
 
     use super::*;
     use crate::testutil::{Expect, hex, wycheproof};
 
-    fn hmac(key: &[u8], data: &[u8]) -> [u8; 32] {
-        HmacKey::new(key).sign(&[data])
+    fn hmac(key: &[u8], data: &[u8]) -> Vec<u8> {
+        HmacKey::new(SuiteHash::Sha256, key).sign(&[data])
     }
 
     /// RFC 4231 §4.2–4.8, HMAC-SHA-256. Case 5 checks the 128-bit truncation; cases 6 and 7 hash a long key.
@@ -200,19 +270,19 @@ mod tests {
 
     #[test]
     fn sign_concat_joins_its_parts() {
-        let key = HmacKey::new(b"key");
+        let key = HmacKey::new(SuiteHash::Sha256, b"key");
         let joined = rustls::crypto::hmac::Key::sign_concat(&key, b"ab", &[b"cd", b"", b"e"], b"f");
         assert_eq!(joined.as_ref(), hmac(b"key", b"abcdef"));
     }
 
     #[test]
     fn sha256_contexts_fork() {
-        let mut ctx = Sha256.start();
+        let mut ctx = SHA256.start();
         ctx.update(b"ab");
         let fork = ctx.fork();
         ctx.update(b"c");
-        assert_eq!(ctx.fork_finish().as_ref(), Sha256.hash(b"abc").as_ref());
-        assert_eq!(fork.finish().as_ref(), Sha256.hash(b"ab").as_ref());
+        assert_eq!(ctx.fork_finish().as_ref(), SHA256.hash(b"abc").as_ref());
+        assert_eq!(fork.finish().as_ref(), SHA256.hash(b"ab").as_ref());
         let expected = hex("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
         assert_eq!(ctx.finish().as_ref(), expected);
     }
@@ -245,7 +315,7 @@ mod tests {
             ),
         ];
         for (n, (ikm, salt, info, okm)) in cases.iter().enumerate() {
-            let expander = HkdfUsingHmac(&HmacSha256).extract_from_secret(Some(salt), ikm);
+            let expander = HkdfUsingHmac(&HMAC_SHA256).extract_from_secret(Some(salt), ikm);
             let mut out = vec![0u8; okm.len() / 2];
             expander.expand_slice(&[info], &mut out).unwrap();
             assert_eq!(out, hex(okm), "case {}", n + 1);
@@ -278,10 +348,24 @@ mod tests {
             for case in &group.tests {
                 seen += 1;
                 let tag = hmac(&hex(&case.key), &hex(&case.msg));
-                let matches = crate::ct::eq(&tag[..group.tag_size / 8], &hex(&case.tag));
+                let matches = tag[..group.tag_size / 8] == hex(&case.tag)[..];
                 assert_eq!(matches, case.result == Expect::Valid, "case {}", case.tc_id);
             }
         }
         assert_eq!(seen, file.number_of_tests);
+    }
+
+    /// RFC 4231 §4.2 and §4.3 for HMAC-SHA-384, and SHA-384 itself (FIPS 180-2 "abc").
+    #[test]
+    fn sha384_and_its_hmac() {
+        let tag = HmacKey::new(SuiteHash::Sha384, &[0x0b; 20]).sign(&[b"Hi There"]);
+        let expected = "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6";
+        assert_eq!(tag, hex(expected));
+        let tag = HmacKey::new(SuiteHash::Sha384, b"Jefe").sign(&[b"what do ya want for nothing?"]);
+        let expected = "af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e8e2240ca5e69e2c78b3239ecfab21649";
+        assert_eq!(tag, hex(expected));
+        let expected = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7";
+        assert_eq!(SHA384.hash(b"abc").as_ref(), hex(expected));
+        assert_eq!(HMAC_SHA384.hash_output_len(), 48);
     }
 }

@@ -7,6 +7,7 @@ all-features = false
 version = 2
 yanked = "deny"
 ignore = [
+    { id = "RUSTSEC-2023-0071", reason = "rsa (Marvin): a timing side channel on private-key operations; app-tls only verifies signatures with public keys (ADR 0014)" },
     # zbus 5's helper crates, merged into zbus 6 and marked unmaintained (not vulnerable). They come
     # in through `keyring` (Secret Service) and eframe's `accesskit_unix`; neither has a zbus-6
     # release yet. Drop these once both upgrade.

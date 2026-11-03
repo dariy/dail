@@ -1,6 +1,6 @@
 //! Tests of the assembled provider (`docs/plan-tls.md` §5.8, §7.4): the pinned algorithm set, and TLS handshakes
-//! between a rustls client and a rustls server in memory, both on `provider()`. The server signs with a test-only key
-//! provider built on `bignum`, `ec` and `der`, which exists only here.
+//! between a rustls client and a rustls server in memory, both on `provider()`, over every suite and group. The server
+//! signs with a test-only key provider built on the `rsa` and `p256` crates, which exists only here.
 
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
@@ -22,11 +22,9 @@ use rustls::{
     SignatureScheme, SupportedProtocolVersion,
 };
 
-use crate::bignum::{self, Modulus};
-use crate::der::Reader;
 use crate::ec::{self, CurveId};
 use crate::hash::SigHash;
-use crate::{provider, rsa};
+use crate::provider;
 
 #[test]
 fn the_provider_is_pinned() {
@@ -36,12 +34,25 @@ fn the_provider_is_pinned() {
         suites,
         [
             CipherSuite::TLS13_CHACHA20_POLY1305_SHA256,
+            CipherSuite::TLS13_AES_256_GCM_SHA384,
+            CipherSuite::TLS13_AES_128_GCM_SHA256,
             CipherSuite::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
             CipherSuite::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+            CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+            CipherSuite::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+            CipherSuite::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
         ]
     );
     let groups: Vec<NamedGroup> = p.kx_groups.iter().map(|group| group.name()).collect();
-    assert_eq!(groups, [NamedGroup::X25519]);
+    assert_eq!(
+        groups,
+        [
+            NamedGroup::X25519,
+            NamedGroup::secp256r1,
+            NamedGroup::secp384r1
+        ]
+    );
 
     let algorithms = p.signature_verification_algorithms;
     let ids: Vec<String> = algorithms
@@ -142,7 +153,7 @@ impl Chain {
 // --- The test-only key provider ---------------------------------------------------------------------------------
 
 /// Loads the PKCS#8 test keys and signs with the schemes in `rsa_schemes` (for RSA keys) or ECDSA P-256 with
-/// SHA-256. Signing is variable time and the ECDSA nonce is derived from key and message: tests only.
+/// SHA-256, through the crates' signing code. Tests only.
 #[derive(Debug)]
 struct TestKeys {
     rsa_schemes: &'static [SignatureScheme],
@@ -158,13 +169,9 @@ static RSA_PKCS1_ONLY: TestKeys = TestKeys {
     rsa_schemes: &[SignatureScheme::RSA_PKCS1_SHA256],
 };
 
-const OID_RSA_ENCRYPTION: &[u8] = &[0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01];
-const OID_EC_PUBLIC_KEY: &[u8] = &[0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01];
-
 #[derive(Debug)]
 enum TestKey {
-    /// n, d.
-    Rsa(Vec<u8>, Vec<u8>, &'static [SignatureScheme]),
+    Rsa(Box<::rsa::RsaPrivateKey>, &'static [SignatureScheme]),
     /// The P-256 private scalar.
     Ecdsa(Vec<u8>),
 }
@@ -174,40 +181,27 @@ impl KeyProvider for TestKeys {
         &self,
         key: PrivateKeyDer<'static>,
     ) -> Result<Arc<dyn SigningKey>, rustls::Error> {
+        use ::rsa::pkcs8::DecodePrivateKey as _;
         let PrivateKeyDer::Pkcs8(pkcs8) = key else {
             return Err(rustls::Error::General("PKCS#8 only".into()));
         };
-        // PrivateKeyInfo { version, AlgorithmIdentifier { oid, params }, privateKey OCTET STRING } (RFC 5208 §5).
-        let mut outer = Reader::new(pkcs8.secret_pkcs8_der());
-        let mut info = outer.sequence().unwrap();
-        info.unsigned_integer().unwrap();
-        let mut alg = info.sequence().unwrap();
-        let oid = alg.tagged(0x06).unwrap();
-        let private = info.tagged(0x04).unwrap();
-        let key = if oid == OID_RSA_ENCRYPTION {
-            // RSAPrivateKey { version, n, e, d, … } (RFC 8017 §A.1.2).
-            let mut seq = Reader::new(private).sequence().unwrap();
-            seq.unsigned_integer().unwrap();
-            let n = seq.unsigned_integer().unwrap().to_vec();
-            seq.unsigned_integer().unwrap();
-            let d = seq.unsigned_integer().unwrap().to_vec();
-            TestKey::Rsa(n, d, self.rsa_schemes)
-        } else if oid == OID_EC_PUBLIC_KEY {
-            // ECPrivateKey { version, privateKey OCTET STRING, … } (RFC 5915 §3).
-            let mut seq = Reader::new(private).sequence().unwrap();
-            seq.unsigned_integer().unwrap();
-            TestKey::Ecdsa(seq.tagged(0x04).unwrap().to_vec())
-        } else {
-            return Err(rustls::Error::General("unknown key type".into()));
-        };
-        Ok(Arc::new(key))
+        let der = pkcs8.secret_pkcs8_der();
+        if let Ok(key) = ::rsa::RsaPrivateKey::from_pkcs8_der(der) {
+            return Ok(Arc::new(TestKey::Rsa(Box::new(key), self.rsa_schemes)));
+        }
+        // ECPrivateKey { version 1, privateKey OCTET STRING (32), … } inside the PKCS#8 (RFC 5915 §3).
+        let at = der
+            .windows(5)
+            .position(|w| w == [0x02, 0x01, 0x01, 0x04, 0x20])
+            .ok_or_else(|| rustls::Error::General("unknown key type".into()))?;
+        Ok(Arc::new(TestKey::Ecdsa(der[at + 5..at + 37].to_vec())))
     }
 }
 
 impl SigningKey for TestKey {
     fn choose_scheme(&self, offered: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
         let own: &[SignatureScheme] = match self {
-            Self::Rsa(_, _, schemes) => schemes,
+            Self::Rsa(_, schemes) => schemes,
             Self::Ecdsa(_) => &[SignatureScheme::ECDSA_NISTP256_SHA256],
         };
         let scheme = own.iter().find(|scheme| offered.contains(scheme))?;
@@ -228,7 +222,7 @@ impl SigningKey for TestKey {
 impl TestKey {
     fn clone_key(&self) -> Self {
         match self {
-            Self::Rsa(n, d, schemes) => Self::Rsa(n.clone(), d.clone(), schemes),
+            Self::Rsa(key, schemes) => Self::Rsa(key.clone(), schemes),
             Self::Ecdsa(secret) => Self::Ecdsa(secret.clone()),
         }
     }
@@ -242,16 +236,15 @@ struct TestSigner {
 
 impl Signer for TestSigner {
     fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        let hashed = SigHash::Sha256.digest(&[message]);
         Ok(match (&*self.key, self.scheme) {
             (TestKey::Ecdsa(secret), _) => {
                 ec::sign_for_tests(CurveId::P256, SigHash::Sha256, secret, message)
             }
-            (TestKey::Rsa(n, d, _), SignatureScheme::RSA_PKCS1_SHA256) => rsa_private_op(
-                n,
-                d,
-                &rsa::pkcs1_encoding(SigHash::Sha256, message, n.len()).unwrap(),
-            ),
-            (TestKey::Rsa(n, d, _), _) => rsa_private_op(n, d, &pss_encoding(n, message)),
+            (TestKey::Rsa(key, _), SignatureScheme::RSA_PKCS1_SHA256) => key
+                .sign(::rsa::Pkcs1v15Sign::new::<::rsa::sha2::Sha256>(), &hashed)
+                .unwrap(),
+            (TestKey::Rsa(key, _), _) => pss_sign(key, &hashed),
         })
     }
 
@@ -260,30 +253,35 @@ impl Signer for TestSigner {
     }
 }
 
-/// `em^d mod n`, written into the modulus length.
-fn rsa_private_op(n: &[u8], d: &[u8], em: &[u8]) -> Vec<u8> {
-    let modulus = Modulus::new(n).unwrap();
-    let m = bignum::from_be_bytes(em, modulus.limbs()).unwrap();
-    let s = modulus.to_plain(&modulus.pow(&modulus.to_mont(&m), d));
-    bignum::to_be_bytes(&s, n.len()).unwrap()
-}
-
-/// EMSA-PSS-ENCODE (RFC 8017 §9.1.1) with SHA-256, MGF1-SHA256 and a fixed 32-byte salt.
-fn pss_encoding(n: &[u8], message: &[u8]) -> Vec<u8> {
+/// RSASSA-PSS-SIGN (RFC 8017 §8.1.1, EMSA-PSS-ENCODE in §9.1.1) with SHA-256, MGF1-SHA256 and a fixed 32-byte salt,
+/// as a raw `em^d mod n`: the crate's PSS signer wants a random source of an older `rand_core`.
+fn pss_sign(key: &::rsa::RsaPrivateKey, m_hash: &[u8]) -> Vec<u8> {
+    use ::rsa::traits::{PrivateKeyParts as _, PublicKeyParts as _};
     let hash = SigHash::Sha256;
-    let em_bits = bignum::bits(&bignum::from_be_bytes(n, n.len().div_ceil(8)).unwrap()) - 1;
+    let n = key.n();
+    let len = key.size();
+    let em_bits = n.bits() - 1;
     let em_len = em_bits.div_ceil(8);
     let salt = [0x5au8; 32];
-    let m_hash = hash.digest(&[message]);
-    let h = hash.digest(&[&[0u8; 8], &m_hash, &salt]);
+    let h = hash.digest(&[&[0u8; 8], m_hash, &salt]);
     let mut db = vec![0u8; em_len - salt.len() - h.len() - 2];
     db.push(0x01);
     db.extend_from_slice(&salt);
-    for (byte, mask) in db.iter_mut().zip(rsa::mgf1(hash, &h, em_len - h.len() - 1)) {
-        *byte ^= mask;
+    let mut mask = Vec::new();
+    let mut counter = 0u32;
+    while mask.len() < db.len() {
+        mask.extend(hash.digest(&[&h, &counter.to_be_bytes()]));
+        counter += 1;
+    }
+    for (byte, m) in db.iter_mut().zip(mask) {
+        *byte ^= m;
     }
     db[0] &= 0xff >> (8 * em_len - em_bits);
-    [db, h, vec![0xbc]].concat()
+    let em = [db, h, vec![0xbc]].concat();
+    let s = ::rsa::BigUint::from_bytes_be(&em)
+        .modpow(key.d(), n)
+        .to_bytes_be();
+    [vec![0u8; len - s.len()], s].concat()
 }
 
 // --- Connections in memory --------------------------------------------------------------------------------------
@@ -403,12 +401,23 @@ fn drain(mut reader: impl Read, into: &mut Vec<u8>) {
     }
 }
 
-/// Handshakes, checks what was negotiated, and sends 1 MiB each way.
+/// Handshakes, checks what was negotiated (with X25519), and sends 1 MiB each way.
 fn connect_and_exchange(
+    client: ClientConnection,
+    server: ServerConnection,
+    version: ProtocolVersion,
+    suite: CipherSuite,
+) {
+    connect_with(client, server, version, suite, NamedGroup::X25519);
+}
+
+/// [`connect_and_exchange`] with `group` as the expected key exchange group.
+fn connect_with(
     mut client: ClientConnection,
     mut server: ServerConnection,
     version: ProtocolVersion,
     suite: CipherSuite,
+    group: NamedGroup,
 ) {
     let (mut client_in, mut server_in) = (Vec::new(), Vec::new());
     pump(&mut client, &mut server, &mut client_in, &mut server_in).unwrap();
@@ -420,7 +429,7 @@ fn connect_and_exchange(
     );
     assert_eq!(
         client.negotiated_key_exchange_group().map(|g| g.name()),
-        Some(NamedGroup::X25519)
+        Some(group)
     );
 
     let up: Vec<u8> = (0..1 << 20).map(|i: u32| (i * 7 + i / 251) as u8).collect();
@@ -510,6 +519,35 @@ fn tls12_ecdhe_rsa_with_pkcs1() {
         server(chain, &RSA_PKCS1_ONLY, Some(suite), None),
     );
     connect_and_exchange(c, s, ProtocolVersion::TLSv1_2, suite);
+}
+
+/// STORE-11: every suite with every key exchange group, over the chain its signature needs (both for TLS 1.3), with
+/// 1 MiB each way, so every record layer and group runs end to end.
+#[test]
+fn every_suite_and_group_connects() {
+    let p = provider();
+    for suite in &p.cipher_suites {
+        let (version, chains): (_, &[Chain]) = match suite {
+            rustls::SupportedCipherSuite::Tls13(_) => (&TLS13, &[Chain::Ecdsa, Chain::Rsa]),
+            rustls::SupportedCipherSuite::Tls12(s)
+                if s.sign.contains(&SignatureScheme::ECDSA_NISTP256_SHA256) =>
+            {
+                (&TLS12, &[Chain::Ecdsa])
+            }
+            rustls::SupportedCipherSuite::Tls12(_) => (&TLS12, &[Chain::Rsa]),
+        };
+        for &chain in chains {
+            for &group in &p.kx_groups {
+                connect_with(
+                    client(chain.root(), version, "mail.dail.test"),
+                    server(chain, &RSA_PSS_AND_PKCS1, Some(suite.suite()), Some(group)),
+                    version.version,
+                    suite.suite(),
+                    group.name(),
+                );
+            }
+        }
+    }
 }
 
 // --- Handshakes and records that must fail ----------------------------------------------------------------------

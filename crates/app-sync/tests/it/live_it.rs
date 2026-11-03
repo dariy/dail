@@ -15,6 +15,7 @@
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used)]
 
+use std::io::Write as _;
 use std::time::Duration;
 
 use app_core::{AccountId, ProviderPreset, Secret, SecretRef};
@@ -22,7 +23,6 @@ use app_sync::{AccountVerifier, KeyringSecrets, NetVerifier, SecretStore, tls};
 use lettre::transport::smtp::client::AsyncSmtpConnection;
 use lettre::transport::smtp::extension::ClientId;
 use rustls::pki_types::ServerName;
-use rustls::{CipherSuite, NamedGroup, ProtocolVersion};
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
@@ -104,8 +104,13 @@ fn os_keyring_round_trip() {
 }
 
 /// Connects with TLS to `host:port` and returns the first bytes the server sends, after checking that the
-/// connection runs TLS 1.3 with ChaCha20-Poly1305 and X25519.
+/// connection runs TLS 1.3. The server picks the suite and group among app-tls's (ADR 0014).
 async fn tls_greeting(host: &str, port: u16) -> String {
+    tls_handshake(host, port).await.0
+}
+
+/// [`tls_greeting`], with what was negotiated: `(greeting, "TLSv1_3 TLS13_AES_256_GCM_SHA384 X25519")`.
+async fn tls_handshake(host: &str, port: u16) -> (String, String) {
     let connector = TlsConnector::from(tls::client_config().unwrap());
     let tcp = TcpStream::connect((host, port)).await.unwrap();
     let name = ServerName::try_from(host.to_owned()).unwrap();
@@ -115,28 +120,21 @@ async fn tls_greeting(host: &str, port: u16) -> String {
         .map_err(|err| tls::with_hint(format!("{host}:{port}: {err}"), &err))
         .unwrap();
     let conn = stream.get_ref().1;
-    assert_eq!(
-        conn.protocol_version(),
-        Some(ProtocolVersion::TLSv1_3),
-        "{host}:{port}"
-    );
-    assert_eq!(
-        conn.negotiated_cipher_suite().map(|suite| suite.suite()),
-        Some(CipherSuite::TLS13_CHACHA20_POLY1305_SHA256),
-        "{host}:{port}"
-    );
-    assert_eq!(
-        conn.negotiated_key_exchange_group()
-            .map(|group| group.name()),
-        Some(NamedGroup::X25519),
-        "{host}:{port}"
+    let negotiated = format!(
+        "{:?} {:?} {:?}",
+        conn.protocol_version().unwrap(),
+        conn.negotiated_cipher_suite().unwrap().suite(),
+        conn.negotiated_key_exchange_group().unwrap().name()
     );
     let mut greeting = vec![0u8; 512];
     let n = tokio::time::timeout(Duration::from_secs(20), stream.read(&mut greeting))
         .await
         .unwrap()
         .unwrap();
-    String::from_utf8_lossy(&greeting[..n]).into_owned()
+    (
+        String::from_utf8_lossy(&greeting[..n]).into_owned(),
+        negotiated,
+    )
 }
 
 /// STARTTLS on submission port 587 through lettre (the default provider app-tls installs), then QUIT, no AUTH.
@@ -163,7 +161,8 @@ async fn tls_reaches_reference_providers() {
         "set DAIL_IT_TLS=1 to run this live test"
     );
     for host in ["imap.gmail.com", "imap.hostinger.com"] {
-        let greeting = tls_greeting(host, 993).await;
+        let (greeting, negotiated) = tls_handshake(host, 993).await;
+        assert!(negotiated.starts_with("TLSv1_3"), "{host}: {negotiated}");
         assert!(
             greeting.starts_with("* OK"),
             "{host}:993 greeted {greeting:?}"
@@ -178,3 +177,71 @@ async fn tls_reaches_reference_providers() {
         smtp_starttls(host).await;
     }
 }
+
+/// The provider list of ARCHITECTURE §5.3, probed through app-tls (STORE-11): each IMAP server's TLS handshake and
+/// greeting, no login. Prints what each negotiated; fails if any does not connect.
+#[tokio::test]
+#[ignore = "live: needs DAIL_IT_TLS=1 and network (no credentials)"]
+async fn tls_reaches_the_provider_list() {
+    assert_eq!(
+        std::env::var("DAIL_IT_TLS").as_deref(),
+        Ok("1"),
+        "set DAIL_IT_TLS=1 to run this live test"
+    );
+    let mut failed = Vec::new();
+    for host in PROVIDERS {
+        let probe = tokio::time::timeout(Duration::from_secs(30), async {
+            let connector = TlsConnector::from(tls::client_config().unwrap());
+            let tcp = TcpStream::connect((*host, 993))
+                .await
+                .map_err(|e| e.to_string())?;
+            let name = ServerName::try_from(host.to_string()).unwrap();
+            let stream = connector
+                .connect(name, tcp)
+                .await
+                .map_err(|e| e.to_string())?;
+            let conn = stream.get_ref().1;
+            Ok::<_, String>(format!(
+                "{:?} {:?} {:?}",
+                conn.protocol_version().unwrap(),
+                conn.negotiated_cipher_suite().unwrap().suite(),
+                conn.negotiated_key_exchange_group().unwrap().name()
+            ))
+        })
+        .await
+        .unwrap_or_else(|_| Err("timed out".to_owned()));
+        match probe {
+            Ok(negotiated) => {
+                let _ = writeln!(std::io::stderr(), "ok    {host}: {negotiated}");
+            }
+            Err(err) => {
+                let _ = writeln!(std::io::stderr(), "FAIL  {host}: {err}");
+                failed.push(*host);
+            }
+        }
+    }
+    assert!(failed.is_empty(), "no handshake with {failed:?}");
+}
+
+/// The IMAP servers of ARCHITECTURE §5.3's table.
+const PROVIDERS: &[&str] = &[
+    "imap.gmail.com",
+    "imap.hostinger.com",
+    "imap.mail.yahoo.com",
+    "imap.mail.me.com",
+    "imap.fastmail.com",
+    "imap.zoho.com",
+    "imap.gmx.net",
+    "imap.aol.com",
+    "imap.yandex.com",
+    "imap.ionos.com",
+    "imap.one.com",
+    "imap.migadu.com",
+    "imap.web.de",
+    "imap.mailbox.org",
+    "imap.purelymail.com",
+    "imap.mail.ru",
+    "mail.privateemail.com",
+    "outlook.office365.com",
+    "secureimap.t-online.de",
+];

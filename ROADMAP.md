@@ -899,7 +899,7 @@ text ships in English and French.
 - [x] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
-- [ ] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,
+- [x] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,
   `p256`, `p384` and `rsa` (the stable 0.9 line), with AES-128/256-GCM from `aes-gcm` and P-256/P-384 key exchange added.
   The Wycheproof and handshake tests stay and run against the new crates. `deny.toml` ignores RUSTSEC-2023-0071 with its
   reason. ADR 0014 retires ADR 0003's review promise, because no hand-written primitive remains, and records each crate's

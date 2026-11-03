@@ -655,25 +655,29 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 | `gmail` | imap.gmail.com:993 TLS | smtp.gmail.com:465 TLS | move INBOX → `[Gmail]/All Mail` (`archive_to_all`: the `all` role) | SMTP saves it automatically, so skip APPEND | App Password (2FA required); trash = `trash` role, else `[Gmail]/Trash`; server search via `X-GM-RAW` (`raw_search`) |
 | `custom` | user-supplied | user-supplied | SPECIAL-USE `\Archive` or `Archive` | APPEND | STARTTLS on 143/587 supported |
 
-TLS: rustls with the `app-tls` crypto provider (ADR 0003, `docs/plan-tls.md`) and `webpki-roots`
+TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
 (`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
 lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
 the build compiles C: `deny.toml` bans `ring`, and `cc` only appears under crates that build nothing with it.
 
-app-tls implements only what a TLS client needs, in safe Rust: TLS 1.3 and 1.2 with ChaCha20-Poly1305
-(`TLS13_CHACHA20_POLY1305_SHA256`, `TLS_ECDHE_{ECDSA,RSA}_WITH_CHACHA20_POLY1305_SHA256`), X25519 key exchange, and
-signature verification with ECDSA P-256/P-384 (SHA-256/384) and RSA 2048–8192 (PKCS#1 v1.5 and PSS, SHA-256/384/512).
-What servers accept (measured 2026-10-18, `docs/plan-tls.md` §2):
+app-tls is the glue a TLS client needs, in safe Rust, over audited or widely used crates (ADR 0014:
+`chacha20poly1305`, `aes-gcm`, `x25519-dalek`, `p256`, `p384`, `rsa` 0.9, `sha2`): TLS 1.3 and 1.2 with
+ChaCha20-Poly1305 first, then AES-256-GCM and AES-128-GCM (`TLS13_*`, `TLS_ECDHE_{ECDSA,RSA}_WITH_*`, nine suites), X25519,
+P-256 and P-384 key exchange, and signature verification with ECDSA P-256/P-384 (SHA-256/384) and RSA 2048–8192
+(PKCS#1 v1.5 and PSS, SHA-256/384/512). The server picks among them. Probed through app-tls on 2026-11-03
+(`live_it::tls_reaches_the_provider_list`, IMAP 993, handshake only):
 
-| Algorithms | Servers |
+| Negotiated | Servers |
 |---|---|
-| X25519 + ChaCha20-Poly1305 (app-tls today) | Gmail, Hostinger, Yahoo, iCloud, Fastmail, Zoho, GMX, AOL, Yandex, IONOS, one.com, Migadu, web.de, mailbox.org, Purelymail; mail.ru (TLS 1.2 only) |
-| + AES-GCM (tier 2, ROADMAP) | + Namecheap Private Email |
-| + P-256/P-384 key exchange (tier 3, ROADMAP) | + Microsoft 365 / Outlook, T-Online |
+| TLS 1.3, ChaCha20-Poly1305, X25519 | Gmail, iCloud, GMX, IONOS, Migadu, web.de |
+| TLS 1.3, AES-256-GCM, X25519 | Hostinger, Yahoo, Fastmail, AOL, Yandex, one.com, mailbox.org, Purelymail |
+| TLS 1.3, AES-128-GCM, X25519 | Zoho, Namecheap Private Email |
+| TLS 1.3, AES-256-GCM, P-384 | Microsoft 365 / Outlook (needs OAuth2 to log in), T-Online |
+| TLS 1.2, ECDHE-RSA AES-128-GCM, X25519 | mail.ru |
 
 A handshake that fails for lack of a common version, suite or group (`HandshakeFailure`, `ProtocolVersion` or
 `InsufficientSecurity` alerts, `PeerIncompatible`) gets the hint "the server supports none of the TLS ciphers dail
-implements (TLS 1.2/1.3 with ChaCha20-Poly1305 and X25519)" in the IMAP and SMTP error
+implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384)" in the IMAP and SMTP error
 (`app_sync::tls::incompatible_server_hint`).
 
 ### 5.4 Single instance & IPC attach

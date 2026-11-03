@@ -1,11 +1,11 @@
-//! RSA signature verification (RFC 8017): RSASSA-PKCS1-v1_5 (§8.2.2) and RSASSA-PSS (§8.1.2) with SHA-256/384/512.
-//! Everything here is public data, so the code may take variable time; every check must be exact.
+//! RSA signature verification (RFC 8017) with the `rsa` crate's stable 0.9 line (ADR 0014): RSASSA-PKCS1-v1_5
+//! (§8.2.2) and RSASSA-PSS (§8.1.2) with SHA-256/384/512. Only public keys are used: RUSTSEC-2023-0071 (Marvin) is
+//! about private-key operations. Only the glue is dail's: the key limits ring sets, and the hash a scheme names.
 
-use core::cmp::Ordering;
+use rsa::pkcs1::der::Decode as _;
+use rsa::{BigUint, Pkcs1v15Sign, Pss, RsaPublicKey};
 
 use crate::Error;
-use crate::bignum::{self, Modulus};
-use crate::der::Reader;
 use crate::hash::SigHash;
 
 /// The smallest and largest modulus accepted, in bits (ring's bounds).
@@ -13,25 +13,15 @@ const MIN_BITS: usize = 2048;
 const MAX_BITS: usize = 8192;
 
 /// An RSA public key, checked for verification.
-pub(crate) struct PublicKey {
-    n: Modulus,
-    /// The modulus length in bytes, which is also the signature length.
-    len: usize,
-    /// The public exponent, big-endian without leading zeros.
-    e: Vec<u8>,
-}
+pub(crate) struct PublicKey(RsaPublicKey);
 
 impl PublicKey {
     /// Parses the DER `RSAPublicKey { modulus, publicExponent }` (RFC 8017 §A.1.1): the `subjectPublicKey` bytes that
-    /// webpki passes. Refuses a modulus outside 2048–8192 bits and an even exponent or one outside 3 ≤ e < 2^33.
+    /// webpki passes. Refuses trailing bytes, a modulus outside 2048–8192 bits or even, and an even exponent or one
+    /// outside 3 ≤ e < 2^33.
     pub(crate) fn from_der(der: &[u8]) -> Result<Self, Error> {
-        let mut outer = Reader::new(der);
-        let mut seq = outer.sequence()?;
-        let n = seq.unsigned_integer()?;
-        let e = seq.unsigned_integer()?;
-        seq.finish()?;
-        outer.finish()?;
-
+        let parsed = rsa::pkcs1::RsaPublicKey::from_der(der).map_err(|_| Error)?;
+        let (n, e) = (parsed.modulus.as_bytes(), parsed.public_exponent.as_bytes());
         let e_value = match e.len() {
             1..=5 => e
                 .iter()
@@ -41,157 +31,62 @@ impl PublicKey {
         if !(3..1 << 33).contains(&e_value) || e_value & 1 == 0 {
             return Err(Error);
         }
-        // An even modulus fails here too: Montgomery arithmetic needs it odd, and no RSA modulus is even.
-        let modulus = Modulus::new(n)?;
-        if !(MIN_BITS..=MAX_BITS).contains(&modulus.bits()) {
+        let odd = n.last().is_some_and(|byte| byte & 1 == 1);
+        let n = BigUint::from_bytes_be(n);
+        let bits = n.bits();
+        if !(MIN_BITS..=MAX_BITS).contains(&bits) || !odd {
             return Err(Error);
         }
-        Ok(Self {
-            len: n.len(),
-            n: modulus,
-            e: e.to_vec(),
-        })
+        RsaPublicKey::new_with_max_size(n, BigUint::from(e_value), MAX_BITS)
+            .map(Self)
+            .map_err(|_| Error)
     }
 
-    /// The modulus length in bits.
-    fn bits(&self) -> usize {
-        self.n.bits()
-    }
-
-    /// RSAVP1 (RFC 8017 §5.2.2) with I2OSP into the modulus length: `s^e mod n`. Refuses a signature whose length
-    /// differs from the modulus length and a representative s ≥ n.
-    fn public_op(&self, signature: &[u8]) -> Result<Vec<u8>, Error> {
-        if signature.len() != self.len {
-            return Err(Error);
-        }
-        let s = bignum::from_be_bytes(signature, self.n.limbs())?;
-        if bignum::cmp(&s, self.n.n()) != Ordering::Less {
-            return Err(Error);
-        }
-        let m = self.n.to_plain(&self.n.pow(&self.n.to_mont(&s), &self.e));
-        bignum::to_be_bytes(&m, self.len)
-    }
-
-    /// RSASSA-PKCS1-v1_5-VERIFY (RFC 8017 §8.2.2). Builds the expected encoding EMSA-PKCS1-v1_5 (§9.2),
-    /// `00 01 FF…FF 00 ‖ DigestInfo ‖ H(message)`, and compares it with `s^e mod n` as a whole. The padding is never
-    /// parsed, which is what keeps out Bleichenbacher-style forgeries.
+    /// RSASSA-PKCS1-v1_5-VERIFY (RFC 8017 §8.2.2) with the DigestInfo's NULL parameters required, as ring does. The
+    /// crate compares the whole encoding, never parsing the padding.
     pub(crate) fn verify_pkcs1(
         &self,
         hash: SigHash,
         message: &[u8],
         signature: &[u8],
     ) -> Result<(), Error> {
-        let em = self.public_op(signature)?;
-        if em == pkcs1_encoding(hash, message, self.len)? {
-            Ok(())
-        } else {
-            Err(Error)
-        }
+        let scheme = match hash {
+            SigHash::Sha256 => Pkcs1v15Sign::new::<rsa::sha2::Sha256>(),
+            SigHash::Sha384 => Pkcs1v15Sign::new::<rsa::sha2::Sha384>(),
+            SigHash::Sha512 => Pkcs1v15Sign::new::<rsa::sha2::Sha512>(),
+        };
+        self.check(scheme, hash, message, signature)
     }
 
     /// RSASSA-PSS-VERIFY (RFC 8017 §8.1.2) with MGF1 over the same hash and a salt as long as the hash (RFC 8446
-    /// §4.2.3), EMSA-PSS-VERIFY in §9.1.2.
+    /// §4.2.3).
     pub(crate) fn verify_pss(
         &self,
         hash: SigHash,
         message: &[u8],
         signature: &[u8],
     ) -> Result<(), Error> {
-        let m = self.public_op(signature)?;
-        // §8.1.2 step 2c: EM = I2OSP(m, emLen) with emBits = modBits − 1. When modBits − 1 is a multiple of 8, emLen
-        // is one byte shorter than the modulus and that byte must be zero.
-        let em_bits = self.bits() - 1;
-        let em_len = em_bits.div_ceil(8);
-        let em = match m.split_at(m.len() - em_len) {
-            (lead, em) if lead.iter().all(|&byte| byte == 0) => em,
-            _ => return Err(Error),
+        let scheme = match hash {
+            SigHash::Sha256 => Pss::new_with_salt::<rsa::sha2::Sha256>(hash.len()),
+            SigHash::Sha384 => Pss::new_with_salt::<rsa::sha2::Sha384>(hash.len()),
+            SigHash::Sha512 => Pss::new_with_salt::<rsa::sha2::Sha512>(hash.len()),
         };
-
-        let h_len = hash.len();
-        let s_len = h_len;
-        // §9.1.2 step 3.
-        if em_len < h_len + s_len + 2 {
-            return Err(Error);
-        }
-        // Step 4: the trailer.
-        let (rest, trailer) = em.split_at(em_len - 1);
-        if trailer != [0xbc] {
-            return Err(Error);
-        }
-        // Step 5.
-        let (masked_db, h) = rest.split_at(em_len - h_len - 1);
-        // Step 6: the 8·emLen − emBits leftmost bits of maskedDB must be zero.
-        let top_mask = 0xffu8 >> (8 * em_len - em_bits);
-        if masked_db[0] & !top_mask != 0 {
-            return Err(Error);
-        }
-        // Steps 7–9.
-        let mut db = mgf1(hash, h, masked_db.len());
-        for (d, m) in db.iter_mut().zip(masked_db) {
-            *d ^= m;
-        }
-        db[0] &= top_mask;
-        // Step 10: zero padding, then 0x01.
-        let separator = em_len - h_len - s_len - 2;
-        if db[..separator].iter().any(|&byte| byte != 0) || db[separator] != 0x01 {
-            return Err(Error);
-        }
-        // Steps 11–14.
-        let salt = &db[db.len() - s_len..];
-        let m_hash = hash.digest(&[message]);
-        let h_prime = hash.digest(&[&[0u8; 8], &m_hash, salt]);
-        if h == h_prime.as_slice() {
-            Ok(())
-        } else {
-            Err(Error)
-        }
+        self.check(scheme, hash, message, signature)
     }
-}
 
-/// EMSA-PKCS1-v1_5 (RFC 8017 §9.2): `00 01 FF…FF 00 ‖ DigestInfo ‖ H(message)` in `len` bytes, with at least eight
-/// 0xFF bytes.
-pub(crate) fn pkcs1_encoding(hash: SigHash, message: &[u8], len: usize) -> Result<Vec<u8>, Error> {
-    let prefix = digest_info_prefix(hash);
-    let t_len = prefix.len() + hash.len();
-    if len < t_len + 11 {
-        return Err(Error);
-    }
-    let mut em = Vec::with_capacity(len);
-    em.extend_from_slice(&[0x00, 0x01]);
-    em.resize(len - t_len - 1, 0xff);
-    em.push(0x00);
-    em.extend_from_slice(prefix);
-    em.extend_from_slice(&hash.digest(&[message]));
-    Ok(em)
-}
-
-/// MGF1 (RFC 8017 §B.2.1): `len` bytes of `H(seed ‖ counter)` for counter = 0, 1, ….
-pub(crate) fn mgf1(hash: SigHash, seed: &[u8], len: usize) -> Vec<u8> {
-    let mut out = Vec::with_capacity(len + hash.len());
-    let mut counter = 0u32;
-    while out.len() < len {
-        out.extend_from_slice(&hash.digest(&[seed, &counter.to_be_bytes()]));
-        counter += 1;
-    }
-    out.truncate(len);
-    out
-}
-
-/// The DER `DigestInfo` up to the hash value, with NULL parameters (RFC 8017 §9.2, note 1).
-fn digest_info_prefix(hash: SigHash) -> &'static [u8] {
-    match hash {
-        SigHash::Sha256 => &[
-            0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02,
-            0x01, 0x05, 0x00, 0x04, 0x20,
-        ],
-        SigHash::Sha384 => &[
-            0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02,
-            0x02, 0x05, 0x00, 0x04, 0x30,
-        ],
-        SigHash::Sha512 => &[
-            0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02,
-            0x03, 0x05, 0x00, 0x04, 0x40,
-        ],
+    /// A signature must be exactly as long as the modulus (RFC 8017 §8.1.2 step 1, §8.2.2 step 1).
+    fn check(
+        &self,
+        scheme: impl rsa::traits::SignatureScheme,
+        hash: SigHash,
+        message: &[u8],
+        signature: &[u8],
+    ) -> Result<(), Error> {
+        if signature.len() != rsa::traits::PublicKeyParts::size(&self.0) {
+            return Err(Error);
+        }
+        let digest = hash.digest(&[message]);
+        self.0.verify(scheme, &digest, signature).map_err(|_| Error)
     }
 }
 
