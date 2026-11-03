@@ -10,7 +10,7 @@
 //! - `manifest`, `keygen`: see [`crate::manifest`].
 
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
@@ -191,6 +191,46 @@ fn changelog_line(note: Option<&str>) -> String {
     format!("- {text}")
 }
 
+/// Play and F-Droid limit a release note to 500 characters.
+const STORE_NOTE_MAX: usize = 500;
+
+/// The store release note for `note`: one paragraph, at most [`STORE_NOTE_MAX`] characters (cut at a word, with
+/// an ellipsis).
+fn store_note(note: Option<&str>) -> String {
+    let text = note.map_or_else(String::new, |n| {
+        n.split_whitespace().collect::<Vec<_>>().join(" ")
+    });
+    if text.chars().count() <= STORE_NOTE_MAX {
+        return text;
+    }
+    let cut: String = text.chars().take(STORE_NOTE_MAX - 1).collect();
+    let cut = cut.rsplit_once(' ').map_or(cut.as_str(), |(head, _)| head);
+    format!("{cut}…")
+}
+
+/// Writes the store changelogs of `version` (STORE-18): `fastlane/metadata/android/<lang>/changelogs/<code>.txt`
+/// for the AAB's version code and each ABI's, as Play and F-Droid read them. The French note starts as the English
+/// one, to be translated before the release.
+fn store_changelogs(root: &Path, version: &str, note: Option<&str>) -> Result<Vec<PathBuf>> {
+    let text = store_note(note);
+    let mut written = Vec::new();
+    for lang in ["en-US", "fr-FR"] {
+        let dir = root
+            .join("fastlane/metadata/android")
+            .join(lang)
+            .join("changelogs");
+        std::fs::create_dir_all(&dir)?;
+        for abi in [None, Some("arm64-v8a"), Some("x86_64")] {
+            let code =
+                crate::version_code(version, abi).context("no version code for this version")?;
+            let path = dir.join(format!("{code}.txt"));
+            std::fs::write(&path, format!("{text}\n"))?;
+            written.push(path);
+        }
+    }
+    Ok(written)
+}
+
 fn bump(root: &Path, version: &str, note: Option<&str>) -> Result<()> {
     if !is_version(version) {
         bail!("{version} is not x.y.z");
@@ -221,6 +261,8 @@ fn bump(root: &Path, version: &str, note: Option<&str>) -> Result<()> {
         std::fs::write(&changelog, format!("{head}{heading}\n\n{line}\n\n{rest}"))?;
     }
 
+    store_changelogs(root, version, note)?;
+
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let status = Command::new(&cargo)
         .current_dir(root)
@@ -232,7 +274,7 @@ fn bump(root: &Path, version: &str, note: Option<&str>) -> Result<()> {
     let mut out = std::io::stdout().lock();
     writeln!(
         out,
-        "bumped {current} → {version}; fill in CHANGELOG.md under {heading}"
+        "bumped {current} → {version}; fill in CHANGELOG.md under {heading}, and translate the fr-FR store changelogs"
     )?;
     Ok(())
 }
@@ -303,6 +345,45 @@ mod tests {
         assert_eq!(next("1.4.3", "major").unwrap(), "2.0.0");
         assert!(next("0.1.0", "skip").is_err());
         assert!(next("0.1", "patch").is_err());
+    }
+
+    #[test]
+    fn store_notes_fit_the_stores() {
+        assert_eq!(
+            store_note(Some("Faster  sync.\nFewer crashes.")),
+            "Faster sync. Fewer crashes."
+        );
+        let long = "word ".repeat(200);
+        let note = store_note(Some(&long));
+        assert!(note.chars().count() <= STORE_NOTE_MAX);
+        assert!(note.ends_with("word…"));
+    }
+
+    #[test]
+    fn store_changelogs_are_written_per_version_code() {
+        let root = std::env::temp_dir().join(format!("dail-xtask-notes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let written = store_changelogs(&root, "1.0.0", Some("First release.")).unwrap();
+        let names: Vec<String> = written
+            .iter()
+            .map(|p| p.strip_prefix(&root).unwrap().display().to_string())
+            .collect();
+        assert_eq!(
+            names,
+            [
+                "fastlane/metadata/android/en-US/changelogs/100000000.txt",
+                "fastlane/metadata/android/en-US/changelogs/100000001.txt",
+                "fastlane/metadata/android/en-US/changelogs/100000002.txt",
+                "fastlane/metadata/android/fr-FR/changelogs/100000000.txt",
+                "fastlane/metadata/android/fr-FR/changelogs/100000001.txt",
+                "fastlane/metadata/android/fr-FR/changelogs/100000002.txt",
+            ]
+        );
+        assert_eq!(
+            std::fs::read_to_string(&written[0]).unwrap(),
+            "First release.\n"
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

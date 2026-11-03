@@ -1,0 +1,21 @@
+dail is an email client for IMAP and SMTP accounts that keeps your mail between your phone and your mail servers. There are no dail servers, no accounts with us, no tracking and no ads.
+
+<b>Works with your mail</b>
+• Any IMAP and SMTP account with a password or an app password: Gmail (App Password), Hostinger, Yahoo, iCloud, Fastmail, GMX, mailbox.org, your own server and more.
+• Push through IMAP IDLE, or a periodic check, or only while the app is open: your choice.
+• Several accounts, and replies from any of them.
+
+<b>Fast to triage</b>
+• Swipe to archive or delete, and undo anything you just did.
+• Undo send: a message waits a few seconds before it leaves.
+• Search across the mail on your phone and on the server.
+
+<b>Private by design</b>
+• Passwords are kept in Android Keystore-protected storage only.
+• Remote images are never loaded on their own, and links show their real target before they open.
+• TLS for every connection, with certificates checked.
+
+<b>Free software</b>
+dail is open source. The same engine runs on Linux, Windows and in a terminal.
+
+Not yet supported: Microsoft (Outlook, Hotmail) accounts, which need a sign-in dail does not have yet.

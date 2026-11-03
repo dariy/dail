@@ -925,7 +925,8 @@ text ships in English and French.
   feature graphic
 - [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
-  `changelogs/<versionCode>.txt` (500 characters at most)
+  `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an
+  emulator or device, with STORE-23)*
 - [ ] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
 - [ ] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
