@@ -611,6 +611,9 @@ strings! {
     CreateAppPassword:
         "Create an App Password",
         "Créer un mot de passe d’application";
+    PrivacyPolicy:
+        "Privacy policy",
+        "Politique de confidentialité";
     AppPassword:
         "App Password",
         "Mot de passe d’application";

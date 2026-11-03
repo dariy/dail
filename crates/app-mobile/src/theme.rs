@@ -56,7 +56,21 @@ pub struct About {
     pub text: String,
     /// One licence per bundled work.
     pub licences: Vec<Licence>,
+    /// The privacy policy (STORE-19), opened in the browser.
+    pub privacy: AboutLink,
 }
+
+/// A link on the About screen: its label and its `https` target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AboutLink {
+    /// What the link says.
+    pub label: String,
+    /// Where it goes.
+    pub url: String,
+}
+
+/// The privacy policy dail links from About and the store listings (STORE-19).
+pub const PRIVACY_URL: &str = "https://github.com/dariy/dail/blob/main/PRIVACY.md";
 
 /// A bundled work and its licence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -197,5 +211,9 @@ pub fn about() -> About {
             &[("licence", env!("CARGO_PKG_LICENSE"))],
         ),
         licences,
+        privacy: AboutLink {
+            label: app_front::i18n::s(Key::PrivacyPolicy).to_owned(),
+            url: PRIVACY_URL.to_owned(),
+        },
     }
 }

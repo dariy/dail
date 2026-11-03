@@ -1950,7 +1950,9 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the
 single source for Google Play and F-Droid (STORE-18); `release bump` also writes each language's
-`changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters.
+`changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters. `PRIVACY.md` is the privacy
+policy, linked from the phone's About (`About.privacy`) and the listings; `docs/store/play-console.md` drafts the
+Play declarations (Data safety, foreground services, content rating, target audience; STORE-19).
 `bump.yml` makes the tag: after `ci` passes on a merge into `main` (`workflow_run`), it bumps the version (patch unless
 a `release:minor|major|skip` label), commits it and pushes `vX.Y.Z` with a GitHub App token, so `main` runs
 ci → bump → release; `ci` skips the bump commit, and a commit a tag already holds is not released again (MISC-9,

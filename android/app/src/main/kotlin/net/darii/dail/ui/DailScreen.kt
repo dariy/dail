@@ -36,6 +36,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -290,6 +291,11 @@ private fun AboutScreen(
     LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         // The title is in the top bar beside its close: `× About dail (<version>)` (MISC-13).
         item { Text(about.text, Modifier.padding(vertical = 8.dp)) }
+        item {
+            // Our own page, in the browser (STORE-19).
+            val uri = LocalUriHandler.current
+            TextButton(onClick = { runCatching { uri.openUri(about.privacy.url) } }) { Text(about.privacy.label) }
+        }
         items(about.licences, key = { it.name }) { licence ->
             Column(Modifier.padding(vertical = 8.dp)) {
                 Text(licence.name, style = MaterialTheme.typography.titleMedium)

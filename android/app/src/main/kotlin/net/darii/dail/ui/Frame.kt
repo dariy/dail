@@ -591,6 +591,14 @@ data class About(
     val title: String,
     val text: String,
     val licences: List<Licence>,
+    val privacy: AboutLink,
+)
+
+/** A link on the About screen (STORE-19): the privacy policy. */
+@Serializable
+data class AboutLink(
+    val label: String,
+    val url: String,
 )
 
 @Serializable

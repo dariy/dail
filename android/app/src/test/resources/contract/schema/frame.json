@@ -10,6 +10,10 @@
           },
           "type": "array"
         },
+        "privacy": {
+          "$ref": "#/$defs/AboutLink",
+          "description": "The privacy policy (STORE-19), opened in the browser."
+        },
         "text": {
           "description": "What the app is.",
           "type": "string"
@@ -22,7 +26,26 @@
       "required": [
         "title",
         "text",
-        "licences"
+        "licences",
+        "privacy"
+      ],
+      "type": "object"
+    },
+    "AboutLink": {
+      "description": "A link on the About screen: its label and its `https` target.",
+      "properties": {
+        "label": {
+          "description": "What the link says.",
+          "type": "string"
+        },
+        "url": {
+          "description": "Where it goes.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "url"
       ],
       "type": "object"
     },

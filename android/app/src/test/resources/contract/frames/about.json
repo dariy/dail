@@ -30,6 +30,10 @@
         "text": "PdfCraft for Android: the document viewer (DocLayout, ViewerState, PageImages, PageCanvas), adapted from\nhttps://github.com/artcraft-android/pdfcraft-android at 796fa92874ecc92247af95b216b0dad2eee04a08 (MIT OR Apache-2.0).\n\nMIT License\n\nCopyright (c) 2026 ArtCraft Team and the PdfCraft contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n"
       }
     ],
+    "privacy": {
+      "label": "Privacy policy",
+      "url": "https://github.com/dariy/dail/blob/main/PRIVACY.md"
+    },
     "text": "Email client for IMAP and SMTP accounts (MIT OR Apache-2.0). The app bundles these typefaces, icons, PDF fonts, Rust crates and Android libraries under their licences (SPDX identifiers: name, version, licence).",
     "title": "About dail (<version>)"
   },
