@@ -1910,8 +1910,9 @@ ci → bump → release; `ci` skips the bump commit, and a commit a tag already 
 admins and the release App may update it.
 
 **Dependency automation** (Wave 7 D, ADR 0011): Dependabot opens grouped minor/patch PRs for actions, Cargo and Gradle
-(`.github/dependabot.yml`); `gradle-verification.yml` regenerates `android/gradle/verification-metadata.xml` on
-Dependabot's Gradle PRs into `main` and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
+(`.github/dependabot.yml`); `dependabot-refresh.yml` regenerates `android/gradle/verification-metadata.xml` (Gradle PRs) and
+the licence lists (Gradle and Cargo PRs) on Dependabot's PRs into `main`, pushes them to their branch and dispatches
+`ci.yml` on it, because a GITHUB_TOKEN push starts no run (STORE-2); `toolchain.yml` opens a monthly PR with the newest stable Rust
 (`rust-toolchain.toml`) and NDK (the workflows); `advisories.yml` runs `cargo deny check advisories` on `main` every
 night and opens or updates an issue when it fails. The gates stay cargo-deny, Gradle's verification and the licence
 allowlist; bot PRs are merged like any other.

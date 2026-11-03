@@ -1,7 +1,7 @@
 # Update PRs (Wave 7 D1, ADR 0011): the SHA-pinned actions, the Cargo workspace and the Gradle project, each grouped
 # into one PR for minor and patch updates (majors stay separate PRs). cargo-deny, Gradle's dependency verification
-# and the licence allowlist review them like any other change; `gradle-verification.yml` refreshes the
-# verification metadata of the Gradle PRs (D2).
+# and the licence allowlist review them like any other change; `dependabot-refresh.yml` refreshes the
+# verification metadata and the licence lists, then dispatches CI on the new commit (D2, STORE-2).
 version: 2
 updates:
   - package-ecosystem: github-actions

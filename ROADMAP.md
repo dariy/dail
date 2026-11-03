@@ -647,7 +647,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - Pushing `vX.Y.Z` publishes a GitHub Release with every artifact, `.sha256`s and a signed `manifest.json`.
 - A desktop build updates itself end to end from the testkit's fake update server; a tampered manifest, signature or
   artifact fails with `UpdateFailed`. MCP gets `origin_not_allowed` for `install_update`.
-- Cargo and Gradle update PRs pass CI unattended. *(Not yet true: bot runs stop at `action_required`; STORE-2 restores it.)*
+- Cargo and Gradle update PRs pass CI unattended. *(Restored by STORE-2.)*
 
 ### R — Release pipeline
 - [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy
@@ -871,8 +871,8 @@ text ships in English and French.
 ### A — A clean base
 - [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
   §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator
-- [ ] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
-  stops at `action_required`; merge #19–#21, so that Wave 7's "pass CI unattended" is true again
+- [x] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
+  stops at `action_required`; merge #19–#21 (merged 2026-11-01), so that Wave 7's "pass CI unattended" is true again
 - MISC-34 from Wave 10 comes here
 
 ### B — Hardening: it survives real users
