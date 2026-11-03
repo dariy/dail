@@ -1,0 +1,7 @@
+# MISC-36: a draft of one account goes out from another's address; it moves there, and undo moves it back.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "a@darii.net"}}}}
+{"t": 1700000001000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "gmail", "email": "b.darii.net@gmail.com"}}}}
+{"t": 1700000002000, "origin": "cli", "input": {"command": {"cmd": "create_draft", "args": {"account": "00000000-0000-0002-0000-000000000000", "subject": "Re: Lunch", "body": "Yes"}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "set_draft_from", "args": {"id": "00000000-0000-0004-0000-000000000000", "email": "b.darii.net@gmail.com"}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}

@@ -924,7 +924,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   key, and `g <letter>` on the mailboxes of the current account.
 - **Composer:** plain text in the MVP, with To/Cc/Bcc chips and attachments by path / file dialog (`rfd`, XDG portal on Linux, kept in app-gui).
   It shows `view.composer` in place of the reader, or, for a reply to a message of the open conversation, docked under
-  it in a resizable bottom panel; the reader then scrolls to its end once (UI-13). New drafts and forwards keep the
+  it in a resizable bottom panel (55% of the pane, at most 75%); the reader, clipped to the rest so it never paints
+  over the composer (MISC-36), then scrolls to its end once (UI-13). New drafts and forwards keep the
   whole pane (UI-8: a header with the title, the save state and *Close*; labelled
   hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; a footer with *Attach files…*, the attachment
   chips, *Discard* and *Send*). Subject and body are typed into local buffers and written back with
@@ -1407,7 +1408,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   composition. To, Cc and Bcc show their addresses as chips (a tap removes one) and take typed addresses
   (`compose::add_recipients`) at a comma, a semicolon, a line break or a blur; invalid text stays typed. Up to three
   contacts matching the typed text (`listing::contacts`, cached per revision) are suggestions; a tap adds one. With
-  two addresses or more, `from_choices` is a menu of `set_draft_from`. The quote of a reply or forward is read-only
+  two addresses or more across all accounts (`app_front::compose::senders`, MISC-36), `from_choices` is a menu of
+  `set_draft_from`. The quote of a reply or forward is read-only
   and folded (a tap shows its header); the draft's text is scrubbed like the TUI's (unsafe characters become
   U+FFFD, line breaks stay). *Attach files* asks the host for the system file picker (`External::PickFiles{draft}`);
   the draft's files are chips with `checking…`, their size or why they cannot be sent (a tap is
@@ -1812,7 +1814,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
 | `set_identity` / `remove_identity` | Mutation (user only, §9) | `account, email, name?, signature?` / `account, email`: the addresses the account sends from (saved with it, `[[account.identity]]`); undoable | Wave 2 |
 | `set_mailbox_identity` | Mutation | `mailbox, email?`: the From of new drafts written from it | Wave 2 |
-| `set_draft_from` | Mutation | `id, email` (one of the account's identities; the own address clears `draft.from`); an agent's change withdraws its send request | Wave 2 |
+| `set_draft_from` | Mutation | `id, email` (an identity of any connected account, the draft's own account first; the own address clears `draft.from`; another account's address moves the draft there with its threading and quote, and its server copy moves too, MISC-36); an agent's change withdraws its send request | Wave 2 |
 | `check_threads` / `uncheck_threads` | View | `ids?` (none: every thread the list shows / all) → `{checked}`; `view.checked`, cleared when the list shows another mailbox or search; triage from the GUI and the TUI acts on it when not empty (`palette::targets`) | Wave 2 |
 | `expand_messages` / `collapse_messages` | View | `ids?: [MessageId]` of the open thread (none: all) → `{messages, expanded}`; sets `view.expanded`, cleared when another thread opens or the reader closes; error without an open thread | Wave 2 |
 | `search` (Wave 2 additions) | Query | `order = newest | relevance` (full-text hits first, best first) | Wave 2 |

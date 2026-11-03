@@ -908,7 +908,7 @@ text ships in English and French.
 - [x] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
   the password step; a *Create an App Password* link in Gmail setup
 - MISC-31, then MISC-28, from Wave 10 come here
-- [ ] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
+- [x] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
   from any account and moves the draft there, and every composer's From field offers them all. Reproduce the docked reply
   layout on Linux and fix what is found. Following the iOS decision above, `ios/` only stays green
 

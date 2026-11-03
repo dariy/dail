@@ -199,7 +199,9 @@ pub enum Command {
         #[serde(default)]
         confirm: bool,
     },
-    /// Choose the address a draft is sent from: one of its account's identities. Undoable.
+    /// Choose the address a draft is sent from: an identity of any connected account. An address of
+    /// another account moves the draft there (its saved server copy moves too); a reply stays a
+    /// reply. Undoable.
     SetDraftFrom {
         /// The draft.
         id: DraftId,

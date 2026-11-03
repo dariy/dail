@@ -167,20 +167,10 @@ impl ComposerState {
             );
             ui.horizontal(|ui| {
                 let label = field_label(ui, t, t.s(Key::From));
-                let aliases: Vec<String> = account
-                    .map(|a| {
-                        std::iter::once(a.email.clone())
-                            .chain(
-                                a.identities
-                                    .iter()
-                                    .map(|i| i.email.clone())
-                                    .filter(|e| !e.eq_ignore_ascii_case(&a.email)),
-                            )
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                // Any connected account's address (MISC-36); the draft moves to that account.
+                let aliases = app_front::compose::senders(state, draft.account);
                 if aliases.len() > 1 && !locked {
-                    // The account sends from several addresses: choose one.
+                    // Several addresses to send from: choose one.
                     egui::ComboBox::from_id_salt(("from", draft.id))
                         .selected_text(RichText::new(&from).color(t.text_secondary))
                         .show_ui(ui, |ui| {
