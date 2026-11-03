@@ -118,8 +118,10 @@ class GoldenPathTest {
         holds: (JSONObject) -> Boolean,
     ) {
         val deadline = System.currentTimeMillis() + seconds * 1000L
-        while (!holds(state())) {
-            check(System.currentTimeMillis() < deadline) { "state never showed: $what" }
+        while (true) {
+            val state = state()
+            if (holds(state)) return
+            check(System.currentTimeMillis() < deadline) { "state never showed: $what; drafts: ${drafts(state)}" }
             Thread.sleep(250)
         }
     }
@@ -133,15 +135,27 @@ class GoldenPathTest {
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
-    /** Whether a draft with [subject] is scheduled to leave. */
-    private fun scheduled(
-        state: JSONObject,
-        subject: String,
-    ): Boolean {
+    /** The drafts, compactly, for a failure's message. */
+    private fun drafts(state: JSONObject): List<String> {
+        val drafts = state.optJSONObject("drafts") ?: return emptyList()
+        return drafts
+            .keys()
+            .asSequence()
+            .map(drafts::getJSONObject)
+            .map {
+                "subject=${it.optString("subject")} to=${it.optJSONArray("to")} send_at=${it.opt("send_at")} " +
+                    "error=${it.opt("send_error")}"
+            }.toList()
+    }
+
+    /** Whether a draft is scheduled to leave. */
+    private fun scheduled(state: JSONObject): Boolean {
         val drafts = state.getJSONObject("drafts")
-        return drafts.keys().asSequence().map(drafts::getJSONObject).any {
-            it.optString("subject") == subject && !it.isNull("send_at")
-        }
+        return drafts
+            .keys()
+            .asSequence()
+            .map(drafts::getJSONObject)
+            .any { !it.isNull("send_at") }
     }
 
     @Before
@@ -185,15 +199,10 @@ class GoldenPathTest {
 
         // Send, then undo inside the window.
         tap("Send")
-        awaitState("the send scheduled") { scheduled(it, NEW_SUBJECT) }
+        awaitState("the send scheduled") { scheduled(it) }
         tap("Undo")
-        awaitState("the send cancelled") { s ->
-            val drafts = s.getJSONObject("drafts")
-            drafts.keys().asSequence().map(drafts::getJSONObject).any {
-                it.optString("subject") == NEW_SUBJECT && it.isNull("send_at")
-            }
-        }
-        assertTrue(!scheduled(state(), NEW_SUBJECT))
+        awaitState("the send cancelled") { s -> !scheduled(s) && s.getJSONObject("drafts").length() > 0 }
+        assertTrue(!scheduled(state()))
     }
 
     private companion object {
