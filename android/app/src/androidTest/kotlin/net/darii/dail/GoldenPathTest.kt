@@ -121,7 +121,10 @@ class GoldenPathTest {
         while (true) {
             val state = state()
             if (holds(state)) return
-            check(System.currentTimeMillis() < deadline) { "state never showed: $what; drafts: ${drafts(state)}" }
+            check(System.currentTimeMillis() < deadline) {
+                "state never showed: $what; drafts: ${drafts(state)}; snackbar: ${bridge("frame").opt("snackbar")}; " +
+                    "undo nodes: ${nodes().filter(labelled("Undo")).map { "${it.className}@${it.x},${it.y}" }}"
+            }
             Thread.sleep(250)
         }
     }
@@ -209,7 +212,10 @@ class GoldenPathTest {
         tap("Send")
         awaitState("the send scheduled") { scheduled(it) }
         awaitState("the subject typed") { s -> drafts(s).any { it.startsWith("subject=$NEW_SUBJECT ") } }
-        tap("Undo")
+        // The snackbar's Undo (cancel_send) is the lowest "Undo" on screen.
+        awaitThat("the sending snackbar") { bridge("frame").optJSONObject("snackbar")?.optJSONObject("action") != null }
+        await("the snackbar's Undo", find = labelled("Undo"))
+        tap(nodes().filter(labelled("Undo")).maxBy { it.y })
         awaitState("the send cancelled") { s -> !scheduled(s) && s.getJSONObject("drafts").length() > 0 }
         assertTrue(!scheduled(state()))
     }
