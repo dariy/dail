@@ -901,8 +901,10 @@ text ships in English and French.
 - [x] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
   JNI byte array
 - [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
-  compose, send and undo *(written as `GoldenPathTest`; no local emulator (no KVM), so it is ticked once CI's
-  `android-emulator` job passes it)*
+  compose, send and undo *(`GoldenPathTest` passes open, read, archive, undo, compose and send in CI's
+  `android-emulator` job, and fails at the send's *Undo*: the frame has the snackbar (`Sending in N s`, *Undo*) but the
+  active window has no *Undo* node while the composer is open. Either the phone hides the send's snackbar behind the
+  composer (a bug to fix) or the test reads the wrong window; it needs a device or emulator to settle)*
 - [x] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
