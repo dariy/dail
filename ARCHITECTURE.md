@@ -1572,7 +1572,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
 `app_host::Platform` (the credential store and the logs, two plain functions, and the install kind for update checks):
 `app_android::PLATFORM` on Android, `app_host::DESKTOP` (the OS keyring, no logs, no install kind) in tests. With an
-install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `android`/`ios`), as the CLI runtime does.
+install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `ios`), as the CLI runtime does.
+`app_android::PLATFORM` has none: Android never checks for updates or shows the banner (STORE-15, ADR 0011 amended).
 
 - **`open(&Config, Platform, wake, alert)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as

@@ -8,9 +8,11 @@ mod jni;
 pub mod logging;
 pub mod secrets;
 
-/// Android's credential store, logs and install kind, for `app_host::calls::open`.
+/// Android's credential store and logs, for `app_host::calls::open`. No install kind: Android never checks for
+/// updates (STORE-15, ADR 0011 amended). Google Play, F-Droid and Obtainium update the app, and Play bans updating
+/// outside its own mechanism; without an install kind there is no check and no banner.
 pub const PLATFORM: app_host::Platform = app_host::Platform {
     secrets: secrets::store,
     logging: logging::init,
-    install: Some(app_core::InstallKind::Android),
+    install: None,
 };

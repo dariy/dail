@@ -37,3 +37,9 @@ fn the_log_rotates_at_its_limit() {
     assert_eq!(std::fs::metadata(&path).unwrap().len(), 0);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// STORE-15: Android reports no install kind, so the session never checks for updates and shows no banner.
+#[test]
+fn android_never_checks_for_updates() {
+    assert!(dail::PLATFORM.install.is_none());
+}
