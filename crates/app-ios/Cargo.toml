@@ -9,7 +9,9 @@ repository.workspace = true
 publish = false
 
 [lib]
-name = "dail"
+# Not `dail`: app-android owns that name, and two rlibs named `libdail.rlib` collide in `target/` (MISC-34).
+# `cargo xtask ios xcframework` ships the archive as `libdail.a`.
+name = "dail_ios"
 crate-type = ["staticlib", "rlib"]
 
 # The workspace's lints with `unsafe_code = "deny"` instead of `forbid`, so that `src/ffi.rs` alone may allow it

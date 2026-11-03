@@ -1661,7 +1661,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
 In progress (ROADMAP Wave 5). The SwiftUI app draws `app-mobile`'s frames, as the Kotlin app does (§7.5), over the
 same `app-host`. There is no Mac: Swift, linking and the simulator run on `macos-latest` CI runners only.
 
-**The host** (`app-ios`, `[lib] name = "dail"`, staticlib + rlib). `app_ios::PLATFORM` gives `app-host` the
+**The host** (`app-ios`, `[lib] name = "dail_ios"`, staticlib + rlib; `xtask` ships the archive as `libdail.a`, MISC-34). `app_ios::PLATFORM` gives `app-host` the
 credential store and the logs. It builds and is tested on every host; the iOS-only parts sit behind
 `cfg(target_os = "ios")`.
 
