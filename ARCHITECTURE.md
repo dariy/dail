@@ -1416,7 +1416,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `remove_attachment`). *Send* (`send_draft`) shows while `compose::sendable` (a recipient, every file checked); the
   snackbar counts the undo window down (*Sending in N s · Undo* = `cancel_send`). Once per draft that becomes
   scheduled or leaving, by whatever command, the presenter asks for `External::Sending`: Kotlin starts `SendService`, a
-  foreground service (`shortService` from Android 14, `dataSync` before) that runs the host's `sends` task, so leaving
+  foreground service (`shortService` from Android 14, of no type before; STORE-14) that runs the host's `sends` task, so leaving
   the app never strands a send. If the system refuses the foreground start, a `DailJobService` job runs the same task
   instead (STORE-3); a refused `PushService` start runs the flush job and leaves the periodic check as the fallback. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
@@ -1447,7 +1447,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   happens before the watcher's first state.
 - **Push** (A5, `background_sync` 2). The engine's IMAP IDLE watches (§5.2 step 11) already run while the session
   lives, so `PushService` only keeps the process: a foreground service (`specialUse` from Android 14 with its
-  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`, `dataSync` before), started and stopped by the `schedule` external (Kotlin keeps
+  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`, of no type before), started and stopped by the `schedule` external (Kotlin keeps
   the last answer in preferences) and after a reboot by `PushService.Boot` (`BOOT_COMPLETED`). Its silent notification
   on the *Background* channel is Rust's `app_mobile::push_status`: *Watching N inboxes* (the accounts whose watch is
   `watching`; *Connecting to your inboxes* while none is), handed out whenever the text changes, visible or not, and

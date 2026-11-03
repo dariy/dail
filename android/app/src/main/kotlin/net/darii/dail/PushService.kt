@@ -12,7 +12,7 @@ import androidx.core.content.edit
 
 /**
  * Push (`background_sync` 2, A5): a foreground service that keeps the process, and with it the
- * session and the engine's IMAP IDLE watches, alive. `specialUse` from Android 14, `dataSync`
+ * session and the engine's IMAP IDLE watches, alive. `specialUse` from Android 14, no type
  * before. Its silent notification is Rust's (`app_mobile::push_status`: *Watching N inboxes*,
  * *Stop*, *Battery*); until the first one arrives it says it is connecting. The periodic check
  * stays scheduled as the fallback. Started and stopped by the `schedule` external, and after a
@@ -21,21 +21,27 @@ import androidx.core.content.edit
 class PushService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * `startForeground` with this service's type from Android 14, and without one before: no `dataSync`, so one Play
+     * declaration fewer (STORE-14).
+     */
+    private fun goForeground(note: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIFICATION, note)
+        }
+    }
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
     ): Int {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            }
         Notifier.channels(this)
         // A START_STICKY restart from the background can be refused (STORE-3): the periodic check
         // stays the fallback, and the flush job runs what is queued now.
-        if (runCatching { startForeground(NOTIFICATION, starting(), type) }.isFailure) {
+        if (runCatching { goForeground(starting()) }.isFailure) {
             DailJobService.flush(this)
             stopSelf()
             return START_NOT_STICKY

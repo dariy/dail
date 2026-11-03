@@ -1,6 +1,6 @@
 # 0011 — Updates: signed releases, checked and installed by dail
 
-- Status: accepted
+- Status: accepted; amended 2026-11-03 (STORE-15): no update checks on Android
 - Date: 2026-10-27
 - Plan: `ROADMAP.md`, Wave 7
 
@@ -55,7 +55,8 @@ dir, otherwise a plain binary). A table maps each install kind to an artifact ki
 | AppImage, plain binary / `dail.exe` | Replace the running file (`self-replace`, pure Rust), then ask to restart |
 | `.deb` | `pkexec apt-get install ./<file>.deb`; without `pkexec`, show the command |
 | MSI | Start `msiexec /i <file>` after the user confirms, then exit |
-| Android, iOS | Notify only: open the release page (Obtainium can follow it) |
+| Android | None (amended by STORE-15): Google Play, F-Droid and Obtainium update the app, and Play bans updating outside its own mechanism. `install: None` turns the check and the banner off |
+| iOS | Notify only: open the release page |
 
 Downloads go to `<profile>/updates/`. Only the newest download is kept.
 
@@ -78,6 +79,7 @@ verification and the licence allowlist stay the gates. A bot PR is merged like a
   `packaging/README.md`.
 - If GitHub drops ChaCha20 or X25519, update checks fail with a TLS error in state until app-tls tier 2 lands. An
   `#[ignore]` live test (`DAIL_IT_UPDATES=1`) watches for that.
-- `.deb` and MSI installs need the user's admin rights, so dail never installs those silently. iOS and Android only
-  notify.
+- `.deb` and MSI installs need the user's admin rights, so dail never installs those silently. iOS only notifies.
+- Android never checks (STORE-15): one build serves every store, and the app then talks only to mail servers, plus
+  autoconfig hosts on *Find servers*. The GitHub Releases keep the signed APKs for Obtainium and sideloading.
 - An agent can check for and download updates, but only the user can install them.
