@@ -197,6 +197,11 @@ class GoldenPathTest {
         tap(fields().last())
         shell("input text Hello")
 
+        // A long undo window, so that the emulator's slow polls don't outlast it.
+        shell(
+            "content call --uri content://$app.debug --method exec " +
+                """--arg {"cmd":"set_setting","args":{"key":"undo_send_ms","value":60000}}""",
+        )
         // Send, then undo inside the window.
         tap("Send")
         awaitState("the send scheduled") { scheduled(it) }
