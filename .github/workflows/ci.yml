@@ -137,7 +137,7 @@ jobs:
           # path (STORE-9b: open, read, archive and undo, compose, send and undo).
           script: |
             cargo xtask android test
-            cd android && ./gradlew connectedDemoDebugAndroidTest -Pdail.abis=x86_64
+            cd android && ./gradlew connectedDemoDebugAndroidTest -Pdail.abis=x86_64 || { grep -h -B2 -A30 '<failure' app/build/outputs/androidTest-results/connected/debug/flavors/demo/*.xml; exit 1; }
 
   # Whether a push or pull request touches what the iOS app is built from, so the slow macOS job runs only then.
   # A `git diff` instead of a paths-filter action: no third-party code for a one-line question.

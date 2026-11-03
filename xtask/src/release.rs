@@ -366,7 +366,15 @@ mod tests {
         let written = store_changelogs(&root, "1.0.0", Some("First release.")).unwrap();
         let names: Vec<String> = written
             .iter()
-            .map(|p| p.strip_prefix(&root).unwrap().display().to_string())
+            .map(|p| {
+                let parts: Vec<String> = p
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect();
+                parts.join("/")
+            })
             .collect();
         assert_eq!(
             names,
