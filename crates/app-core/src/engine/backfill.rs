@@ -23,8 +23,9 @@ pub const BACKFILL_BATCH: u32 = 200;
 
 impl Engine {
     /// The next `FetchOlder` for `mailbox`, if its window wants more and none is in flight.
+    /// None while the network is metered (STORE-8): the next fetch after it is not resumes.
     pub(super) fn maybe_backfill(&mut self, mailbox: MailboxId) -> Option<Effect> {
-        if self.state.status.backfilling.contains(&mailbox) {
+        if self.state.status.metered || self.state.status.backfilling.contains(&mailbox) {
             return None;
         }
         let history = listing::history(&self.state, mailbox)?;

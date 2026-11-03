@@ -37,7 +37,7 @@ pub use ctx::{Ctx, Origin};
 pub use draft::{
     AttachmentRef, AttachmentState, Draft, OutgoingMessage, Quote, QuoteSource, QuoteStyle,
 };
-pub use engine::{Change, Diff, Engine, Preview};
+pub use engine::{Change, Diff, Engine, PREFETCH_MAX_BYTES, Preview};
 pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};

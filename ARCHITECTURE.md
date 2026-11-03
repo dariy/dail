@@ -314,6 +314,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `SecretStored`, `SecretDeleted`, `SecretFailed`, `MailboxesListed{account, mailboxes}`,
   `EnvelopesFetched{account, mailbox, uid_validity, uid_next?, total, unread, envelopes: Vec<RemoteEnvelope>}`,
   `BodyFetched{message, blob, has_attachments, snippet?}`, `BodyFetchFailed{message, error}`,
+  `NetworkChanged{metered}` (STORE-8),
   `FlagsChanged{account, mailbox, uid_validity, from_uid, to_uid, flags: Vec<UidFlags>, existing?, vanished?: Vec<UidRange>, highest_modseq?}`, `RemoteOpSucceeded{op}`, `RemoteOpFailed{op, error, permanent}`,
   `AttachmentInspected{draft, path, size, content_type}`, `AttachmentFailed{draft, path, error}`,
   `AttachmentsSaved{message, files}`, `AttachmentsSaveFailed{message, files, error}`,
@@ -519,7 +520,10 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not
    repeated) and as a prefetch of the newest 20 unread INBOX messages
-   without a body after each INBOX `EnvelopesFetched`. `status.bodies_in_flight` prevents duplicate requests. The runtime
+   without a body after each INBOX `EnvelopesFetched`. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
+   `RFC822.SIZE`), and neither it nor history backfill runs while `status.metered` (STORE-8): Android reports the
+   default network's metered state as `UiEvent::Network`, which the host ingests as `Event::NetworkChanged`, and
+   before each background job; the next fetch after the network is unmetered catches up. `status.bodies_in_flight` prevents duplicate requests. The runtime
    fetches `BODY.PEEK[]` (stays unread), checks UIDVALIDITY, stores the raw RFC 822 with `Store::put_blob` and reports
    `BodyFetched` (the envelope's `body` becomes `fetched{blob}` and `has_attachments` is corrected from the full parse,
    `app_io::mime::has_attachments`, and `snippet` set from `app_io::mime::snippet`; the engine cleans it again with
@@ -1474,8 +1478,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   Android's viewer (`ui/viewer/`) is adapted from pdfcraft-android (MIT, credited in About); PDFs show "Page n of m".
   No Compose button floats over a preview. There is no "open with": other apps get a
   file only through *Save*. *Save* (one file) and *Save all (N)* ask for `External::SaveFiles{blob, files}`; the host
-  replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin reads each file with
-  `blob`'s `attachment` request into a document the Storage Access Framework creates: one file through the "create
+  replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin opens a descriptor for writing on each
+  document the Storage Access Framework creates and runs the `{"save": {blob, part, target}}` background task, which
+  writes the attachment through `/proc/self/fd/<n>` like an import, so no byte array crosses JNI (STORE-9): one file through the "create
   document" picker, several through a folder (`OpenDocumentTree`, `DocumentsContract.createDocument`, which gives a
   taken name a suffix, so nothing is overwritten). A body with `cid:` pictures shows *Pictures in this message are
   hidden.* and *Show images from \<sender\>* (`show_images_from`); while the sender is in `images_from`, those spans

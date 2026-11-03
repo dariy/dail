@@ -419,6 +419,8 @@ impl Mobile {
             UiEvent::Notification { act } => {
                 act.commands(state).into_iter().map(Request::user).collect()
             }
+            // The host ingests it as an event (STORE-8); nothing to draw.
+            UiEvent::Network { .. } => Vec::new(),
             UiEvent::Online => {
                 if self.visible && !state.accounts.is_empty() {
                     vec![Request::user(Command::SyncNow { account: None })]

@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 
 use serde::Deserialize;
 
-use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task};
+use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, SaveTask, Task};
 use crate::error::HostError;
 use crate::host::{Alert, BACKGROUND_LIMIT, Host};
 use crate::platform::Platform;
@@ -115,12 +115,13 @@ pub fn blob(handle: i32, request: &str) -> Option<Vec<u8>> {
 enum Background {
     Task(Task),
     Import(ImportTask),
+    Save(SaveTask),
     Notification(NotificationTask),
     Debug(DebugTask),
 }
 
 /// `background(handle, task)`: `{"done": true}`, or `{"done": false}` after 3 minutes; for an
-/// import, `{"attached": "<path of the copy>"}`; for a debug task (`{"exec": {"origin", "command"}}`, `"state"`), what [`Host::debug`] answers.
+/// import, `{"attached": "<path of the copy>"}`; for a save, `{"saved": bool}`; for a debug task (`{"exec": {"origin", "command"}}`, `"state"`), what [`Host::debug`] answers.
 pub fn background(handle: i32, task: &str) -> String {
     answer(|| match serde_json::from_str(task)? {
         Background::Task(task) => {
@@ -134,6 +135,10 @@ pub fn background(handle: i32, task: &str) -> String {
         }) => {
             let path = host(handle)?.import(draft, &name, &source)?;
             Ok(json!({ "attached": path }))
+        }
+        Background::Save(SaveTask::Save { blob, part, target }) => {
+            let saved = host(handle)?.save(blob, part, &target)?;
+            Ok(json!({ "saved": saved }))
         }
         Background::Notification(NotificationTask::Notification(act)) => {
             let done = host(handle)?.notification(&act, BACKGROUND_LIMIT)?;

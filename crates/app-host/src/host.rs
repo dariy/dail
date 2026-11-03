@@ -177,6 +177,18 @@ impl Host {
         if let UiEvent::Visible { visible } = event {
             self.visible.store(visible, Ordering::Relaxed);
         }
+        if let UiEvent::Network { metered } = event {
+            // A fact about the world, so an `Event`, not a command (STORE-8).
+            let client = self.client.clone();
+            self.runtime.spawn(async move {
+                if let Err(err) = client
+                    .ingest(app_core::Event::NetworkChanged { metered })
+                    .await
+                {
+                    tracing::warn!(error = %err, "network change not ingested");
+                }
+            });
+        }
         let bridge = lock(&self.bridge);
         let mut mobile = lock(&self.mobile);
         let requests = mobile.event(event, &bridge.state());
@@ -331,6 +343,25 @@ impl Host {
                 Err(err.into())
             }
         }
+    }
+
+    /// Writes attachment `part` of `blob` to `target` (STORE-9); `Ok(false)` if the attachment is
+    /// not stored. Blocks.
+    pub fn save(&self, blob: String, part: usize, target: &Path) -> Result<bool, HostError> {
+        let client = self.client.clone();
+        let Some((_, file)) = self
+            .runtime
+            .block_on(async move { client.attachment_part(&blob, part).await })?
+        else {
+            return Ok(false);
+        };
+        let mut out = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(target)?;
+        std::io::Write::write_all(&mut out, &file.bytes)?;
+        out.sync_all()?;
+        Ok(true)
     }
 
     /// Runs `task` until it is done or `limit` passed; `Ok(true)` when it finished. Blocks.

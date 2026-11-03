@@ -144,6 +144,47 @@ fn unread_inbox_bodies_are_prefetched_newest_first_up_to_twenty() {
     assert!(of_kind(&outcome.effects, "fetch_body").is_empty());
 }
 
+/// STORE-8: a body over 1 MiB is not prefetched, and nothing is prefetched while metered.
+#[test]
+fn prefetch_skips_large_bodies_and_waits_while_metered() {
+    let (mut engine, account, inbox, _) = setup();
+    let large = RemoteEnvelope {
+        size: app_core::PREFETCH_MAX_BYTES + 1,
+        ..remote(2, false)
+    };
+    let outcome = engine
+        .ingest(
+            fetched(account, inbox, vec![remote(1, false), large]),
+            &ctx(3),
+        )
+        .unwrap();
+    let bodies = of_kind(&outcome.effects, "fetch_body");
+    assert_eq!(bodies.len(), 1);
+    assert!(matches!(bodies[0], Effect::FetchBody { uid: 1, .. }));
+
+    let outcome = engine
+        .ingest(Event::NetworkChanged { metered: true }, &ctx(4))
+        .unwrap();
+    assert!(outcome.effects.is_empty());
+    assert!(engine.state().status.metered);
+    let outcome = engine
+        .ingest(fetched(account, inbox, vec![remote(3, false)]), &ctx(5))
+        .unwrap();
+    assert!(of_kind(&outcome.effects, "fetch_body").is_empty());
+    assert!(of_kind(&outcome.effects, "fetch_older").is_empty());
+
+    // Off the metered network, the next fetch prefetches what waited.
+    engine
+        .ingest(Event::NetworkChanged { metered: false }, &ctx(6))
+        .unwrap();
+    let outcome = engine
+        .ingest(fetched(account, inbox, Vec::new()), &ctx(7))
+        .unwrap();
+    let bodies = of_kind(&outcome.effects, "fetch_body");
+    assert_eq!(bodies.len(), 1);
+    assert!(matches!(bodies[0], Effect::FetchBody { uid: 3, .. }));
+}
+
 #[test]
 fn bodies_land_in_state_and_failures_are_recorded() {
     let (mut engine, account, inbox, _) = setup();

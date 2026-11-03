@@ -1,6 +1,7 @@
 package net.darii.dail
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,6 +87,11 @@ class Host(
         open()
         val opened = ui.submit<Int> { handle }.get()
         if (opened == 0) return """{"error": "the session did not open"}"""
+        // No activity may be watching the network: tell the engine before the task (STORE-8).
+        context
+            .getSystemService(
+                ConnectivityManager::class.java,
+            )?.let { send(UiEvent.Network(it.isActiveNetworkMetered)) }
         return Native.background(opened, task)
     }
 
@@ -113,6 +119,30 @@ class Host(
                     }
                 }
             background(task.toString())
+        }
+    }
+
+    /**
+     * Writes attachment [part] of [blob] into the document [uri] (STORE-9), on the calling (IO)
+     * thread: Rust opens `/proc/self/fd/<n>` of a descriptor opened here for writing.
+     */
+    fun save(
+        blob: String,
+        part: Int,
+        uri: Uri,
+    ): Boolean {
+        val opened = runCatching { context.contentResolver.openFileDescriptor(uri, "wt") }.getOrNull() ?: return false
+        return opened.use { fd ->
+            val task =
+                buildJsonObject {
+                    putJsonObject("save") {
+                        put("blob", blob)
+                        put("part", part)
+                        put("target", "/proc/self/fd/${fd.fd}")
+                    }
+                }
+            val answer = contract.parseToJsonElement(background(task.toString())).jsonObject
+            (answer["saved"] as? JsonPrimitive)?.content == "true"
         }
     }
 

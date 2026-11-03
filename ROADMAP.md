@@ -889,9 +889,9 @@ text ships in English and French.
 - [x] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
   fixed. A crash-loop breaker: a message is marked before it is parsed, and if the process dies, that message is skipped
   and flagged at the next start
-- [ ] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,
+- [x] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,
   and prefetch and backfill pause while metered (this answers MISC-29's open question)
-- [ ] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
+- [x] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
   JNI byte array
 - [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
   compose, send and undo

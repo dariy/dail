@@ -345,6 +345,17 @@ fn media_blobs_decode_upright_and_render_pdf_pages() {
         serde_json::json!({"pdf_page": {"part": 3, "page": 0, "width": 8000, "tile": outside}});
     assert_eq!(request(outside), None);
     assert_eq!(request(serde_json::json!({"pdf_pages": {"part": 4}})), None);
+
+    // STORE-9: *Save* writes the attachment to a path (Kotlin's `/proc/self/fd/<n>`), the same
+    // bytes `blob` answers, replacing what the file held.
+    let dir = temp_profile("save");
+    std::fs::create_dir_all(&dir).unwrap();
+    let target = dir.join("report.pdf");
+    std::fs::write(&target, vec![b'x'; 10_000_000]).unwrap();
+    assert!(host.save(blob.clone(), 3, &target).unwrap());
+    let expected = request(serde_json::json!({"attachment": {"part": 3}})).unwrap();
+    assert_eq!(std::fs::read(&target).unwrap(), expected);
+    assert!(!host.save(blob.clone(), 9, &target).unwrap());
     host.close();
 }
 

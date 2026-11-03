@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -37,7 +38,6 @@ import net.darii.dail.ui.DailTheme
 import net.darii.dail.ui.LocalBlobs
 import net.darii.dail.ui.SaveFile
 import net.darii.dail.ui.UiEvent
-import net.darii.dail.ui.blobRequest
 import net.darii.dail.ui.color
 import net.darii.dail.ui.tr
 
@@ -109,17 +109,16 @@ class MainActivity : ComponentActivity() {
         if (files.size == 1) createOne.launch(files[0].name) else createAll.launch(null)
     }
 
-    /** Writes one attachment's bytes (read through `blob`) into a new document. */
+    /**
+     * Writes one attachment into a new document: Rust writes it through the descriptor's
+     * `/proc/self/fd` path, so the bytes never cross JNI as an array (STORE-9). Runs on an IO
+     * thread.
+     */
     private fun write(
         blob: String,
         file: SaveFile,
         uri: Uri,
-    ): Boolean {
-        val bytes = host.blob(blobRequest("attachment", blob, part = file.part)) ?: return false
-        return runCatching {
-            contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) } != null
-        }.getOrDefault(false)
-    }
+    ): Boolean = host.save(blob, file.part, uri)
 
     private fun report(saved: List<Boolean>) {
         val good = saved.count { it }
@@ -346,12 +345,27 @@ class MainActivity : ComponentActivity() {
             override fun onLost(network: Network) {
                 seen = true
             }
+
+            /** Called at registration and on every change: the engine pauses prefetch while metered. */
+            override fun onCapabilitiesChanged(
+                network: Network,
+                capabilities: NetworkCapabilities,
+            ) {
+                val metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                if (metered != this.metered) {
+                    this.metered = metered
+                    host.send(UiEvent.Network(metered))
+                }
+            }
+
+            @Volatile var metered: Boolean? = null
         }
 
     override fun onStart() {
         super.onStart()
         host.send(UiEvent.Visible(true))
         network.seen = false
+        network.metered = null
         getSystemService(ConnectivityManager::class.java)?.registerDefaultNetworkCallback(network)
     }
 

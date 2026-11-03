@@ -516,6 +516,10 @@ pub struct StatusState {
     /// kept aside in the store, never dropped, so a later version can read them (STORE-6).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub quarantined: Vec<QuarantinedRow>,
+    /// Whether the device's network is metered (`Event::NetworkChanged`, STORE-8): body prefetch
+    /// and history backfill wait while it is.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub metered: bool,
 }
 
 /// A stored row this version could not read, kept aside instead of dropped (STORE-6).

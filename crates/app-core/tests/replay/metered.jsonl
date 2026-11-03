@@ -1,0 +1,9 @@
+# STORE-8: on a metered network the INBOX fetch prefetches no body; once unmetered, the next fetch does.
+# (Three header lines, so the IDs match bodies.jsonl.)
+# Account: line 4 (seed 4 << 64). Mailbox INBOX: line 5 (..0005-0000-..0).
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.org", "imap": {"host": "mail.example.org", "port": 993, "security": "tls"}, "smtp": {"host": "mail.example.org", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000001500, "origin": "runtime", "input": {"event": {"event": "network_changed", "args": {"metered": true}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 2, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "One", "date_ms": 1699000000000}, {"uid": 2, "message_id_hdr": "two@x", "subject": "Two", "date_ms": 1699000001000}]}}}}
+{"t": 1700000002500, "origin": "runtime", "input": {"event": {"event": "network_changed", "args": {"metered": false}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 2, "envelopes": []}}}}
