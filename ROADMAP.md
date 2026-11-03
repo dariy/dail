@@ -876,7 +876,7 @@ text ships in English and French.
 - MISC-34 from Wave 10 comes here
 
 ### B — Hardening: it survives real users
-- [ ] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
+- [x] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
   of crashing
 - [ ] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
   event and its worker keeps running; if the engine loop dies, the app says so instead of showing a stale screen

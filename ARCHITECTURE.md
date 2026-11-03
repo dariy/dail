@@ -1393,7 +1393,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   snackbar counts the undo window down (*Sending in N s · Undo* = `cancel_send`). Once per draft that becomes
   scheduled or leaving, by whatever command, the presenter asks for `External::Sending`: Kotlin starts `SendService`, a
   foreground service (`shortService` from Android 14, `dataSync` before) that runs the host's `sends` task, so leaving
-  the app never strands a send. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
+  the app never strands a send. If the system refuses the foreground start, a `DailJobService` job runs the same task
+  instead (STORE-3); a refused `PushService` start runs the flush job and leaves the periodic check as the fallback. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
   composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
 - **Leaving the app** (A5). With the first frame and whenever `background_sync` or `background_interval_mins`

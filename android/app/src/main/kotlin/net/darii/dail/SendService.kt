@@ -32,7 +32,12 @@ class SendService : Service() {
             } else {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             }
-        startForeground(NOTIFICATION, notification(), type)
+        // Android 12+ may refuse the start (STORE-3): the `sends` job sends instead, without a crash.
+        if (runCatching { startForeground(NOTIFICATION, notification(), type) }.isFailure) {
+            DailJobService.sends(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!running) {
             running = true
             val host = (application as DailApplication).host
@@ -73,9 +78,13 @@ class SendService : Service() {
         private const val NOTIFICATION = 1
         private const val SENDS = "\"sends\""
 
-        /** Starts the service (from the activity, which is in the foreground then). */
+        /**
+         * Starts the service (from the activity, which is in the foreground then). If the system
+         * refuses the start anyway, the `sends` job sends instead (STORE-3).
+         */
         fun start(context: Context) {
-            context.startForegroundService(Intent(context, SendService::class.java))
+            runCatching { context.startForegroundService(Intent(context, SendService::class.java)) }
+                .onFailure { DailJobService.sends(context) }
         }
     }
 }

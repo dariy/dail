@@ -33,7 +33,13 @@ class PushService : Service() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             }
         Notifier.channels(this)
-        startForeground(NOTIFICATION, starting(), type)
+        // A START_STICKY restart from the background can be refused (STORE-3): the periodic check
+        // stays the fallback, and the flush job runs what is queued now.
+        if (runCatching { startForeground(NOTIFICATION, starting(), type) }.isFailure) {
+            DailJobService.flush(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         running = true
         // Rust's notification (with *Stop*) replaces the placeholder: ask for it now that the
         // service can show it. `background` opens the session if no activity has.
@@ -81,8 +87,8 @@ class PushService : Service() {
 
         /**
          * Applies `background_sync` ([sync] 2 = push): remembers it for [Boot] and starts or
-         * stops the service. A start the system refuses (the app is not in the foreground) waits
-         * for the next schedule or reboot.
+         * stops the service. A start the system refuses (the app is not in the foreground) runs
+         * the flush job and waits for the next schedule or reboot (STORE-3).
          */
         fun apply(
             context: Context,
@@ -99,6 +105,7 @@ class PushService : Service() {
 
         private fun start(context: Context) {
             runCatching { context.startForegroundService(Intent(context, PushService::class.java)) }
+                .onFailure { DailJobService.flush(context) }
         }
     }
 }

@@ -23,6 +23,7 @@ class DailJobService : JobService() {
             when (params.jobId) {
                 FLUSH -> "\"flush\""
                 CHECK -> "\"check\""
+                SENDS -> "\"sends\""
                 else -> return false
             }
         val host = (application as DailApplication).host
@@ -34,11 +35,12 @@ class DailJobService : JobService() {
     }
 
     /** The system stopped the job (constraints lost, time up): the next run catches up. */
-    override fun onStopJob(params: JobParameters): Boolean = params.jobId == FLUSH
+    override fun onStopJob(params: JobParameters): Boolean = params.jobId == FLUSH || params.jobId == SENDS
 
     companion object {
         private const val FLUSH = 10
         private const val CHECK = 11
+        private const val SENDS = 12
         private const val MINUTE_MS = 60_000L
 
         private fun scheduler(context: Context) = context.getSystemService(JobScheduler::class.java)
@@ -50,6 +52,19 @@ class DailJobService : JobService() {
             scheduler(context)?.schedule(
                 JobInfo
                     .Builder(FLUSH, component(context))
+                    .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                    .build(),
+            )
+        }
+
+        /**
+         * Runs the host's `sends` task as a job, with any network: what [SendService] does when the
+         * system refuses it a foreground start (STORE-3). A job may run 10 minutes; `sends` waits 3.
+         */
+        fun sends(context: Context) {
+            scheduler(context)?.schedule(
+                JobInfo
+                    .Builder(SENDS, component(context))
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                     .build(),
             )
