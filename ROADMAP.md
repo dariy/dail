@@ -388,7 +388,7 @@ Android, and §2, §3, §8, §9, §11 and §12 where it touches them).
   `uiautomator dump`, `screencap` and `input` an agent drives and reads the app like the TUI under tmux.
 - **Tests.** `app-mobile` frames over a real `Engine` as `insta` JSON snapshots at three window sizes; contract
   fixtures that the Kotlin types decode strictly; Compose tests on the JVM (Robolectric) over the host-built
-  `libdail.so` and the memory backend; the Rust tests on an emulator; instrumented smoke tests.
+  `libdail.so` and the memory backend (*not landed*; STORE-9b adds an emulator UI test instead); the Rust tests on an emulator; instrumented smoke tests.
 
 **Out of scope** (plan §10): an agent channel and approvals on the phone, Google Play and F-Droid, iOS (a SwiftUI host
 over `app-mobile`), OAuth2 (with the desktop item), PDF viewing and "open original", widgets, Wear OS, at-rest
@@ -647,7 +647,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - Pushing `vX.Y.Z` publishes a GitHub Release with every artifact, `.sha256`s and a signed `manifest.json`.
 - A desktop build updates itself end to end from the testkit's fake update server; a tampered manifest, signature or
   artifact fails with `UpdateFailed`. MCP gets `origin_not_allowed` for `install_update`.
-- Cargo and Gradle update PRs pass CI unattended.
+- Cargo and Gradle update PRs pass CI unattended. *(Not yet true: bot runs stop at `action_required`; STORE-2 restores it.)*
 
 ### R — Release pipeline
 - [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy

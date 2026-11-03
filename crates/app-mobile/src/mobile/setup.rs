@@ -505,11 +505,7 @@ impl Mobile {
                     i18n::s(Key::Password)
                 };
                 fields.push(field(Field::Password, label, "", InputKind::Password, ""));
-                note = Some(
-                    "Stored in Keystore-protected storage only; dail never writes it anywhere \
-                     else."
-                        .to_owned(),
-                );
+                note = Some(i18n::s(Key::KeystoreOnly).to_owned());
                 error = setup.error.as_deref().map(clean);
                 if !setup.password.is_empty() {
                     let label = if setup.existing {

@@ -608,6 +608,9 @@ strings! {
     KeyringOnly:
         "Stored in the system keyring only; dail never writes it anywhere else.",
         "Stocké uniquement dans le trousseau du système ; dail ne l’écrit nulle part ailleurs.";
+    KeystoreOnly:
+        "Stored in Keystore-protected storage only; dail never writes it anywhere else.",
+        "Stocké uniquement dans un espace protégé par le Keystore ; dail ne l’écrit nulle part ailleurs.";
     SaveAndTest:
         "Save and test",
         "Enregistrer et tester";
