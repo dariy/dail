@@ -9,6 +9,7 @@ mod images;
 mod mime;
 mod original;
 mod pdf;
+mod plain;
 mod scale;
 mod store;
 mod update;

@@ -13,6 +13,7 @@ pub mod draft;
 pub mod engine;
 pub mod error;
 pub mod event;
+pub mod fold;
 pub mod history;
 pub mod ids;
 pub mod listing;

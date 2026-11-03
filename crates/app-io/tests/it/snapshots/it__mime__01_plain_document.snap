@@ -1,0 +1,38 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Hi Bob,"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Plain UTF-8 body with an émoji 🙂."
+        }
+      ]
+    },
+    {
+      "type": "fold",
+      "kind": "signature",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "spans": [
+            {
+              "text": "--\nAlice"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -142,8 +142,8 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - A profile opened from a plain SSH login often cannot reach the OS keyring (no D-Bus session, or a locked keyring), so
   it cannot log in; the status line shows the keyring error. Attach to a GUI that runs in the desktop session, or start
   the TUI inside tmux from the desktop session and `tmux attach` over SSH.
-- HTML is rendered at 100 columns (`app_io::mime::TEXT_WIDTH`) and senders wrap plain text near 72, so text wraps
-  raggedly on a phone. Reflowing paragraphs is MISC-28.
+- The TUI still shows plain text as the sender wrapped it, and HTML at 100 columns (`app_io::mime::TEXT_WIDTH`); the
+  GUI and the phone reflow paragraphs since MISC-28a. The TUI's reflow and markers are MISC-28b.
 - An attached TUI reads the whole state snapshot again after each change. That is fine for a few thousand messages;
   deltas come later.
 
@@ -775,7 +775,13 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
 - [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
   auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
-- [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
+- MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers.
+  Split in Wave 11, because it spans eight surfaces:
+  - [x] MISC-28a [io][core][front][gui][mobile][kt]: plain-text bodies as documents (reflowed paragraphs, one gap for a
+    run of blank lines, headings by Markdown, underline, capitals and guess, safe Markdown, folds), links numbered in
+    HTML and plain text alike; the GUI and Android draw the raised markers and the numbered *Links* list
+  - [ ] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
+    (after the Android launch, as Wave 11 decides for iOS)
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [x] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 - [x] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;

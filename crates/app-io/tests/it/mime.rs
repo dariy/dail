@@ -32,12 +32,12 @@ fn eml_corpus_matches_snapshots() {
         let parsed = parse_message(&raw);
         let name = path.file_stem().unwrap().to_string_lossy().into_owned();
         insta::assert_json_snapshot!(name.clone(), parsed);
-        // The reader's document of HTML bodies; the text is the same either way.
+        // The reader's document of every body with text, HTML or plain (MISC-28); the text is the same either way.
         let (with_document, document) = parse_message_with_document(&raw);
         assert_eq!(with_document, parsed);
         assert_eq!(
             document.is_some(),
-            parsed.text_source == TextSource::Html,
+            parsed.text_source != TextSource::None,
             "{name}"
         );
         if let Some(document) = document {

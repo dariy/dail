@@ -63,6 +63,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -498,7 +499,22 @@ private fun SpanText(
                         background = if (span.hit) colors.tertiaryContainer else Color.Unspecified,
                     )
                 val link = span.link
-                if (link == null) {
+                val note = span.note
+                if (note != null) {
+                    // The marker: small, raised and in the link colour, so it reads as dail's, not the sender's.
+                    val raised =
+                        SpanStyle(
+                            color = colors.primary,
+                            fontSize = style.fontSize * 0.7f,
+                            baselineShift = BaselineShift.Superscript,
+                        )
+                    if (link == null) {
+                        withStyle(raised) { append(note.toString()) }
+                    } else {
+                        val annotation = LinkAnnotation.Clickable("n$link", null) { send(UiEvent.Tap(link)) }
+                        withLink(annotation) { withStyle(raised) { append(note.toString()) } }
+                    }
+                } else if (link == null) {
                     withStyle(spanStyle) { append(span.text) }
                 } else {
                     val annotation = LinkAnnotation.Clickable("a$link", linkStyle) { send(UiEvent.Tap(link)) }

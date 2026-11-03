@@ -1,0 +1,16 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Grüße aus Köln – ça va? 50 €"
+        }
+      ]
+    }
+  ]
+}

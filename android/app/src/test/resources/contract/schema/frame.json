@@ -638,6 +638,15 @@
             "null"
           ]
         },
+        "note": {
+          "description": "A link's marker (MISC-28): its number in *Links*, drawn small and raised in the link colour. A marker span has\nno text of its own, so nothing a sender writes can pass for one.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "strike": {
           "description": "Struck through.",
           "type": "boolean"

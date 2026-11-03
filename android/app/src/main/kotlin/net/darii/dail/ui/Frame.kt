@@ -368,6 +368,8 @@ data class DocSpan(
     val hit: Boolean = false,
     val link: ActionId? = null,
     val image: InlineImage? = null,
+    /** A link's marker (MISC-28): its number in *Links*, drawn raised; the span has no text. */
+    val note: Int? = null,
 )
 
 /** A tapped link's full target, before it opens. */

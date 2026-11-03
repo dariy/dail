@@ -21,7 +21,8 @@ expression: document
         },
         {
           "text": "here",
-          "link": "https://evil.example/track?id=1"
+          "link": "https://evil.example/track?id=1",
+          "note": 1
         },
         {
           "text": "."

@@ -144,8 +144,8 @@ pub fn parse_message(raw: &[u8]) -> ParsedMessage {
     parse(raw, false).0
 }
 
-/// [`parse_message`], plus the HTML body as a [`Document`] for display when the text comes
-/// from HTML (`text_source: html`).
+/// [`parse_message`], plus the body as a [`Document`] for display: the HTML's, or the plain text read as
+/// paragraphs, headings and Markdown (`app_io::plain`), with its links numbered (MISC-28).
 pub fn parse_message_with_document(raw: &[u8]) -> (ParsedMessage, Option<Document>) {
     parse(raw, true)
 }
@@ -162,11 +162,20 @@ fn parse(raw: &[u8], with_document: bool) -> (ParsedMessage, Option<Document>) {
     };
     let headers = summarize_headers(raw);
     let (text, text_source, document) = match body_part(&message) {
-        BodyPart::Plain(text) => (text, TextSource::Plain, None),
+        // Both kinds of body get a document for the readers that draw one (MISC-28); the text stays as it was for
+        // the CLI, MCP and search.
+        BodyPart::Plain(text) => {
+            let document = with_document.then(|| crate::plain::plain_document(&text));
+            (text, TextSource::Plain, document)
+        }
         BodyPart::Html(html) => (
             html_to_text(html).trim_end().to_owned(),
             TextSource::Html,
-            with_document.then(|| html_document(html)),
+            with_document.then(|| {
+                let mut document = html_document(html);
+                document.number_links();
+                document
+            }),
         ),
         BodyPart::None => (String::new(), TextSource::None, None),
     };

@@ -4,7 +4,7 @@
 //! bodies as references (`body: {state: "fetched", blob}`). [`attach_bodies`] reads each blob,
 //! parses it with `app_io::mime::parse_message` and puts the readable text and the attachment
 //! list into the message's `untrusted_content.body`; the blob reference is dropped. With
-//! `rich_body`, an HTML body also comes as `document` (`app_core::document`), for display.
+//! `rich_body`, a body also comes as `document` (`app_core::document`), for display: the HTML's, or the plain text read as paragraphs and Markdown, links numbered (MISC-28).
 
 use serde_json::{Value, json};
 

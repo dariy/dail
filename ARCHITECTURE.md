@@ -685,6 +685,18 @@ domains). The mobile setup stops such an address at the address step with "{prov
 dail does not support yet", and Gmail's password step offers *Create an App Password*, which opens Google's page
 (`External::OpenUrl`, STORE-12).
 
+**Reading bodies** (MISC-28a). Every body with text has a `Document` for the readers that ask (`rich_body`): the HTML's
+(`app_io::document`), or the plain text read by `app_io::plain`, which reflows lines the sender's mailer wrapped (60
+characters or more) and keeps shorter breaks, collapses runs of blank lines into one gap, finds headings (Markdown `#`,
+setext underlines, a line in capitals, a short unpunctuated line before a long paragraph), reads safe Markdown (lists,
+quotes, fenced and indented code, rules, `**strong**`, `*em*`, `` `code` ``, `~~strike~~`, `[text](url)`), and folds
+the signature and quoted text with `app_core::fold`. `Document::number_links` gives each target a number at its first
+appearance and puts it on the last span of each link as `Span::note`; a link whose text is its target (a bare URL)
+loses the text. Readers draw the note as a marker of its own, never text, so a sender's `(1)` cannot pass for one: the
+GUI as a raised label, Android as a superscript span (`DocSpan::note`). *Links* lists `Document::notes()`: `¹ url —
+title`. The CLI and MCP keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the
+number in `note`.
+
 ### 5.4 Single instance & IPC attach
 One process owns a profile at a time: it holds `profile_dir/lock` (`ProfileLock`, an exclusive `File::try_lock`, released by
 the OS when the process dies). Long-running owners — the GUI, `dail tui` and `dail mcp` — also listen on the profile's local socket

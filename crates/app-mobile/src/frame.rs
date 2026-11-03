@@ -534,6 +534,10 @@ pub struct DocSpan {
     /// pictures show.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<InlineImage>,
+    /// A link's marker (MISC-28): its number in *Links*, drawn small and raised in the link colour. A marker span has
+    /// no text of its own, so nothing a sender writes can pass for one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<u32>,
 }
 
 /// A link's full target, before it opens.

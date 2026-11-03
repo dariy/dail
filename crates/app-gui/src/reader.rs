@@ -807,7 +807,32 @@ fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
             }
         }
     }
-    let links = links(&body.text);
+    // A document's numbered links (MISC-28): `¹ url — title`; else the targets found in the text.
+    let links: Vec<(String, String)> = match body
+        .document
+        .as_ref()
+        .map(app_core::document::Document::notes)
+    {
+        Some(notes) if !notes.is_empty() => notes
+            .into_iter()
+            .map(|note| {
+                let mut label = format!(
+                    "{} {}",
+                    app_front::format::superscript(note.number),
+                    note.url
+                );
+                if !note.title.is_empty() {
+                    label.push_str(" — ");
+                    label.push_str(&app_front::text::clean(&note.title));
+                }
+                (label, note.url)
+            })
+            .collect(),
+        _ => links(&body.text)
+            .into_iter()
+            .map(|url| (url.clone(), url))
+            .collect(),
+    };
     if !links.is_empty() {
         ui.add_space(t.m.space.md);
         ui::caption(
@@ -815,11 +840,11 @@ fn body_text(ui: &mut Ui, t: &Tokens, body: &Body, io: DocIo<'_>) {
             t,
             &t.f(Key::LinksCount, &[("n", &links.len().to_string())]),
         );
-        for url in links {
-            // The full target is the label: what you see is where it goes. Opens only on click.
+        for (label, url) in links {
+            // The full target is in the label: what you see is where it goes. Opens only on click.
             let mut job = ui::icon_text(
                 Icon::Link,
-                &url,
+                &label,
                 ui::font(&t.type_scale.body_md),
                 t.text_strong,
             );
