@@ -949,7 +949,8 @@ text ships in English and French.
 - [ ] STORE-25 [user]: 1.0.0 tagged, production requested (review usually takes up to 7 days), a staged rollout
 - [ ] STORE-26 (M): the F-Droid recipe (Rust toolchain, `cargo-ndk`, NDK r28, `-Pdail.abis=…` per ABI, `live` only),
   tested locally, then the inclusion request. F-Droid wants 3 months of active development, which dail reaches on
-  2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier
+  2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier *(the recipe
+  is in `packaging/fdroid/`; the local `fdroid build` and the request are still to do)*
 - [ ] STORE-27 [user]: after F-Droid's first publish, its signing key added to `net.darii.dail`
 
 ### After launch, in this order
