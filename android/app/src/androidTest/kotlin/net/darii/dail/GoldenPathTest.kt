@@ -192,10 +192,13 @@ class GoldenPathTest {
         tap(fields()[0])
         // The comma takes the address as a recipient.
         shell("input text carol@example.org,")
-        tap(fields()[1])
+        // To, Cc and Bcc come first; Subject and the body are the last two fields.
+        fields().let { tap(it[it.size - 2]) }
         shell("input text $NEW_SUBJECT")
         tap(fields().last())
         shell("input text Hello")
+        // The keyboard would cover the snackbar's Undo.
+        shell("input keyevent KEYCODE_BACK")
 
         // A long undo window, so that the emulator's slow polls don't outlast it.
         shell(
@@ -205,6 +208,7 @@ class GoldenPathTest {
         // Send, then undo inside the window.
         tap("Send")
         awaitState("the send scheduled") { scheduled(it) }
+        awaitState("the subject typed") { s -> drafts(s).any { it.startsWith("subject=$NEW_SUBJECT ") } }
         tap("Undo")
         awaitState("the send cancelled") { s -> !scheduled(s) && s.getJSONObject("drafts").length() > 0 }
         assertTrue(!scheduled(state()))
