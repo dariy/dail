@@ -878,7 +878,7 @@ text ships in English and French.
 ### B — Hardening: it survives real users
 - [x] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
   of crashing
-- [ ] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
+- [x] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
   event and its worker keeps running; if the engine loop dies, the app says so instead of showing a stale screen
 - [ ] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
   automatically) replace the raw `Screen.Failed` text. Its strings live in `values` and `values-fr`, because Rust may be

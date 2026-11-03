@@ -28,7 +28,15 @@ const REASONS: &[(&str, &str)] = &[
     ("nothing to undo", "rien à annuler"),
     ("nothing to redo", "rien à rétablir"),
     ("session closed", "session fermée"),
+    (
+        "dail hit an internal error; the log has the details",
+        "dail a rencontré une erreur interne ; le journal contient les détails",
+    ),
     ("the session is closed", "la session est fermée"),
+    (
+        "dail's engine stopped; restart the app",
+        "le moteur de dail s’est arrêté ; redémarrez l’application",
+    ),
     (
         "not a PNG, JPEG, GIF or WebP image",
         "pas une image PNG, JPEG, GIF ou WebP",

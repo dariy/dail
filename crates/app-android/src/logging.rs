@@ -40,7 +40,24 @@ pub fn init(profile_dir: &Path) {
         let registry = tracing_subscriber::registry().with(layers);
         // Another subscriber (a test's) may be set already.
         let _ = registry.try_init();
+        log_panics();
     });
+}
+
+/// Logs every panic, on any thread, to the outputs above before the default hook runs (STORE-4):
+/// a panic on a runtime thread would otherwise leave no trace in `android.log`.
+fn log_panics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        tracing::error!(
+            thread = thread.name().unwrap_or("unnamed"),
+            location = info.location().map(ToString::to_string).unwrap_or_default(),
+            panic = app_sync::executor::panic_text(info.payload()),
+            "panic"
+        );
+        previous(info);
+    }));
 }
 
 fn log_file(profile_dir: &Path) -> Option<std::fs::File> {

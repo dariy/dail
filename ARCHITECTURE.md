@@ -473,7 +473,9 @@ own, everything local (`PersistState`, attachments, the full-text index, compact
 servers (`DiscoverServers`, ADR 0006: seconds per try) on a third, so store writes never overtake each other and a slow or unreachable server delays only its own account. Workers start on first use and
 shutdown waits for all of them. `ScheduleTick` and `WatchMailbox` effects run concurrently beside them (timers and
 watches wait for the world). A failed
-effect becomes `Effect::failure_event(error)` and is ingested like any other event. `Session::flush()` waits until all
+effect becomes `Effect::failure_event(error)` and is ingested like any other event. So does an effect whose backend
+panics (STORE-4): `run_effect` catches the unwind, logs the panic's text and reports `ERR201` with a fixed reason, and
+the lane's worker keeps running. `Session::flush()` waits until all
 effects but timers and watches (and the effects they cause) have been ingested; `shutdown()` ingests `Closing` (unsaved drafts are saved
 now), flushes, then stops the engine task.
 `Ctx` is built from injected `Clock` (`SystemClock`, `VirtualClock` on tokio's paused time for tests) and `SeedSource`
@@ -1591,7 +1593,9 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   uses `KeyringSecrets`. The round trip on a device is an ignored test (`DAIL_IT_ANDROID_KEYSTORE=1`, inside the app's
   process).
 - **Logs** (`app-android`'s `dail::logging`). `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
-  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds.
+  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds. A panic hook logs every
+  panic, on any thread, with its thread and location before the default hook (STORE-4). If the engine's task ends while
+  the host is open, the bridge's watcher wakes the app and `event`/`frame` answer `ERR310` instead of a stale frame.
 - **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
   allows unsafe code. `tests/it/lints.rs` pins both.
 - **Tests** (`app-host/tests/it`; `app-android/tests/it` keeps the lints and the Keystore round trip): a live profile with no accounts (the lock, the background tasks), a synced

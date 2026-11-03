@@ -191,6 +191,12 @@ impl Host {
         Ok(self.event(serde_json::from_str(event)?))
     }
 
+    /// Whether the engine's task ended while this host is open (STORE-4): no frame is current
+    /// any more, and the front-end must say so instead of showing the last one.
+    pub fn stopped(&self) -> bool {
+        lock(&self.bridge).is_gone()
+    }
+
     /// The next frame, after a wake-up: feeds the replies that arrived to the presenter.
     pub fn frame(&self) -> Output {
         let bridge = lock(&self.bridge);
