@@ -133,24 +133,6 @@ class GoldenPathTest {
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
-    /** Whether every message with [subject] is read. */
-    private fun read(
-        state: JSONObject,
-        subject: String,
-    ): Boolean {
-        val messages = state.getJSONObject("messages")
-        val matching =
-            messages
-                .keys()
-                .asSequence()
-                .map(messages::getJSONObject)
-                .filter {
-                    it.optString("subject") ==
-                        subject
-                }.toList()
-        return matching.isNotEmpty() && matching.all { it.optJSONObject("flags")?.optBoolean("seen") == true }
-    }
-
     /** Whether a draft with [subject] is scheduled to leave. */
     private fun scheduled(
         state: JSONObject,
@@ -175,7 +157,10 @@ class GoldenPathTest {
         // Compose may merge a row's texts into one node: match on containment.
         tap(await("the demo inbox", seconds = 60) { it.text.contains(SUBJECT) || it.description.contains(SUBJECT) })
         await("the reader's Archive", find = labelled("Archive"))
-        awaitState("the conversation read") { read(it, SUBJECT) }
+        // Read: the drawn frame shows the conversation in the reader.
+        awaitThat("the conversation in the reader") {
+            bridge("frame").optJSONObject("reader")?.optString("subject") == SUBJECT
+        }
 
         // Archive, then undo.
         tap("Archive")
