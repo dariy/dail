@@ -62,7 +62,7 @@ class PushService : Service() {
     private fun starting(): Notification =
         Notification
             .Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.push_starting))
             .setOngoing(true)
             .build()

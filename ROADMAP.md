@@ -922,7 +922,7 @@ text ships in English and French.
   can differ from the device's. `dependenciesInfo` off, and `apk-check` fails if the block returns. Native symbols go
   into the AAB while the APK stays stripped
 - [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
-  feature graphic
+  feature graphic *(made from the desktop logo, `packaging/store/`; waits for the user's approval of the art)*
 - [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
   `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an

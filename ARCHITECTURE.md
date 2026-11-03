@@ -1956,6 +1956,9 @@ Play declarations (Data safety, foreground services, content rating, target audi
 (`release.yml`, environment `release`) uploads the signed AAB (`scripts/release-android.sh` writes it to `aab/`, outside
 the GitHub Release and the manifest) to Play's internal track with `r0adkll/upload-google-play` pinned to a SHA;
 without the `DAIL_PLAY_SERVICE_ACCOUNT` secret it says so and skips. Promotion stays manual (STORE-20).
+The icons follow `packaging/linux/dail.svg` (STORE-17): an adaptive launcher icon with a monochrome layer
+(`mipmap-anydpi/ic_launcher.xml`), `drawable/ic_notification.xml` for every notification, and the store's 512 px icon
+and 1024x500 feature graphic rendered from `packaging/store/*.svg` into the fastlane `images/`.
 `bump.yml` makes the tag: after `ci` passes on a merge into `main` (`workflow_run`), it bumps the version (patch unless
 a `release:minor|major|skip` label), commits it and pushes `vX.Y.Z` with a GitHub App token, so `main` runs
 ci → bump → release; `ci` skips the bump commit, and a commit a tag already holds is not released again (MISC-9,

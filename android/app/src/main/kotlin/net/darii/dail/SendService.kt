@@ -73,7 +73,7 @@ class SendService : Service() {
         )
         return Notification
             .Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.sending))
             .setOngoing(true)
             .build()

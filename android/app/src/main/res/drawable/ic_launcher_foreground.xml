@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- STORE-17: dail's envelope (packaging/linux/dail.svg) inside the adaptive icon's 66 dp safe zone; also the
+     monochrome layer of themed icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.4"
+        android:pathData="M32.75,37.1h42.5a3.75,3.75 0,0 1,3.75 3.75v26.25a3.75,3.75 0,0 1,-3.75 3.75h-42.5a3.75,3.75 0,0 1,-3.75 -3.75v-26.25a3.75,3.75 0,0 1,3.75 -3.75z" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.4"
+        android:strokeLineJoin="round"
+        android:pathData="M30.9,39.6L54,57.1L77.1,39.6" />
+</vector>

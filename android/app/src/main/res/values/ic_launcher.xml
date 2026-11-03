@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- STORE-17: the launcher icon's background, as in packaging/linux/dail.svg. -->
+    <color name="ic_launcher_background">#FF09090B</color>
+</resources>
