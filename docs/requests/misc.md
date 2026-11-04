@@ -46,6 +46,8 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
 | MISC-38 | Desktop: settings rows wrap their control below the title in narrow windows | S | app-gui | 2026-11-04 |
 | MISC-39 | App icon on every platform: desktop window, Windows executable, iOS | M | app-gui, app-cli, xtask, packaging/, ios/, .github/ | 2026-11-04 |
+| MISC-41 | "Empty Trash" button in the Trash folder | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
+| MISC-42 | "Junk" / "Not junk" buttons: move messages between the inbox and Junk | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
 
 ## Details
 
@@ -774,3 +776,39 @@ State found on 2026-11-04:
   commits the changed files to the branch. The build and `cargo xtask verify` never run it. This runs only a few
   times in the life of the project.
 - **Open questions:** none.
+
+### MISC-41 — "Empty Trash" button in the Trash folder
+
+The user asked for a "clear trash" button in the Trash folder. When Trash is the open mailbox, the list toolbar shows
+"Empty Trash". It deletes every message in that account's Trash permanently, on the server too, after a confirmation
+dialog that gives the number of messages. This is the "Empty Trash" extra of UX-7 (`docs/requests/2026-10-21.md`),
+which was never scheduled.
+
+- **Commands:** new `Destructive` `empty_trash { account: AccountId, confirm: bool }` (not undoable; MCP
+  `destructiveHint`; refused without `confirm: true`), modelled on `delete_folder`. Agent access: allowed. The command
+  deletes data but sends nothing off the machine (AGENTS.md §4). Locally the Trash messages and the threads it leaves
+  empty are dropped. On the server a `PendingOp` runs `UID STORE +FLAGS (\Deleted)` and `UID EXPUNGE` on the Trash
+  folder (Gmail: `[Gmail]/Trash`). It covers uncached messages too: the op takes the UIDs from a `UID SEARCH ALL` and
+  expunges only those, so mail that arrives during the op stays. The receipt gives the count.
+- **Touches:** `app-core` (command, spec, engine, replay fixture), `app-sync` (effect), `app-testkit` (fake
+  transport), `app-front` (the confirmation prompt), `app-gui` and `app-tui` (button in the Trash folder; text in
+  English and French).
+- **Open questions:** should Junk get the same "Empty Junk" button (UX-7 lists both)? If so, the command becomes
+  `empty_mailbox { id, confirm }`, limited to the Trash and Junk roles.
+
+### MISC-42 — "Junk" / "Not junk" buttons: move messages between the inbox and Junk
+
+The user asked for "junk" / "not junk" buttons that move a message between the inbox and Junk. Outside Junk, the
+list and reader toolbars (and the row context menu) show "Junk". In the Junk folder they show "Not junk", which moves
+the message back to the inbox. Today this takes `move_threads` with a folder ID picked by hand.
+
+- **Commands:** new `Mutation`s `mark_junk { ids, messages }` and `mark_not_junk { ids, messages }`, with the same
+  `ids`/`messages` shape as `trash_threads`. Undoable. Agent access: allowed. Each resolves the account's Junk role
+  (`MailboxRole::Junk`; Gmail `[Gmail]/Spam`) or inbox through `ProviderPreset`, with no `if gmail` branch. The
+  remote op moves the messages and sets the RFC 5788 keywords `$Junk` / `$NotJunk` (removing the other one), so the
+  server's filter can learn from them. An account without a Junk folder gets a clear error, not a new folder.
+- **Touches:** `app-core` (commands, specs, engine, replay fixture), `app-sync` (move plus keyword store),
+  `app-testkit`, `app-front` (which button a folder shows), `app-gui` and `app-tui` (buttons, keys; text in English
+  and French).
+- **Open questions:** default keys (e.g. `!` like Gmail for Junk)? Does Hostinger's server learn from `$Junk`, or
+  does the move alone do it?

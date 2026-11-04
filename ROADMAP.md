@@ -821,6 +821,11 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
 - [ ] MISC-39 (M) [gui] [cli] [xtask] [ios] [ci]: the dail icon on the desktop window (`with_icon`), in `dail.exe`
   and the MSI, and as the iOS `AppIcon`; PNG and ICO renderings of `packaging/linux/dail.svg` committed, regenerated
   by `cargo xtask icons` and an `icons.yml` workflow that runs only when the SVG changes
+- [ ] MISC-41 (M) [core] [sync] [front] [gui] [tui]: "Empty Trash" in the Trash folder: `Destructive`
+  `empty_trash { account, confirm }` that expunges every Trash message on the server too, after a confirmation with
+  the count
+- [ ] MISC-42 (M) [core] [sync] [front] [gui] [tui]: "Junk" / "Not junk" buttons: `mark_junk` / `mark_not_junk`
+  `Mutation`s that move messages to the account's Junk role or back to the inbox and set `$Junk` / `$NotJunk`; undoable
 
 ### T — TUI device check (Wave 1.5, T5)
 
