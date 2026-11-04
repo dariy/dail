@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.6
+
+- Wave 11: store readiness (sections A–D, MISC-34/31/36/28a)
+
 ## 0.1.5
 
 - build(deps): bump taiki-e/install-action from 2.87.31 to 2.88.0 in the actions group
