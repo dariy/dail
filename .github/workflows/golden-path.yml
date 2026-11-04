@@ -43,6 +43,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           shared-key: golden-path
+          # This workflow exists to run a failing test: its build is worth keeping all the same.
+          cache-on-failure: true
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -65,9 +67,10 @@ jobs:
           [ -d "$ANDROID_SDK_ROOT/build-tools/37.0.0" ] || need="$need build-tools;37.0.0"
           echo "missing:${need:- nothing}"
           [ -z "$need" ] || yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" $need > /dev/null
-      # The booted AVD, as a snapshot: later runs start from it instead of a cold boot.
+      # The booted AVD, as a snapshot: later runs start from it instead of a cold boot. Restored and saved as separate
+      # steps, so a snapshot is kept even when the test then fails.
       - id: avd
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.android/avd/*
@@ -84,6 +87,13 @@ jobs:
           emulator-options: ${{ env.EMULATOR_OPTIONS }}
           disable-animations: false
           script: echo "AVD snapshot created"
+      - if: steps.avd.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ inputs.api-level }}-x86_64-default
       # Each script line runs in its own shell and a failing line ends the step, so the test's failure is recorded and
       # the evidence gathered before the last line fails the step.
       - name: Golden path
