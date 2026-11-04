@@ -2,6 +2,11 @@
 
 - `linux/dail.desktop`, `linux/dail.svg`: the desktop entry and icon (`app_id` and `StartupWMClass` are `dail`, which
   is also the `desktop-entry` hint of dail's notifications).
+- Icons (MISC-39): `linux/dail.svg` is the source. `cargo xtask icons` renders `icons/dail-<n>.png` (16–512 px; the
+  desktop window embeds the 256 px one), `windows/dail.ico` (the MSI's `ARPPRODUCTICON`), `windows/dail.res` (the icon
+  resource `app-cli/build.rs` links into `dail.exe`) and the iOS `AppIcon` (`ios/Dail/Assets.xcassets`, 1024 px, no
+  alpha). They are committed; the build never renders them. `.github/workflows/icons.yml` reruns the task and commits
+  the result when the SVG changes.
 - Debian/Ubuntu: `cargo deb -p app-cli` (with [cargo-deb](https://crates.io/crates/cargo-deb) installed) builds
   `target/debian/dail_<version>-1_<arch>.deb` from `[package.metadata.deb]` in `crates/app-cli/Cargo.toml`.
 - Release builds: `scripts/release-windows.ps1` makes `dist/dail-<version>-x86_64-pc-windows-msvc.zip` and

@@ -1,0 +1,36 @@
+# MISC-39: re-renders the committed icons (packaging/icons/*.png, packaging/windows/dail.{ico,res}, the iOS AppIcon)
+# when their source, packaging/linux/dail.svg, changes, and commits them to the same branch. The build and
+# `cargo xtask verify` never render icons.
+name: icons
+
+on:
+  push:
+    paths:
+      - packaging/linux/dail.svg
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: icons-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # rustup reads rust-toolchain.toml on the first cargo call.
+      - run: cargo xtask icons
+      - name: Commit the changed icons
+        run: |
+          git add packaging/icons packaging/windows/dail.ico packaging/windows/dail.res ios/Dail/Assets.xcassets
+          if git diff --cached --quiet; then
+            echo "icons are up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git commit -m "packaging: re-render icons from dail.svg"
+          git push

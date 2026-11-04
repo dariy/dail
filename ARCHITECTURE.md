@@ -1961,7 +1961,9 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
 `scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256; it needs
 `desktop-file-validate` from `desktop-file-utils`) and
-`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
+`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). The icons (desktop
+window, `dail.exe` resource, MSI, iOS `AppIcon`) are committed renderings of `linux/dail.svg` from `cargo xtask icons`,
+re-rendered by `icons.yml` only when the SVG changes (MISC-39). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the

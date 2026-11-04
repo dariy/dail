@@ -28,11 +28,13 @@ webbrowser.workspace = true
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus.workspace = true
 
+# The window icon (MISC-39): decodes packaging/icons/dail-256.png; already in the tree via app-io.
+image.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true
 
 [dev-dependencies]
-image.workspace = true
 app-testkit.workspace = true
 egui_kittest.workspace = true
 serde_json.workspace = true

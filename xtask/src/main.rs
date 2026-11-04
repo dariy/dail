@@ -32,6 +32,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
+mod icons;
 mod ios;
 mod manifest;
 mod release;
@@ -198,6 +199,7 @@ fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         Some("verify") => verify(&args.collect::<Vec<_>>()),
+        Some("icons") => icons::run(&args.collect::<Vec<_>>()),
         Some("ios") => ios::run(&args.collect::<Vec<_>>()),
         Some("release") => release::run(&args.collect::<Vec<_>>()),
         Some("android") => match args.next().as_deref() {
@@ -219,6 +221,7 @@ fn main() -> Result<()> {
             let mut err = std::io::stderr().lock();
             writeln!(err, "usage: cargo xtask verify [{}]…", gate_names("|"))?;
             writeln!(err, "       {ANDROID_USAGE}")?;
+            writeln!(err, "       {}", icons::USAGE)?;
             writeln!(err, "       {}", ios::USAGE)?;
             writeln!(err, "       {}", release::USAGE)?;
             bail!("unknown or missing task")
