@@ -137,7 +137,14 @@ class GoldenPathTest {
     private fun labelled(label: String) =
         { node: Node -> node.text == label || node.description == label || node.description.startsWith("$label,") }
 
+    private var taps = 0
+
+    /** Taps [node], and records it: a log line and a screenshot just before, numbered, for golden-path.yml. */
     private fun tap(node: Node) {
+        taps += 1
+        Log.i(TAG, "tap $taps: $node; snackbar: ${bridge("frame").opt("snackbar")}")
+        shell("mkdir -p $EVIDENCE")
+        shell("screencap -p $EVIDENCE/tap-${taps.toString().padStart(2, '0')}.png")
         shell("input tap ${node.x} ${node.y}")
     }
 
