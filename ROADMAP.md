@@ -1002,8 +1002,8 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
   settings listed in ARCHITECTURE
 
 ### D — Server-side execution
-- [ ] SET-8 (S) [sync]: probe ManageSieve after login on the reference providers; record the results in
-  `ProviderPreset`
+- [ ] SET-8 (S) [sync]: a `ProviderPreset` field for ManageSieve (Hostinger and Gmail: none, probed 2026-11-04), so
+  that self-hosted Dovecot servers can turn it on
 - [ ] SET-9 (M) [io][sync]: compile rules to Sieve and upload over ManageSieve where the preset says it exists; rules
   Sieve cannot express are marked client-only
 - Gmail filter export waits for Gmail OAuth2 (Wave 11, *After launch*, item 6)

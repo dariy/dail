@@ -15,8 +15,8 @@ What the reference providers offer (probed 2026-11-04):
 | Mechanism | Gmail | Hostinger |
 |---|---|---|
 | IMAP folder (APPEND, FETCH, IDLE) | yes, as a label | yes |
-| IMAP METADATA (RFC 5464) | no | not in pre-login capabilities; post-login unknown |
-| ManageSieve (RFC 5804, port 4190) | no | no answer on port 4190 |
+| IMAP METADATA (RFC 5464) | no | no, not in the post-login capabilities |
+| ManageSieve (RFC 5804, port 4190) | no | no: ports 4190 and 2000 reset the connection after a successful IMAP login |
 | Provider filter API | Gmail API, needs OAuth2 | none public |
 
 ## Decision
