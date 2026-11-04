@@ -154,7 +154,9 @@ private fun FrameScaffold(
                 }
             }
         },
-        bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier) } },
+        // The bottom bar slot takes no insets: edge to edge, the snackbar would sit under a 3-button navigation bar,
+        // and a tap on its Undo would land on the bar (STORE-9b).
+        bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier.navigationBarsPadding()) } },
     ) { padding ->
         frame.about?.let { about ->
             AboutScreen(about, Modifier.padding(padding))
