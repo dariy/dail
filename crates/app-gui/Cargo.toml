@@ -18,6 +18,8 @@ app-sync.workspace = true
 app-theme.workspace = true
 eframe.workspace = true
 egui.workspace = true
+# The window icon (MISC-39) and the image tests: decodes packaging/icons/dail-256.png; already in the tree via app-io.
+image.workspace = true
 rfd.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -27,9 +29,6 @@ webbrowser.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus.workspace = true
-
-# The window icon (MISC-39): decodes packaging/icons/dail-256.png; already in the tree via app-io.
-image.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true
