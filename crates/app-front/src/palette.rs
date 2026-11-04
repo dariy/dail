@@ -417,37 +417,61 @@ pub fn delete_folder(state: &AppState, id: MailboxId) -> Flow {
     )
 }
 
-/// The Trash of `account` and how many messages it holds: the server's count, or the cached
-/// ones if more are shown there (moves that have not reached the server yet).
+/// The folder with `role` (Trash or Junk) of `account` and how many messages it holds: the
+/// server's count, or the cached ones if more are shown there (moves that have not reached the
+/// server yet).
 #[must_use]
-pub fn trash_of(state: &AppState, account: AccountId) -> Option<(MailboxId, u32)> {
-    let trash = state
+pub fn folder_of(
+    state: &AppState,
+    account: AccountId,
+    role: app_core::MailboxRole,
+) -> Option<(MailboxId, u32)> {
+    let folder = state
         .mailboxes
         .values()
-        .find(|m| m.account == account && m.role == Some(app_core::MailboxRole::Trash))?;
+        .find(|m| m.account == account && m.role == Some(role))?;
     let cached = state
         .messages
         .values()
-        .filter(|m| m.account == account && m.location() == trash.id)
+        .filter(|m| m.account == account && m.location() == folder.id)
         .count();
     Some((
-        trash.id,
-        trash.total.max(u32::try_from(cached).unwrap_or(u32::MAX)),
+        folder.id,
+        folder.total.max(u32::try_from(cached).unwrap_or(u32::MAX)),
     ))
 }
 
-/// "Empty Trash" of `account` (MISC-41): the confirmation step, with the number of messages.
-pub fn empty_trash(state: &AppState, account: AccountId) -> Flow {
-    let n = trash_of(state, account).map_or(0, |(_, n)| n).to_string();
+/// [`folder_of`] the Trash.
+#[must_use]
+pub fn trash_of(state: &AppState, account: AccountId) -> Option<(MailboxId, u32)> {
+    folder_of(state, account, app_core::MailboxRole::Trash)
+}
+
+/// "Empty Trash" (MISC-41) or, for `role` Junk, "Empty Junk" (MISC-43) of `account`: the
+/// confirmation step, with the number of messages.
+pub fn empty_folder(state: &AppState, account: AccountId, role: app_core::MailboxRole) -> Flow {
+    let junk = role == app_core::MailboxRole::Junk;
+    let n = folder_of(state, account, role)
+        .map_or(0, |(_, n)| n)
+        .to_string();
     let email = state
         .accounts
         .get(&account)
         .map(|a| a.email.clone())
         .unwrap_or_default();
+    let (prompt, label) = if junk {
+        (Key::EmptyJunkOfForever, Key::EmptyJunkN)
+    } else {
+        (Key::EmptyTrashOfForever, Key::EmptyTrashN)
+    };
     ask(
-        crate::i18n::f(Key::EmptyTrashOfForever, &[("n", &n), ("email", &email)]),
-        AskKind::Confirm(crate::i18n::f(Key::EmptyTrashN, &[("n", &n)])),
+        crate::i18n::f(prompt, &[("n", &n), ("email", &email)]),
+        AskKind::Confirm(crate::i18n::f(label, &[("n", &n)])),
         move |_, choice| match choice {
+            Choice::Yes if junk => Flow::Run(Command::EmptyJunk {
+                account,
+                confirm: true,
+            }),
             Choice::Yes => Flow::Run(Command::EmptyTrash {
                 account,
                 confirm: true,
@@ -455,6 +479,41 @@ pub fn empty_trash(state: &AppState, account: AccountId) -> Flow {
             _ => Flow::Hidden,
         },
     )
+}
+
+/// [`empty_folder`] of the Trash.
+pub fn empty_trash(state: &AppState, account: AccountId) -> Flow {
+    empty_folder(state, account, app_core::MailboxRole::Trash)
+}
+
+/// The palette's `empty_trash` / `empty_junk`: the open mailbox's account, the only account
+/// with such a folder, or one the user picks.
+fn empty_flow(state: &AppState, role: app_core::MailboxRole) -> Flow {
+    let open = state
+        .view
+        .mailbox
+        .filter(|_| !state.view.unified)
+        .and_then(|id| state.mailboxes.get(&id))
+        .map(|m| m.account);
+    let mut with = state
+        .accounts
+        .keys()
+        .filter(|id| folder_of(state, **id, role).is_some());
+    match (open, with.next(), with.next()) {
+        (Some(account), _, _) | (None, Some(&account), None) => empty_folder(state, account, role),
+        _ => ask(
+            crate::i18n::s(if role == app_core::MailboxRole::Junk {
+                Key::EmptyJunkOfWhichAccount
+            } else {
+                Key::EmptyTrashOfWhichAccount
+            }),
+            AskKind::Accounts,
+            move |state, choice| match choice {
+                Choice::Account(id) => empty_folder(state, id, role),
+                _ => Flow::Hidden,
+            },
+        ),
+    }
 }
 
 /// `make` for the open mailbox, else for one the user picks.
@@ -1080,29 +1139,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 },
             ),
         },
-        CommandName::EmptyTrash => {
-            let open = state
-                .view
-                .mailbox
-                .filter(|_| !state.view.unified)
-                .and_then(|id| state.mailboxes.get(&id))
-                .map(|m| m.account);
-            let mut with_trash = state
-                .accounts
-                .keys()
-                .filter(|id| trash_of(state, **id).is_some());
-            match (open, with_trash.next(), with_trash.next()) {
-                (Some(account), _, _) | (None, Some(&account), None) => empty_trash(state, account),
-                _ => ask(
-                    crate::i18n::s(Key::EmptyTrashOfWhichAccount),
-                    AskKind::Accounts,
-                    |state, choice| match choice {
-                        Choice::Account(id) => empty_trash(state, id),
-                        _ => Flow::Hidden,
-                    },
-                ),
-            }
-        }
+        CommandName::EmptyTrash => empty_flow(state, app_core::MailboxRole::Trash),
+        CommandName::EmptyJunk => empty_flow(state, app_core::MailboxRole::Junk),
         CommandName::DeleteFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => delete_folder(state, id),
             None => ask(

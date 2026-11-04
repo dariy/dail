@@ -282,31 +282,40 @@ impl Engine {
         })
     }
 
-    /// `empty_trash` (MISC-41): drops the cached messages shown in the account's Trash and
-    /// queues an `empty_mailbox` op that expunges everything the server has there when it runs.
-    /// A message whose move to Trash has not reached the server yet stays until it has: the
-    /// queue runs that move first, and the op's success drops it.
-    pub(super) fn empty_trash(
+    /// `empty_folder` (MISC-41) and `empty_junk` (MISC-43): drops the cached messages shown in
+    /// the account's Trash (Junk) and queues an `empty_mailbox` op that expunges everything the
+    /// server has there when it runs. A message whose move there has not reached the server yet
+    /// stays until it has: the queue runs that move first, and the op's success drops it.
+    pub(super) fn empty_folder(
         &mut self,
         account: AccountId,
+        kind: MoveKind,
         confirm: bool,
         ctx: &Ctx,
         receipt: CommandReceipt,
     ) -> Result<Outcome, CoreError> {
         if !confirm {
             return Err(CoreError::ConfirmationRequired {
-                command: "empty_trash".to_owned(),
+                command: match kind {
+                    MoveKind::Junk => "empty_junk",
+                    _ => "empty_folder",
+                }
+                .to_owned(),
             });
         }
         if !self.state.accounts.contains_key(&account) {
             return Err(not_found("account", account));
         }
-        let trash = match self.resolve_target(account, MoveKind::Trash)? {
+        let folder = match self.resolve_target(account, kind)? {
             Target::Existing(id) => id,
             Target::Create { .. } => {
                 return Err(CoreError::NoMailboxForRole {
                     account: account.to_string(),
-                    role: MailboxRole::Trash,
+                    role: if kind == MoveKind::Junk {
+                        MailboxRole::Junk
+                    } else {
+                        MailboxRole::Trash
+                    },
                 });
             }
         };
@@ -314,7 +323,7 @@ impl Engine {
             .state
             .messages
             .values()
-            .filter(|m| m.account == account && m.location() == trash)
+            .filter(|m| m.account == account && m.location() == folder)
             .map(|m| m.id)
             .collect();
         let mut changes = CacheChanges::default();
@@ -329,17 +338,17 @@ impl Engine {
             }
         }
         let mut total = 0;
-        if let Some(mailbox) = self.state.mailboxes.get_mut(&trash) {
+        if let Some(mailbox) = self.state.mailboxes.get_mut(&folder) {
             total = mailbox.total;
             // The server's counts follow with the fetch after the op.
             mailbox.total = 0;
             mailbox.unread = 0;
-            changes.mailboxes.insert(trash);
+            changes.mailboxes.insert(folder);
         }
         let mut ids = ctx.ids();
         let op = self.queue_op(
             account,
-            RemoteOp::EmptyMailbox { mailbox: trash },
+            RemoteOp::EmptyMailbox { mailbox: folder },
             ctx,
             &mut ids,
             &mut changes,
@@ -348,13 +357,13 @@ impl Engine {
         let delta = self.delta(changes);
         let mut receipt = receipt
             .affecting(EntityRef::Account(account))
-            .affecting(EntityRef::Mailbox(trash))
+            .affecting(EntityRef::Mailbox(folder))
             .affecting(EntityRef::Op(op));
         for thread in &delta.threads {
             receipt = receipt.affecting(EntityRef::Thread(thread.id));
         }
         let receipt = receipt.with_data(serde_json::json!({
-            "mailbox": trash,
+            "mailbox": folder,
             "removed": removed,
             "waiting": waiting,
             "total": total,

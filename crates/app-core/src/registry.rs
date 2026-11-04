@@ -127,6 +127,8 @@ pub enum CommandName {
     DeleteFolder,
     /// See [`Command::EmptyTrash`].
     EmptyTrash,
+    /// See [`Command::EmptyJunk`].
+    EmptyJunk,
     /// See [`Command::SetDraftFrom`].
     SetDraftFrom,
     /// See [`Command::RemoveAccount`].
@@ -287,6 +289,13 @@ fn has_mailboxes(state: &AppState) -> bool {
     !state.mailboxes.is_empty()
 }
 
+fn has_junk(state: &AppState) -> bool {
+    state
+        .mailboxes
+        .values()
+        .any(|m| m.role == Some(crate::mailbox::MailboxRole::Junk))
+}
+
 fn has_trash(state: &AppState) -> bool {
     state
         .mailboxes
@@ -389,6 +398,7 @@ impl CommandName {
         Self::RenameFolder,
         Self::DeleteFolder,
         Self::EmptyTrash,
+        Self::EmptyJunk,
         Self::SetDraftFrom,
         Self::RemoveAccount,
         Self::SyncNow,
@@ -490,6 +500,7 @@ impl CommandName {
             Self::RenameFolder => "rename_folder",
             Self::DeleteFolder => "delete_folder",
             Self::EmptyTrash => "empty_trash",
+            Self::EmptyJunk => "empty_junk",
             Self::SetDraftFrom => "set_draft_from",
             Self::RemoveAccount => "remove_account",
             Self::SyncNow => "sync_now",
@@ -668,9 +679,11 @@ impl CommandName {
             | Self::CollapseFolders
             | Self::ExpandFolders
             | Self::ToggleSidebar => CommandKind::View,
-            Self::RemoveAccount | Self::DeleteFolder | Self::EmptyTrash | Self::InstallUpdate => {
-                CommandKind::Destructive
-            }
+            Self::RemoveAccount
+            | Self::DeleteFolder
+            | Self::EmptyTrash
+            | Self::EmptyJunk
+            | Self::InstallUpdate => CommandKind::Destructive,
         }
     }
 
@@ -709,6 +722,7 @@ impl CommandName {
             | Self::RenameFolder
             | Self::DeleteFolder
             | Self::EmptyTrash
+            | Self::EmptyJunk
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::ListMailboxes
@@ -853,6 +867,10 @@ impl CommandName {
             Self::EmptyTrash => CommandSpec {
                 available: has_trash,
                 ..base("Empty Trash", Category::Mail, &[])
+            },
+            Self::EmptyJunk => CommandSpec {
+                available: has_junk,
+                ..base("Empty Junk", Category::Mail, &[])
             },
             Self::RenameFolder => CommandSpec {
                 available: has_mailboxes,
@@ -1252,6 +1270,10 @@ impl CommandName {
                 confirm: true,
             },
             Self::EmptyTrash => Command::EmptyTrash {
+                account: EXAMPLE_ACCOUNT,
+                confirm: true,
+            },
+            Self::EmptyJunk => Command::EmptyJunk {
                 account: EXAMPLE_ACCOUNT,
                 confirm: true,
             },

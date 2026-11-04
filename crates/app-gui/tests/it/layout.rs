@@ -537,3 +537,38 @@ fn rows_and_the_reader_offer_junk_or_not_junk_by_folder() {
         messages: Vec::new()
     }));
 }
+
+/// MISC-43: the open Junk folder offers *Empty Junk* after a confirmation, the inbox does not.
+#[test]
+fn the_junk_folder_offers_to_empty_itself_after_a_confirmation() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut junk = state.mailboxes[&inbox].clone();
+    junk.id = app_core::IdGen::new(78).next_id();
+    junk.path = "Junk".into();
+    junk.role = Some(MailboxRole::Junk);
+    junk.total = 1;
+    let (id, account) = (junk.id, junk.account);
+    state.mailboxes.insert(id, junk);
+    let message = state.threads[&threads[0]].messages[0];
+    state.messages.get_mut(&message).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    assert!(h.query_by_label("Empty Junk").is_none(), "only in Junk");
+    apply(&mut h, Command::OpenMailbox { id });
+    assert!(h.query_by_label("Empty Trash").is_none());
+    h.state_mut().out.clear();
+    h.get_by_label("Empty Junk").click();
+    h.run();
+    h.state_mut().pump();
+    h.run();
+    h.get_by_label_contains("Empty Junk (1)").click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take()[0],
+        Command::EmptyJunk {
+            account,
+            confirm: true
+        }
+    );
+}

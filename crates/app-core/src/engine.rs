@@ -952,7 +952,10 @@ impl Engine {
                 self.delete_folder(id, confirm, receipt).map(Applied::plain)
             }
             Command::EmptyTrash { account, confirm } => self
-                .empty_trash(account, confirm, ctx, receipt)
+                .empty_folder(account, moves::MoveKind::Trash, confirm, ctx, receipt)
+                .map(Applied::plain),
+            Command::EmptyJunk { account, confirm } => self
+                .empty_folder(account, moves::MoveKind::Junk, confirm, ctx, receipt)
                 .map(Applied::plain),
             Command::MarkMailboxRead { id } => self.mark_mailbox_read(id, ctx, receipt),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),

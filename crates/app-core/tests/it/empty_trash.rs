@@ -1,5 +1,5 @@
-//! `empty_trash` (MISC-41): the cached Trash goes at once, the server's with an `empty_mailbox`
-//! op that expunges what is there when it runs.
+//! `empty_trash` (MISC-41) and `empty_junk` (MISC-43): the cached folder goes at once, the
+//! server's with an `empty_mailbox` op that expunges what is there when it runs.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
@@ -179,4 +179,77 @@ fn a_discarded_empty_fetches_the_trash_again() {
     );
     let listed = m.run(Command::ListPendingOps { account: None }).unwrap();
     assert_eq!(listed.receipt.data["ops"], serde_json::json!([]));
+}
+
+/// MISC-43: `empty_junk` does the same to the Junk folder, and only to it.
+#[test]
+fn empty_junk_empties_the_junk_folder_only() {
+    let mut m = Mail::new(
+        ProviderPreset::Hostinger,
+        &[
+            ("INBOX", None),
+            ("Junk", Some(MailboxRole::Junk)),
+            ("Trash", Some(MailboxRole::Trash)),
+        ],
+    );
+    m.fetch("INBOX", vec![mail(1, "a@x", None, "Lunch", true)]);
+    m.fetch("Junk", vec![mail(3, "j@x", None, "Prize", false)]);
+    m.fetch("Trash", vec![mail(4, "o@x", None, "Old", true)]);
+    let outcome = m
+        .run(Command::EmptyJunk {
+            account: m.account,
+            confirm: true,
+        })
+        .unwrap();
+    assert_eq!(outcome.receipt.data["removed"], 1);
+    assert!(subjects_in(&m, "Junk").is_empty());
+    assert_eq!(subjects_in(&m, "Trash"), ["Old"]);
+    assert_eq!(subjects_in(&m, "INBOX"), ["Lunch"]);
+    let (_, steps) = running(&outcome.effects);
+    assert!(matches!(&steps[..], [RemoteStep::ExpungeAll { path, .. }] if path == "Junk"));
+    let err = m
+        .run(Command::EmptyJunk {
+            account: m.account,
+            confirm: false,
+        })
+        .unwrap_err();
+    assert!(matches!(&err, CoreError::ConfirmationRequired { command } if command == "empty_junk"));
+}
+
+#[test]
+fn empty_junk_without_a_junk_folder_is_an_error() {
+    let mut m = hostinger();
+    let err = m
+        .run(Command::EmptyJunk {
+            account: m.account,
+            confirm: true,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        err,
+        CoreError::NoMailboxForRole {
+            role: MailboxRole::Junk,
+            ..
+        }
+    ));
+    assert_eq!(subjects_in(&m, "Trash").len(), 2, "nothing changed");
+}
+
+/// Gmail's Spam is found by the preset's path when the server names no role for it.
+#[test]
+fn empty_junk_finds_gmail_spam() {
+    let mut m = Mail::new(
+        ProviderPreset::Gmail,
+        &[("INBOX", None), ("[Gmail]/Spam", None)],
+    );
+    m.fetch("[Gmail]/Spam", vec![mail(9, "s@x", None, "Win", false)]);
+    let outcome = m
+        .run(Command::EmptyJunk {
+            account: m.account,
+            confirm: true,
+        })
+        .unwrap();
+    assert_eq!(outcome.receipt.data["removed"], 1);
+    let (_, steps) = running(&outcome.effects);
+    assert!(matches!(&steps[..], [RemoteStep::ExpungeAll { path, .. }] if path == "[Gmail]/Spam"));
 }

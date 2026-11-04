@@ -466,7 +466,7 @@ expression: first
       "line": 5,
       "result": {
         "err": {
-          "command": "empty_trash",
+          "command": "empty_folder",
           "error": "error_006_confirmation_required"
         }
       }

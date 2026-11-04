@@ -210,6 +210,17 @@ pub enum Command {
         #[serde(default)]
         confirm: bool,
     },
+    /// Delete every message in an account's Junk folder permanently, on the server too, as
+    /// `empty_trash` does for Trash (the Junk folder is the one `mark_junk` moves to). Needs
+    /// `confirm: true`; not undoable. The receipt gives the number of cached messages removed
+    /// (`removed`) and the server's count (`total`).
+    EmptyJunk {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// Must be `true`: the messages are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
     /// Choose the address a draft is sent from: an identity of any connected account. An address of
     /// another account moves the draft there (its saved server copy moves too); a reply stays a
     /// reply. Undoable.
@@ -1143,6 +1154,7 @@ impl Command {
             | Self::RenameFolder { .. }
             | Self::DeleteFolder { .. }
             | Self::EmptyTrash { .. }
+            | Self::EmptyJunk { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
             | Self::ListMailboxes { .. }
@@ -1236,6 +1248,7 @@ impl Command {
             Self::RenameFolder { .. } => CommandName::RenameFolder,
             Self::DeleteFolder { .. } => CommandName::DeleteFolder,
             Self::EmptyTrash { .. } => CommandName::EmptyTrash,
+            Self::EmptyJunk { .. } => CommandName::EmptyJunk,
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,

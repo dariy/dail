@@ -320,12 +320,18 @@ fn toolbar(
                 _ => {}
             }
         }
-        // MISC-41: the Trash empties itself, after a confirmation with the count. A text
-        // button: it deletes for good, so it says so in words.
-        if mailbox.role == Some(app_core::MailboxRole::Trash) {
-            let count = app_front::palette::trash_of(state, mailbox.account).map_or(0, |(_, n)| n);
-            if ui::secondary_icon(ui, t, Icon::Delete, t.s(Key::EmptyTrash), None, count > 0) {
-                local.ask = match app_front::palette::empty_trash(state, mailbox.account) {
+        // MISC-41, MISC-43: Trash and Junk empty themselves, after a confirmation with the
+        // count. A text button: it deletes for good, so it says so in words.
+        let empty = match mailbox.role {
+            Some(role @ app_core::MailboxRole::Trash) => Some((role, Key::EmptyTrash)),
+            Some(role @ app_core::MailboxRole::Junk) => Some((role, Key::EmptyJunk)),
+            _ => None,
+        };
+        if let Some((role, label)) = empty {
+            let count =
+                app_front::palette::folder_of(state, mailbox.account, role).map_or(0, |(_, n)| n);
+            if ui::secondary_icon(ui, t, Icon::Delete, t.s(label), None, count > 0) {
+                local.ask = match app_front::palette::empty_folder(state, mailbox.account, role) {
                     app_front::palette::Flow::Ask(step) => Some(step),
                     _ => None,
                 };
