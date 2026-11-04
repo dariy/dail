@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-42 in Wave 10.5. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -49,6 +49,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-40 | Desktop: the message list's move-to-trash button does nothing | S | app-gui (maybe app-core, app-sync) | 2026-11-04 |
 | MISC-41 | "Empty Trash" button in the Trash folder | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
 | MISC-42 | "Junk" / "Not junk" buttons: move messages between the inbox and Junk | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
+| MISC-43 | "Empty Junk" button in the Junk folder | S | app-core, app-front, app-gui | 2026-11-04 |
 
 ## Details
 
@@ -835,3 +836,18 @@ the message back to the inbox. Today this takes `move_threads` with a folder ID 
   the move, so they travel with the message; undo moves the messages back and leaves the keyword. The GUI uses the
   existing `report` and `inbox` glyphs. Whether Hostinger's filter learns from `$Junk` is not known; the move happens
   either way.
+
+### MISC-43 — "Empty Junk" button in the Junk folder
+
+The user asked for "Empty Junk" next to MISC-41's "Empty Trash" (UX-7 lists both). When Junk is the open mailbox, the
+list toolbar shows "Empty Junk". It deletes every message in that account's Junk permanently, on the server too, after
+a confirmation dialog that gives the number of messages.
+
+- **Commands:** new `Destructive` `empty_junk { account: AccountId, confirm: bool }`, the sibling of `empty_trash`
+  (not undoable; MCP `destructiveHint`; refused without `confirm: true`; agents allowed). `empty_trash` stays as it
+  is: it is public API already, so the pair is two commands rather than one `empty_mailbox`. The Junk folder is the
+  one `mark_junk` uses (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`). Same `empty_mailbox` op
+  and `ExpungeAll` step as MISC-41; no new runtime code.
+- **Touches:** `app-core` (command, spec, engine, replay fixture), `app-front` (the confirmation prompt), `app-gui`
+  (button in the Junk toolbar; text in English and French). The TUI gets it through the palette.
+- **Open questions:** none.

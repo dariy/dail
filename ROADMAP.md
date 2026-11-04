@@ -828,6 +828,8 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
   the count
 - [x] MISC-42 (M) [core] [sync] [front] [gui] [tui]: "Junk" / "Not junk" buttons: `mark_junk` / `mark_not_junk`
   `Mutation`s that move messages to the account's Junk role or back to the inbox and set `$Junk` / `$NotJunk`; undoable
+- [ ] MISC-43 (S) [core] [front] [gui]: "Empty Junk" in the Junk folder: `Destructive` `empty_junk { account, confirm }`,
+  the sibling of `empty_trash` (same `empty_mailbox` op), after a confirmation with the count
 
 ### T — TUI device check (Wave 1.5, T5)
 
