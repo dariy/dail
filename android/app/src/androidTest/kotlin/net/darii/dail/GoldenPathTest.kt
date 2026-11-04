@@ -1,14 +1,19 @@
 package net.darii.dail
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONObject
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 
 /**
@@ -161,6 +166,56 @@ class GoldenPathTest {
             .any { !it.isNull("send_at") }
     }
 
+    /**
+     * On failure, while the screen still shows it: a screenshot (`screencap`, as the shell) and every window's node
+     * tree in logcat under `GoldenPath`, not only the active window's. golden-path.yml pulls `/data/local/tmp/golden`.
+     */
+    @get:Rule
+    val evidence =
+        object : TestWatcher() {
+            override fun failed(
+                e: Throwable,
+                description: Description,
+            ) {
+                shell("mkdir -p $EVIDENCE")
+                shell("screencap -p $EVIDENCE/${description.methodName}.png")
+                dumpWindows()
+            }
+        }
+
+    private fun dumpWindows() {
+        val automation = instrumentation.uiAutomation
+        // Without this flag `windows` is empty.
+        automation.serviceInfo =
+            automation.serviceInfo.apply {
+                flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
+        val bounds = Rect()
+        for (window in automation.windows) {
+            window.getBoundsInScreen(bounds)
+            Log.i(
+                TAG,
+                "window id=${window.id} type=${window.type} layer=${window.layer} active=${window.isActive} " +
+                    "focused=${window.isFocused} title=${window.title} bounds=$bounds",
+            )
+
+            fun walk(
+                info: AccessibilityNodeInfo,
+                depth: Int,
+            ) {
+                info.getBoundsInScreen(bounds)
+                Log.i(
+                    TAG,
+                    "  ".repeat(depth + 1) +
+                        "${info.className} text=${info.text} desc=${info.contentDescription} " +
+                        "clickable=${info.isClickable} visible=${info.isVisibleToUser} bounds=$bounds",
+                )
+                for (i in 0 until info.childCount) info.getChild(i)?.let { walk(it, depth + 1) }
+            }
+            window.root?.let { walk(it, 0) }
+        }
+    }
+
     @Before
     fun launch() {
         // Android 13+ would ask first; the permission is not what this test is about.
@@ -224,5 +279,7 @@ class GoldenPathTest {
         /** The demo fixture's first unread INBOX conversation (`crates/app-testkit/fixtures/basic.json`). */
         const val SUBJECT = "Lunch?"
         const val NEW_SUBJECT = "Golden"
+        const val TAG = "GoldenPath"
+        const val EVIDENCE = "/data/local/tmp/golden"
     }
 }
