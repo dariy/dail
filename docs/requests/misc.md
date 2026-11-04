@@ -46,6 +46,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
 | MISC-38 | Desktop: settings rows wrap their control below the title in narrow windows | S | app-gui | 2026-11-04 |
 | MISC-39 | App icon on every platform: desktop window, Windows executable, iOS | M | app-gui, app-cli, xtask, packaging/, ios/, .github/ | 2026-11-04 |
+| MISC-40 | Desktop: the message list's move-to-trash button does nothing | S | app-gui (maybe app-core, app-sync) | 2026-11-04 |
 
 ## Details
 
@@ -774,3 +775,18 @@ State found on 2026-11-04:
   commits the changed files to the branch. The build and `cargo xtask verify` never run it. This runs only a few
   times in the life of the project.
 - **Open questions:** none.
+
+### MISC-40 — Desktop: the message list's move-to-trash button does nothing
+
+Bug reported by the user: the "move to trash" button in the desktop message list does not work. Clicking it should
+move the thread(s) to Trash, as `trash_threads` does from the palette and the CLI, with the usual undo.
+
+Seen in the code on 2026-11-04: the list pushes `Command::TrashThreads { ids, messages: [] }` from the row's hover
+icon and context menu (`row_actions`, `app-gui/src/list.rs`) and from the bulk bar of checked threads, so the fault
+is in how the click reaches the frame queue, or in the engine or runtime (e.g. the trash mailbox not being resolved
+for the account).
+
+- **Commands:** none (existing `trash_threads`).
+- **Touches:** `app-gui` (`list.rs`); `app-core` / `app-sync` if the command itself fails.
+- **Open questions:** which button (row hover icon, context menu, or bulk bar), which account (Hostinger, Gmail,
+  memory backend), and does the palette's *Trash* work on the same thread?
