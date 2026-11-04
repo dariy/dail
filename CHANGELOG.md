@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.7
+
+- Wave 10.5: MISC-37 to MISC-43, ADR 0015
+
 ## 0.1.6
 
 - Wave 11: store readiness (sections A–D, MISC-34/31/36/28a)
