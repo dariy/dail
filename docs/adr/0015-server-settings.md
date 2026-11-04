@@ -41,7 +41,9 @@ What the reference providers offer (probed 2026-11-04):
   `push_settings` and choosing the settings account are `UserOnly`.
 - **Server-side execution is an exporter, not the store.** Where a `ProviderPreset` says ManageSieve exists, the rules
   that Sieve can express are compiled to one script `dail` and uploaded; the rest stay client-only and are shown as
-  such. Gmail filters through the Gmail API wait for Gmail OAuth2. METADATA may later replace the folder where present.
+  such. Gmail filters through the Gmail API wait for Gmail OAuth2.
+- **No METADATA.** The hidden folder is the only store, even on servers that offer IMAP METADATA: one code path, one
+  format, and the same behaviour on every provider.
 - **Untrusted input.** Anyone with the password, or another client, can write that folder. A document over 256 KiB, or
   one that fails validation, is ignored with a visible error; it never carries secrets, and rule text is never
   interpreted as instructions.
