@@ -396,3 +396,59 @@ fn the_list_groups_rows_by_date() {
         .count();
     assert!(found >= 1, "no date group header");
 }
+
+/// MISC-40: a pointer click on a row's hover action runs it. The pointer on the icon is over
+/// the row's rect but not "hovering" the row (the icon is on top), and the icons must still be
+/// drawn in that frame or the click is lost.
+#[test]
+fn a_pointer_click_on_a_hover_action_runs_it() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    let ids = vec![threads[0]];
+    let expected = [
+        (
+            "Trash conversation",
+            Command::TrashThreads {
+                ids: ids.clone(),
+                messages: Vec::new(),
+            },
+        ),
+        (
+            "Archive conversation",
+            Command::ArchiveThreads {
+                ids: ids.clone(),
+                messages: Vec::new(),
+            },
+        ),
+    ];
+    let pointer = |h: &mut egui_kittest::Harness<'_, _>, event: egui::Event| {
+        h.input_mut().events.push(event);
+        h.step();
+    };
+    for (label, cmd) in expected {
+        h.state_mut().out.clear();
+        let row = h.get_by_label("Lunch?").rect().center();
+        pointer(&mut h, egui::Event::PointerMoved(row));
+        h.run();
+        let at = h
+            .get(By::new().role(Role::Button).label(label))
+            .rect()
+            .center();
+        pointer(&mut h, egui::Event::PointerMoved(at));
+        for pressed in [true, false] {
+            pointer(
+                &mut h,
+                egui::Event::PointerButton {
+                    pos: at,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            );
+        }
+        h.run();
+        assert_eq!(h.state_mut().take(), [cmd], "{label}");
+    }
+}

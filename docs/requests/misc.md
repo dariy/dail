@@ -790,8 +790,11 @@ for the account).
 
 - **Commands:** none (existing `trash_threads`).
 - **Touches:** `app-gui` (`list.rs`); `app-core` / `app-sync` if the command itself fails.
-- **Open questions:** which button (row hover icon, context menu, or bulk bar), which account (Hostinger, Gmail,
-  memory backend), and does the palette's *Trash* work on the same thread?
+- **Cause (found 2026-11-04):** the row's hover icon, on every account. The row drew its hover actions only while
+  `response.hovered()`, but with the pointer on an icon the icon hovers, not the row (it is on top), so the icons
+  were not drawn in the frame of the click and the click was lost. Every hover action (archive, star, read, pin) had
+  the same fault; the context menu, the bulk bar and the palette were not affected. Fixed with
+  `contains_pointer()`; `app-gui` test `a_pointer_click_on_a_hover_action_runs_it` clicks through real pointer events.
 
 ### MISC-41 — "Empty Trash" button in the Trash folder
 

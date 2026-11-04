@@ -670,7 +670,7 @@ fn row(
         t,
         rect,
         ui::RowState {
-            hovered: response.hovered(),
+            hovered: response.contains_pointer(),
             selected: open || selected || look.checked,
             cursor,
             hairline: true,
@@ -838,10 +838,12 @@ fn row(
             );
         }
     }
-    // UX-10: the row's actions on the right while it is hovered (or has the keyboard cursor),
-    // and the same in its context menu.
+    // UX-10: the row's actions on the right while the pointer is on it (or it has the keyboard
+    // cursor), and the same in its context menu. MISC-40: `contains_pointer`, not `hovered`:
+    // with the pointer on an icon the icon hovers, not the row, and the icons must still be
+    // drawn in that frame for the click to land.
     let mut action = None;
-    if response.hovered() || cursor {
+    if response.contains_pointer() || cursor {
         action = hover_actions(ui, t, rect, summary);
     }
     response.context_menu(|ui| {
