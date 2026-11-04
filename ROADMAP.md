@@ -816,7 +816,7 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
   `set_setting { key: "language", value: <0|1|2> }`)
 - [x] MISC-37 (S) [gui]: list and reader toolbars as icon buttons with tooltips that fit small windows; the
   conversation navigation (up/down buttons, "n of N") leaves the desktop reader
-- [ ] MISC-38 (S) [gui]: settings rows wrap their control to a new line below the title and detail when the
+- [x] MISC-38 (S) [gui]: settings rows wrap their control to a new line below the title and detail when the
   window is too narrow for both, so no control goes off the screen
 - [ ] MISC-39 (M) [gui] [cli] [xtask] [ios] [ci]: the dail icon on the desktop window (`with_icon`), in `dail.exe`
   and the MSI, and as the iOS `AppIcon`; PNG and ICO renderings of `packaging/linux/dail.svg` committed, regenerated

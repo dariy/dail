@@ -214,17 +214,83 @@ impl SettingsState {
 
 /// A row of the page: a label and a description on the left, the control on the right.
 fn row(ui: &mut Ui, t: &Tokens, label: &str, detail: &str, control: impl FnOnce(&mut Ui)) {
-    ui.horizontal(|ui| {
-        ui.set_min_height(t.m.rows.palette + t.m.space.md);
-        ui.vertical(|ui| {
+    split(
+        ui,
+        t,
+        label,
+        t.m.rows.palette + t.m.space.md,
+        |ui| {
             ui.label(ui::text(&t.type_scale.body_md, label, t.text_strong));
             if !detail.is_empty() {
                 ui.label(ui::text(&t.type_scale.body_sm, detail, t.text_muted));
             }
-        });
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), control);
-    });
+        },
+        control,
+    );
     ui::divider(ui, t);
+}
+
+/// The narrowest the title and detail of a row may get before its control moves below them.
+const TEXT_MIN: f32 = 200.0;
+
+/// Lays out `text` on the left and `control` on the right when both fit (MISC-38); otherwise
+/// the control wraps to its own line below the text, still right-aligned. The control's width comes
+/// from the previous frame, kept in egui's memory under `key`; a change asks for one more frame.
+fn split(
+    ui: &mut Ui,
+    t: &Tokens,
+    key: &str,
+    min_height: f32,
+    text: impl FnOnce(&mut Ui),
+    control: impl FnOnce(&mut Ui),
+) {
+    let id = ui.scope_id().with(("settings-row", key));
+    let known = ui.data(|d| d.get_temp::<f32>(id));
+    let width = known.unwrap_or(0.0);
+    let gap = t.m.space.md;
+    let available = ui.available_width();
+    let used = if width + gap + TEXT_MIN <= available {
+        ui.horizontal(|ui| {
+            ui.set_min_height(min_height);
+            let text_width = (available - width - gap).max(TEXT_MIN);
+            ui.allocate_ui_with_layout(
+                egui::vec2(text_width, 0.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.set_max_width(text_width);
+                    text(ui);
+                },
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), control)
+                .response
+                .rect
+                .width()
+        })
+        .inner
+    } else {
+        ui.vertical(|ui| {
+            ui.set_min_height(min_height);
+            ui.add_space(t.m.space.xs);
+            text(ui);
+            ui.add_space(t.m.space.xs);
+            // Right to left in both layouts, so a control's order does not change when it wraps.
+            let used = ui
+                .horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), control)
+                        .response
+                        .rect
+                        .width()
+                })
+                .inner;
+            ui.add_space(t.m.space.xs);
+            used
+        })
+        .inner
+    };
+    if known.is_none_or(|w| (w - used).abs() > 0.5) {
+        ui.data_mut(|d| d.insert_temp(id, used));
+        ui.ctx().request_repaint();
+    }
 }
 
 /// A segmented control over the allowed values of a setting; sends `set_setting`.
@@ -491,25 +557,25 @@ fn keys(
         ui::caption(ui, t, title);
         ui.add_space(t.m.space.xs);
         for (name, keys) in names {
-            ui.horizontal(|ui| {
-                ui.set_min_height(t.m.rows.palette);
-                ui.vertical(|ui| {
-                    ui.label(ui::text(
-                        &t.type_scale.body_md,
-                        app_front::i18n::title(name),
-                        t.text_strong,
-                    ));
+            let title = app_front::i18n::title(name);
+            split(
+                ui,
+                t,
+                title,
+                t.m.rows.palette,
+                |ui| {
+                    ui.label(ui::text(&t.type_scale.body_md, title, t.text_strong));
                     ui.label(ui::text(
                         &t.type_scale.body_sm,
                         app_front::i18n::help(name),
                         t.text_muted,
                     ));
-                });
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                },
+                |ui| {
                     let change =
                         ui::text(&t.type_scale.label_md, t.s(Key::Change), t.text_secondary);
                     let response = ui::ghost(ui, t, change);
-                    let label = t.f(Key::ChangeKeysOf, &[("name", app_front::i18n::title(name))]);
+                    let label = t.f(Key::ChangeKeysOf, &[("name", title)]);
                     response.widget_info(|| {
                         egui::WidgetInfo::labeled(egui::Role::Button, true, &label)
                     });
@@ -522,8 +588,8 @@ fn keys(
                     for key in keys.iter().rev() {
                         ui::kbd(ui, t, key);
                     }
-                });
-            });
+                },
+            );
             ui::divider(ui, t);
         }
         ui.add_space(t.m.space.md);
@@ -717,5 +783,43 @@ fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
         egui::CollapsingHeader::new(name).show(ui, |ui| {
             ui.label(ui::text(&t.type_scale.body_sm, text, t.text_secondary));
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui_kittest::Harness;
+    use egui_kittest::kittest::Queryable;
+
+    /// MISC-38: a row keeps its control beside the title when both fit, and moves it below the
+    /// title, inside the page, when they do not.
+    #[test]
+    fn a_rows_control_wraps_below_the_title_when_narrow() {
+        for (width, narrow) in [(600.0, false), (300.0, true)] {
+            let mut h = Harness::builder()
+                .with_size(egui::vec2(800.0, 400.0))
+                .build_ui(move |ui| {
+                    let t = crate::theme::tokens(ui.ctx());
+                    ui.set_max_width(width);
+                    split(
+                        ui,
+                        &t,
+                        "row",
+                        0.0,
+                        |ui| {
+                            ui.label("Title");
+                        },
+                        |ui| {
+                            ui.add_sized([200.0, 20.0], egui::Button::new("Control"));
+                        },
+                    );
+                });
+            h.run();
+            let title = h.get_by_label("Title").rect();
+            let control = h.get_by_label("Control").rect();
+            assert_eq!(control.min.y >= title.max.y, narrow, "{width}: {control:?}");
+            assert!(control.max.x <= title.min.x + width, "{width}: {control:?}");
+        }
     }
 }
