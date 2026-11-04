@@ -28,6 +28,8 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::CreateFolder => "Nouveau dossier",
         CommandName::RenameFolder => "Renommer le dossier",
         CommandName::DeleteFolder => "Supprimer le dossier",
+        CommandName::EmptyTrash => "Vider la corbeille",
+        CommandName::EmptyJunk => "Vider les indésirables",
         CommandName::SetDraftFrom => "Envoyer ce brouillon depuis…",
         CommandName::RemoveAccount => "Supprimer le compte",
         CommandName::SyncNow => "Synchroniser",
@@ -61,6 +63,8 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::UnpinThreads => "Détacher",
         CommandName::ArchiveThreads => "Archiver",
         CommandName::TrashThreads => "Mettre à la corbeille",
+        CommandName::MarkJunk => "Signaler comme indésirable",
+        CommandName::MarkNotJunk => "Pas indésirable",
         CommandName::MoveThreads => "Déplacer vers…",
         CommandName::ListPendingOps => "Afficher les modifications en attente",
         CommandName::RetryPendingOps => "Réessayer les modifications en attente",
@@ -143,6 +147,12 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
             "Renommer ou déplacer un dossier sur le serveur, avec ses sous-dossiers."
         }
         CommandName::DeleteFolder => "Supprimer un dossier du serveur, avec tous ses messages.",
+        CommandName::EmptyTrash => {
+            "Supprimer définitivement tous les messages de la corbeille d’un compte, aussi sur le serveur."
+        }
+        CommandName::EmptyJunk => {
+            "Supprimer définitivement tous les messages indésirables d’un compte, aussi sur le serveur."
+        }
         CommandName::SetDraftFrom => "Choisir l’adresse d’envoi d’un brouillon.",
         CommandName::RemoveAccount => "Retirer un compte et effacer son mot de passe du trousseau.",
         CommandName::SyncNow => {
@@ -202,6 +212,8 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         CommandName::UnpinThreads => "Détacher des discussions ou des messages.",
         CommandName::ArchiveThreads => "Archiver des discussions ou des messages.",
         CommandName::TrashThreads => "Mettre des discussions ou des messages à la corbeille.",
+        CommandName::MarkJunk => "Déplacer des discussions ou des messages dans les indésirables.",
+        CommandName::MarkNotJunk => "Remettre des indésirables dans la boîte de réception.",
         CommandName::MoveThreads => {
             "Déplacer des discussions ou des messages vers un autre dossier du même compte."
         }

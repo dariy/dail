@@ -814,6 +814,22 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
 - [ ] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
   a list of implemented locales by display name, not a raw string; the `language` command stays
   `set_setting { key: "language", value: <0|1|2> }`)
+- [x] MISC-37 (S) [gui]: list and reader toolbars as icon buttons with tooltips that fit small windows; the
+  conversation navigation (up/down buttons, "n of N") leaves the desktop reader
+- [x] MISC-38 (S) [gui]: settings rows wrap their control to a new line below the title and detail when the
+  window is too narrow for both, so no control goes off the screen
+- [x] MISC-39 (M) [gui] [cli] [xtask] [ios] [ci]: the dail icon on the desktop window (`with_icon`), in `dail.exe`
+  and the MSI, and as the iOS `AppIcon`; PNG and ICO renderings of `packaging/linux/dail.svg` committed, regenerated
+  by `cargo xtask icons` and an `icons.yml` workflow that runs only when the SVG changes
+- [x] MISC-40 (S) [gui]: the message list's hover actions (move to trash, archive, star, read, pin) run on a
+  pointer click; before, the icons vanished from the frame of the click (bug)
+- [x] MISC-41 (M) [core] [sync] [front] [gui] [tui]: "Empty Trash" in the Trash folder: `Destructive`
+  `empty_trash { account, confirm }` that expunges every Trash message on the server too, after a confirmation with
+  the count
+- [x] MISC-42 (M) [core] [sync] [front] [gui] [tui]: "Junk" / "Not junk" buttons: `mark_junk` / `mark_not_junk`
+  `Mutation`s that move messages to the account's Junk role or back to the inbox and set `$Junk` / `$NotJunk`; undoable
+- [x] MISC-43 (S) [core] [front] [gui]: "Empty Junk" in the Junk folder: `Destructive` `empty_junk { account, confirm }`,
+  the sibling of `empty_trash` (same `empty_mailbox` op), after a confirmation with the count
 
 ### T — TUI device check (Wave 1.5, T5)
 
@@ -971,6 +987,45 @@ text ships in English and French.
 
 ---
 
+## Wave 12 — Settings on the server: "set it once, every device follows"
+
+Theme, preferences and sorting rules live in the mail account itself, in a `dail/Settings` folder, and sorting rules run
+in every dail instance (ADR 0015). It starts after the Android launch (Wave 11). All new text ships in English and French.
+
+**Exit criteria**
+- A theme or rule changed on the desktop appears on Android and in the TUI after their next sync, on Gmail and Hostinger.
+- A rule sorts new mail the same way whichever device fetches it, and its actions can be undone.
+- Agents can list, propose and save rules over MCP; pushing settings and choosing the settings account stay user-only.
+
+### A — The document
+- [ ] SET-1 (M) [core][io]: `SyncedSettings` and `Rule` types, the pure field/rule merge with tombstones (proptest),
+  JSON schema and a golden document
+- [ ] SET-2 (M) [core][sync][tk]: `pull_settings` / `push_settings` commands and the `ReadSettingsBlob` /
+  `WriteSettingsBlob` effects over the `dail/Settings` folder (APPEND, newest UID wins, old copies expunged); pull on
+  connect and on IDLE change; the fake IMAP implements the folder; the folder is hidden from mailbox lists
+- [ ] SET-3 (S) [core][front]: choose the settings account per profile (`UserOnly`); validation errors and the 256 KiB cap
+  surface in state with ERR codes
+
+### B — Rules
+- [ ] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
+  `EnvelopesFetched`; `save_rule`, `delete_rule`, `enable_rule`, `apply_rules { mailbox }`; undo and replay fixtures
+- [ ] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
+  message* in the palette
+- [ ] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
+
+### C — Theme and preferences
+- [ ] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only
+  settings listed in ARCHITECTURE
+
+### D — Server-side execution
+- [ ] SET-8 (S) [sync]: a `ProviderPreset` field for ManageSieve (Hostinger and Gmail: none, probed 2026-11-04), so
+  that self-hosted Dovecot servers can turn it on
+- [ ] SET-9 (M) [io][sync]: compile rules to Sieve and upload over ManageSieve where the preset says it exists; rules
+  Sieve cannot express are marked client-only
+- Gmail filter export waits for Gmail OAuth2 (Wave 11, *After launch*, item 6)
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
@@ -984,7 +1039,7 @@ text ships in English and French.
   `<<`/`>>` without recursion (`vendor/README.md`, ADR 0012)
 
 **Automation (ArtCraft dividends)**
-- Rules engine: predicate + stored command batch, run on `EnvelopesFetched` (a server-side-filter alternative)
+- Rules engine: Wave 12 (ADR 0015)
 - Macros: record a slice of the command log, replay with parameters; bind to keys/palette
 - Snooze, scheduled send, follow-up reminders (all `Ctx`-timed, deterministic)
 - Templates/snippets with variables

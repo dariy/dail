@@ -784,6 +784,24 @@ impl Engine {
                 ctx,
                 receipt,
             ),
+            Command::MarkJunk { ids, messages } => self.move_messages(
+                moves::MoveRequest {
+                    kind: moves::MoveKind::Junk,
+                    threads: ids,
+                    messages,
+                },
+                ctx,
+                receipt,
+            ),
+            Command::MarkNotJunk { ids, messages } => self.move_messages(
+                moves::MoveRequest {
+                    kind: moves::MoveKind::NotJunk,
+                    threads: ids,
+                    messages,
+                },
+                ctx,
+                receipt,
+            ),
             Command::ListPendingOps { account } => {
                 self.list_pending_ops(account, receipt).map(Applied::plain)
             }
@@ -933,6 +951,12 @@ impl Engine {
             Command::DeleteFolder { id, confirm } => {
                 self.delete_folder(id, confirm, receipt).map(Applied::plain)
             }
+            Command::EmptyTrash { account, confirm } => self
+                .empty_folder(account, moves::MoveKind::Trash, confirm, ctx, receipt)
+                .map(Applied::plain),
+            Command::EmptyJunk { account, confirm } => self
+                .empty_folder(account, moves::MoveKind::Junk, confirm, ctx, receipt)
+                .map(Applied::plain),
             Command::MarkMailboxRead { id } => self.mark_mailbox_read(id, ctx, receipt),
             Command::ToggleSidebar {} => Ok(Applied::plain(self.toggle_sidebar(receipt))),
             Command::GetView {} => Ok(Applied::plain(self.get_view(receipt))),

@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -43,6 +43,13 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-34 | Fix the `libdail.rlib` output filename collision | S | app-android, app-ios, xtask, android/, ios/ | 2026-11-01 |
 | MISC-35 | Stable, translation-independent error codes | M | app-core, app-io, app-sync, app-mcp, app-cli, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 | MISC-36 | Reply from any connected account; check the docked reply layout on Linux | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui, app-mobile, android/ | 2026-11-02 |
+| MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
+| MISC-38 | Desktop: settings rows wrap their control below the title in narrow windows | S | app-gui | 2026-11-04 |
+| MISC-39 | App icon on every platform: desktop window, Windows executable, iOS | M | app-gui, app-cli, xtask, packaging/, ios/, .github/ | 2026-11-04 |
+| MISC-40 | Desktop: the message list's move-to-trash button does nothing | S | app-gui (maybe app-core, app-sync) | 2026-11-04 |
+| MISC-41 | "Empty Trash" button in the Trash folder | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
+| MISC-42 | "Junk" / "Not junk" buttons: move messages between the inbox and Junk | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
+| MISC-43 | "Empty Junk" button in the Junk folder | S | app-core, app-front, app-gui | 2026-11-04 |
 
 ## Details
 
@@ -712,3 +719,135 @@ height); reproduce it first, then fix what is found.
   (Wave 11).
 - **Open questions:** should the threading headers and the quote stay when the account changes? (Default: yes, the
   reply stays a reply, and only the sender changes.)
+
+### MISC-37 — Desktop: list and reader toolbars as icon buttons that fit small windows
+
+Bug on the desktop GUI: in a small window, the control buttons of the message list pane and of the message content
+(reader) pane overlap other controls. *Mark all as read* is pinned to the right edge (`Layout::right_to_left` in
+`app-gui/src/list.rs` `toolbar`), while the other buttons are not.
+
+- List toolbar: show the buttons (*Mark all as read*, *Refresh*, and the others there) as icon buttons with a tooltip
+  name, laid out in one flow with the rest, so nothing overlaps when the pane is narrow.
+- Reader toolbar (`app-gui/src/reader.rs` `toolbar`): the same. *Reply*, *Reply all* and *Forward* become icon buttons
+  whose tooltip carries the name and the key (`R`, `A`, `F`), like the other icon buttons there.
+- Remove the conversation navigation entirely: the up and down buttons and the "n of N" label. The user finds it
+  useless on desktop; `j`/`k` and the palette still move between conversations.
+
+- **Commands:** none. Only the buttons go; `open_thread` and the next/previous keys stay.
+- **Touches:** `app-gui` only (`list.rs`, `reader.rs`, `ui` widgets, the gallery). The `NOfM` and
+  `NextConversation` strings stay in `app-front`'s `i18n` table: `app-mobile`'s reader still uses them.
+- **Open questions:** none.
+
+### MISC-38 — Desktop: settings rows wrap their control below the title in narrow windows
+
+The settings page does not collapse to small window sizes: each row puts its control on the right of the title
+and detail, so in a narrow window the controls go out of the screen. When a row has no room for both, the control
+must wrap to a new line below the title (and detail) instead.
+
+- **Commands:** none.
+- **Touches:** `app-gui` only (`settings.rs`: the shared `row` helper with its `right_to_left` control, and the
+  other right-aligned rows in that file).
+- **Open questions:** none.
+
+### MISC-39 — App icon on every platform: desktop window, Windows executable, iOS
+
+The desktop window shows no dail icon: `app-gui/src/lib.rs` `run` builds its `ViewportBuilder` without
+`with_icon`, so the title bar, taskbar and Alt-Tab show the system's default icon (on Linux the icon comes only from
+an installed `dail.desktop`, which a bare `cargo run` or the tarball does not have). Give the window the dail icon,
+then check the other platforms and add it where it is absent.
+
+State found on 2026-11-04:
+- **Desktop window (egui, Linux and Windows):** absent. Set `with_icon` from an icon embedded in the binary,
+  rendered from `packaging/linux/dail.svg` (same artwork as `packaging/store/icon.svg`).
+- **Windows `dail.exe`:** absent. `app-cli/build.rs` embeds only `dail.manifest`, no `.ico` resource, so Explorer,
+  the Start menu and the MSI (`packaging/windows/dail.wxs`, no `Icon`/`ARPPRODUCTICON`) show a generic icon. The
+  resource must be added without a C toolchain (AGENTS.md §5: no `cc`; e.g. a prebuilt `.res` passed to the linker,
+  as the manifest is).
+- **Linux packaging:** present (`dail.desktop` `Icon=dail`, `dail.svg` in the tarball, `.deb` and AppImage).
+- **Android:** present (adaptive `ic_launcher`, `res/mipmap-anydpi`).
+- **iOS:** absent. `ios/` has no asset catalog and `project.yml` sets no `AppIcon`; the App Store requires one.
+
+- **Commands:** none.
+- **Touches:** `app-gui` (window icon), `app-cli` (`build.rs`, Windows resource), `xtask` (`icons`), `packaging/`
+  (`.ico`, PNG renderings, `dail.wxs`), `ios/` (`Assets.xcassets/AppIcon`, `project.yml`), `.github/workflows/`.
+- **Assets:** the PNG and ICO renderings are committed to the repo, not generated at build time (decided by the user,
+  2026-11-04: the output never changes, so regenerating it only wastes build time).
+- **Regeneration is automated, not part of the build.** `cargo xtask icons` renders every PNG and the ICO from
+  `packaging/linux/dail.svg` in pure Rust (e.g. `resvg` for the PNGs, `ico` for the ICO; xtask only, nothing ships).
+  A GitHub workflow (`.github/workflows/icons.yml`) that runs only when the SVG changes (`paths:` filter) runs it and
+  commits the changed files to the branch. The build and `cargo xtask verify` never run it. This runs only a few
+  times in the life of the project.
+- **Open questions:** none.
+
+### MISC-40 — Desktop: the message list's move-to-trash button does nothing
+
+Bug reported by the user: the "move to trash" button in the desktop message list does not work. Clicking it should
+move the thread(s) to Trash, as `trash_threads` does from the palette and the CLI, with the usual undo.
+
+Seen in the code on 2026-11-04: the list pushes `Command::TrashThreads { ids, messages: [] }` from the row's hover
+icon and context menu (`row_actions`, `app-gui/src/list.rs`) and from the bulk bar of checked threads, so the fault
+is in how the click reaches the frame queue, or in the engine or runtime (e.g. the trash mailbox not being resolved
+for the account).
+
+- **Commands:** none (existing `trash_threads`).
+- **Touches:** `app-gui` (`list.rs`); `app-core` / `app-sync` if the command itself fails.
+- **Cause (found 2026-11-04):** the row's hover icon, on every account. The row drew its hover actions only while
+  `response.hovered()`, but with the pointer on an icon the icon hovers, not the row (it is on top), so the icons
+  were not drawn in the frame of the click and the click was lost. Every hover action (archive, star, read, pin) had
+  the same fault; the context menu, the bulk bar and the palette were not affected. Fixed with
+  `contains_pointer()`; `app-gui` test `a_pointer_click_on_a_hover_action_runs_it` clicks through real pointer events.
+
+### MISC-41 — "Empty Trash" button in the Trash folder
+
+The user asked for a "clear trash" button in the Trash folder. When Trash is the open mailbox, the list toolbar shows
+"Empty Trash". It deletes every message in that account's Trash permanently, on the server too, after a confirmation
+dialog that gives the number of messages. This is the "Empty Trash" extra of UX-7 (`docs/requests/2026-10-21.md`),
+which was never scheduled.
+
+- **Commands:** new `Destructive` `empty_trash { account: AccountId, confirm: bool }` (not undoable; MCP
+  `destructiveHint`; refused without `confirm: true`), modelled on `delete_folder`. Agent access: allowed. The command
+  deletes data but sends nothing off the machine (AGENTS.md §4). Locally the Trash messages and the threads it leaves
+  empty are dropped. On the server a `PendingOp` runs `UID STORE +FLAGS (\Deleted)` and `UID EXPUNGE` on the Trash
+  folder (Gmail: `[Gmail]/Trash`). It covers uncached messages too: the op takes the UIDs from a `UID SEARCH ALL` and
+  expunges only those, so mail that arrives during the op stays. The receipt gives the count.
+- **Touches:** `app-core` (command, spec, engine, replay fixture), `app-sync` (effect), `app-testkit` (fake
+  transport), `app-front` (the confirmation prompt), `app-gui` and `app-tui` (button in the Trash folder; text in
+  English and French).
+- **Decided (2026-11-04):** Trash only, as scheduled; an "Empty Junk" would be a separate request. The GUI button is
+  a text button with the delete icon (no new glyph in the icon subset). A message whose move to Trash has not
+  reached the server yet stays until the op (queued after that move) has run.
+
+### MISC-42 — "Junk" / "Not junk" buttons: move messages between the inbox and Junk
+
+The user asked for "junk" / "not junk" buttons that move a message between the inbox and Junk. Outside Junk, the
+list and reader toolbars (and the row context menu) show "Junk". In the Junk folder they show "Not junk", which moves
+the message back to the inbox. Today this takes `move_threads` with a folder ID picked by hand.
+
+- **Commands:** new `Mutation`s `mark_junk { ids, messages }` and `mark_not_junk { ids, messages }`, with the same
+  `ids`/`messages` shape as `trash_threads`. Undoable. Agent access: allowed. Each resolves the account's Junk role
+  (`MailboxRole::Junk`; Gmail `[Gmail]/Spam`) or inbox through `ProviderPreset`, with no `if gmail` branch. The
+  remote op moves the messages and sets the RFC 5788 keywords `$Junk` / `$NotJunk` (removing the other one), so the
+  server's filter can learn from them. An account without a Junk folder gets a clear error, not a new folder.
+- **Touches:** `app-core` (commands, specs, engine, replay fixture), `app-sync` (move plus keyword store),
+  `app-testkit`, `app-front` (which button a folder shows), `app-gui` and `app-tui` (buttons, keys; text in English
+  and French).
+- **Decided (2026-11-04):** key `!` for both, like Gmail; each command is available only where it applies
+  (`mark_not_junk` in a Junk folder), so the key does the right one. The keywords are stored on the source UIDs before
+  the move, so they travel with the message; undo moves the messages back and leaves the keyword. The GUI uses the
+  existing `report` and `inbox` glyphs. Whether Hostinger's filter learns from `$Junk` is not known; the move happens
+  either way.
+
+### MISC-43 — "Empty Junk" button in the Junk folder
+
+The user asked for "Empty Junk" next to MISC-41's "Empty Trash" (UX-7 lists both). When Junk is the open mailbox, the
+list toolbar shows "Empty Junk". It deletes every message in that account's Junk permanently, on the server too, after
+a confirmation dialog that gives the number of messages.
+
+- **Commands:** new `Destructive` `empty_junk { account: AccountId, confirm: bool }`, the sibling of `empty_trash`
+  (not undoable; MCP `destructiveHint`; refused without `confirm: true`; agents allowed). `empty_trash` stays as it
+  is: it is public API already, so the pair is two commands rather than one `empty_mailbox`. The Junk folder is the
+  one `mark_junk` uses (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`). Same `empty_mailbox` op
+  and `ExpungeAll` step as MISC-41; no new runtime code.
+- **Touches:** `app-core` (command, spec, engine, replay fixture), `app-front` (the confirmation prompt), `app-gui`
+  (button in the Junk toolbar; text in English and French). The TUI gets it through the palette.
+- **Open questions:** none.

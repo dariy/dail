@@ -396,3 +396,179 @@ fn the_list_groups_rows_by_date() {
         .count();
     assert!(found >= 1, "no date group header");
 }
+
+/// MISC-40: a pointer click on a row's hover action runs it. The pointer on the icon is over
+/// the row's rect but not "hovering" the row (the icon is on top), and the icons must still be
+/// drawn in that frame or the click is lost.
+#[test]
+fn a_pointer_click_on_a_hover_action_runs_it() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    let ids = vec![threads[0]];
+    let expected = [
+        (
+            "Trash conversation",
+            Command::TrashThreads {
+                ids: ids.clone(),
+                messages: Vec::new(),
+            },
+        ),
+        (
+            "Archive conversation",
+            Command::ArchiveThreads {
+                ids: ids.clone(),
+                messages: Vec::new(),
+            },
+        ),
+    ];
+    let pointer = |h: &mut egui_kittest::Harness<'_, _>, event: egui::Event| {
+        h.input_mut().events.push(event);
+        h.step();
+    };
+    for (label, cmd) in expected {
+        h.state_mut().out.clear();
+        let row = h.get_by_label("Lunch?").rect().center();
+        pointer(&mut h, egui::Event::PointerMoved(row));
+        h.run();
+        let at = h
+            .get(By::new().role(Role::Button).label(label))
+            .rect()
+            .center();
+        pointer(&mut h, egui::Event::PointerMoved(at));
+        for pressed in [true, false] {
+            pointer(
+                &mut h,
+                egui::Event::PointerButton {
+                    pos: at,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            );
+        }
+        h.run();
+        assert_eq!(h.state_mut().take(), [cmd], "{label}");
+    }
+}
+
+/// MISC-41: the open Trash offers *Empty Trash*, which asks first with the count.
+#[test]
+fn the_trash_offers_to_empty_itself_after_a_confirmation() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut trash = state.mailboxes[&inbox].clone();
+    trash.id = app_core::IdGen::new(77).next_id();
+    trash.path = "Trash".into();
+    trash.role = Some(MailboxRole::Trash);
+    trash.total = 1;
+    let (id, account) = (trash.id, trash.account);
+    state.mailboxes.insert(id, trash);
+    let message = state.threads[&threads[0]].messages[0];
+    state.messages.get_mut(&message).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    assert!(h.query_by_label("Empty Trash").is_none(), "only in Trash");
+    apply(&mut h, Command::OpenMailbox { id });
+    h.state_mut().out.clear();
+    h.get_by_label("Empty Trash").click();
+    h.run();
+    let early = h.state_mut().pump();
+    h.run();
+    assert!(
+        !early
+            .iter()
+            .any(|c| matches!(c, Command::EmptyTrash { .. })),
+        "{early:?}"
+    );
+    h.get_by_label_contains("Empty Trash (1)").click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take()[0],
+        Command::EmptyTrash {
+            account,
+            confirm: true
+        }
+    );
+}
+
+/// MISC-42: rows offer *Junk*; in a Junk folder rows and the reader offer *Not junk*.
+#[test]
+fn rows_and_the_reader_offer_junk_or_not_junk_by_folder() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut junk = state.mailboxes[&inbox].clone();
+    junk.id = app_core::IdGen::new(78).next_id();
+    junk.path = "Junk".into();
+    junk.role = Some(MailboxRole::Junk);
+    let id = junk.id;
+    state.mailboxes.insert(id, junk);
+    let spam = state.threads[&threads[1]].messages[0];
+    state.messages.get_mut(&spam).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::SelectThreads {
+            ids: vec![threads[0]],
+        },
+    );
+    apply(&mut h, Command::FocusPane { pane: Pane::List });
+    h.state_mut().out.clear();
+    h.get(By::new().role(Role::Button).label("Junk conversation"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::MarkJunk {
+            ids: vec![threads[0]],
+            messages: Vec::new()
+        }]
+    );
+    apply(&mut h, Command::OpenMailbox { id });
+    apply(&mut h, Command::OpenThread { id: threads[1] });
+    h.state_mut().out.clear();
+    assert!(h.query_by_label("Junk (!)").is_none());
+    h.get_by_label("Not junk (!)").click();
+    h.run();
+    assert!(h.state_mut().take().contains(&Command::MarkNotJunk {
+        ids: vec![threads[1]],
+        messages: Vec::new()
+    }));
+}
+
+/// MISC-43: the open Junk folder offers *Empty Junk* after a confirmation, the inbox does not.
+#[test]
+fn the_junk_folder_offers_to_empty_itself_after_a_confirmation() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut junk = state.mailboxes[&inbox].clone();
+    junk.id = app_core::IdGen::new(78).next_id();
+    junk.path = "Junk".into();
+    junk.role = Some(MailboxRole::Junk);
+    junk.total = 1;
+    let (id, account) = (junk.id, junk.account);
+    state.mailboxes.insert(id, junk);
+    let message = state.threads[&threads[0]].messages[0];
+    state.messages.get_mut(&message).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    assert!(h.query_by_label("Empty Junk").is_none(), "only in Junk");
+    apply(&mut h, Command::OpenMailbox { id });
+    assert!(h.query_by_label("Empty Trash").is_none());
+    h.state_mut().out.clear();
+    h.get_by_label("Empty Junk").click();
+    h.run();
+    h.state_mut().pump();
+    h.run();
+    h.get_by_label_contains("Empty Junk (1)").click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take()[0],
+        Command::EmptyJunk {
+            account,
+            confirm: true
+        }
+    );
+}

@@ -446,6 +446,8 @@ const PREFIXES: &[(&str, &str)] = &[
     ("Mark unread ", "Marquer comme non lu "),
     ("Mark read ", "Marquer comme lu "),
     ("Move to Trash ", "Mettre à la corbeille "),
+    ("Mark as junk ", "Signaler comme indésirable "),
+    ("Not junk ", "Pas indésirable "),
     ("Archive ", "Archiver "),
     ("Move ", "Déplacer "),
     ("Unstar ", "Ne plus suivre "),

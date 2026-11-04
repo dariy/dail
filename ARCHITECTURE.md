@@ -245,11 +245,14 @@ pub struct AttachmentRef { path /* absolute */, name /* last path component */,
 pub struct PendingOp{ id, account, op: RemoteOp, state: OpState /* Queued|Running|Failed */, attempts: u32,
                       last_error: Option<String>, created_ms, next_attempt_ms: Option<i64>, awaiting_sync: bool }
 pub enum  RemoteOp  { SetFlag { flag: FlagKind /* Seen|Flagged */, value: bool, messages: Vec<MessageId> },
-                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> },
-                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */ }
+                      Move { to: MailboxId, messages, junk: Option<bool> /* MISC-42 */ }, Copy { to, copies: Vec<CopyRef { source, copy }> },
+                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */,
+                      EmptyMailbox { mailbox } /* expunge all on the server, MISC-41, MISC-43 */ }
 pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // resolved when the op starts
                       Move { path, uid_validity, uids, to: String, create }, Copy { … same … },
-                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */ }
+                      Junk { path, uid_validity, uids, junk } /* $Junk / $NotJunk before a move */,
+                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */,
+                      ExpungeAll { path, uid_validity } /* UID SEARCH ALL, STORE \Deleted, UID EXPUNGE */ }
 ```
 
 Folder tree (UX-2): `app_front::mailbox::tree(state, account) -> Vec<FolderNode { key: FolderKey { account, path },
@@ -542,8 +545,8 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    the queue; an op that could not reach the server keeps retrying, so a long time offline never loses or fails triage. A successful sync step
    of the account (`MailboxesListed`, `EnvelopesFetched`) means the server is reachable again: waiting ops run at once. While an op is in the outbox, flags reported by `EnvelopesFetched`/`FlagsChanged` get the op's
    change applied on top, so a sync never flips a local change back. A session that starts from a snapshot re-queues ops that
-   were `running`. Server side: `UID STORE`, `UID MOVE` (fallback `COPY` + `STORE \Deleted` + `UID EXPUNGE`), `APPEND`.
-6. Moves (`archive_threads`, `trash_threads`, `move_threads`): an envelope's `mailbox`/`uid` always name its server location;
+   were `running`. Server side: `UID STORE`, `UID MOVE` (fallback `COPY` + `STORE \Deleted` + `UID EXPUNGE`), `APPEND`, and for `empty_trash` / `empty_junk` `UID SEARCH ALL` + `STORE \Deleted` + `UID EXPUNGE` (`ExpungeAll`).
+6. Moves (`archive_threads`, `trash_threads`, `move_threads`, `mark_junk`, `mark_not_junk`): an envelope's `mailbox`/`uid` always name its server location;
    a pending move only sets `moved_to`, and every listing (`list_threads`, `get_*`) uses `location()`. When the op succeeds
    the message becomes a *placeholder* in the target (`uid` 0, still shown where the user put it) and the engine fetches
    the target: the fetched envelope with the same `Message-ID` (or, without one, subject + date + size) is *located* — the
@@ -554,8 +557,8 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    after that sync are dropped. Moving out of a mailbox with the `all` role into anything but Trash/Junk is a *copy*
    (Gmail: add a label; All Mail keeps the message): a placeholder is created in the target and a `Copy` op queued.
    Sources per thread, grouping copies by `Message-ID`: archive takes copies shown in Inbox, Junk or role-less folders;
-   trash takes everything but Trash/All/Flagged; `move_threads` everything but Sent/Drafts/All/Flagged; if a message has
-   no such copy and none in the target, its All Mail copy is taken (trash, move). Named `messages` always move. Undo is
+   trash takes everything but Trash/All/Flagged; `move_threads` and `mark_junk` everything but Sent/Drafts/All/Flagged; `mark_not_junk` only Junk; if a message has
+   no such copy and none in the target, its All Mail copy is taken (trash, move, junk). Named `messages` always move. Undo is
    `move_threads{messages, to: <where they were shown>}` per source.
 7. Unsent ops are edited, not answered: an op is *unsent* while it is `queued` with `attempts == 0`. Setting a flag takes the
    message out of an unsent op that sets it the other way (no new op). Moving a message takes it out of an unsent move; if it
@@ -1020,9 +1023,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   one). The palette's *Expand/Collapse all messages* send them with no `ids`. Quoted text and signatures are folded
   behind *··· Show quoted text* / *··· Show signature* (`fold` blocks of documents, `app_front::fold::split` of plain
   text); opening a fold is presentation, like scrolling (`reader::Folds`, per message and kind), not a command.
-- **Reader** (UI-7): a 48 px toolbar outside the scroll area (*Reply* primary, *Reply all*, *Forward*; icon buttons
-  named with their keys for star, read, archive, trash and *Move…*, which opens the palette at its step; on the right
-  "n of N" with the previous and next conversation, as `k` and `j`, and close), the subject in `headline_xl`, a meta line
+- **Reader** (UI-7, MISC-37): a 48 px toolbar outside the scroll area, one wrapping flow of icon buttons named with
+  their keys (reply, reply all, forward; star, read, archive, trash and *Move…*, which opens the palette at its step;
+  close); no conversation navigation on desktop, `j`/`k` and the palette move between conversations), the subject in `headline_xl`, a meta line
   of chips (the mailbox when it is not the inbox, the message count, the account with several), then the messages:
   an expanded one is a card with an initials avatar, the sender in `headline_md`, "to …" and the date in mono; a
   collapsed one is a line with a small avatar, the sender (600 when unread), the first line of its text and its age.
@@ -1086,7 +1089,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   this month*, then *November 2023*, UTC days — as heading rows that take one row slot each, so `show_rows` stays
   uniform; the densities are `list_density`'s), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
-  *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
+  *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched) and *Mark all as read* as
+  icon buttons with tooltips, in the same wrapping flow (MISC-37)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
   clip, message count and the date in mono; then the subject), compact, 40 px on one line (the sender in a fixed
   column), and preview, 72 px on three lines (the snippet on the third). Cozy and compact rows put the newest message's
@@ -1831,6 +1835,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `create_folder` | Mutation (no history) | `account, path` (trimmed; no control characters, `*`, `%` or empty segments; not an existing path, compared without case) → `{mailbox, path, undoable: false}`; the mailbox is cached at once (the account's delimiter, never fetched) and `ManageFolder{account, imap, action: create{path}}` runs IMAP `CREATE`; agents allowed | UX-14 |
 | `rename_folder` | Mutation | `id, path` (the new full path; not the inbox, not into itself, not an existing path) → `{mailbox, from, to}`; the folder and its subfolders get their new paths in the cache, and pins, hidden folders and collapsed parents follow; `ManageFolder{rename{from, to}}` (IMAP `RENAME`); undo renames it back; agents allowed | UX-14 |
 | `delete_folder` | Destructive | `id, confirm` (not the inbox, not a folder with subfolders) → `{deleted, path, undoable: false}`; drops the mailbox and its cached mail, `ManageFolder{delete{path}}` (IMAP `DELETE`); agents allowed with `confirm` | UX-14 |
+| `empty_trash` | Destructive | `account, confirm` → `{mailbox, removed, waiting, total, ops, undoable: false}`; drops the cached messages shown in the account's Trash (role `trash`, else the preset's `trash_mailbox`; error `error_007_no_mailbox_for_role` without one) and queues an `empty_mailbox{mailbox}` op whose `RemoteStep::ExpungeAll` runs `UID SEARCH ALL`, `UID STORE +FLAGS.SILENT (\Deleted)` and `UID EXPUNGE` of the UIDs found (uncached mail too, nothing that arrives later); messages whose move to Trash is still pending stay (`waiting`) until the op, which runs after their move, has succeeded; Trash is fetched again afterwards; no default key; the palette and the GUI's *Empty Trash* button in the Trash toolbar confirm with the count (`palette::empty_trash`); agents allowed with `confirm` | MISC-41 |
+| `empty_junk` | Destructive | `account, confirm` → as `empty_trash`, for the account's Junk folder (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`, the one `mark_junk` uses; error `error_007_no_mailbox_for_role` without one): the same `empty_mailbox` op and `ExpungeAll` step; the palette and the GUI's *Empty Junk* button in the Junk toolbar confirm with the count (`palette::empty_folder`); agents allowed with `confirm` | MISC-43 |
 | `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
@@ -1855,6 +1861,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
 | `pin_threads` / `unpin_threads` | Mutation | same as `star` / `unstar` (pinning a thread marks its newest message, unpinning all) → `{changed, ops, cancelled}`; `Flags.pinned`, the IMAP keyword `$Pinned` (`FlagKind::Pinned`, a `set_flag` op), so the pin syncs like a star; pinned threads come first in every list (`listing::sort_newest_first`: pinned, then newest; `list_threads` has `pinned`); `Shift+P` toggles; agents allowed. Where the server keeps no keywords (a `SELECT` whose `PERMANENTFLAGS` has neither `\\*` nor `$Pinned`) the runtime skips the keyword `STORE` and reports `KeywordsRefused{account, path}` before the op's success: the mailbox gets `custom_keywords: false`, its pins stay on the device (server flag merges keep them, no store is queued) | MISC-4 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `error_007_no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
+| `mark_junk` / `mark_not_junk` | Mutation | `ids?, messages?` → the move receipt `{moved, copied, cancelled, ops, to}`; `mark_junk` moves to the account's Junk (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`; error `error_007_no_mailbox_for_role` without one, no folder is created) and takes what `move_threads` takes; `mark_not_junk` moves only copies shown in Junk (and named `messages`) to the inbox; the op is a `move` with `junk: true/false`, which stores `$Junk` / `$NotJunk` (and removes the other) on the source UIDs before the move (`RemoteStep::Junk`, skipped where the mailbox keeps no keywords); undo (*Mark as junk (n messages)*, *Not junk (n messages)*) moves them back, the keyword stays; key `!` for both, each available only where it applies (`mark_not_junk` in a Junk folder); the GUI's rows, bulk bar and reader show *Junk* or *Not junk* by folder (`app_front::mailbox::in_junk`); agents allowed | MISC-42 |
 | `move_threads` | Mutation | `ids?, messages?, to: MailboxId` (same account) | M3 |
 | `list_pending_ops` | Query | `account?` → `{ops: [{id, account, action: set_flag\|move\|copy, detail, state, attempts, last_error, next_attempt_ms, created_ms}]}`, oldest first | M3 |
 | `retry_pending_ops` / `discard_pending_op` | Mutation (no history) | `id?` / `id`. Retry: failed ops get one more attempt, waiting ops run now → `{retried}`. Discard (not a running op): drops the op, reverts its local change where no later op touches it (flag back, `moved_to` cleared, copy placeholder deleted) and re-fetches the mailboxes involved → `{discarded, reverted, undoable: false}` | M3 |
@@ -1960,7 +1967,9 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
 `scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256; it needs
 `desktop-file-validate` from `desktop-file-utils`) and
-`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
+`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). The icons (desktop
+window, `dail.exe` resource, MSI, iOS `AppIcon`) are committed renderings of `linux/dail.svg` from `cargo xtask icons`,
+re-rendered by `icons.yml` only when the SVG changes (MISC-39). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the

@@ -29,7 +29,8 @@ Remove-Item -Recurse -Force $stage
 # MSI (Wave 7 R1): packaging/windows/dail.wxs, a per-machine install with a Start menu shortcut.
 $msi = Join-Path $dist "dail-$version-x86_64.msi"
 if (Test-Path $msi) { Remove-Item -Force $msi }
-wix build -arch x64 -d "Version=$version" -d "Exe=$(Join-Path $root 'target/release/dail.exe')" -o $msi `
+wix build -arch x64 -d "Version=$version" -d "Exe=$(Join-Path $root 'target/release/dail.exe')" `
+    -d "Icon=$(Join-Path $root 'packaging/windows/dail.ico')" -o $msi `
     (Join-Path $root 'packaging/windows/dail.wxs')
 Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $dist "dail-$version-x86_64.wixpdb")
 

@@ -181,6 +181,9 @@ android-native-keyring-store = "1"
 # security-framework, which links Security.framework and compiles no C). keyring's `v1` Entry refuses iOS too.
 apple-native-keyring-store = { version = "1", features = ["protected"] }
 ndk-context = "0.1"
+# xtask only (`cargo xtask icons`, MISC-39): renders packaging/linux/dail.svg to PNG; nothing that ships links it.
+resvg = { version = "0.49", default-features = false }
+png = "0.18" # xtask only: the iOS icon as RGB without alpha (already in the tree via tiny-skia)
 anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 
 # --- Testing ---

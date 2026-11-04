@@ -359,6 +359,18 @@ strings! {
     TrashKey:
         "Trash (#)",
         "Corbeille (#)";
+    JunkKey:
+        "Junk (!)",
+        "Indésirable (!)";
+    NotJunkKey:
+        "Not junk (!)",
+        "Pas indésirable (!)";
+    MarkJunk:
+        "Junk",
+        "Indésirable";
+    NotJunk:
+        "Not junk",
+        "Pas indésirable";
     MoveKey:
         "Move… (V)",
         "Déplacer… (V)";
@@ -1670,6 +1682,33 @@ strings! {
     MarkAllUnreadMessagesReadUndoRestores:
         "Mark all {n} unread messages read? Undo restores only the cached ones.",
         "Marquer les {n} messages non lus comme lus ? L’annulation ne restaure que ceux en cache.";
+    EmptyTrashOfForever:
+        "Delete the {n} messages in the Trash of {email} forever? This cannot be undone.",
+        "Supprimer définitivement les {n} messages de la corbeille de {email} ? C’est irréversible.";
+    EmptyTrash:
+        "Empty Trash",
+        "Vider la corbeille";
+    EmptyTrashN:
+        "Empty Trash ({n})",
+        "Vider la corbeille ({n})";
+    EmptyTrashOfWhichAccount:
+        "Empty the Trash of which account?",
+        "Vider la corbeille de quel compte ?";
+    EmptyJunk:
+        "Empty Junk",
+        "Vider les indésirables";
+    EmptyJunkN:
+        "Empty Junk ({n})",
+        "Vider les indésirables ({n})";
+    EmptyJunkOfForever:
+        "Delete the {n} messages in the Junk folder of {email} forever? This cannot be undone.",
+        "Supprimer définitivement les {n} messages indésirables de {email} ? C’est irréversible.";
+    EmptyJunkOfWhichAccount:
+        "Empty the Junk folder of which account?",
+        "Vider les indésirables de quel compte ?";
+    EmptyMailboxOp:
+        "empty {mailbox}",
+        "vider {mailbox}";
     MarkMessagesRead:
         "Mark {n} messages read",
         "Marquer {n} messages comme lus";

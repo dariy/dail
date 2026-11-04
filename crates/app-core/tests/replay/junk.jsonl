@@ -1,0 +1,10 @@
+# mark_junk / mark_not_junk (MISC-42). Account seed 1, INBOX ..0002-..0, Junk ..0002-..1; the fetched thread is ..0003-..0.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Junk", "delimiter": "/", "special_use": "junk", "selectable": true}]}}}}
+{"t": 1700000002000, "seed": 55340232221128654848, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailbox": "00000000-0000-0002-0000-000000000000", "uid_validity": 1, "uid_next": 2, "total": 1, "unread": 1, "envelopes": [{"uid": 1, "message_id_hdr": "offer@x", "subject": "Offer", "date_ms": 1699000000000, "flags": {}}]}}}}
+{"t": 1700000003000, "seed": 73786976294838206464, "origin": "mcp", "input": {"command": {"cmd": "mark_junk", "args": {"ids": ["00000000-0000-0003-0000-000000000000"]}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000006000, "seed": 110680464442257309696, "origin": "mcp", "input": {"command": {"cmd": "mark_not_junk", "args": {"ids": ["00000000-0000-0003-0000-000000000000"]}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "mark_junk", "args": {}}}}
+{"t": 1700000008000, "origin": "gui", "input": {"command": {"cmd": "list_pending_ops", "args": {}}}}

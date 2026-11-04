@@ -83,8 +83,6 @@ pub struct ReaderIo<'a> {
     pub queue: &'a mut Vec<Request>,
     /// Requests outside the engine.
     pub externals: &'a mut Vec<External>,
-    /// The list's rows, for "n of N" and the up and down buttons.
-    pub rows: &'a [app_core::ThreadId],
     /// A palette step the toolbar asks for (*Move…*).
     pub ask: &'a mut Option<app_front::palette::Ask>,
     /// Scroll the conversation to its end this frame (a reply composer opened under it).
@@ -107,7 +105,6 @@ pub fn show(
         previews,
         queue,
         externals,
-        rows,
         ask,
         scroll_to_end,
     } = io;
@@ -135,7 +132,6 @@ pub fn show(
         state,
         thread: thread.id,
         messages: &messages,
-        rows,
     };
     if let Some(step) = toolbar(ui, t, &tool, queue) {
         *ask = Some(step);
@@ -173,7 +169,6 @@ pub fn show(
                         previews: &mut *previews,
                         queue: &mut *queue,
                         externals: &mut *externals,
-                        rows,
                         ask: &mut *ask,
                         scroll_to_end: false,
                     };
@@ -197,17 +192,19 @@ pub fn show(
         });
 }
 
+/// A toolbar answer: its icon, name, key and command.
+type Answer = (Icon, Key, &'static str, fn(MessageId) -> Command);
+
 /// What the toolbar acts on.
 struct Toolbar<'a> {
     state: &'a AppState,
     thread: app_core::ThreadId,
     messages: &'a [&'a Envelope],
-    rows: &'a [app_core::ThreadId],
 }
 
-/// The reader's toolbar (UI-7): *Reply* (primary), *Reply all*, *Forward*; icon buttons for star,
-/// read, archive, trash and move, named with their keys; "n of N" with up and down (what `k`
-/// and `j` do), and close. It wraps at large text scales. Returns a palette step to open.
+/// The reader's toolbar (UI-7, MISC-37): icon buttons for reply, reply all, forward, star, read,
+/// archive, trash, move and close, each named with its key. One flow that wraps in a narrow
+/// pane or at large text scales; `j` and `k` move between conversations. Returns a palette step to open.
 fn toolbar(
     ui: &mut Ui,
     t: &Tokens,
@@ -221,23 +218,30 @@ fn toolbar(
     ui::toolbar(ui, t, |ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));
         if let Some(message) = last {
-            if ui::primary(ui, t, t.s(Key::Reply), Some("R"), true) {
-                push(Command::Reply {
+            let icon_color = t.text_secondary;
+            let answers: [Answer; 3] = [
+                (Icon::Reply, Key::Reply, "R", |message| Command::Reply {
                     message,
                     body: None,
-                });
-            }
-            if ui::secondary_icon(ui, t, Icon::ReplyAll, t.s(Key::ReplyAll), Some("A"), true) {
-                push(Command::ReplyAll {
-                    message,
-                    body: None,
-                });
-            }
-            if ui::secondary_icon(ui, t, Icon::Forward, t.s(Key::Forward), Some("F"), true) {
-                push(Command::Forward {
-                    message,
-                    body: None,
-                });
+                }),
+                (Icon::ReplyAll, Key::ReplyAll, "A", |message| {
+                    Command::ReplyAll {
+                        message,
+                        body: None,
+                    }
+                }),
+                (Icon::Forward, Key::Forward, "F", |message| {
+                    Command::Forward {
+                        message,
+                        body: None,
+                    }
+                }),
+            ];
+            for (icon, name, key, command) in answers {
+                let label = format!("{} ({key})", t.s(name));
+                if ui::icon_button(ui, t, icon_color, icon, &label).clicked() {
+                    push(command(message));
+                }
             }
         }
         ui::vdivider(ui, t);
@@ -309,64 +313,24 @@ fn toolbar(
                 messages: Vec::new(),
             });
         }
+        let (junk_icon, junk_name) = if app_front::mailbox::in_junk(tool.state) {
+            (Icon::Inbox, t.s(Key::NotJunkKey))
+        } else {
+            (Icon::Report, t.s(Key::JunkKey))
+        };
+        if ui::icon_button(ui, t, icon_color, junk_icon, junk_name).clicked() {
+            push(app_front::mailbox::junk_command(tool.state, ids.clone()));
+        }
         if ui::icon_button(ui, t, icon_color, Icon::DriveFileMove, t.s(Key::MoveKey)).clicked()
             && let app_front::palette::Flow::Ask(step) =
                 app_front::palette::flow(app_core::CommandName::MoveThreads, tool.state)
         {
             ask = Some(step);
         }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui::icon_button(ui, t, icon_color, Icon::Close, t.s(Key::CloseEsc)).clicked() {
-                push(Command::CloseThread {});
-            }
-            let at = tool.rows.iter().position(|r| *r == tool.thread);
-            let next = at.and_then(|i| tool.rows.get(i + 1)).copied();
-            let prev = at
-                .and_then(|i| i.checked_sub(1))
-                .and_then(|i| tool.rows.get(i))
-                .copied();
-            ui.add_enabled_ui(next.is_some(), |ui| {
-                if ui::icon_button(
-                    ui,
-                    t,
-                    icon_color,
-                    Icon::ExpandMore,
-                    t.s(Key::NextConversation),
-                )
-                .clicked()
-                    && let Some(id) = next
-                {
-                    push(Command::OpenThread { id });
-                }
-            });
-            ui.add_enabled_ui(prev.is_some(), |ui| {
-                if ui::icon_button(
-                    ui,
-                    t,
-                    icon_color,
-                    Icon::ExpandLess,
-                    t.s(Key::PreviousConversation),
-                )
-                .clicked()
-                    && let Some(id) = prev
-                {
-                    push(Command::OpenThread { id });
-                }
-            });
-            if let Some(i) = at {
-                ui.label(ui::text(
-                    &t.type_scale.label_sm,
-                    t.f(
-                        Key::NOfM,
-                        &[
-                            ("n", &(i + 1).to_string()),
-                            ("m", &tool.rows.len().to_string()),
-                        ],
-                    ),
-                    t.text_muted,
-                ));
-            }
-        });
+        ui::vdivider(ui, t);
+        if ui::icon_button(ui, t, icon_color, Icon::Close, t.s(Key::CloseEsc)).clicked() {
+            push(Command::CloseThread {});
+        }
     });
     ask
 }

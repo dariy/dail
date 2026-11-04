@@ -257,6 +257,9 @@ pub struct PresetProfile {
     pub create_archive: bool,
     /// Mailbox that `trash` moves to (`None`: SPECIAL-USE `\Trash`).
     pub trash_mailbox: Option<&'static str>,
+    /// Mailbox that `mark_junk` moves to if no mailbox has the `junk` role (`None`: SPECIAL-USE
+    /// `\Junk` or a well-known name only).
+    pub junk_mailbox: Option<&'static str>,
     /// Server searches use Gmail's own query language (`X-GM-RAW`) instead of IMAP `SEARCH`
     /// criteria.
     pub raw_search: bool,
@@ -278,6 +281,7 @@ const HOSTINGER: PresetProfile = PresetProfile {
     archive_to_all: false,
     create_archive: true,
     trash_mailbox: None,
+    junk_mailbox: None,
     raw_search: false,
 };
 
@@ -297,6 +301,7 @@ const GMAIL: PresetProfile = PresetProfile {
     archive_to_all: true,
     create_archive: false,
     trash_mailbox: Some("[Gmail]/Trash"),
+    junk_mailbox: Some("[Gmail]/Spam"),
     raw_search: true,
 };
 
@@ -308,6 +313,7 @@ const CUSTOM: PresetProfile = PresetProfile {
     archive_to_all: false,
     create_archive: false,
     trash_mailbox: None,
+    junk_mailbox: None,
     raw_search: false,
 };
 

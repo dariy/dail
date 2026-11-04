@@ -48,6 +48,8 @@ targetTemplates:
     settings:
       base:
         INFOPLIST_KEY_CFBundleDisplayName: dail
+        # Dail/Assets.xcassets (a source of the target): one 1024 px icon, rendered by `cargo xtask icons` (MISC-39).
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # One Swift module name for both, so the tests `@testable import Dail` whichever they run over.
         PRODUCT_MODULE_NAME: Dail
 targets:

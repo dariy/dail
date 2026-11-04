@@ -30,6 +30,10 @@ pub(super) enum MoveKind {
     Archive,
     /// The account's Trash.
     Trash,
+    /// The account's Junk, with `$Junk` (`mark_junk`, MISC-42).
+    Junk,
+    /// Out of Junk to the inbox, with `$NotJunk` (`mark_not_junk`, MISC-42).
+    NotJunk,
     /// An explicit mailbox.
     To(MailboxId),
 }
@@ -56,6 +60,8 @@ impl MoveKind {
         match self {
             Self::Archive => "Archive",
             Self::Trash => "Move to Trash",
+            Self::Junk => "Mark as junk",
+            Self::NotJunk => "Not junk",
             Self::To(_) => "Move",
         }
     }
@@ -68,7 +74,7 @@ impl MoveKind {
                 role,
                 Some(MailboxRole::Trash | MailboxRole::All | MailboxRole::Flagged)
             ),
-            Self::To(_) => !matches!(
+            Self::To(_) | Self::Junk => !matches!(
                 role,
                 Some(
                     MailboxRole::Sent
@@ -77,12 +83,22 @@ impl MoveKind {
                         | MailboxRole::Flagged
                 )
             ),
+            Self::NotJunk => matches!(role, Some(MailboxRole::Junk)),
         }
     }
 
     /// Whether a message that is only in All Mail is taken from there.
     const fn falls_back_to_all(self) -> bool {
-        !matches!(self, Self::Archive)
+        !matches!(self, Self::Archive | Self::NotJunk)
+    }
+
+    /// The junk keyword the move sets (`RemoteOp::Move::junk`).
+    const fn junk(self) -> Option<bool> {
+        match self {
+            Self::Junk => Some(true),
+            Self::NotJunk => Some(false),
+            Self::Archive | Self::Trash | Self::To(_) => None,
+        }
     }
 }
 
@@ -216,7 +232,11 @@ impl Engine {
         for (account, to) in &resolved {
             let mut queued = Vec::new();
             if let Some(messages) = moves.shift_remove(account) {
-                queued.push(RemoteOp::Move { to: *to, messages });
+                queued.push(RemoteOp::Move {
+                    to: *to,
+                    messages,
+                    junk: request.kind.junk(),
+                });
             }
             if let Some(copies) = copies.shift_remove(account) {
                 queued.push(RemoteOp::Copy { to: *to, copies });
@@ -262,6 +282,116 @@ impl Engine {
         })
     }
 
+    /// `empty_folder` (MISC-41) and `empty_junk` (MISC-43): drops the cached messages shown in
+    /// the account's Trash (Junk) and queues an `empty_mailbox` op that expunges everything the
+    /// server has there when it runs. A message whose move there has not reached the server yet
+    /// stays until it has: the queue runs that move first, and the op's success drops it.
+    pub(super) fn empty_folder(
+        &mut self,
+        account: AccountId,
+        kind: MoveKind,
+        confirm: bool,
+        ctx: &Ctx,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        if !confirm {
+            return Err(CoreError::ConfirmationRequired {
+                command: match kind {
+                    MoveKind::Junk => "empty_junk",
+                    _ => "empty_folder",
+                }
+                .to_owned(),
+            });
+        }
+        if !self.state.accounts.contains_key(&account) {
+            return Err(not_found("account", account));
+        }
+        let folder = match self.resolve_target(account, kind)? {
+            Target::Existing(id) => id,
+            Target::Create { .. } => {
+                return Err(CoreError::NoMailboxForRole {
+                    account: account.to_string(),
+                    role: if kind == MoveKind::Junk {
+                        MailboxRole::Junk
+                    } else {
+                        MailboxRole::Trash
+                    },
+                });
+            }
+        };
+        let shown: Vec<MessageId> = self
+            .state
+            .messages
+            .values()
+            .filter(|m| m.account == account && m.location() == folder)
+            .map(|m| m.id)
+            .collect();
+        let mut changes = CacheChanges::default();
+        let mut removed = 0_usize;
+        let mut waiting = Vec::new();
+        for id in shown {
+            if self.move_pending(id) {
+                waiting.push(id);
+            } else {
+                self.remove_message(id, &mut changes);
+                removed += 1;
+            }
+        }
+        let mut total = 0;
+        if let Some(mailbox) = self.state.mailboxes.get_mut(&folder) {
+            total = mailbox.total;
+            // The server's counts follow with the fetch after the op.
+            mailbox.total = 0;
+            mailbox.unread = 0;
+            changes.mailboxes.insert(folder);
+        }
+        let mut ids = ctx.ids();
+        let op = self.queue_op(
+            account,
+            RemoteOp::EmptyMailbox { mailbox: folder },
+            ctx,
+            &mut ids,
+            &mut changes,
+        );
+        let effects = self.pump_ops(account, ctx.now_ms, &mut changes);
+        let delta = self.delta(changes);
+        let mut receipt = receipt
+            .affecting(EntityRef::Account(account))
+            .affecting(EntityRef::Mailbox(folder))
+            .affecting(EntityRef::Op(op));
+        for thread in &delta.threads {
+            receipt = receipt.affecting(EntityRef::Thread(thread.id));
+        }
+        let receipt = receipt.with_data(serde_json::json!({
+            "mailbox": folder,
+            "removed": removed,
+            "waiting": waiting,
+            "total": total,
+            "ops": [op],
+            "undoable": false,
+        }));
+        let mut outcome = Outcome::new(receipt).with_effect(Effect::PersistState {
+            delta: PersistDelta::Mail(delta),
+        });
+        outcome.effects.extend(effects);
+        Ok(outcome)
+    }
+
+    /// After an `empty_mailbox` op: drops the cached messages that sit in `mailbox` on the
+    /// server and are shown there (messages moved out meanwhile stay).
+    pub(super) fn drop_emptied(&mut self, mailbox: MailboxId, changes: &mut CacheChanges) {
+        let gone: Vec<MessageId> = self
+            .state
+            .messages
+            .values()
+            .filter(|m| m.mailbox == mailbox && m.location() == mailbox)
+            .map(|m| m.id)
+            .collect();
+        for id in gone {
+            self.remove_message(id, changes);
+        }
+    }
+
     /// The mailbox `kind` moves `account`'s messages to.
     fn resolve_target(&self, account: AccountId, kind: MoveKind) -> Result<Target, CoreError> {
         let preset = self
@@ -293,6 +423,13 @@ impl Engine {
                 }
                 Ok(Target::Existing(id))
             }
+            MoveKind::Junk => by_role(MailboxRole::Junk)
+                .or_else(|| by_path(profile.junk_mailbox))
+                .map(Target::Existing)
+                .ok_or_else(|| missing(MailboxRole::Junk)),
+            MoveKind::NotJunk => by_role(MailboxRole::Inbox)
+                .map(Target::Existing)
+                .ok_or_else(|| missing(MailboxRole::Inbox)),
             MoveKind::Trash => by_role(MailboxRole::Trash)
                 .or_else(|| by_path(profile.trash_mailbox))
                 .map(Target::Existing)

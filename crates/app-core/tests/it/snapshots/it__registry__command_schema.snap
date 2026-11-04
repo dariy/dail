@@ -1262,6 +1262,68 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Delete every message in an account's Trash permanently, on the server too (`UID STORE\n+FLAGS (\\\\Deleted)` and `UID EXPUNGE` of the messages the server has in Trash when the\nchange runs, cached or not). Needs `confirm: true`; not undoable. The receipt gives the\nnumber of cached messages removed (`removed`) and the server's count (`total`).",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (from `list_mailboxes`)."
+            },
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the messages are gone for good.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "empty_trash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Delete every message in an account's Junk folder permanently, on the server too, as\n`empty_trash` does for Trash (the Junk folder is the one `mark_junk` moves to). Needs\n`confirm: true`; not undoable. The receipt gives the number of cached messages removed\n(`removed`) and the server's count (`total`).",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (from `list_mailboxes`)."
+            },
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the messages are gone for good.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "empty_junk",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Choose the address a draft is sent from: an identity of any connected account. An address of\nanother account moves the draft there (its saved server copy moves too); a reply stays a\nreply. Undoable.",
       "properties": {
         "args": {
@@ -2220,6 +2282,72 @@ expression: command_schema()
         },
         "cmd": {
           "const": "trash_threads",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Report threads or single messages as junk: move them to the account's Junk folder and set\nthe `$Junk` keyword (removing `$NotJunk`) so the server's filter can learn. Sent mail and\ndrafts of a thread stay. Give `ids`, `messages` or both. Applied locally at once and on\nthe server in the background. Undoable (undo moves them back; the keyword stays).",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to report.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to report (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_junk",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The opposite of `mark_junk`: move threads or single messages from the Junk folder back to\nthe inbox and set the `$NotJunk` keyword (removing `$Junk`). Only messages in Junk move,\nunless named in `messages`. Give `ids`, `messages` or both. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to rescue.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to rescue (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_not_junk",
           "type": "string"
         }
       },

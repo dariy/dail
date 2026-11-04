@@ -199,6 +199,28 @@ pub enum Command {
         #[serde(default)]
         confirm: bool,
     },
+    /// Delete every message in an account's Trash permanently, on the server too (`UID STORE
+    /// +FLAGS (\\Deleted)` and `UID EXPUNGE` of the messages the server has in Trash when the
+    /// change runs, cached or not). Needs `confirm: true`; not undoable. The receipt gives the
+    /// number of cached messages removed (`removed`) and the server's count (`total`).
+    EmptyTrash {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// Must be `true`: the messages are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
+    /// Delete every message in an account's Junk folder permanently, on the server too, as
+    /// `empty_trash` does for Trash (the Junk folder is the one `mark_junk` moves to). Needs
+    /// `confirm: true`; not undoable. The receipt gives the number of cached messages removed
+    /// (`removed`) and the server's count (`total`).
+    EmptyJunk {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// Must be `true`: the messages are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
     /// Choose the address a draft is sent from: an identity of any connected account. An address of
     /// another account moves the draft there (its saved server copy moves too); a reply stays a
     /// reply. Undoable.
@@ -474,6 +496,29 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         ids: Vec<ThreadId>,
         /// Individual messages to trash (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Report threads or single messages as junk: move them to the account's Junk folder and set
+    /// the `$Junk` keyword (removing `$NotJunk`) so the server's filter can learn. Sent mail and
+    /// drafts of a thread stay. Give `ids`, `messages` or both. Applied locally at once and on
+    /// the server in the background. Undoable (undo moves them back; the keyword stays).
+    MarkJunk {
+        /// Threads to report.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to report (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// The opposite of `mark_junk`: move threads or single messages from the Junk folder back to
+    /// the inbox and set the `$NotJunk` keyword (removing `$Junk`). Only messages in Junk move,
+    /// unless named in `messages`. Give `ids`, `messages` or both. Undoable.
+    MarkNotJunk {
+        /// Threads to rescue.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to rescue (IDs from `get_thread`).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         messages: Vec<MessageId>,
     },
@@ -1108,6 +1153,8 @@ impl Command {
             | Self::CreateFolder { .. }
             | Self::RenameFolder { .. }
             | Self::DeleteFolder { .. }
+            | Self::EmptyTrash { .. }
+            | Self::EmptyJunk { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
             | Self::ListMailboxes { .. }
@@ -1140,6 +1187,8 @@ impl Command {
             | Self::UnpinThreads { .. }
             | Self::ArchiveThreads { .. }
             | Self::TrashThreads { .. }
+            | Self::MarkJunk { .. }
+            | Self::MarkNotJunk { .. }
             | Self::MoveThreads { .. }
             | Self::ListPendingOps { .. }
             | Self::RetryPendingOps { .. }
@@ -1198,6 +1247,8 @@ impl Command {
             Self::CreateFolder { .. } => CommandName::CreateFolder,
             Self::RenameFolder { .. } => CommandName::RenameFolder,
             Self::DeleteFolder { .. } => CommandName::DeleteFolder,
+            Self::EmptyTrash { .. } => CommandName::EmptyTrash,
+            Self::EmptyJunk { .. } => CommandName::EmptyJunk,
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,
@@ -1231,6 +1282,8 @@ impl Command {
             Self::UnpinThreads { .. } => CommandName::UnpinThreads,
             Self::ArchiveThreads { .. } => CommandName::ArchiveThreads,
             Self::TrashThreads { .. } => CommandName::TrashThreads,
+            Self::MarkJunk { .. } => CommandName::MarkJunk,
+            Self::MarkNotJunk { .. } => CommandName::MarkNotJunk,
             Self::MoveThreads { .. } => CommandName::MoveThreads,
             Self::ListPendingOps { .. } => CommandName::ListPendingOps,
             Self::RetryPendingOps { .. } => CommandName::RetryPendingOps,

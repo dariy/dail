@@ -543,8 +543,9 @@ impl MemoryBackend {
         }
     }
 
-    /// Fake `SELECT` + `UID STORE` (also `1:*`) / `UID MOVE` / `UID COPY`, step by step. A step whose
-    /// UIDVALIDITY no longer matches fails; steps before it stay applied (as on a real server).
+    /// Fake `SELECT` + `UID STORE` (also `1:*`) / `UID MOVE` / `UID COPY` / expunge-all, step by
+    /// step. A step whose UIDVALIDITY no longer matches fails; steps before it stay applied (as
+    /// on a real server).
     fn remote(&self, imap: &ImapLogin, steps: &[RemoteStep]) -> Result<Vec<String>, String> {
         let mut refused = Vec::new();
         self.verify(&imap.login, &imap.secret)?;
@@ -598,6 +599,39 @@ impl MemoryBackend {
                             message.flags.push(name.to_owned());
                         }
                     }
+                }
+                RemoteStep::Junk {
+                    path,
+                    uid_validity,
+                    uids,
+                    junk,
+                } => {
+                    let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    if !mailbox.keywords {
+                        refused.push(path.clone());
+                        continue;
+                    }
+                    let (set, clear) = if *junk {
+                        ("$Junk", "$NotJunk")
+                    } else {
+                        ("$NotJunk", "$Junk")
+                    };
+                    for message in mailbox
+                        .messages
+                        .iter_mut()
+                        .filter(|m| uids.contains(&m.uid))
+                    {
+                        message.flags.retain(|f| {
+                            !f.eq_ignore_ascii_case(set) && !f.eq_ignore_ascii_case(clear)
+                        });
+                        message.flags.push(set.to_owned());
+                    }
+                }
+                RemoteStep::ExpungeAll { path, uid_validity } => {
+                    let mailbox = selected(&mut account.mailboxes, path, *uid_validity)?;
+                    // UIDs are never reused, even when the newest message leaves.
+                    mailbox.uid_next = Some(mailbox.next_uid());
+                    mailbox.messages.clear();
                 }
                 RemoteStep::Move {
                     path,
