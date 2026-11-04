@@ -43,6 +43,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-34 | Fix the `libdail.rlib` output filename collision | S | app-android, app-ios, xtask, android/, ios/ | 2026-11-01 |
 | MISC-35 | Stable, translation-independent error codes | M | app-core, app-io, app-sync, app-mcp, app-cli, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 | MISC-36 | Reply from any connected account; check the docked reply layout on Linux | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui, app-mobile, android/ | 2026-11-02 |
+| MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
 
 ## Details
 
@@ -712,3 +713,21 @@ height); reproduce it first, then fix what is found.
   (Wave 11).
 - **Open questions:** should the threading headers and the quote stay when the account changes? (Default: yes, the
   reply stays a reply, and only the sender changes.)
+
+### MISC-37 — Desktop: list and reader toolbars as icon buttons that fit small windows
+
+Bug on the desktop GUI: in a small window, the control buttons of the message list pane and of the message content
+(reader) pane overlap other controls. *Mark all as read* is pinned to the right edge (`Layout::right_to_left` in
+`app-gui/src/list.rs` `toolbar`), while the other buttons are not.
+
+- List toolbar: show the buttons (*Mark all as read*, *Refresh*, and the others there) as icon buttons with a tooltip
+  name, laid out in one flow with the rest, so nothing overlaps when the pane is narrow.
+- Reader toolbar (`app-gui/src/reader.rs` `toolbar`): the same. *Reply*, *Reply all* and *Forward* become icon buttons
+  whose tooltip carries the name and the key (`R`, `A`, `F`), like the other icon buttons there.
+- Remove the conversation navigation entirely: the up and down buttons and the "n of N" label. The user finds it
+  useless on desktop; `j`/`k` and the palette still move between conversations.
+
+- **Commands:** none. Only the buttons go; `open_thread` and the next/previous keys stay.
+- **Touches:** `app-gui` only (`list.rs`, `reader.rs`, `ui` widgets, the gallery). The `NOfM` and
+  `NextConversation` strings stay in `app-front`'s `i18n` table: `app-mobile`'s reader still uses them.
+- **Open questions:** none.
