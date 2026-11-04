@@ -120,3 +120,41 @@ async fn every_input_is_logged_redacted_and_replays_to_the_same_state() {
     }
     assert_eq!(&replayed, live.as_ref());
 }
+
+/// STORE-10: day files older than the kept days are swept; today's, recent ones and other files
+/// stay.
+#[test]
+fn old_replay_logs_are_swept() {
+    let dir = std::env::temp_dir().join(format!("dail-audit-sweep-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let log = AuditLog::new(&dir);
+    // 2026-11-03 12:00 UTC.
+    let now = 1_793_707_200_000;
+    for name in [
+        "replay-20261103.jsonl",
+        "replay-20261020.jsonl",
+        "replay-20261019.jsonl",
+        "replay-20250101.jsonl",
+        "android.log",
+        "replay-notes.jsonl",
+    ] {
+        std::fs::write(dir.join(name), b"x").unwrap();
+    }
+    assert_eq!(log.sweep(now, 14), 2);
+    let mut left: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .collect();
+    left.sort();
+    assert_eq!(
+        left,
+        [
+            "android.log",
+            "replay-20261020.jsonl",
+            "replay-20261103.jsonl",
+            "replay-notes.jsonl"
+        ]
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}

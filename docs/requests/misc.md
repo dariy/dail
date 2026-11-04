@@ -613,7 +613,7 @@ not flood the connection.
 - **Commands:** none expected; the engine emits extra `FetchBody` effects on `View` navigation (no history).
 - **Touches:** `app-core` (prefetch window on selection change, dedupe with pending fetches), `app-sync` (low-priority
   queue behind user fetches), `app-testkit` (fake transport).
-- **Open questions:** window size and whether it is a config value; whether to pre-load on metered connections (mobile).
+- **Open questions:** window size and whether it is a config value; whether to pre-load on metered connections (mobile). *Answered by STORE-8:* no; prefetch and backfill pause while the network is metered.
 
 ### MISC-30 — iOS: compose opens no editor and blocks the content pane
 

@@ -101,6 +101,14 @@ tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4
 toml = "1.1"
 redb = "4.4"
 sha2 = "0.11"
+# app-tls's primitives (ADR 0014): pure Rust, audited where noted there.
+chacha20poly1305 = { version = "0.11", default-features = false }
+aes-gcm = { version = "0.11", default-features = false, features = ["aes"] }
+x25519-dalek = { version = "3", default-features = false, features = ["static_secrets", "zeroize"] }
+p256 = { version = "0.14", default-features = false, features = ["std", "ecdsa", "ecdh", "precomputed-tables"] }
+p384 = { version = "0.14", default-features = false, features = ["std", "ecdsa", "ecdh", "precomputed-tables"] }
+# The stable 0.9 line; verification only (RUSTSEC-2023-0071 concerns private keys, deny.toml).
+rsa = { version = "0.9", default-features = false, features = ["std", "u64_digit", "sha2"] }
 directories = "6.0"
 # Mutexes that don't poison, so no crate needs its own lock-recovery helper (already in the tree via html5ever).
 parking_lot = "0.13"
@@ -179,11 +187,6 @@ anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
 insta = { version = "1.49", features = ["json"] }
 egui_kittest = { version = "0.37", default-features = false } # headless GUI tests via the AccessKit tree
 proptest = "1.12"
-# Test oracles for app-tls (docs/plan-tls.md §7.2): pure Rust, dev-dependencies only, never linked into dail.
-x25519-dalek = "3"
-chacha20poly1305 = "0.11"
-p256 = { version = "0.14", default-features = false, features = ["ecdsa"] }
-p384 = { version = "0.14", default-features = false, features = ["ecdsa"] }
 
 [profile.dev.package]
 # Dependencies: opt-level 2 keeps egui and mail parsing responsive in debug builds. They keep only line tables

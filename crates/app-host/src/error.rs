@@ -39,4 +39,7 @@ pub enum HostError {
     /// The session is closed.
     #[error("ERR309: the session is closed")]
     Closed,
+    /// The engine's task ended while the host was open (a panic): the screen would be stale.
+    #[error("ERR310: dail's engine stopped; restart the app")]
+    Stopped,
 }

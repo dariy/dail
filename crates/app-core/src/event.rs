@@ -423,6 +423,12 @@ pub enum Event {
         /// Diagnostic.
         reason: String,
     },
+    /// The device's default network changed (STORE-8): `metered` while it is billed by use
+    /// (mobile data, a hotspot). Body prefetch and history backfill pause while metered.
+    NetworkChanged {
+        /// Whether the network is metered.
+        metered: bool,
+    },
 }
 
 impl Event {
@@ -430,6 +436,7 @@ impl Event {
     pub const fn name(&self) -> &'static str {
         match self {
             Self::Tick { .. } => "tick",
+            Self::NetworkChanged { .. } => "network_changed",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",
             Self::AccountVerified { .. } => "account_verified",

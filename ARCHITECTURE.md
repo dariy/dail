@@ -314,6 +314,7 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `SecretStored`, `SecretDeleted`, `SecretFailed`, `MailboxesListed{account, mailboxes}`,
   `EnvelopesFetched{account, mailbox, uid_validity, uid_next?, total, unread, envelopes: Vec<RemoteEnvelope>}`,
   `BodyFetched{message, blob, has_attachments, snippet?}`, `BodyFetchFailed{message, error}`,
+  `NetworkChanged{metered}` (STORE-8),
   `FlagsChanged{account, mailbox, uid_validity, from_uid, to_uid, flags: Vec<UidFlags>, existing?, vanished?: Vec<UidRange>, highest_modseq?}`, `RemoteOpSucceeded{op}`, `RemoteOpFailed{op, error, permanent}`,
   `AttachmentInspected{draft, path, size, content_type}`, `AttachmentFailed{draft, path, error}`,
   `AttachmentsSaved{message, files}`, `AttachmentsSaveFailed{message, files, error}`,
@@ -473,7 +474,9 @@ own, everything local (`PersistState`, attachments, the full-text index, compact
 servers (`DiscoverServers`, ADR 0006: seconds per try) on a third, so store writes never overtake each other and a slow or unreachable server delays only its own account. Workers start on first use and
 shutdown waits for all of them. `ScheduleTick` and `WatchMailbox` effects run concurrently beside them (timers and
 watches wait for the world). A failed
-effect becomes `Effect::failure_event(error)` and is ingested like any other event. `Session::flush()` waits until all
+effect becomes `Effect::failure_event(error)` and is ingested like any other event. So does an effect whose backend
+panics (STORE-4): `run_effect` catches the unwind, logs the panic's text and reports `ERR201` with a fixed reason, and
+the lane's worker keeps running. `Session::flush()` waits until all
 effects but timers and watches (and the effects they cause) have been ingested; `shutdown()` ingests `Closing` (unsaved drafts are saved
 now), flushes, then stops the engine task.
 `Ctx` is built from injected `Clock` (`SystemClock`, `VirtualClock` on tokio's paused time for tests) and `SeedSource`
@@ -517,11 +520,17 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not
    repeated) and as a prefetch of the newest 20 unread INBOX messages
-   without a body after each INBOX `EnvelopesFetched`. `status.bodies_in_flight` prevents duplicate requests. The runtime
+   without a body after each INBOX `EnvelopesFetched`. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
+   `RFC822.SIZE`), and neither it nor history backfill runs while `status.metered` (STORE-8): Android reports the
+   default network's metered state as `UiEvent::Network`, which the host ingests as `Event::NetworkChanged`, and
+   before each background job; the next fetch after the network is unmetered catches up. `status.bodies_in_flight` prevents duplicate requests. The runtime
    fetches `BODY.PEEK[]` (stays unread), checks UIDVALIDITY, stores the raw RFC 822 with `Store::put_blob` and reports
    `BodyFetched` (the envelope's `body` becomes `fetched{blob}` and `has_attachments` is corrected from the full parse,
    `app_io::mime::has_attachments`, and `snippet` set from `app_io::mime::snippet`; the engine cleans it again with
-   `app_core::snippet`: quoted lines, controls and bidi formatting dropped, whitespace collapsed, at most 140 chars) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending.
+   `app_core::snippet`: quoted lines, controls and bidi formatting dropped, whitespace collapsed, at most 140 chars) or `BodyFetchFailed` (`body` becomes `failed{error}`). Bodies don't count as sync pending. A crash-loop breaker guards the
+   parse (`app_io::breaker`, STORE-7): a mark `breaker/parsing-<message>` is on disk while a body is parsed; a mark
+   left by a dead process poisons that message at the next open (`breaker/poisoned`), and its fetch then fails with a
+   fixed reason instead of parsing it again. The parsers are fuzzed nightly (`fuzz/`, `.github/workflows/fuzz.yml`).
 5. Remote ops: triage commands change the cache first and queue one `PendingOp` per account in `state.outbox` (persisted with
    the cache, in the same `MailDelta`). Each account runs one op at a time, oldest first: when an op starts the engine resolves
    its messages' *current* server locations into `RemoteStep`s (`Store` per mailbox, UIDs ascending) and emits
@@ -646,26 +655,47 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 | `gmail` | imap.gmail.com:993 TLS | smtp.gmail.com:465 TLS | move INBOX → `[Gmail]/All Mail` (`archive_to_all`: the `all` role) | SMTP saves it automatically, so skip APPEND | App Password (2FA required); trash = `trash` role, else `[Gmail]/Trash`; server search via `X-GM-RAW` (`raw_search`) |
 | `custom` | user-supplied | user-supplied | SPECIAL-USE `\Archive` or `Archive` | APPEND | STARTTLS on 143/587 supported |
 
-TLS: rustls with the `app-tls` crypto provider (ADR 0003, `docs/plan-tls.md`) and `webpki-roots`
+TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
 (`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
 lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
 the build compiles C: `deny.toml` bans `ring`, and `cc` only appears under crates that build nothing with it.
 
-app-tls implements only what a TLS client needs, in safe Rust: TLS 1.3 and 1.2 with ChaCha20-Poly1305
-(`TLS13_CHACHA20_POLY1305_SHA256`, `TLS_ECDHE_{ECDSA,RSA}_WITH_CHACHA20_POLY1305_SHA256`), X25519 key exchange, and
-signature verification with ECDSA P-256/P-384 (SHA-256/384) and RSA 2048–8192 (PKCS#1 v1.5 and PSS, SHA-256/384/512).
-What servers accept (measured 2026-10-18, `docs/plan-tls.md` §2):
+app-tls is the glue a TLS client needs, in safe Rust, over audited or widely used crates (ADR 0014:
+`chacha20poly1305`, `aes-gcm`, `x25519-dalek`, `p256`, `p384`, `rsa` 0.9, `sha2`): TLS 1.3 and 1.2 with
+ChaCha20-Poly1305 first, then AES-256-GCM and AES-128-GCM (`TLS13_*`, `TLS_ECDHE_{ECDSA,RSA}_WITH_*`, nine suites), X25519,
+P-256 and P-384 key exchange, and signature verification with ECDSA P-256/P-384 (SHA-256/384) and RSA 2048–8192
+(PKCS#1 v1.5 and PSS, SHA-256/384/512). The server picks among them. Probed through app-tls on 2026-11-03
+(`live_it::tls_reaches_the_provider_list`, IMAP 993, handshake only):
 
-| Algorithms | Servers |
+| Negotiated | Servers |
 |---|---|
-| X25519 + ChaCha20-Poly1305 (app-tls today) | Gmail, Hostinger, Yahoo, iCloud, Fastmail, Zoho, GMX, AOL, Yandex, IONOS, one.com, Migadu, web.de, mailbox.org, Purelymail; mail.ru (TLS 1.2 only) |
-| + AES-GCM (tier 2, ROADMAP) | + Namecheap Private Email |
-| + P-256/P-384 key exchange (tier 3, ROADMAP) | + Microsoft 365 / Outlook, T-Online |
+| TLS 1.3, ChaCha20-Poly1305, X25519 | Gmail, iCloud, GMX, IONOS, Migadu, web.de |
+| TLS 1.3, AES-256-GCM, X25519 | Hostinger, Yahoo, Fastmail, AOL, Yandex, one.com, mailbox.org, Purelymail |
+| TLS 1.3, AES-128-GCM, X25519 | Zoho, Namecheap Private Email |
+| TLS 1.3, AES-256-GCM, P-384 | Microsoft 365 / Outlook (needs OAuth2 to log in), T-Online |
+| TLS 1.2, ECDHE-RSA AES-128-GCM, X25519 | mail.ru |
 
 A handshake that fails for lack of a common version, suite or group (`HandshakeFailure`, `ProtocolVersion` or
 `InsufficientSecurity` alerts, `PeerIncompatible`) gets the hint "the server supports none of the TLS ciphers dail
-implements (TLS 1.2/1.3 with ChaCha20-Poly1305 and X25519)" in the IMAP and SMTP error
+implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384)" in the IMAP and SMTP error
 (`app_sync::tls::incompatible_server_hint`).
+
+Setup knows, as data, which address domains need OAuth2 (`app_front::providers::OAUTH_ONLY`: Microsoft's consumer
+domains). The mobile setup stops such an address at the address step with "{provider} addresses need a sign-in that
+dail does not support yet", and Gmail's password step offers *Create an App Password*, which opens Google's page
+(`External::OpenUrl`, STORE-12).
+
+**Reading bodies** (MISC-28a). Every body with text has a `Document` for the readers that ask (`rich_body`): the HTML's
+(`app_io::document`), or the plain text read by `app_io::plain`, which reflows lines the sender's mailer wrapped (60
+characters or more) and keeps shorter breaks, collapses runs of blank lines into one gap, finds headings (Markdown `#`,
+setext underlines, a line in capitals, a short unpunctuated line before a long paragraph), reads safe Markdown (lists,
+quotes, fenced and indented code, rules, `**strong**`, `*em*`, `` `code` ``, `~~strike~~`, `[text](url)`), and folds
+the signature and quoted text with `app_core::fold`. `Document::number_links` gives each target a number at its first
+appearance and puts it on the last span of each link as `Span::note`; a link whose text is its target (a bare URL)
+loses the text. Readers draw the note as a marker of its own, never text, so a sender's `(1)` cannot pass for one: the
+GUI as a raised label, Android as a superscript span (`DocSpan::note`). *Links* lists `Document::notes()`: `¹ url —
+title`. The CLI and MCP keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the
+number in `note`.
 
 ### 5.4 Single instance & IPC attach
 One process owns a profile at a time: it holds `profile_dir/lock` (`ProfileLock`, an exclusive `File::try_lock`, released by
@@ -780,8 +810,12 @@ steps + final state with `insta` and checks that replaying twice is identical.
   routes `Mail` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable records are skipped
-  with a warning on load.
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
+  queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
+  `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
+  The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
+  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>`.
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
@@ -902,7 +936,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   key, and `g <letter>` on the mailboxes of the current account.
 - **Composer:** plain text in the MVP, with To/Cc/Bcc chips and attachments by path / file dialog (`rfd`, XDG portal on Linux, kept in app-gui).
   It shows `view.composer` in place of the reader, or, for a reply to a message of the open conversation, docked under
-  it in a resizable bottom panel; the reader then scrolls to its end once (UI-13). New drafts and forwards keep the
+  it in a resizable bottom panel (55% of the pane, at most 75%); the reader, clipped to the rest so it never paints
+  over the composer (MISC-36), then scrolls to its end once (UI-13). New drafts and forwards keep the
   whole pane (UI-8: a header with the title, the save state and *Close*; labelled
   hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; a footer with *Attach files…*, the attachment
   chips, *Discard* and *Send*). Subject and body are typed into local buffers and written back with
@@ -1385,17 +1420,22 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   composition. To, Cc and Bcc show their addresses as chips (a tap removes one) and take typed addresses
   (`compose::add_recipients`) at a comma, a semicolon, a line break or a blur; invalid text stays typed. Up to three
   contacts matching the typed text (`listing::contacts`, cached per revision) are suggestions; a tap adds one. With
-  two addresses or more, `from_choices` is a menu of `set_draft_from`. The quote of a reply or forward is read-only
+  two addresses or more across all accounts (`app_front::compose::senders`, MISC-36), `from_choices` is a menu of
+  `set_draft_from`. The quote of a reply or forward is read-only
   and folded (a tap shows its header); the draft's text is scrubbed like the TUI's (unsafe characters become
   U+FFFD, line breaks stay). *Attach files* asks the host for the system file picker (`External::PickFiles{draft}`);
   the draft's files are chips with `checking…`, their size or why they cannot be sent (a tap is
   `remove_attachment`). *Send* (`send_draft`) shows while `compose::sendable` (a recipient, every file checked); the
   snackbar counts the undo window down (*Sending in N s · Undo* = `cancel_send`). Once per draft that becomes
   scheduled or leaving, by whatever command, the presenter asks for `External::Sending`: Kotlin starts `SendService`, a
-  foreground service (`shortService` from Android 14, `dataSync` before) that runs the host's `sends` task, so leaving
-  the app never strands a send. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
+  foreground service (`shortService` from Android 14, of no type before; STORE-14) that runs the host's `sends` task, so leaving
+  the app never strands a send. If the system refuses the foreground start, a `DailJobService` job runs the same task
+  instead (STORE-3); a refused `PushService` start runs the flush job and leaves the periodic check as the fallback. Every new `send_error` is told once in the snackbar (*Not sent: “subject”: error*),
   including the sends a restart cancelled (§4.4). *Discard* is `discard_draft` (undoable). While a send is scheduled or leaving, the
-  composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`).
+  composer is read-only. A hardware key in the composer types (`KeyState::press` with `typing`). The pane scrolls as a
+  whole and takes the keyboard's inset itself (`imePadding`; edge-to-edge drawing makes `adjustResize` a no-op). A
+  write-back in flight does not reload its field: `Buffers` remembers the value it replaced until the engine has
+  applied it, so an auto-save never resets the editor (MISC-31).
 - **Leaving the app** (A5). With the first frame and whenever `background_sync` or `background_interval_mins`
   changes, the presenter asks for `External::Schedule{sync, interval_mins}`; `Host.kt` applies it with or without an
   activity. `DailJobService` (JobScheduler; no WorkManager) runs two jobs through the host's `background` call, which
@@ -1419,7 +1459,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   happens before the watcher's first state.
 - **Push** (A5, `background_sync` 2). The engine's IMAP IDLE watches (§5.2 step 11) already run while the session
   lives, so `PushService` only keeps the process: a foreground service (`specialUse` from Android 14 with its
-  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`, `dataSync` before), started and stopped by the `schedule` external (Kotlin keeps
+  `PROPERTY_SPECIAL_USE_FGS_SUBTYPE`, of no type before), started and stopped by the `schedule` external (Kotlin keeps
   the last answer in preferences) and after a reboot by `PushService.Boot` (`BOOT_COMPLETED`). Its silent notification
   on the *Background* channel is Rust's `app_mobile::push_status`: *Watching N inboxes* (the accounts whose watch is
   `watching`; *Connecting to your inboxes* while none is), handed out whenever the text changes, visible or not, and
@@ -1464,8 +1504,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   Android's viewer (`ui/viewer/`) is adapted from pdfcraft-android (MIT, credited in About); PDFs show "Page n of m".
   No Compose button floats over a preview. There is no "open with": other apps get a
   file only through *Save*. *Save* (one file) and *Save all (N)* ask for `External::SaveFiles{blob, files}`; the host
-  replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin reads each file with
-  `blob`'s `attachment` request into a document the Storage Access Framework creates: one file through the "create
+  replaces each name with `app_io::mime::safe_file_name` before Kotlin sees it, and Kotlin opens a descriptor for writing on each
+  document the Storage Access Framework creates and runs the `{"save": {blob, part, target}}` background task, which
+  writes the attachment through `/proc/self/fd/<n>` like an import, so no byte array crosses JNI (STORE-9): one file through the "create
   document" picker, several through a folder (`OpenDocumentTree`, `DocumentsContract.createDocument`, which gives a
   taken name a suffix, so nothing is overwritten). A body with `cid:` pictures shows *Pictures in this message are
   hidden.* and *Show images from \<sender\>* (`show_images_from`); while the sender is in `images_from`, those spans
@@ -1539,11 +1580,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
 
-**The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail"`, cdylib + rlib, over it). `app_host::Host`
+**The host** (`app-host`, ADR 0010; `app-android` is `[lib] name = "dail_android"`, cdylib + rlib, shipped as `libdail.so`, over it; MISC-34). `app_host::Host`
 is the JNI-free core that Kotlin's calls map onto; it builds and is tested on the desktop. The platform comes in as an
 `app_host::Platform` (the credential store and the logs, two plain functions, and the install kind for update checks):
 `app_android::PLATFORM` on Android, `app_host::DESKTOP` (the OS keyring, no logs, no install kind) in tests. With an
-install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `android`/`ios`), as the CLI runtime does.
+install kind, `open` ingests `UpdateHostDetected` (this crate's version, target `ios`), as the CLI runtime does.
+`app_android::PLATFORM` has none: Android never checks for updates or shows the banner (STORE-15, ADR 0011 amended).
 
 - **`open(&Config, Platform, wake, alert)`.** `Config` = `{profile_dir, cache_dir?, outgoing_dir? (default `<profile_dir>/outgoing`), backend: "live" | {"memory": fixture}, lang?,
   version?}`. Live: `ProfileDirs::at(profile_dir)`, the profile's `lock` (a second host is refused), then the session as
@@ -1590,7 +1632,14 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   uses `KeyringSecrets`. The round trip on a device is an ignored test (`DAIL_IT_ANDROID_KEYSTORE=1`, inside the app's
   process).
 - **Logs** (`app-android`'s `dail::logging`). `tracing` to `<profile>/logs/android.log` (0600) and, on Android, to logcat through logd's socket
-  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds.
+  (`tracing-logcat`, no liblog); `warn` and above in release builds, `info` in debug builds. `android.log` rotates to
+  `android.log.1` at 1 MiB (`logging::Rotating`), and a mobile host sweeps replay logs older than 14 days at each open
+  (`AuditLog::sweep`, STORE-10). A panic hook logs every
+  panic, on any thread, with its thread and location before the default hook (STORE-4). If the engine's task ends while
+  the host is open, the bridge's watcher wakes the app and `event`/`frame` answer `ERR310` instead of a stale frame.
+  Any `{"error"}` answer becomes `Screen.Failed`, drawn by Kotlin alone with Android string resources (Rust may be
+  dead): *Restart* starts a new process, and *Copy diagnostics* copies the version, the device, the error and the last
+  40 lines of `android.log` to the clipboard. Nothing is sent automatically (STORE-5).
 - **The lint exception.** The crate's `[lints]` is the workspace's with `unsafe_code = "deny"`; only `src/jni.rs`
   allows unsafe code. `tests/it/lints.rs` pins both.
 - **Tests** (`app-host/tests/it`; `app-android/tests/it` keeps the lints and the Keystore round trip): a live profile with no accounts (the lock, the background tasks), a synced
@@ -1634,6 +1683,12 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `frame` (the frame last drawn, kept by `Host`, so the bridge never takes the UI's replies or action IDs). It opens the
   session if no activity has. With `uiautomator dump`, `screencap` and `input` an agent drives and reads the app.
   `app/src/androidTest` (`connectedDemoDebugAndroidTest`) calls it through the shell (`UiAutomation`), as adb does.
+  `GoldenPathTest` (STORE-9b) drives the demo build with the window's accessibility tree (`UiAutomation`) and `input`, and checks the
+  bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. It needs no test
+  library beyond the runner; CI's `android-emulator` job runs it. On failure it saves a screenshot to
+  `/data/local/tmp/golden` and logs every window's node tree under the `GoldenPath` tag. `golden-path.yml` runs only
+  this test, by hand on any branch (`gh workflow run golden-path.yml --ref <branch>`). It uses warm caches of its own
+  (AVD snapshot, Rust, Gradle) and always uploads that evidence with logcat and `dumpsys window`.
 - **The Gradle side of `cargo deny`.** `gradle/verification-metadata.xml` holds a SHA-256 per artifact (regenerate
   with `./gradlew --write-verification-metadata sha256 <tasks>` after a version change); Licensee allows only
   Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
@@ -1651,7 +1706,13 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `DAIL_SIGNING_KEY_PASSWORD` (CI decodes the keystore from the `DAIL_ANDROID_KEYSTORE_BASE64` secret into the
   runner's temp directory; without the variables the release APKs are unsigned and the script refuses), then
   `apk-check`, `apksigner verify`, and `dist/dail-<version>-<abi>.apk` with a `.sha256` each. The version name is the
-  workspace version and the version code `major·10⁴ + minor·10² + patch`, the same for both ABIs. R8 minifies and
+  workspace version and the version code `major·10⁸ + minor·10⁵ + patch·10 + abi` (AAB 0, arm64 1, x86_64 2;
+  STORE-13), so each ABI is its own build with x86_64 above arm64, as F-Droid wants. xtask's `version_code` pins the
+  formula and `apk-check` reads each APK's code. Google Play gets an AAB (`bundleLiveRelease`, a Gradle call of its own because AGP
+  refuses ABI splits while bundling; STORE-16): language splits are off, since the in-app language can differ from the
+  device's; `dependenciesInfo` is off in APK and AAB; `libdail.so` is built unstripped and Gradle strips the APKs'
+  copies while the AAB keeps the symbol table (`debugSymbolLevel = SYMBOL_TABLE`). `apk-check` fails on the signing
+  block `0x504b4453` or an unstripped release `libdail.so`, and checks the AAB for symbols and no dependency metadata. R8 minifies and
   shrinks; `app/proguard-rules.pro` keeps `Native`, `Listener` and the native methods (JNI binds them by name) and
   the app's kotlinx.serialization serializers. Size at 0.1.0: 17 MiB arm64-v8a, 19 MiB x86_64, nearly all of it
   `libdail.so`.
@@ -1661,7 +1722,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
 In progress (ROADMAP Wave 5). The SwiftUI app draws `app-mobile`'s frames, as the Kotlin app does (§7.5), over the
 same `app-host`. There is no Mac: Swift, linking and the simulator run on `macos-latest` CI runners only.
 
-**The host** (`app-ios`, `[lib] name = "dail"`, staticlib + rlib). `app_ios::PLATFORM` gives `app-host` the
+**The host** (`app-ios`, `[lib] name = "dail_ios"`, staticlib + rlib; `xtask` ships the archive as `libdail.a`, MISC-34). `app_ios::PLATFORM` gives `app-host` the
 credential store and the logs. It builds and is tested on every host; the iOS-only parts sit behind
 `cfg(target_os = "ios")`.
 
@@ -1775,7 +1836,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
 | `set_identity` / `remove_identity` | Mutation (user only, §9) | `account, email, name?, signature?` / `account, email`: the addresses the account sends from (saved with it, `[[account.identity]]`); undoable | Wave 2 |
 | `set_mailbox_identity` | Mutation | `mailbox, email?`: the From of new drafts written from it | Wave 2 |
-| `set_draft_from` | Mutation | `id, email` (one of the account's identities; the own address clears `draft.from`); an agent's change withdraws its send request | Wave 2 |
+| `set_draft_from` | Mutation | `id, email` (an identity of any connected account, the draft's own account first; the own address clears `draft.from`; another account's address moves the draft there with its threading and quote, and its server copy moves too, MISC-36); an agent's change withdraws its send request | Wave 2 |
 | `check_threads` / `uncheck_threads` | View | `ids?` (none: every thread the list shows / all) → `{checked}`; `view.checked`, cleared when the list shows another mailbox or search; triage from the GUI and the TUI acts on it when not empty (`palette::targets`) | Wave 2 |
 | `expand_messages` / `collapse_messages` | View | `ids?: [MessageId]` of the open thread (none: all) → `{messages, expanded}`; sets `view.expanded`, cleared when another thread opens or the reader closes; error without an open thread | Wave 2 |
 | `search` (Wave 2 additions) | Query | `order = newest | relevance` (full-text hits first, best first) | Wave 2 |
@@ -1902,6 +1963,17 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
+The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the
+single source for Google Play and F-Droid (STORE-18); `release bump` also writes each language's
+`changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters. `PRIVACY.md` is the privacy
+policy, linked from the phone's About (`About.privacy`) and the listings; `docs/store/play-console.md` drafts the
+Play declarations (Data safety, foreground services, content rating, target audience; STORE-19). A tag's `play` job
+(`release.yml`, environment `release`) uploads the signed AAB (`scripts/release-android.sh` writes it to `aab/`, outside
+the GitHub Release and the manifest) to Play's internal track with `r0adkll/upload-google-play` pinned to a SHA;
+without the `DAIL_PLAY_SERVICE_ACCOUNT` secret it says so and skips. Promotion stays manual (STORE-20).
+The icons follow `packaging/linux/dail.svg` (STORE-17): an adaptive launcher icon with a monochrome layer
+(`mipmap-anydpi/ic_launcher.xml`), `drawable/ic_notification.xml` for every notification, and the store's 512 px icon
+and 1024x500 feature graphic rendered from `packaging/store/*.svg` into the fastlane `images/`.
 `bump.yml` makes the tag: after `ci` passes on a merge into `main` (`workflow_run`), it bumps the version (patch unless
 a `release:minor|major|skip` label), commits it and pushes `vX.Y.Z` with a GitHub App token, so `main` runs
 ci → bump → release; `ci` skips the bump commit, and a commit a tag already holds is not released again (MISC-9,
@@ -1910,8 +1982,9 @@ ci → bump → release; `ci` skips the bump commit, and a commit a tag already 
 admins and the release App may update it.
 
 **Dependency automation** (Wave 7 D, ADR 0011): Dependabot opens grouped minor/patch PRs for actions, Cargo and Gradle
-(`.github/dependabot.yml`); `gradle-verification.yml` regenerates `android/gradle/verification-metadata.xml` on
-Dependabot's Gradle PRs into `main` and pushes it to their branch; `toolchain.yml` opens a monthly PR with the newest stable Rust
+(`.github/dependabot.yml`); `dependabot-refresh.yml` regenerates `android/gradle/verification-metadata.xml` (Gradle PRs) and
+the licence lists (Gradle and Cargo PRs) on Dependabot's PRs into `main`, pushes them to their branch and dispatches
+`ci.yml` on it, because a GITHUB_TOKEN push starts no run (STORE-2); `toolchain.yml` opens a monthly PR with the newest stable Rust
 (`rust-toolchain.toml`) and NDK (the workflows); `advisories.yml` runs `cargo deny check advisories` on `main` every
 night and opens or updates an issue when it fails. The gates stay cargo-deny, Gradle's verification and the licence
 allowlist; bot PRs are merged like any other.

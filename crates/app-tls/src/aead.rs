@@ -1,5 +1,10 @@
-//! The ChaCha20-Poly1305 AEAD (RFC 8439 §2.8).
+//! The record protection of TLS 1.3 (RFC 8446 §5.2) and TLS 1.2 over three AEADs from RustCrypto (ADR 0014):
+//! ChaCha20-Poly1305 (`chacha20poly1305`, RFC 8439, RFC 7905) and AES-128-GCM and AES-256-GCM (`aes-gcm`,
+//! RFC 5288). Only the TLS framing is dail's: nonces, additional data, the explicit nonce of TLS 1.2 GCM.
 
+use aes_gcm::{Aes128Gcm, Aes256Gcm};
+use chacha20poly1305::ChaCha20Poly1305 as ChaCha;
+use chacha20poly1305::aead::{AeadInOut, KeyInit};
 use rustls::crypto::cipher::{
     AeadKey, InboundOpaqueMessage, InboundPlainMessage, Iv, KeyBlockShape, MessageDecrypter,
     MessageEncrypter, Nonce, OutboundOpaqueMessage, OutboundPlainMessage, PrefixedPayload,
@@ -9,100 +14,144 @@ use rustls::crypto::cipher::{
 use rustls::{ConnectionTrafficSecrets, ContentType, ProtocolVersion};
 use zeroize::Zeroize;
 
-use crate::poly1305::Poly1305;
-use crate::{Error, chacha20, ct};
+use crate::Error;
 
-/// Key length in bytes.
+/// The longest key (ChaCha20, AES-256) in bytes.
+#[cfg(test)]
 pub(crate) const KEY_LEN: usize = 32;
-/// Nonce length in bytes.
+/// Nonce length in bytes, for all three.
 pub(crate) const NONCE_LEN: usize = 12;
-/// Tag length in bytes.
+/// Tag length in bytes, for all three.
 pub(crate) const TAG_LEN: usize = 16;
-
-/// The Poly1305 one-time key: the first 32 bytes of ChaCha20 block 0 (RFC 8439 §2.6).
-fn poly1305_key(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN]) -> [u8; 32] {
-    let mut block = chacha20::block(key, 0, nonce);
-    let mut one_time = [0u8; 32];
-    one_time.copy_from_slice(&block[..32]);
-    block.zeroize();
-    one_time
-}
-
-/// The tag over `aad` and `ciphertext`: `AAD ‖ pad16 ‖ ciphertext ‖ pad16 ‖ le64(len(AAD)) ‖ le64(len(ciphertext))`
-/// (RFC 8439 §2.8).
-fn tag(
-    key: &[u8; KEY_LEN],
-    nonce: &[u8; NONCE_LEN],
-    aad: &[u8],
-    ciphertext: &[u8],
-) -> [u8; TAG_LEN] {
-    let mut one_time = poly1305_key(key, nonce);
-    let mut mac = Poly1305::new(&one_time);
-    one_time.zeroize();
-    mac.update_padded(aad);
-    mac.update_padded(ciphertext);
-    mac.update(&(aad.len() as u64).to_le_bytes());
-    mac.update(&(ciphertext.len() as u64).to_le_bytes());
-    mac.finish()
-}
-
-/// Encrypts `in_out` in place and returns the tag (RFC 8439 §2.8). The keystream starts at block 1.
-pub(crate) fn seal(
-    key: &[u8; KEY_LEN],
-    nonce: &[u8; NONCE_LEN],
-    aad: &[u8],
-    in_out: &mut [u8],
-) -> Result<[u8; TAG_LEN], Error> {
-    chacha20::apply_keystream(key, nonce, 1, in_out)?;
-    Ok(tag(key, nonce, aad, in_out))
-}
-
-/// Checks `received` over `aad` and the ciphertext `in_out`, then decrypts `in_out` in place (RFC 8439 §2.8). The
-/// tag is compared in constant time before any byte is decrypted; on a mismatch `in_out` is left as it was.
-pub(crate) fn open(
-    key: &[u8; KEY_LEN],
-    nonce: &[u8; NONCE_LEN],
-    aad: &[u8],
-    in_out: &mut [u8],
-    received: &[u8; TAG_LEN],
-) -> Result<(), Error> {
-    if !chacha20::fits(1, in_out.len()) {
-        return Err(Error);
-    }
-    let mut expected = tag(key, nonce, aad, in_out);
-    let matches = ct::eq(&expected, received);
-    expected.zeroize();
-    if !matches {
-        return Err(Error);
-    }
-    chacha20::apply_keystream(key, nonce, 1, in_out)
-}
+/// TLS 1.2 GCM: the implicit part of the nonce from the key block, and the explicit part sent in each record
+/// (RFC 5288 §3).
+const GCM_FIXED_IV_LEN: usize = 4;
+const GCM_EXPLICIT_LEN: usize = 8;
 
 /// The largest plaintext in a TLS record (RFC 8446 §5.1, RFC 5246 §6.2.1).
 const MAX_FRAGMENT_LEN: usize = 16_384;
 
-/// ChaCha20-Poly1305 as the record protection of TLS 1.3 (RFC 8446 §5.2, §5.3) and TLS 1.2 (RFC 7905).
-pub(crate) struct ChaCha20Poly1305;
+/// One of the three AEADs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Cipher {
+    ChaCha20Poly1305,
+    Aes128Gcm,
+    Aes256Gcm,
+}
 
-/// A record key with the nonce base it is used with. The key is wiped on drop. A key of the wrong length can't
-/// reach here through rustls (it asks for `key_len` bytes); if one did, the key stays `None` and every record fails
-/// instead of panicking.
+impl Cipher {
+    /// Key length in bytes.
+    pub(crate) const fn key_len(self) -> usize {
+        match self {
+            Self::Aes128Gcm => 16,
+            Self::ChaCha20Poly1305 | Self::Aes256Gcm => 32,
+        }
+    }
+}
+
+/// Encrypts `in_out` in place with `cipher` and returns the tag. A key of the wrong length is refused.
+pub(crate) fn seal_with(
+    cipher: Cipher,
+    key: &[u8],
+    nonce: &[u8; NONCE_LEN],
+    aad: &[u8],
+    in_out: &mut [u8],
+) -> Result<[u8; TAG_LEN], Error> {
+    fn run<A: AeadInOut + KeyInit>(
+        key: &[u8],
+        nonce: &[u8; NONCE_LEN],
+        aad: &[u8],
+        in_out: &mut [u8],
+    ) -> Result<[u8; TAG_LEN], Error> {
+        let aead = A::new_from_slice(key).map_err(|_| Error)?;
+        let nonce = nonce.as_slice().try_into().map_err(|_| Error)?;
+        let tag = aead
+            .encrypt_inout_detached(nonce, aad, in_out.into())
+            .map_err(|_| Error)?;
+        tag.as_slice().try_into().map_err(|_| Error)
+    }
+    match cipher {
+        Cipher::ChaCha20Poly1305 => run::<ChaCha>(key, nonce, aad, in_out),
+        Cipher::Aes128Gcm => run::<Aes128Gcm>(key, nonce, aad, in_out),
+        Cipher::Aes256Gcm => run::<Aes256Gcm>(key, nonce, aad, in_out),
+    }
+}
+
+/// Checks `tag` over `aad` and the ciphertext `in_out`, then decrypts `in_out` in place. The crates compare the tag
+/// in constant time before decrypting; on a mismatch `in_out` is left as it was.
+pub(crate) fn open_with(
+    cipher: Cipher,
+    key: &[u8],
+    nonce: &[u8; NONCE_LEN],
+    aad: &[u8],
+    in_out: &mut [u8],
+    tag: &[u8; TAG_LEN],
+) -> Result<(), Error> {
+    fn run<A: AeadInOut + KeyInit>(
+        key: &[u8],
+        nonce: &[u8; NONCE_LEN],
+        aad: &[u8],
+        in_out: &mut [u8],
+        tag: &[u8; TAG_LEN],
+    ) -> Result<(), Error> {
+        let aead = A::new_from_slice(key).map_err(|_| Error)?;
+        let nonce = nonce.as_slice().try_into().map_err(|_| Error)?;
+        let tag = tag.as_slice().try_into().map_err(|_| Error)?;
+        aead.decrypt_inout_detached(nonce, aad, in_out.into(), tag)
+            .map_err(|_| Error)
+    }
+    match cipher {
+        Cipher::ChaCha20Poly1305 => run::<ChaCha>(key, nonce, aad, in_out, tag),
+        Cipher::Aes128Gcm => run::<Aes128Gcm>(key, nonce, aad, in_out, tag),
+        Cipher::Aes256Gcm => run::<Aes256Gcm>(key, nonce, aad, in_out, tag),
+    }
+}
+
+/// An AEAD as the record protection of TLS 1.3 and TLS 1.2 (rustls's `Tls13AeadAlgorithm`, `Tls12AeadAlgorithm`).
+pub(crate) struct Aead(pub(crate) Cipher);
+
+pub(crate) static CHACHA20_POLY1305: Aead = Aead(Cipher::ChaCha20Poly1305);
+pub(crate) static AES_128_GCM: Aead = Aead(Cipher::Aes128Gcm);
+pub(crate) static AES_256_GCM: Aead = Aead(Cipher::Aes256Gcm);
+
+/// A record key with its cipher and nonce base. The key is wiped on drop. A key or IV of the wrong length can't reach
+/// here through rustls (it asks for `key_len` bytes); if one did, the key stays empty and every record fails instead
+/// of panicking.
 struct RecordKey {
-    key: Option<[u8; KEY_LEN]>,
+    cipher: Cipher,
+    key: Vec<u8>,
     iv: Option<Iv>,
 }
 
 impl RecordKey {
-    fn new(key: &AeadKey, iv: Option<Iv>) -> Self {
+    fn new(cipher: Cipher, key: &AeadKey, iv: Option<Iv>) -> Self {
+        let key = key.as_ref();
         Self {
-            key: key.as_ref().try_into().ok(),
+            cipher,
+            key: if key.len() == cipher.key_len() {
+                key.to_vec()
+            } else {
+                Vec::new()
+            },
             iv,
         }
     }
 
-    /// The key and the record nonce: the IV XOR the sequence number (RFC 8446 §5.3, RFC 7905 §2).
-    fn for_record(&self, seq: u64) -> Option<(&[u8; KEY_LEN], [u8; NONCE_LEN])> {
-        Some((self.key.as_ref()?, Nonce::new(self.iv.as_ref()?, seq).0))
+    /// The record nonce: the IV XOR the sequence number (RFC 8446 §5.3, RFC 7905 §2; for TLS 1.2 GCM the IV is the
+    /// fixed part and the first explicit nonce, as rustls's own providers build it).
+    fn nonce(&self, seq: u64) -> Option<[u8; NONCE_LEN]> {
+        Some(Nonce::new(self.iv.as_ref()?, seq).0)
+    }
+
+    fn seal(
+        &self,
+        seq: u64,
+        aad: &[u8],
+        in_out: &mut [u8],
+    ) -> Result<[u8; TAG_LEN], rustls::Error> {
+        let nonce = self.nonce(seq).ok_or(rustls::Error::EncryptError)?;
+        seal_with(self.cipher, &self.key, &nonce, aad, in_out)
+            .map_err(|Error| rustls::Error::EncryptError)
     }
 }
 
@@ -112,17 +161,17 @@ impl Drop for RecordKey {
     }
 }
 
-impl Tls13AeadAlgorithm for ChaCha20Poly1305 {
+impl Tls13AeadAlgorithm for Aead {
     fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageEncrypter> {
-        Box::new(Tls13Encrypter(RecordKey::new(&key, Some(iv))))
+        Box::new(Tls13Encrypter(RecordKey::new(self.0, &key, Some(iv))))
     }
 
     fn decrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageDecrypter> {
-        Box::new(Tls13Decrypter(RecordKey::new(&key, Some(iv))))
+        Box::new(Tls13Decrypter(RecordKey::new(self.0, &key, Some(iv))))
     }
 
     fn key_len(&self) -> usize {
-        KEY_LEN
+        self.0.key_len()
     }
 
     /// Key extraction (kTLS) is out of scope (`docs/plan-tls.md` §3).
@@ -135,21 +184,47 @@ impl Tls13AeadAlgorithm for ChaCha20Poly1305 {
     }
 }
 
-impl Tls12AeadAlgorithm for ChaCha20Poly1305 {
-    fn encrypter(&self, key: AeadKey, iv: &[u8], _explicit: &[u8]) -> Box<dyn MessageEncrypter> {
-        Box::new(Tls12Encrypter(RecordKey::new(&key, tls12_iv(iv))))
+impl Tls12AeadAlgorithm for Aead {
+    fn encrypter(&self, key: AeadKey, iv: &[u8], explicit: &[u8]) -> Box<dyn MessageEncrypter> {
+        match self.0 {
+            Cipher::ChaCha20Poly1305 => {
+                Box::new(Tls12Encrypter(RecordKey::new(self.0, &key, full_iv(iv))))
+            }
+            Cipher::Aes128Gcm | Cipher::Aes256Gcm => Box::new(GcmEncrypter(RecordKey::new(
+                self.0,
+                &key,
+                gcm_iv(iv, explicit),
+            ))),
+        }
     }
 
     fn decrypter(&self, key: AeadKey, iv: &[u8]) -> Box<dyn MessageDecrypter> {
-        Box::new(Tls12Decrypter(RecordKey::new(&key, tls12_iv(iv))))
+        match self.0 {
+            Cipher::ChaCha20Poly1305 => {
+                Box::new(Tls12Decrypter(RecordKey::new(self.0, &key, full_iv(iv))))
+            }
+            // The explicit part comes with each record; the fixed part is kept here.
+            Cipher::Aes128Gcm | Cipher::Aes256Gcm => Box::new(GcmDecrypter(RecordKey::new(
+                self.0,
+                &key,
+                gcm_iv(iv, &[0; GCM_EXPLICIT_LEN]),
+            ))),
+        }
     }
 
-    /// RFC 7905 §2: a 32-byte key and a 12-byte fixed IV, no explicit nonce.
+    /// RFC 7905 §2: a 12-byte fixed IV and no explicit nonce; RFC 5288 §3: a 4-byte salt and an 8-byte explicit nonce.
     fn key_block_shape(&self) -> KeyBlockShape {
-        KeyBlockShape {
-            enc_key_len: KEY_LEN,
-            fixed_iv_len: NONCE_LEN,
-            explicit_nonce_len: 0,
+        match self.0 {
+            Cipher::ChaCha20Poly1305 => KeyBlockShape {
+                enc_key_len: self.0.key_len(),
+                fixed_iv_len: NONCE_LEN,
+                explicit_nonce_len: 0,
+            },
+            Cipher::Aes128Gcm | Cipher::Aes256Gcm => KeyBlockShape {
+                enc_key_len: self.0.key_len(),
+                fixed_iv_len: GCM_FIXED_IV_LEN,
+                explicit_nonce_len: GCM_EXPLICIT_LEN,
+            },
         }
     }
 
@@ -164,28 +239,25 @@ impl Tls12AeadAlgorithm for ChaCha20Poly1305 {
     }
 }
 
-fn tls12_iv(iv: &[u8]) -> Option<Iv> {
+fn full_iv(iv: &[u8]) -> Option<Iv> {
     <[u8; NONCE_LEN]>::try_from(iv).ok().map(Iv::new)
 }
 
-/// Seals the plaintext already in `payload` and appends the tag.
-fn seal_payload(
-    key: &RecordKey,
-    seq: u64,
-    aad: &[u8],
-    payload: &mut PrefixedPayload,
-) -> Result<(), rustls::Error> {
-    let (key, nonce) = key.for_record(seq).ok_or(rustls::Error::EncryptError)?;
-    let tag =
-        seal(key, &nonce, aad, payload.as_mut()).map_err(|Error| rustls::Error::EncryptError)?;
-    payload.extend_from_slice(&tag);
-    Ok(())
+/// The TLS 1.2 GCM nonce base: the 4-byte salt, then the 8-byte explicit part.
+fn gcm_iv(salt: &[u8], explicit: &[u8]) -> Option<Iv> {
+    if salt.len() != GCM_FIXED_IV_LEN || explicit.len() != GCM_EXPLICIT_LEN {
+        return None;
+    }
+    let mut iv = [0u8; NONCE_LEN];
+    iv[..GCM_FIXED_IV_LEN].copy_from_slice(salt);
+    iv[GCM_FIXED_IV_LEN..].copy_from_slice(explicit);
+    Some(Iv::new(iv))
 }
 
-/// Checks the tag at the end of `payload` and decrypts the rest in place; returns the plaintext length.
+/// Checks the tag at the end of `payload` and decrypts the rest in place with `nonce`; returns the plaintext length.
 fn open_payload(
     key: &RecordKey,
-    seq: u64,
+    nonce: &[u8; NONCE_LEN],
     aad: &[u8],
     payload: &mut [u8],
 ) -> Result<usize, rustls::Error> {
@@ -193,12 +265,12 @@ fn open_payload(
         .len()
         .checked_sub(TAG_LEN)
         .ok_or(rustls::Error::DecryptError)?;
-    let (key, nonce) = key.for_record(seq).ok_or(rustls::Error::DecryptError)?;
     let (ciphertext, tag) = payload.split_at_mut(plain_len);
     let tag: &[u8; TAG_LEN] = (&*tag)
         .try_into()
         .map_err(|_| rustls::Error::DecryptError)?;
-    open(key, &nonce, aad, ciphertext, tag).map_err(|Error| rustls::Error::DecryptError)?;
+    open_with(key.cipher, &key.key, nonce, aad, ciphertext, tag)
+        .map_err(|Error| rustls::Error::DecryptError)?;
     Ok(plain_len)
 }
 
@@ -206,6 +278,8 @@ struct Tls13Encrypter(RecordKey);
 struct Tls13Decrypter(RecordKey);
 struct Tls12Encrypter(RecordKey);
 struct Tls12Decrypter(RecordKey);
+struct GcmEncrypter(RecordKey);
+struct GcmDecrypter(RecordKey);
 
 impl MessageEncrypter for Tls13Encrypter {
     /// RFC 8446 §5.2: the plaintext, then the real content type, sealed as an `application_data` record with the
@@ -219,7 +293,10 @@ impl MessageEncrypter for Tls13Encrypter {
         let mut payload = PrefixedPayload::with_capacity(total_len);
         payload.extend_from_chunks(&msg.payload);
         payload.extend_from_slice(&msg.typ.to_array());
-        seal_payload(&self.0, seq, &make_tls13_aad(total_len), &mut payload)?;
+        let tag = self
+            .0
+            .seal(seq, &make_tls13_aad(total_len), payload.as_mut())?;
+        payload.extend_from_slice(&tag);
         // All TLS 1.3 records carry the legacy version 0x0303 (RFC 8446 §5.1).
         Ok(OutboundOpaqueMessage::new(
             ContentType::ApplicationData,
@@ -240,7 +317,8 @@ impl MessageDecrypter for Tls13Decrypter {
         seq: u64,
     ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
         let aad = make_tls13_aad(msg.payload.len());
-        let plain_len = open_payload(&self.0, seq, &aad, &mut msg.payload)?;
+        let nonce = self.0.nonce(seq).ok_or(rustls::Error::DecryptError)?;
+        let plain_len = open_payload(&self.0, &nonce, &aad, &mut msg.payload)?;
         msg.payload.truncate(plain_len);
         msg.into_tls13_unpadded_message()
     }
@@ -257,7 +335,8 @@ impl MessageEncrypter for Tls12Encrypter {
             PrefixedPayload::with_capacity(self.encrypted_payload_len(msg.payload.len()));
         payload.extend_from_chunks(&msg.payload);
         let aad = make_tls12_aad(seq, msg.typ, msg.version, msg.payload.len());
-        seal_payload(&self.0, seq, &aad, &mut payload)?;
+        let tag = self.0.seal(seq, &aad, payload.as_mut())?;
+        payload.extend_from_slice(&tag);
         Ok(OutboundOpaqueMessage::new(msg.typ, msg.version, payload))
     }
 
@@ -278,10 +357,68 @@ impl MessageDecrypter for Tls12Decrypter {
             .checked_sub(TAG_LEN)
             .ok_or(rustls::Error::DecryptError)?;
         let aad = make_tls12_aad(seq, msg.typ, msg.version, plain_len);
-        open_payload(&self.0, seq, &aad, &mut msg.payload)?;
+        let nonce = self.0.nonce(seq).ok_or(rustls::Error::DecryptError)?;
+        open_payload(&self.0, &nonce, &aad, &mut msg.payload)?;
         if plain_len > MAX_FRAGMENT_LEN {
             return Err(rustls::Error::PeerSentOversizedRecord);
         }
+        msg.payload.truncate(plain_len);
+        Ok(msg.into_plain_message())
+    }
+}
+
+impl MessageEncrypter for GcmEncrypter {
+    /// RFC 5288 §3: the record is the explicit nonce (the nonce's last 8 bytes), the ciphertext and the tag; the
+    /// additional data is as for any TLS 1.2 AEAD.
+    fn encrypt(
+        &mut self,
+        msg: OutboundPlainMessage<'_>,
+        seq: u64,
+    ) -> Result<OutboundOpaqueMessage, rustls::Error> {
+        let nonce = self.0.nonce(seq).ok_or(rustls::Error::EncryptError)?;
+        let mut payload =
+            PrefixedPayload::with_capacity(self.encrypted_payload_len(msg.payload.len()));
+        payload.extend_from_slice(&nonce[GCM_FIXED_IV_LEN..]);
+        payload.extend_from_chunks(&msg.payload);
+        let aad = make_tls12_aad(seq, msg.typ, msg.version, msg.payload.len());
+        let tag = seal_with(
+            self.0.cipher,
+            &self.0.key,
+            &nonce,
+            &aad,
+            &mut payload.as_mut()[GCM_EXPLICIT_LEN..],
+        )
+        .map_err(|Error| rustls::Error::EncryptError)?;
+        payload.extend_from_slice(&tag);
+        Ok(OutboundOpaqueMessage::new(msg.typ, msg.version, payload))
+    }
+
+    fn encrypted_payload_len(&self, payload_len: usize) -> usize {
+        GCM_EXPLICIT_LEN + payload_len + TAG_LEN
+    }
+}
+
+impl MessageDecrypter for GcmDecrypter {
+    fn decrypt<'a>(
+        &mut self,
+        mut msg: InboundOpaqueMessage<'a>,
+        seq: u64,
+    ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
+        let plain_len = msg
+            .payload
+            .len()
+            .checked_sub(GCM_EXPLICIT_LEN + TAG_LEN)
+            .ok_or(rustls::Error::DecryptError)?;
+        let mut nonce = self.0.nonce(0).ok_or(rustls::Error::DecryptError)?;
+        nonce[GCM_FIXED_IV_LEN..].copy_from_slice(&msg.payload[..GCM_EXPLICIT_LEN]);
+        let aad = make_tls12_aad(seq, msg.typ, msg.version, plain_len);
+        open_payload(&self.0, &nonce, &aad, &mut msg.payload[GCM_EXPLICIT_LEN..])?;
+        if plain_len > MAX_FRAGMENT_LEN {
+            return Err(rustls::Error::PeerSentOversizedRecord);
+        }
+        // Drop the explicit nonce in front and the tag behind.
+        msg.payload
+            .copy_within(GCM_EXPLICIT_LEN..GCM_EXPLICIT_LEN + plain_len, 0);
         msg.payload.truncate(plain_len);
         Ok(msg.into_plain_message())
     }
@@ -293,17 +430,29 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
+
+    /// ChaCha20-Poly1305 with 32-byte keys, as the RFC 8439 and Wycheproof vectors use it.
+    fn seal(
+        key: &[u8; KEY_LEN],
+        nonce: &[u8; NONCE_LEN],
+        aad: &[u8],
+        in_out: &mut [u8],
+    ) -> Result<[u8; TAG_LEN], Error> {
+        seal_with(Cipher::ChaCha20Poly1305, key, nonce, aad, in_out)
+    }
+
+    fn open(
+        key: &[u8; KEY_LEN],
+        nonce: &[u8; NONCE_LEN],
+        aad: &[u8],
+        in_out: &mut [u8],
+        tag: &[u8; TAG_LEN],
+    ) -> Result<(), Error> {
+        open_with(Cipher::ChaCha20Poly1305, key, nonce, aad, in_out, tag)
+    }
     use crate::testutil::{Expect, hex, hex_array, wycheproof};
 
     const SUNSCREEN: &[u8] = b"Ladies and Gentlemen of the class of '99: If I could offer you only one tip for the future, sunscreen would be it.";
-
-    #[test]
-    fn rfc8439_2_6_2_one_time_key() {
-        let key = hex_array("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f");
-        let one_time = poly1305_key(&key, &hex_array("000000000001020304050607"));
-        let expected = "8ad5a08b905f81cc815040274ab29471a833b637e3fd0da508dbb8e2fdd1a646";
-        assert_eq!(one_time.to_vec(), hex(expected));
-    }
 
     #[test]
     fn rfc8439_2_8_2_seal() {
@@ -322,16 +471,6 @@ mod tests {
         assert_eq!(tag.to_vec(), hex("1ae10b594f09e26a7e902ecbd0600691"));
         open(&key, &nonce, &aad, &mut data, &tag).unwrap();
         assert_eq!(data, SUNSCREEN);
-    }
-
-    #[test]
-    fn rfc8439_appendix_a4_one_time_keys() {
-        for (key, nonce, one_time) in A4 {
-            assert_eq!(
-                poly1305_key(&hex_array(key), &hex_array(nonce)).to_vec(),
-                hex(one_time)
-            );
-        }
     }
 
     #[test]
@@ -444,43 +583,8 @@ mod tests {
             prop_assert_eq!(data, plain);
         }
 
-        /// Cross-check against RustCrypto's `chacha20poly1305` (`docs/plan-tls.md` §7.2).
-        #[test]
-        fn matches_chacha20poly1305(
-            key in any::<[u8; KEY_LEN]>(),
-            nonce in any::<[u8; NONCE_LEN]>(),
-            aad in proptest::collection::vec(any::<u8>(), 0..64),
-            plain in proptest::collection::vec(any::<u8>(), 0..300),
-        ) {
-            use chacha20poly1305::{AeadInOut, ChaCha20Poly1305, KeyInit};
-            let oracle = ChaCha20Poly1305::new(&key.into());
-            let mut expected = plain.clone();
-            let expected_tag = oracle.encrypt_inout_detached(&nonce.into(), &aad, expected.as_mut_slice().into()).unwrap();
-            let mut data = plain;
-            let tag = seal(&key, &nonce, &aad, &mut data).unwrap();
-            prop_assert_eq!(data, expected);
-            prop_assert_eq!(tag.as_slice(), expected_tag.as_slice());
-        }
     }
 
-    /// RFC 8439 Appendix A.4: (key, nonce, one-time key).
-    const A4: &[(&str, &str, &str)] = &[
-        (
-            "0000000000000000000000000000000000000000000000000000000000000000",
-            "000000000000000000000000",
-            "76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc8b770dc7",
-        ),
-        (
-            "0000000000000000000000000000000000000000000000000000000000000001",
-            "000000000000000000000002",
-            "ecfa254f845f647473d3cb140da9e87606cb33066c447b87bc2666dde3fbb739",
-        ),
-        (
-            "1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0",
-            "000000000000000000000002",
-            "965e3bc6f9ec7ed9560808f4d229f94b137ff275ca9b3fcbdd59deaad23310ae",
-        ),
-    ];
     /// RFC 8439 Appendix A.5: (key, nonce, aad, ciphertext, tag, plaintext).
     const A5: (&str, &str, &str, &str, &str, &str) = (
         "1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0",

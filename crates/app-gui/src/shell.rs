@@ -425,15 +425,23 @@ impl Shell {
                         // scrolls to its end once, when the composer opens.
                         let opened = self.docked != Some(draft);
                         self.docked = Some(draft);
+                        // MISC-36: the reader keeps a quarter of the pane, and is clipped to what the
+                        // composer leaves it. Unclipped, its title and text painted over the composer.
+                        let height = ui.available_height();
                         Panel::bottom("reply-composer")
                             .resizable(true)
-                            .default_size(ui.available_height() * 0.55)
+                            .default_size(height * 0.55)
                             .min_size(t.m.overlays.palette_list_max / 2.0)
+                            .max_size(height * 0.75)
                             .frame(egui::Frame::new().fill(t.canvas))
                             .show(ui, |ui| {
                                 self.composer.show(ui, &t, state, now_ms, &mut queue);
                             });
-                        self.show_reader(ui, &t, state, now_ms, &rows.ids, opened, &mut queue);
+                        let rest = ui.available_rect_before_wrap();
+                        ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| {
+                            ui.set_clip_rect(rest.intersect(ui.clip_rect()));
+                            self.show_reader(ui, &t, state, now_ms, &rows.ids, opened, &mut queue);
+                        });
                     }
                 }
             });

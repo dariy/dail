@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,13 +44,24 @@ import androidx.compose.ui.unit.dp
  * The open draft. Each field keeps the IME's state and reports every change as `text` and the
  * focus leaving as `blur`; it takes the frame's text again only when its version changes
  * (`app_mobile::composer`). Writing back, addresses and suggestions are the presenter's.
+ *
+ * The whole pane scrolls, so the header fields can leave the screen and give it to the body. The
+ * app draws edge to edge, so `adjustResize` does not shrink the window for the keyboard: the
+ * pane takes the IME inset itself, and the focused field keeps its caret line in view above the
+ * keyboard (MISC-31).
  */
 @Composable
 fun ComposerPane(
     composer: Composer,
     send: (UiEvent) -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(composer.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
             Text(composer.status, style = MaterialTheme.typography.labelSmall)

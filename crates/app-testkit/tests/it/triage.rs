@@ -117,7 +117,7 @@ async fn include_body_returns_the_parsed_text_as_untrusted_content() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn rich_body_adds_the_document_of_html_bodies() {
+async fn rich_body_adds_the_document_of_bodies() {
     let mut fixture = Fixture::builtin("basic").unwrap();
     let inbox = fixture.accounts[0]
         .mailboxes
@@ -172,16 +172,14 @@ async fn rich_body_adds_the_document_of_html_bodies() {
             {"type": "heading", "level": 1, "spans": [{"text": "Weekly"}]},
             {"type": "paragraph", "spans": [
                 {"text": "Read "},
-                {"text": "more", "link": "https://example.net/a"},
+                {"text": "more", "link": "https://example.net/a", "note": 1},
             ]},
         ]})
     );
-    // Plain text bodies have no document, and agents don't get one unless they ask.
-    assert!(
-        body(&run(&session, rich(q3)).await)
-            .get("document")
-            .is_none()
-    );
+    // Plain text bodies have one too (MISC-28): the text read as paragraphs. Agents don't get one unless they ask.
+    let plain_doc = body(&run(&session, rich(q3)).await);
+    assert_eq!(plain_doc["text_source"], "plain");
+    assert_eq!(plain_doc["document"]["blocks"][0]["type"], "paragraph");
     let plain = body(
         &run(
             &session,

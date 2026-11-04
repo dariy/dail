@@ -287,6 +287,7 @@ impl Engine {
                 )
             }
             Event::Tick { .. }
+            | Event::NetworkChanged { .. }
             | Event::UpdateHostDetected { .. }
             | Event::UpdateChecked { .. }
             | Event::UpdateDownloaded { .. }

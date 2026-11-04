@@ -1262,7 +1262,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Choose the address a draft is sent from: one of its account's identities. Undoable.",
+      "description": "Choose the address a draft is sent from: an identity of any connected account. An address of\nanother account moves the draft there (its saved server copy moves too); a reply stays a\nreply. Undoable.",
       "properties": {
         "args": {
           "properties": {

@@ -21,6 +21,7 @@ pub mod mailto;
 pub mod notice;
 pub mod palette;
 pub mod panes;
+pub mod providers;
 pub mod result;
 pub mod status;
 pub mod text;

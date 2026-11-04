@@ -37,7 +37,7 @@ fn diagnostics_are_classified() {
             Cause::Quota,
         ),
         (
-            "IMAP mail.example.org:993: TLS handshake failed: received fatal alert: HandshakeFailure (the server supports none of the TLS ciphers dail implements (TLS 1.2/1.3 with ChaCha20-Poly1305 and X25519))",
+            "IMAP mail.example.org:993: TLS handshake failed: received fatal alert: HandshakeFailure (the server supports none of the TLS ciphers dail implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384))",
             Cause::TlsCiphers,
         ),
         (

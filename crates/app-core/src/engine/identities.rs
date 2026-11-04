@@ -207,28 +207,66 @@ impl Engine {
             .get(&id)
             .ok_or_else(|| not_found("draft", id))?;
         ensure_editable(draft)?;
-        let identity = self.identity_of(draft.account, email)?;
+        let previous = match &draft.from {
+            Some(from) => from.email.clone(),
+            None => self
+                .state
+                .accounts
+                .get(&draft.account)
+                .ok_or_else(|| not_found("account", draft.account))?
+                .email
+                .clone(),
+        };
+        // The draft's own account first, so an address two accounts share keeps the draft where it is; else any
+        // connected account (MISC-36), and the draft moves there.
+        let target = if self.identity_of(draft.account, email).is_ok() {
+            draft.account
+        } else {
+            self.state
+                .accounts
+                .values()
+                .find(|a| a.identity(email).is_some())
+                .map(|a| a.id)
+                .ok_or_else(|| {
+                    invalid(
+                        "email",
+                        format!("{} is not an address of the account", email.trim()),
+                    )
+                })?
+        };
+        let identity = self.identity_of(target, email)?;
         let account = self
             .state
             .accounts
-            .get(&draft.account)
-            .ok_or_else(|| not_found("account", draft.account))?;
-        let previous = draft
-            .from
-            .as_ref()
-            .map_or_else(|| account.email.clone(), |from| from.email.clone());
+            .get(&target)
+            .ok_or_else(|| not_found("account", target))?;
         let from = (!identity.email.eq_ignore_ascii_case(&account.email))
             .then(|| account.from_addr(&identity));
+        let old = draft.clone();
         let mut draft = draft.clone();
         draft.from = from;
         draft.updated_ms = ctx.now_ms;
+        // Moving: the old account's server copy goes, and the next save puts it in the new account's Drafts. The
+        // reply stays a reply: threading headers and quote are kept.
+        let moved = target != old.account;
+        let delete = if moved {
+            self.delete_server_copy(&old)
+        } else {
+            None
+        };
+        if moved {
+            draft.account = target;
+            draft.saved_ms = None;
+            draft.save_error = None;
+        }
         let json = draft_json(&draft);
         self.state.drafts.insert(id, draft);
         let mut changes = CacheChanges::default();
         changes.drafts.insert(id);
-        let outcome = self
+        let mut outcome = self
             .draft_outcome(receipt.affecting(EntityRef::Draft(id)), json, changes)
             .with_effect(save_timer(ctx.now_ms));
+        outcome.effects.extend(delete);
         Ok(Applied {
             outcome,
             undo: Some((

@@ -512,6 +512,25 @@ pub struct StatusState {
     /// Recent `save_attachments`, oldest first, one per message (at most `MAX_SAVES`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub saves: Vec<AttachmentSave>,
+    /// Stored drafts, queued operations and approvals that this version could not read. They are
+    /// kept aside in the store, never dropped, so a later version can read them (STORE-6).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub quarantined: Vec<QuarantinedRow>,
+    /// Whether the device's network is metered (`Event::NetworkChanged`, STORE-8): body prefetch
+    /// and history backfill wait while it is.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub metered: bool,
+}
+
+/// A stored row this version could not read, kept aside instead of dropped (STORE-6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct QuarantinedRow {
+    /// The table it came from: `drafts`, `outbox` or `approvals`.
+    pub table: String,
+    /// Its key, the record's ID as a UUID.
+    pub key: String,
+    /// Why it did not read.
+    pub error: String,
 }
 
 /// A search of the local full-text index of downloaded bodies (ADR 0005).

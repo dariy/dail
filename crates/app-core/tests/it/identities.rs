@@ -185,3 +185,83 @@ fn a_mailbox_default_and_an_explicit_choice() {
         Err(CoreError::InvalidArgument { .. })
     ));
 }
+
+/// MISC-36: a reply can go out from another connected account. The draft moves there with its threading and quote,
+/// its saved copy leaves the old account's Drafts, and undo moves it back.
+#[test]
+fn a_draft_moves_to_the_account_of_the_chosen_address() {
+    let mut m = Mail::new(
+        app_core::ProviderPreset::Hostinger,
+        &[
+            ("INBOX", None),
+            ("Drafts", Some(app_core::MailboxRole::Drafts)),
+        ],
+    );
+    let first = m.account;
+    m.run(Command::AddAccount {
+        preset: app_core::ProviderPreset::Gmail,
+        email: "b@gmail.com".into(),
+        display_name: None,
+        password: None,
+        imap: None,
+        smtp: None,
+    })
+    .unwrap();
+    let second = *m
+        .engine
+        .state()
+        .accounts
+        .keys()
+        .find(|id| **id != first)
+        .unwrap();
+    let outcome = m
+        .run(Command::CreateDraft {
+            account: first,
+            to: vec![],
+            cc: vec![],
+            bcc: vec![],
+            subject: "Re: Lunch".into(),
+            body: "Yes".into(),
+        })
+        .unwrap();
+    let id = draft_of(&outcome);
+    let revision = m.engine.state().drafts[&id].updated_ms;
+    m.feed(Event::DraftSaved {
+        draft: id,
+        revision,
+    });
+    assert!(m.engine.state().drafts[&id].saved_ms.is_some());
+
+    let outcome = m
+        .run(Command::SetDraftFrom {
+            id,
+            email: "B@gmail.com".into(),
+        })
+        .unwrap();
+    let draft = &m.engine.state().drafts[&id];
+    assert_eq!(draft.account, second);
+    assert!(draft.from.is_none(), "the account's own address");
+    assert!(draft.saved_ms.is_none(), "saved again in the new account");
+    assert_eq!(draft.subject, "Re: Lunch");
+    let deletes: Vec<_> = outcome
+        .effects
+        .iter()
+        .filter_map(|e| match e {
+            Effect::DeleteDraft { account, .. } => Some(*account),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(deletes, [first], "the old copy goes");
+
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(m.engine.state().drafts[&id].account, first);
+    m.run(Command::Redo {}).unwrap();
+    assert_eq!(m.engine.state().drafts[&id].account, second);
+    assert!(matches!(
+        m.run(Command::SetDraftFrom {
+            id,
+            email: "nobody@other.org".into(),
+        }),
+        Err(CoreError::InvalidArgument { .. })
+    ));
+}

@@ -19,6 +19,7 @@ mod saves;
 mod search;
 mod sends;
 mod sync;
+pub use sync::PREFETCH_MAX_BYTES;
 mod triage;
 mod updates;
 mod view;
@@ -312,6 +313,10 @@ impl Engine {
                 permanent,
             } => Ok(self.ingest_op_failed(op, error, permanent, ctx, receipt)),
             Event::Tick { now_ms } => Ok(self.ingest_tick(now_ms, receipt)),
+            Event::NetworkChanged { metered } => {
+                self.state.status.metered = metered;
+                Ok(Outcome::new(receipt.affecting(EntityRef::Status)))
+            }
             Event::Closing {} => Ok(self.ingest_closing(ctx, receipt)),
             Event::DraftSaved { draft, revision } => {
                 Ok(self.ingest_draft_saved(draft, Ok(revision), ctx, receipt))

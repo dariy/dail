@@ -9,7 +9,7 @@
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::ptr;
 
-use dail::ffi::{self, DailListener};
+use dail_ios::ffi::{self, DailListener};
 use serde_json::Value;
 
 /// Reads and frees an answer.

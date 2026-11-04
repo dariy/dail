@@ -177,6 +177,18 @@ impl Host {
         if let UiEvent::Visible { visible } = event {
             self.visible.store(visible, Ordering::Relaxed);
         }
+        if let UiEvent::Network { metered } = event {
+            // A fact about the world, so an `Event`, not a command (STORE-8).
+            let client = self.client.clone();
+            self.runtime.spawn(async move {
+                if let Err(err) = client
+                    .ingest(app_core::Event::NetworkChanged { metered })
+                    .await
+                {
+                    tracing::warn!(error = %err, "network change not ingested");
+                }
+            });
+        }
         let bridge = lock(&self.bridge);
         let mut mobile = lock(&self.mobile);
         let requests = mobile.event(event, &bridge.state());
@@ -189,6 +201,12 @@ impl Host {
     /// [`Host::event`] over JSON.
     pub fn event_json(&self, event: &str) -> Result<Output, HostError> {
         Ok(self.event(serde_json::from_str(event)?))
+    }
+
+    /// Whether the engine's task ended while this host is open (STORE-4): no frame is current
+    /// any more, and the front-end must say so instead of showing the last one.
+    pub fn stopped(&self) -> bool {
+        lock(&self.bridge).is_gone()
     }
 
     /// The next frame, after a wake-up: feeds the replies that arrived to the presenter.
@@ -325,6 +343,25 @@ impl Host {
                 Err(err.into())
             }
         }
+    }
+
+    /// Writes attachment `part` of `blob` to `target` (STORE-9); `Ok(false)` if the attachment is
+    /// not stored. Blocks.
+    pub fn save(&self, blob: String, part: usize, target: &Path) -> Result<bool, HostError> {
+        let client = self.client.clone();
+        let Some((_, file)) = self
+            .runtime
+            .block_on(async move { client.attachment_part(&blob, part).await })?
+        else {
+            return Ok(false);
+        };
+        let mut out = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(target)?;
+        std::io::Write::write_all(&mut out, &file.bytes)?;
+        out.sync_all()?;
+        Ok(true)
     }
 
     /// Runs `task` until it is done or `limit` passed; `Ok(true)` when it finished. Blocks.
@@ -538,6 +575,9 @@ fn update_host(platform: Platform) -> Option<app_core::UpdateHost> {
     })
 }
 
+/// How many days of replay logs a mobile host keeps (STORE-10).
+pub const REPLAY_KEEP_DAYS: i64 = 14;
+
 /// The profile's session, as `app-cli` opens it: store, keyring, servers, the full-text index
 /// and the audit log.
 async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, HostError> {
@@ -547,7 +587,8 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
         (platform.secrets)()?,
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
-    );
+    )
+    .with_breaker(Arc::new(app_io::breaker::Breaker::open(dirs.breaker_dir())));
     // Without an index, search still matches headers and asks the servers.
     let backend: Arc<dyn Backend> =
         match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {
@@ -558,6 +599,14 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
             }
         };
     let audit = AuditLog::new(dirs.logs_dir());
+    // Replay logs are kept for 14 days on a phone (STORE-10), swept at each open.
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX));
+    let swept = audit.sweep(now_ms, REPLAY_KEEP_DAYS);
+    if swept > 0 {
+        tracing::info!(files = swept, "old replay logs swept");
+    }
     Ok(Session::open_audited(
         backend,
         Arc::new(SystemClock),

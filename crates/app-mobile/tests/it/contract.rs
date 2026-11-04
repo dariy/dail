@@ -159,6 +159,7 @@ fn events() -> Vec<UiEvent> {
         UiEvent::Back,
         UiEvent::Refresh,
         UiEvent::Online,
+        UiEvent::Network { metered: true },
         UiEvent::Notification {
             act: app_mobile::NoteAct::OpenThread {
                 thread: serde_json::from_str("\"00000000-0000-0000-0000-000000000009\"").unwrap(),
@@ -201,6 +202,7 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Back
             | UiEvent::Refresh
             | UiEvent::Online
+            | UiEvent::Network { .. }
             | UiEvent::Notification { .. }
             | UiEvent::Text { .. }
             | UiEvent::Blur { .. }

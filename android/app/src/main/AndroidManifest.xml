@@ -4,13 +4,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- A5: the periodic check is kept across reboots, and a network change syncs. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- A5: notifications, asked for when an account first exists. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- A5: push, a `specialUse` foreground service (`dataSync` before Android 14). -->
+    <!-- A5: push, a `specialUse` foreground service from Android 14; before it, a service of no type (STORE-14). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
@@ -19,7 +18,7 @@
         android:dataExtractionRules="@xml/no_extraction"
         android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/no_backup"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
@@ -51,7 +50,7 @@
         <service
             android:name=".SendService"
             android:exported="false"
-            android:foregroundServiceType="shortService|dataSync" />
+            android:foregroundServiceType="shortService" />
         <service
             android:name=".DailJobService"
             android:exported="false"
@@ -62,7 +61,7 @@
         <service
             android:name=".PushService"
             android:exported="false"
-            android:foregroundServiceType="specialUse|dataSync">
+            android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps IMAP IDLE connections open so that new mail arrives as it comes" />

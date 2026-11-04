@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the signed release APKs, one per ABI, as dist/dail-<version>-<abi>.apk (+ .sha256 for each), and
-# prints their sizes. Needs what `cargo xtask android apk` needs (cargo-ndk, NDK r28+, JDK 17, the SDK) and the
+# prints their sizes; and the signed AAB for Google Play as aab/dail-<version>.aab, kept out of dist/ so that it is
+# neither in the GitHub Release nor in the update manifest (STORE-16, STORE-20). Needs what `cargo xtask android apk` needs (cargo-ndk, NDK r28+, JDK 17, the SDK) and the
 # signing key in DAIL_SIGNING_STORE, DAIL_SIGNING_STORE_PASSWORD, DAIL_SIGNING_KEY_ALIAS and
 # DAIL_SIGNING_KEY_PASSWORD (android/app/build.gradle.kts). Run from anywhere: `scripts/release-android.sh`.
 # The release workflow (.github/workflows/release.yml) runs it too.
@@ -28,8 +29,16 @@ version="$(cargo pkgid -p app-android | sed 's/^.*[#@]//')"
 # The licence lists must be current, then the release APKs are built and checked like the gate's.
 cargo run -q -p xtask -- android licences --check
 rm -rf android/app/build/outputs/apk
+rm -rf android/app/build/outputs/bundle
 (cd android && ./gradlew assembleLiveRelease)
+# A Gradle call of its own: ABI splits are off while bundling.
+(cd android && ./gradlew bundleLiveRelease)
 cargo run -q -p xtask -- android apk-check
+
+mkdir -p "$root/aab"
+rm -f "$root"/aab/dail-*.aab
+cp android/app/build/outputs/bundle/liveRelease/*.aab "$root/aab/dail-$version.aab"
+echo "built $root/aab/dail-$version.aab ($(du -k "$root/aab/dail-$version.aab" | cut -f1) KiB)"
 
 dist="$root/dist"
 mkdir -p "$dist"

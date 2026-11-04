@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -35,6 +36,8 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -42,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import net.darii.dail.R
 import net.darii.dail.Screen
 
 /**
@@ -53,6 +57,8 @@ import net.darii.dail.Screen
 fun DailScreen(
     screen: Screen,
     send: (UiEvent) -> Unit,
+    onRestart: () -> Unit = {},
+    onCopyDiagnostics: (String) -> Unit = {},
 ) {
     when (screen) {
         Screen.Opening -> {
@@ -60,7 +66,7 @@ fun DailScreen(
         }
 
         is Screen.Failed -> {
-            Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { Text(screen.error) }
+            FailedScreen(onRestart) { onCopyDiagnostics(screen.error) }
         }
 
         is Screen.Ready -> {
@@ -148,7 +154,9 @@ private fun FrameScaffold(
                 }
             }
         },
-        bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier) } },
+        // The bottom bar slot takes no insets: edge to edge, the snackbar would sit under a 3-button navigation bar,
+        // and a tap on its Undo would land on the bar (STORE-9b).
+        bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier.navigationBarsPadding()) } },
     ) { padding ->
         frame.about?.let { about ->
             AboutScreen(about, Modifier.padding(padding))
@@ -170,7 +178,9 @@ private fun FrameScaffold(
             PaletteScreen(sheet, send, Modifier.padding(padding))
             return@Scaffold
         }
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        // The scaffold's insets are taken here, so a pane's `imePadding` adds only what the keyboard covers beyond
+        // the navigation bar.
+        Column(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize()) {
             frame.banner?.let { BannerCard(it, send) }
             Row(Modifier.fillMaxSize()) {
                 frame.layout.panes.forEach { pane ->
@@ -283,12 +293,44 @@ private fun AboutScreen(
     LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         // The title is in the top bar beside its close: `× About dail (<version>)` (MISC-13).
         item { Text(about.text, Modifier.padding(vertical = 8.dp)) }
+        item {
+            // Our own page, in the browser (STORE-19).
+            val uri = LocalUriHandler.current
+            TextButton(onClick = { runCatching { uri.openUri(about.privacy.url) } }) { Text(about.privacy.label) }
+        }
         items(about.licences, key = { it.name }) { licence ->
             Column(Modifier.padding(vertical = 8.dp)) {
                 Text(licence.name, style = MaterialTheme.typography.titleMedium)
                 Text(licence.text, style = MaterialTheme.typography.labelSmall)
             }
             HorizontalDivider()
+        }
+    }
+}
+
+/**
+ * Why nothing can be shown, and the two ways out (STORE-5): *Restart* and *Copy diagnostics*.
+ * Its strings are Android resources, not frame labels, because Rust may be dead here.
+ */
+@Composable
+private fun FailedScreen(
+    onRestart: () -> Unit,
+    onCopy: () -> Unit,
+) {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(stringResource(R.string.failed_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.failed_body),
+                modifier = Modifier.padding(top = 12.dp, bottom = 24.dp),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row {
+                TextButton(onClick = onCopy) { Text(stringResource(R.string.failed_copy)) }
+                androidx.compose.material3.Button(onClick = onRestart, modifier = Modifier.padding(start = 8.dp)) {
+                    Text(stringResource(R.string.failed_restart))
+                }
+            }
         }
     }
 }

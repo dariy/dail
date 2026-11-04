@@ -128,6 +128,13 @@ sealed interface UiEvent {
         override fun json() = event("online")
     }
 
+    /** The default network's metered state (STORE-8): prefetch and backfill wait while metered. */
+    data class Network(
+        val metered: Boolean,
+    ) : UiEvent {
+        override fun json() = event("network") { put("metered", metered) }
+    }
+
     /** A tap on a notification: its `open`, passed back verbatim. */
     data class Notification(
         val act: JsonObject,

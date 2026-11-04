@@ -169,6 +169,9 @@ const GRADLE_CHECKS: &[&str] = &[
 /// The APKs `android apk` assembles: the release build users get, and the debug build agents drive.
 const APK_TASKS: &[&str] = &["assembleLiveRelease", "assembleDemoDebug"];
 
+/// The AAB Play gets (STORE-16), in a Gradle call of its own: ABI splits are off while bundling.
+const AAB_TASKS: &[&str] = &["bundleLiveRelease"];
+
 /// Native libraries an APK may carry besides `libdail.so`, each with why (AGENTS.md §5, ADR 0009).
 const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[(
     "libandroidx.graphics.path.so",
@@ -179,9 +182,8 @@ const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[(
 /// The last is AndroidX core's guard for receivers registered as not exported.
 const APK_PERMISSIONS: &[&str] = &[
     "android.permission.INTERNET",
-    // A4: the send service (`shortService` from Android 14, `dataSync` before).
+    // A4: the send service (`shortService` from Android 14, no type before; STORE-14 dropped `dataSync`).
     "android.permission.FOREGROUND_SERVICE",
-    "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
     // A5: the periodic check is kept across reboots; a network change syncs.
     "android.permission.RECEIVE_BOOT_COMPLETED",
     "android.permission.ACCESS_NETWORK_STATE",
@@ -518,9 +520,11 @@ fn android_libraries(report: &Path) -> Result<String> {
     Ok(lines.join("\n") + "\n")
 }
 
-/// Assembles [`APK_TASKS`].
+/// Assembles [`APK_TASKS`], then [`AAB_TASKS`].
 fn android_apk() -> Result<()> {
-    gradle(&workspace_root()?, APK_TASKS)
+    let root = workspace_root()?;
+    gradle(&root, APK_TASKS)?;
+    gradle(&root, AAB_TASKS)
 }
 
 /// Runs `android/gradlew` with `tasks`. Without a JDK or the SDK it reports "cannot run".
@@ -644,6 +648,129 @@ fn apk_check() -> Result<()> {
         bail!("android apk-check found {} problems", problems.len());
     }
     writeln!(err, "android apk-check: {} APKs passed", apks.len())?;
+    aab_check(&project)
+}
+
+/// The APK signing block's ID of Google's encrypted dependency metadata, which F-Droid flags (STORE-16).
+const DEPENDENCY_BLOCK: u32 = 0x504b_4453;
+
+/// The IDs in the APK signing block of `apk`, if it has one (`APK Sig Block 42` before the central directory).
+fn signing_block_ids(apk: &[u8]) -> Vec<u32> {
+    let magic = b"APK Sig Block 42";
+    let Some(at) = apk.windows(magic.len()).rposition(|w| w == magic) else {
+        return Vec::new();
+    };
+    let read_u64 = |from: usize| -> Option<u64> {
+        Some(u64::from_le_bytes(
+            apk.get(from..from + 8)?.try_into().ok()?,
+        ))
+    };
+    let Some(size) = at.checked_sub(8).and_then(read_u64) else {
+        return Vec::new();
+    };
+    // The block: size (8), pairs, size (8), magic (16); `size` counts all but the first field.
+    let Some(start) = (at + 16)
+        .checked_sub(usize::try_from(size).unwrap_or(usize::MAX))
+        .and_then(|s| s.checked_sub(8))
+    else {
+        return Vec::new();
+    };
+    let mut ids = Vec::new();
+    let mut pos = start + 8;
+    while pos + 12 <= at - 8 {
+        let Some(len) = read_u64(pos).and_then(|l| usize::try_from(l).ok()) else {
+            break;
+        };
+        let Some(id) = apk
+            .get(pos + 8..pos + 12)
+            .and_then(|b| b.try_into().ok())
+            .map(u32::from_le_bytes)
+        else {
+            break;
+        };
+        ids.push(id);
+        pos = pos.saturating_add(8).saturating_add(len);
+    }
+    ids
+}
+
+/// The stored (uncompressed) bytes of `name` in a zip, found by its local header.
+fn stored_entry<'a>(zip: &'a [u8], name: &str) -> Option<&'a [u8]> {
+    let name = name.as_bytes();
+    let at = zip.windows(name.len()).position(|w| w == name)?;
+    let header = at.checked_sub(30)?;
+    if zip.get(header..header + 4)? != b"PK\x03\x04" {
+        return None;
+    }
+    let u16_at = |o: usize| {
+        zip.get(header + o..header + o + 2)
+            .map(|b| u16::from_le_bytes([b[0], b[1]]))
+    };
+    let u32_at = |o: usize| {
+        zip.get(header + o..header + o + 4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    };
+    if u16_at(8)? != 0 {
+        return None;
+    }
+    let size = usize::try_from(u32_at(18)?).ok()?;
+    let data = header + 30 + usize::from(u16_at(26)?) + usize::from(u16_at(28)?);
+    zip.get(data..data + size)
+}
+
+/// Problems of one APK's bytes that the SDK tools don't show: Google's dependency block, and a release
+/// `libdail.so` that still has its symbol table (STORE-16).
+fn apk_bytes_problems(apk: &[u8], release: bool) -> Vec<String> {
+    let mut problems = Vec::new();
+    if signing_block_ids(apk).contains(&DEPENDENCY_BLOCK) {
+        problems.push("dependency metadata block 0x504b4453 is back (dependenciesInfo)".to_owned());
+    }
+    if release {
+        for abi in ["arm64-v8a", "x86_64"] {
+            if let Some(lib) = stored_entry(apk, &format!("lib/{abi}/libdail.so"))
+                && lib.windows(8).any(|w| w == b".symtab\0")
+            {
+                problems.push(format!("lib/{abi}/libdail.so is not stripped"));
+            }
+        }
+    }
+    problems
+}
+
+/// The AAB `bundleLiveRelease` writes (STORE-16): it must exist, carry the native symbol tables and no dependency
+/// metadata.
+fn aab_check(project: &Path) -> Result<()> {
+    let mut err = std::io::stderr().lock();
+    let dir = project.join("app/build/outputs/bundle/liveRelease");
+    let aab = std::fs::read_dir(&dir).ok().and_then(|entries| {
+        entries
+            .flatten()
+            .map(|e| e.path())
+            .find(|p| p.extension().is_some_and(|x| x == "aab"))
+    });
+    let Some(aab) = aab else {
+        writeln!(
+            err,
+            "android aab-check: cannot run: no AAB (run `cargo xtask android apk`)"
+        )?;
+        bail!("android aab-check cannot run");
+    };
+    let bytes = std::fs::read(&aab).with_context(|| format!("reading {}", aab.display()))?;
+    let has = |needle: &str| bytes.windows(needle.len()).any(|w| w == needle.as_bytes());
+    let mut problems = Vec::new();
+    if !has("BUNDLE-METADATA/com.android.tools.build.debugsymbols/") {
+        problems.push("no native symbols (ndk.debugSymbolLevel)");
+    }
+    if has("BUNDLE-METADATA/com.android.tools.build.libraries/dependencies.pb") {
+        problems.push("dependency metadata is back (dependenciesInfo)");
+    }
+    if !problems.is_empty() {
+        for problem in &problems {
+            writeln!(err, "  {problem}")?;
+        }
+        bail!("android aab-check found {} problems", problems.len());
+    }
+    writeln!(err, "android aab-check: {} passed", aab.display())?;
     Ok(())
 }
 
@@ -681,9 +808,33 @@ fn tool_output(tool: &Path, args: &[&str], apk: &Path) -> Result<(bool, String)>
 }
 
 /// What is wrong with one APK.
+/// The Android version code of `version` for `abi` (`None`: the AAB), as `build.gradle.kts` computes it (STORE-13):
+/// `major×10⁸ + minor×10⁵ + patch×10 + abi digit`, with arm64 1 and x86_64 2.
+pub(crate) fn version_code(version: &str, abi: Option<&str>) -> Option<u64> {
+    let parts: Vec<u64> = version
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    let [major, minor, patch] = parts[..] else {
+        return None;
+    };
+    if minor >= 1_000 || patch >= 10_000 {
+        return None;
+    }
+    let digit = match abi {
+        None => 0,
+        Some("arm64-v8a") => 1,
+        Some("x86_64") => 2,
+        Some(_) => return None,
+    };
+    Some(major * 100_000_000 + minor * 100_000 + patch * 10 + digit)
+}
+
 fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
-    let mut problems = Vec::new();
     let release = apk.to_string_lossy().contains("release");
+    let bytes = std::fs::read(apk).with_context(|| format!("reading {}", apk.display()))?;
+    let mut problems = apk_bytes_problems(&bytes, release);
 
     // `zipalign -c -P 16 -v 4` lists every entry and checks each `.so` against 16 KB pages.
     let (aligned, listing) =
@@ -717,6 +868,23 @@ fn check_one_apk(tools: &Path, apk: &Path) -> Result<Vec<String>> {
         .and_then(|rest| rest.split('\'').next())
         .unwrap_or_default()
         .to_owned();
+    // STORE-13: the version code of the APK's ABI, from the file name Gradle gives a split.
+    let file = apk
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let abi = ["arm64-v8a", "x86_64"]
+        .into_iter()
+        .find(|abi| file.contains(abi));
+    let found = badging
+        .split("versionCode='")
+        .nth(1)
+        .and_then(|rest| rest.split('\'').next())
+        .and_then(|code| code.parse::<u64>().ok());
+    let expected = version_code(env!("CARGO_PKG_VERSION"), abi);
+    if found != expected {
+        problems.push(format!("versionCode {found:?}, expected {expected:?}"));
+    }
     let (_, permissions) = tool_output(&aapt2, &["dump", "permissions"], apk)?;
     let mut asked: Vec<String> = permissions
         .lines()
@@ -1018,4 +1186,63 @@ fn path_str(path: &Path) -> Result<String> {
 /// Quotes `arg` for the device's shell.
 fn shell_quote(arg: &str) -> String {
     format!("'{}'", arg.replace('\'', "'\\''"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::version_code;
+
+    /// STORE-13: the scheme is final before the first upload; a later version never gets a lower code.
+    #[test]
+    fn version_codes_are_pinned() {
+        assert_eq!(version_code("0.9.0", None), Some(900_000));
+        assert_eq!(version_code("0.9.3", Some("arm64-v8a")), Some(900_031));
+        assert_eq!(version_code("1.0.0", None), Some(100_000_000));
+        assert_eq!(version_code("1.0.0", Some("arm64-v8a")), Some(100_000_001));
+        assert_eq!(version_code("1.2.3", Some("x86_64")), Some(100_200_032));
+        // Every ABI of a patch is below the next patch, and x86_64 above arm64.
+        assert!(version_code("1.0.9999", Some("x86_64")) < version_code("1.1.0", None));
+        assert!(version_code("0.999.9999", Some("x86_64")) < version_code("1.0.0", None));
+        assert!(version_code("1.0.0", Some("arm64-v8a")) < version_code("1.0.0", Some("x86_64")));
+        // Play's ceiling is 2,100,000,000: majors up to 20.
+        assert!(version_code("20.999.9999", Some("x86_64")).unwrap() <= 2_100_000_000);
+        assert_eq!(version_code("1.1000.0", None), None);
+        assert_eq!(version_code("1.0", None), None);
+        assert_eq!(version_code("1.0.0", Some("armeabi-v7a")), None);
+    }
+}
+
+#[cfg(test)]
+mod apk_tests {
+    use super::{DEPENDENCY_BLOCK, apk_bytes_problems, signing_block_ids};
+
+    /// A minimal APK signing block with the given pairs, as it sits before the central directory.
+    fn block(pairs: &[(u32, &[u8])]) -> Vec<u8> {
+        let mut body = Vec::new();
+        for (id, value) in pairs {
+            body.extend(((value.len() + 4) as u64).to_le_bytes());
+            body.extend(id.to_le_bytes());
+            body.extend(*value);
+        }
+        let size = (body.len() + 8 + 16) as u64;
+        let mut out = b"zip entries...".to_vec();
+        out.extend(size.to_le_bytes());
+        out.extend(body);
+        out.extend(size.to_le_bytes());
+        out.extend(b"APK Sig Block 42");
+        out.extend(b"central directory");
+        out
+    }
+
+    /// STORE-16: the dependency block is found and refused; a v2 signature alone passes.
+    #[test]
+    fn the_dependency_block_is_refused() {
+        let signed = block(&[(0x7109_871a, b"v2 signature")]);
+        assert_eq!(signing_block_ids(&signed), [0x7109_871a]);
+        assert!(apk_bytes_problems(&signed, true).is_empty());
+        let flagged = block(&[(0x7109_871a, b"v2"), (DEPENDENCY_BLOCK, b"encrypted")]);
+        assert_eq!(signing_block_ids(&flagged), [0x7109_871a, DEPENDENCY_BLOCK]);
+        assert_eq!(apk_bytes_problems(&flagged, true).len(), 1);
+        assert!(signing_block_ids(b"no block").is_empty());
+    }
 }

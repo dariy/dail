@@ -1,0 +1,1 @@
+A fast, private IMAP mail client. Your mail stays on your phone and servers.

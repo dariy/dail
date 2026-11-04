@@ -158,6 +158,24 @@ pub fn title(draft: &Draft) -> &'static str {
     }
 }
 
+/// The addresses a draft of `account` can be sent from (`set_draft_from`, MISC-36): that account's own address and
+/// identities first, then every other connected account's. Without duplicates, compared without case.
+pub fn senders(state: &app_core::AppState, account: app_core::AccountId) -> Vec<String> {
+    let mut accounts: Vec<&app_core::Account> = state.accounts.values().collect();
+    accounts.sort_by_key(|a| a.id != account);
+    let mut out: Vec<String> = Vec::new();
+    for a in accounts {
+        let own =
+            std::iter::once(a.email.clone()).chain(a.identities.iter().map(|i| i.email.clone()));
+        for email in own {
+            if !out.iter().any(|e| e.eq_ignore_ascii_case(&email)) {
+                out.push(email);
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

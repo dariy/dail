@@ -13,6 +13,7 @@ pub mod draft;
 pub mod engine;
 pub mod error;
 pub mod event;
+pub mod fold;
 pub mod history;
 pub mod ids;
 pub mod listing;
@@ -37,7 +38,7 @@ pub use ctx::{Ctx, Origin};
 pub use draft::{
     AttachmentRef, AttachmentState, Draft, OutgoingMessage, Quote, QuoteSource, QuoteStyle,
 };
-pub use engine::{Change, Diff, Engine, Preview};
+pub use engine::{Change, Diff, Engine, PREFETCH_MAX_BYTES, Preview};
 pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
@@ -55,8 +56,8 @@ pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
 pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
-    KeyPreset, ListFilter, Pane, Revision, SaveState, ServerSearch, Settings, SettingsSection,
-    StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
+    KeyPreset, ListFilter, Pane, QuarantinedRow, Revision, SaveState, ServerSearch, Settings,
+    SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
 };
 pub use update::{
     InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,

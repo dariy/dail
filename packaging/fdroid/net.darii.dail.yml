@@ -1,0 +1,76 @@
+# The F-Droid build recipe for dail (STORE-26), to go into fdroiddata as metadata/net.darii.dail.yml with the
+# inclusion request. F-Droid builds and signs: one build per ABI, `live` flavour only, each with its own version code
+# (STORE-13: major×10⁸ + minor×10⁵ + patch×10 + abi, arm64 1, x86_64 2). The listing text and images come from
+# fastlane/metadata/android/ in the source. Not yet run through `fdroid build` (see packaging/fdroid/README.md).
+Categories:
+  - Internet
+License: MIT OR Apache-2.0
+AuthorName: Alexei Darii
+SourceCode: https://github.com/dariy/dail
+IssueTracker: https://github.com/dariy/dail/issues
+Changelog: https://github.com/dariy/dail/blob/HEAD/CHANGELOG.md
+
+AutoName: dail
+
+RepoType: git
+Repo: https://github.com/dariy/dail.git
+
+Builds:
+  - versionName: 0.9.0
+    versionCode: 900001
+    commit: v0.9.0
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-17-jdk-headless
+      - update-java-alternatives -a
+    srclibs:
+      - rustup@1.28.2
+    prebuild:
+      # Gradle builds libdail.so through cargo-ndk (CargoNdk in build.gradle.kts).
+      - $$rustup$$/rustup-init.sh -y --profile minimal --default-toolchain none
+      - source $HOME/.cargo/env
+      - rustup show active-toolchain || rustup toolchain install
+      - rustup target add aarch64-linux-android
+      - cargo install cargo-ndk --version 4.1.2 --locked
+    scanignore:
+      # Rust sources and vendored crates are compiled from source; nothing prebuilt ships.
+      - vendor
+    gradle:
+      - live
+    gradleprops:
+      - dail.abis=arm64-v8a
+    ndk: r28c
+    output: build/outputs/apk/live/release/app-live-arm64-v8a-release-unsigned.apk
+
+  - versionName: 0.9.0
+    versionCode: 900002
+    commit: v0.9.0
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-17-jdk-headless
+      - update-java-alternatives -a
+    srclibs:
+      - rustup@1.28.2
+    prebuild:
+      - $$rustup$$/rustup-init.sh -y --profile minimal --default-toolchain none
+      - source $HOME/.cargo/env
+      - rustup show active-toolchain || rustup toolchain install
+      - rustup target add x86_64-linux-android
+      - cargo install cargo-ndk --version 4.1.2 --locked
+    scanignore:
+      - vendor
+    gradle:
+      - live
+    gradleprops:
+      - dail.abis=x86_64
+    ndk: r28c
+    output: build/outputs/apk/live/release/app-live-x86_64-release-unsigned.apk
+
+# Version codes are computed in Gradle, which checkupdates can't evaluate: each release adds its two builds by hand
+# (the codes are in fastlane/metadata/android/en-US/changelogs/, written by `cargo xtask release bump`).
+AutoUpdateMode: None
+UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
+CurrentVersion: 0.9.0
+CurrentVersionCode: 900002

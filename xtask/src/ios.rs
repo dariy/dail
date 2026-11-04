@@ -155,7 +155,11 @@ fn xcframework(demo: bool) -> Result<()> {
             args.extend(["--features", "demo"]);
         }
         cargo(&root, &args)?;
-        let library = root.join(target_dir).join(target).join("release/libdail.a");
+        // The crate's library is `dail_ios` (MISC-34); the app links it as `libdail.a`.
+        let release = root.join(target_dir).join(target).join("release");
+        let library = release.join("libdail.a");
+        std::fs::copy(release.join("libdail_ios.a"), &library)
+            .with_context(|| format!("failed to copy {}", library.display()))?;
         xcode.extend([
             "-library".to_owned(),
             library.display().to_string(),

@@ -280,6 +280,65 @@ fn setup_adds_tests_and_syncs_an_account_without_showing_the_password() {
     assert!(phone.frame().setup.is_none());
 }
 
+/// STORE-12: a Microsoft address stops at the address step with a clear reason; Gmail's password step links to
+/// Google's App Password page.
+#[test]
+fn oauth_only_addresses_stop_early_and_gmail_links_to_app_passwords() {
+    let mut phone = Phone::new(app_core::AppState::default(), 360, 800);
+    let sheet = phone.frame().setup.unwrap();
+    let custom = sheet
+        .presets
+        .iter()
+        .find(|p| p.label == "Other IMAP / SMTP")
+        .unwrap()
+        .action;
+    phone.tap(custom);
+    let sheet = phone.frame().setup.unwrap();
+    phone.tap(sheet_button(&sheet, "Next"));
+    phone.event(UiEvent::Text {
+        field: Field::Email,
+        text: "someone@Hotmail.co.uk".to_owned(),
+    });
+    let sheet = phone.frame().setup.unwrap();
+    let error = sheet.error.unwrap();
+    assert!(
+        error.starts_with("Microsoft addresses need a sign-in"),
+        "{error}"
+    );
+    assert!(sheet.actions.iter().all(|a| a.label != "Next"));
+
+    // Back to the providers, then Gmail.
+    phone.event(UiEvent::Back);
+    let sheet = phone.frame().setup.unwrap();
+    assert_eq!(sheet.step, "1 / 4  Provider");
+    let gmail = sheet
+        .presets
+        .iter()
+        .find(|p| p.label == "Gmail")
+        .unwrap()
+        .action;
+    phone.tap(gmail);
+    let sheet = phone.frame().setup.unwrap();
+    phone.tap(sheet_button(&sheet, "Next"));
+    phone.event(UiEvent::Text {
+        field: Field::Email,
+        text: "me@gmail.com".to_owned(),
+    });
+    let sheet = phone.frame().setup.unwrap();
+    phone.tap(sheet_button(&sheet, "Next"));
+    let sheet = phone.frame().setup.unwrap();
+    assert_eq!(sheet.fields[0].input, InputKind::Password);
+    let _ = phone.externals();
+    phone.tap(sheet_button(&sheet, "Create an App Password"));
+    assert_eq!(
+        phone.externals(),
+        [External::OpenUrl {
+            url: "https://myaccount.google.com/apppasswords".to_owned()
+        }]
+    );
+    assert!(phone.frame().setup.is_some(), "the setup stays open");
+}
+
 #[test]
 fn a_failed_login_tries_another_password_and_the_banner_reenters_it() {
     let mut phone = Phone::new(app_core::AppState::default(), 360, 800);
@@ -318,7 +377,13 @@ fn a_failed_login_tries_another_password_and_the_banner_reenters_it() {
     );
     let sheet = phone.frame().setup.unwrap();
     assert_eq!(sheet.step, "3 / 4  Password");
-    assert!(sheet.actions.is_empty(), "the old password is gone");
+    let labels: Vec<&str> = sheet.actions.iter().map(|a| a.label.as_str()).collect();
+    // Only Gmail's link (STORE-12): no submit without a password.
+    assert_eq!(
+        labels,
+        ["Create an App Password"],
+        "the old password is gone"
+    );
     // Back steps back, then closes.
     phone.event(UiEvent::Back);
     phone.event(UiEvent::Back);

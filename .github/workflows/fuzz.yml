@@ -1,0 +1,55 @@
+# Every night on main (STORE-7): each fuzz target of `fuzz/` (MIME, HTML documents, images, PDF) for 10 minutes on
+# nightly Rust, starting from the corpus the last runs kept. A crash uploads the input and opens an issue (or comments
+# on the open one); what it finds is fixed with a regression test in the crate, not by weakening the target.
+name: fuzz
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [mime, html, images, pdf]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-fuzz
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      - run: cargo +nightly fuzz run ${{ matrix.target }} -O -- -max_total_time=600 -rss_limit_mb=2048 -timeout=30
+        working-directory: fuzz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: fuzz-${{ matrix.target }}-crash
+          path: fuzz/artifacts/${{ matrix.target }}
+      - name: Report the crash
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="fuzz: ${{ matrix.target }} crashed on main"
+          open="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Still crashing: $RUN"
+          else
+            gh issue create --title "$title" --body "The nightly fuzz run of \`${{ matrix.target }}\` crashed; the input is the run's artifact: $RUN"
+          fi

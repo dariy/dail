@@ -16,7 +16,7 @@ use app_front::i18n::{self, Key};
 use app_front::text::clean;
 
 use super::{Act, Mobile};
-use crate::event::Field;
+use crate::event::{External, Field};
 use crate::frame::{Button, InputKind, PresetChoice, SetupField, SetupSheet, TextValue};
 use crate::request::{Purpose, Reply, Request};
 
@@ -70,6 +70,8 @@ pub(super) enum SetupAct {
     Retry,
     /// `sync_now` for the new account, and close.
     Sync,
+    /// Open Google's App Password page in the browser (STORE-12).
+    AppPasswords,
 }
 
 /// The setup's state.
@@ -152,6 +154,10 @@ impl Setup {
     fn address_problem(&self) -> Option<String> {
         if app_front::compose::parse_addr(self.email.trim()).is_none_or(|a| a.name.is_some()) {
             return Some(i18n::s(Key::EnterEmail).to_owned());
+        }
+        // STORE-12: an address that needs OAuth2 stops here, before the password.
+        if let Some(provider) = app_front::providers::oauth_only(&self.email) {
+            return Some(i18n::f(Key::OauthOnly, &[("provider", provider)]));
         }
         if self.preset == ProviderPreset::Custom {
             for (name, text) in [("IMAP", &self.imap), ("SMTP", &self.smtp)] {
@@ -324,6 +330,8 @@ impl Setup {
                 }
                 self.step = Step::Password;
             }
+            // The presenter opens the page; the setup stays as it is.
+            SetupAct::AppPasswords => {}
             SetupAct::Sync => {
                 if let Some(id) = self.account {
                     out.push(Request::user(Command::SyncNow { account: Some(id) }));
@@ -363,6 +371,12 @@ impl Mobile {
         let mut out = Vec::new();
         if act == SetupAct::Open {
             self.open_setup();
+            return out;
+        }
+        if act == SetupAct::AppPasswords {
+            self.externals.push(External::OpenUrl {
+                url: app_front::providers::GMAIL_APP_PASSWORDS.to_owned(),
+            });
             return out;
         }
         if let Some(setup) = self.setup.as_mut()
@@ -505,11 +519,12 @@ impl Mobile {
                     i18n::s(Key::Password)
                 };
                 fields.push(field(Field::Password, label, "", InputKind::Password, ""));
-                note = Some(
-                    "Stored in Keystore-protected storage only; dail never writes it anywhere \
-                     else."
-                        .to_owned(),
-                );
+                if setup.preset == ProviderPreset::Gmail {
+                    actions.push(
+                        self.setup_button(i18n::s(Key::CreateAppPassword), SetupAct::AppPasswords),
+                    );
+                }
+                note = Some(i18n::s(Key::KeystoreOnly).to_owned());
                 error = setup.error.as_deref().map(clean);
                 if !setup.password.is_empty() {
                     let label = if setup.existing {

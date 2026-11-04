@@ -45,6 +45,10 @@ pub(super) struct ChangedFlags {
 /// How many unread INBOX bodies are prefetched (`ARCHITECTURE.md §5.2`).
 const PREFETCH_BODIES: usize = 20;
 
+/// Bodies larger than this (the envelope's `RFC822.SIZE`) are not prefetched; opening the
+/// message fetches them (STORE-8).
+pub const PREFETCH_MAX_BYTES: u32 = 1024 * 1024;
+
 /// Collects cache changes while an input is applied, then turns them into a [`MailDelta`].
 #[derive(Debug, Default)]
 pub(super) struct CacheChanges {
@@ -844,8 +848,12 @@ impl Engine {
     }
 
     /// `FetchBody` effects for the newest unread INBOX messages without a body, up to
-    /// [`PREFETCH_BODIES`] (counting bodies already in flight).
+    /// [`PREFETCH_BODIES`] (counting bodies already in flight). None while the network is
+    /// metered, and none for a body over [`PREFETCH_MAX_BYTES`].
     fn prefetch_bodies(&mut self, mailbox: MailboxId) -> Vec<Effect> {
+        if self.state.status.metered {
+            return Vec::new();
+        }
         let mut candidates: Vec<(i64, MessageId)> = self
             .state
             .messages
@@ -856,11 +864,10 @@ impl Engine {
         candidates.sort_by(|a, b| b.cmp(a));
         let mut effects = Vec::new();
         for (_, id) in candidates.into_iter().take(PREFETCH_BODIES) {
-            let wanted = self
-                .state
-                .messages
-                .get(&id)
-                .is_some_and(|m| m.body == BodyState::NotFetched);
+            let wanted =
+                self.state.messages.get(&id).is_some_and(|m| {
+                    m.body == BodyState::NotFetched && m.size <= PREFETCH_MAX_BYTES
+                });
             if wanted && let Some(fetch) = self.start_body_fetch(id) {
                 effects.push(fetch);
             }

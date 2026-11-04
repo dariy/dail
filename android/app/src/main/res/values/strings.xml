@@ -7,4 +7,9 @@
     <string name="channel_not_sent">Not sent</string>
     <string name="channel_background">Background</string>
     <string name="push_starting">Connecting to your inboxes</string>
+    <string name="failed_title">dail stopped working</string>
+    <string name="failed_body">Your mail and drafts are saved on this device. Restart dail to continue. To report the problem, copy the diagnostics: the version, the device and the latest log lines. Nothing is sent automatically.</string>
+    <string name="failed_restart">Restart</string>
+    <string name="failed_copy">Copy diagnostics</string>
+    <string name="failed_copied">Diagnostics copied</string>
 </resources>

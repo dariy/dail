@@ -66,6 +66,7 @@ final class ContractTests: XCTestCase {
             "long_press": .longPress(8),
             "refresh": .refresh,
             "online": .online,
+            "network": .network(metered: true),
             "notification": .notification(
                 act: .object(["act": .string("open_thread"), "thread": .string("00000000-0000-0000-0000-000000000009")])),
             "scrolled": .scrolled(first: 20, count: 12),

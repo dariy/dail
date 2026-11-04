@@ -14,6 +14,9 @@ enum UiEvent {
     case back
     case refresh
     case online
+    /// The default network's metered state (STORE-8). Android sends it; iOS has no sender yet (no new iOS features
+    /// before the Android launch), but the type follows the contract.
+    case network(metered: Bool)
     /// A tap on a notification: its `open`, passed back verbatim.
     case notification(act: JSON)
     /// A hardware key no text field took, in Android's key codes; Rust maps it to a chord.
@@ -44,6 +47,7 @@ enum UiEvent {
         case .back: return Self.event("back")
         case .refresh: return Self.event("refresh")
         case .online: return Self.event("online")
+        case let .network(metered): return Self.event("network", ["metered": .bool(metered)])
         case let .notification(act): return Self.event("notification", ["act": act])
         case let .keyDown(code, unicode, ctrl, shift, alt, meta):
             return Self.event("key_down", [

@@ -14,3 +14,4 @@
 # The iOS project is generated from ios/project.yml, and the XCFrameworks are built by `cargo xtask ios`
 /ios/Dail.xcodeproj/
 /ios/Frameworks/
+/aab/

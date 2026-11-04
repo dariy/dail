@@ -1,0 +1,21 @@
+dail est un client de messagerie pour les comptes IMAP et SMTP qui garde vos courriels entre votre téléphone et vos serveurs de messagerie. Pas de serveurs dail, pas de compte chez nous, ni pistage ni publicité.
+
+<b>Fonctionne avec votre messagerie</b>
+• Tout compte IMAP et SMTP avec un mot de passe ou un mot de passe d’application : Gmail (mot de passe d’application), Hostinger, Yahoo, iCloud, Fastmail, GMX, mailbox.org, votre propre serveur, et d’autres.
+• Réception immédiate par IMAP IDLE, vérification périodique, ou seulement quand l’application est ouverte : à vous de choisir.
+• Plusieurs comptes, et des réponses depuis n’importe lequel.
+
+<b>Trier vite</b>
+• Balayez pour archiver ou supprimer, et annulez ce que vous venez de faire.
+• Annulation d’envoi : un message attend quelques secondes avant de partir.
+• Recherche dans les courriels du téléphone et sur le serveur.
+
+<b>Privé par conception</b>
+• Les mots de passe sont conservés uniquement dans un espace protégé par Android Keystore.
+• Les images distantes ne se chargent jamais d’elles-mêmes, et les liens montrent leur vraie destination avant de s’ouvrir.
+• TLS pour chaque connexion, avec vérification des certificats.
+
+<b>Logiciel libre</b>
+dail est open source. Le même moteur fonctionne sous Linux, Windows et dans un terminal.
+
+Pas encore pris en charge : les comptes Microsoft (Outlook, Hotmail), qui demandent une connexion que dail n’a pas encore.

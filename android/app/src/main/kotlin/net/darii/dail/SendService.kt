@@ -13,7 +13,7 @@ import android.os.IBinder
 /**
  * Keeps the process alive from a scheduled send to its result (ADR 0009): Rust's `sends` task
  * waits until no send is scheduled or leaving, at most 3 minutes. `shortService` from Android 14,
- * `dataSync` before. Started when a frame asks for `sending`; a second start while it runs is a
+ * no type before (STORE-14). Started when a frame asks for `sending`; a second start while it runs is a
  * no-op.
  */
 class SendService : Service() {
@@ -21,18 +21,29 @@ class SendService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /**
+     * `startForeground` with this service's type from Android 14, and without one before: no `dataSync`, so one Play
+     * declaration fewer (STORE-14).
+     */
+    private fun goForeground(note: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(NOTIFICATION, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
+        } else {
+            startForeground(NOTIFICATION, note)
+        }
+    }
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
     ): Int {
-        val type =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
-            } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-            }
-        startForeground(NOTIFICATION, notification(), type)
+        // Android 12+ may refuse the start (STORE-3): the `sends` job sends instead, without a crash.
+        if (runCatching { goForeground(notification()) }.isFailure) {
+            DailJobService.sends(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (!running) {
             running = true
             val host = (application as DailApplication).host
@@ -62,7 +73,7 @@ class SendService : Service() {
         )
         return Notification
             .Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_menu_send)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.sending))
             .setOngoing(true)
             .build()
@@ -73,9 +84,13 @@ class SendService : Service() {
         private const val NOTIFICATION = 1
         private const val SENDS = "\"sends\""
 
-        /** Starts the service (from the activity, which is in the foreground then). */
+        /**
+         * Starts the service (from the activity, which is in the foreground then). If the system
+         * refuses the start anyway, the `sends` job sends instead (STORE-3).
+         */
         fun start(context: Context) {
-            context.startForegroundService(Intent(context, SendService::class.java))
+            runCatching { context.startForegroundService(Intent(context, SendService::class.java)) }
+                .onFailure { DailJobService.sends(context) }
         }
     }
 }

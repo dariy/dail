@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" width="1024" height="500">
+  <!-- STORE-17: the 1024x500 feature graphic for Google Play. -->
+  <rect width="1024" height="500" fill="#09090b"/>
+  <g transform="translate(250 250) scale(2.4) translate(-64 -65)">
+    <rect x="24" y="38" width="80" height="54" rx="6" fill="none" stroke="#ffffff" stroke-width="7"/>
+    <path d="M27 42 L64 70 L101 42" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round"/>
+  </g>
+  <text x="440" y="232" font-family="Geist, Inter, DejaVu Sans, sans-serif" font-size="120" font-weight="700" fill="#ffffff">dail</text>
+  <text x="444" y="308" font-family="Geist, Inter, DejaVu Sans, sans-serif" font-size="30" fill="#a1a1aa">
+    <tspan x="444">Your mail, on your phone</tspan><tspan x="444" dy="40">and your servers.</tspan>
+  </text>
+</svg>

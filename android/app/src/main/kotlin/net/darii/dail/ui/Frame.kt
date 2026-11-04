@@ -368,6 +368,8 @@ data class DocSpan(
     val hit: Boolean = false,
     val link: ActionId? = null,
     val image: InlineImage? = null,
+    /** A link's marker (MISC-28): its number in *Links*, drawn raised; the span has no text. */
+    val note: Int? = null,
 )
 
 /** A tapped link's full target, before it opens. */
@@ -591,6 +593,14 @@ data class About(
     val title: String,
     val text: String,
     val licences: List<Licence>,
+    val privacy: AboutLink,
+)
+
+/** A link on the About screen (STORE-19): the privacy policy. */
+@Serializable
+data class AboutLink(
+    val label: String,
+    val url: String,
 )
 
 @Serializable

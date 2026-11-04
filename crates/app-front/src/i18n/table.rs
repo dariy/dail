@@ -35,6 +35,12 @@ strings! {
     StoreFailed:
         "local store failed",
         "échec du stockage local";
+    Quarantined:
+        "{count} saved items could not be read",
+        "{count} éléments enregistrés n’ont pas pu être lus";
+    QuarantinedHint:
+        "They are kept aside in the profile, not deleted: a later version of dail may read them. Report it with the version you updated from.",
+        "Ils sont mis de côté dans le profil, pas supprimés : une version ultérieure de dail pourra peut-être les lire. Signalez-le en indiquant la version précédente.";
     KeyringFailed:
         "keyring failed",
         "échec du trousseau";
@@ -66,8 +72,8 @@ strings! {
         "The mailbox is full. Delete or archive mail and empty the Trash, then retry.",
         "La boîte aux lettres est pleine. Supprimez ou archivez du courrier et videz la corbeille, puis réessayez.";
     HintTlsCiphers:
-        "The server only offers TLS ciphers dail does not have yet (AES-GCM or P-256 key exchange). Nothing to fix on your side; see ROADMAP.md (TLS tiers 2 and 3).",
-        "Le serveur ne propose que des chiffrements TLS que dail n’a pas encore (AES-GCM ou échange de clés P-256). Rien à corriger de votre côté ; voir ROADMAP.md (TLS, niveaux 2 et 3).";
+        "The server offers only TLS versions or ciphers dail does not support (dail needs TLS 1.2 or 1.3 with ChaCha20-Poly1305 or AES-GCM). Ask the provider; nothing in dail's settings changes this.",
+        "Le serveur ne propose que des versions ou des chiffrements TLS que dail ne prend pas en charge (dail exige TLS 1.2 ou 1.3 avec ChaCha20-Poly1305 ou AES-GCM). Contactez le fournisseur ; aucun réglage de dail n’y change rien.";
     HintCertificate:
         "The server's certificate is not trusted: expired, self-signed or for another name. Check the server name; dail does not connect without a valid certificate.",
         "Le certificat du serveur n’est pas fiable : expiré, auto-signé ou émis pour un autre nom. Vérifiez le nom du serveur ; dail ne se connecte pas sans certificat valide.";
@@ -599,6 +605,15 @@ strings! {
     Back:
         "Back",
         "Retour";
+    OauthOnly:
+        "{provider} addresses need a sign-in that dail does not support yet. Use another address for now.",
+        "Les adresses {provider} demandent une connexion que dail ne prend pas encore en charge. Utilisez une autre adresse pour l’instant.";
+    CreateAppPassword:
+        "Create an App Password",
+        "Créer un mot de passe d’application";
+    PrivacyPolicy:
+        "Privacy policy",
+        "Politique de confidentialité";
     AppPassword:
         "App Password",
         "Mot de passe d’application";
@@ -608,6 +623,9 @@ strings! {
     KeyringOnly:
         "Stored in the system keyring only; dail never writes it anywhere else.",
         "Stocké uniquement dans le trousseau du système ; dail ne l’écrit nulle part ailleurs.";
+    KeystoreOnly:
+        "Stored in Keystore-protected storage only; dail never writes it anywhere else.",
+        "Stocké uniquement dans un espace protégé par le Keystore ; dail ne l’écrit nulle part ailleurs.";
     SaveAndTest:
         "Save and test",
         "Enregistrer et tester";

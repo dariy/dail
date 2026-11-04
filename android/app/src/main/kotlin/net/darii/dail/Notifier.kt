@@ -92,13 +92,13 @@ object Notifier {
         val public =
             Notification
                 .Builder(context, note.channel)
-                .setSmallIcon(android.R.drawable.ic_dialog_email)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(note.publicTitle)
                 .build()
         val builder =
             Notification
                 .Builder(context, note.channel)
-                .setSmallIcon(android.R.drawable.ic_dialog_email)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(note.title)
                 .setContentText(note.body)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)

@@ -14,7 +14,7 @@ use rustls::{AlertDescription, ClientConfig, RootCertStore};
 use crate::error::SyncError;
 
 /// What dail tells the user when a server and app-tls share no algorithms.
-pub const INCOMPATIBLE_SERVER: &str = "the server supports none of the TLS ciphers dail implements (TLS 1.2/1.3 with ChaCha20-Poly1305 and X25519)";
+pub const INCOMPATIBLE_SERVER: &str = "the server supports none of the TLS ciphers dail implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384)";
 
 /// The client config used for IMAP connections.
 pub fn client_config() -> Result<Arc<ClientConfig>, SyncError> {

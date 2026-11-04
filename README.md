@@ -23,7 +23,8 @@ The mail shown is made up: `docs/screenshots/demo-fixture.json`, served by the i
 
 - **Ubuntu** (X11/Wayland) and **Windows**: `egui` desktop GUI, `ratatui` terminal UI (`dail tui`), CLI and MCP.
 - **Android 10+**: a Kotlin/Compose app over the same Rust engine (ADR 0009).
-- **iOS/iPadOS**: in progress (ROADMAP Wave 5).
+- **iOS/iPadOS 17+**: a SwiftUI app over the same engine (ADR 0010), built by CI as unsigned IPAs; the device check
+  is still open (ROADMAP Wave 5).
 
 Accounts: generic IMAP + SMTP with a password or app password. Hostinger Mail and Gmail are the reference providers.
 Passwords are kept only in the OS keyring.
@@ -43,8 +44,10 @@ The Android build is `cargo xtask android all`. AGENTS.md §6 lists what it need
 
 ## Releases
 
-The `release` workflow (Actions → release → Run workflow) builds a Windows zip, a Linux tar.gz and `.deb`, and an
-APK per Android ABI, each with a `.sha256`. They are uploaded as the run's artifacts. `packaging/README.md` has the
+Pushing a `vX.Y.Z` tag runs the `release` workflow, which publishes a
+[GitHub Release](https://github.com/dariy/dail/releases) with a Windows zip and MSI, a Linux tar.gz, `.deb` and
+AppImage, a signed APK per Android ABI and the unsigned iOS IPAs, each with a `.sha256`, plus a signed `manifest.json`
+(ADR 0011). Run by hand, the workflow is a dry run whose packages are the run's artifacts. `packaging/README.md` has the
 details.
 
 ## Documentation

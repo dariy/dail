@@ -67,6 +67,7 @@ class ContractTest {
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
                 "online" to UiEvent.Online,
+                "network" to UiEvent.Network(true),
                 "notification" to
                     UiEvent.Notification(
                         buildJsonObject {

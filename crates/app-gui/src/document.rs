@@ -186,6 +186,9 @@ impl Out<'_> {
                         self.span(ui, span, line, size);
                     }
                 }
+                if let Some(number) = span.note {
+                    self.marker(ui, span, number, size);
+                }
             }
         });
     }
@@ -255,6 +258,17 @@ impl Out<'_> {
         }
         // Links in `text_strong`, underlined.
         let rich = rich.color(self.t.text_strong).underline();
+        let response = ui.add(egui::Label::new(rich).sense(egui::Sense::click()));
+        self.link(response, span);
+    }
+
+    /// A link's marker (MISC-28): its number, small and raised in the link colour, a label of its own so that nothing
+    /// in the sender's text can pass for it. It opens the link like the text does.
+    fn marker(&mut self, ui: &mut Ui, span: &Span, number: u32, size: f32) {
+        let rich = RichText::new(number.to_string())
+            .size(size * 0.7)
+            .color(self.t.text_strong)
+            .raised();
         let response = ui.add(egui::Label::new(rich).sense(egui::Sense::click()));
         self.link(response, span);
     }

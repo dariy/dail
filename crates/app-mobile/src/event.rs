@@ -101,6 +101,12 @@ pub enum UiEvent {
     /// A network came back while the app is visible: syncs, as a pull would (nothing while the
     /// app is off screen or has no account).
     Online,
+    /// The default network's metered state, at start and on every change (STORE-8). The host
+    /// passes it to the engine as `Event::NetworkChanged`; the presenter ignores it.
+    Network {
+        /// Whether the network is billed by use.
+        metered: bool,
+    },
     /// A tap on a notification: what its `open` said, passed back verbatim (opens the thread
     /// or the draft, if it still exists).
     Notification {

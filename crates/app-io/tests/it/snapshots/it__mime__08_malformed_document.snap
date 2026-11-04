@@ -1,0 +1,16 @@
+---
+source: crates/app-io/tests/it/mime.rs
+expression: document
+---
+{
+  "blocks": [
+    {
+      "type": "paragraph",
+      "spans": [
+        {
+          "text": "Text before the missing end boundary."
+        }
+      ]
+    }
+  ]
+}

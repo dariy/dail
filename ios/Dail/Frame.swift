@@ -410,6 +410,8 @@ struct DocSpan: Codable {
     let hit: Bool?
     let link: ActionId?
     let image: InlineImage?
+    /// A link's marker (MISC-28a); decoded, drawn by MISC-28b.
+    let note: Int?
 }
 
 /// A tapped link's full target, before it opens.
@@ -622,6 +624,13 @@ struct About: Codable {
     let title: String
     let text: String
     let licences: [Licence]
+    /// The privacy policy (STORE-19); decoded, not yet shown on iOS.
+    let privacy: AboutLink
+}
+
+struct AboutLink: Codable {
+    let label: String
+    let url: String
 }
 
 struct Licence: Codable {

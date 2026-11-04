@@ -15,6 +15,7 @@ use serde_json::json;
 struct RecordingBackend {
     initial: Option<AppState>,
     fail_with: Option<String>,
+    panics: bool,
     executed: Mutex<Vec<Effect>>,
 }
 
@@ -39,6 +40,7 @@ impl Backend for RecordingBackend {
             tokio::time::sleep(Duration::from_millis(10)).await;
             let name = effect.name();
             self.executed.lock().unwrap().push(effect);
+            assert!(!self.panics, "backend bug");
             match &self.fail_with {
                 Some(reason) => Err(SyncError::Effect {
                     effect: name,
@@ -127,6 +129,31 @@ async fn failed_effect_surfaces_in_state() {
     let error = session.state().status.persist_error.clone().unwrap();
     assert!(error.contains("disk full"), "{error}");
     assert!(changes.has_changed().unwrap());
+}
+
+/// STORE-4: a panicking effect becomes its failure event, and its lane's worker keeps running.
+#[tokio::test(start_paused = true)]
+async fn panicking_effect_fails_and_the_worker_survives() {
+    let backend = Arc::new(RecordingBackend {
+        panics: true,
+        ..RecordingBackend::default()
+    });
+    let session = open(Arc::clone(&backend)).await;
+    for value in [60, 90] {
+        session
+            .submit(set(SettingKey::PollSecs, value), Origin::Gui)
+            .await
+            .unwrap()
+            .unwrap();
+        session.flush().await.unwrap();
+    }
+    let error = session.state().status.persist_error.clone().unwrap();
+    assert!(error.contains(app_sync::executor::PANICKED), "{error}");
+    assert!(
+        !error.contains("backend bug"),
+        "the panic text stays in the log: {error}"
+    );
+    assert_eq!(backend.executed().len(), 2);
 }
 
 #[tokio::test(start_paused = true)]

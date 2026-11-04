@@ -1,4 +1,5 @@
 import com.android.build.api.variant.ApplicationVariant
+import com.android.build.api.variant.FilterConfiguration
 
 plugins {
     alias(libs.plugins.android.application)
@@ -19,6 +20,26 @@ val workspaceVersion: String =
         .first { it.startsWith("version = ") }
         .substringAfter('"')
         .substringBefore('"')
+
+/**
+ * The version code (STORE-13): `major×10⁸ + minor×10⁵ + patch×10 + abi`, with the ABI digit last as F-Droid wants
+ * (each ABI its own build) and x86_64 above arm64. The AAB is 0, the arm64 APK 1, the x86_64 APK 2. Room for
+ * 1,000 minors and 10,000 patches. It must never go down: xtask's `version_code` and `apk-check` pin it.
+ */
+fun versionCodeOf(
+    version: String,
+    abi: String?,
+): Int {
+    val (major, minor, patch) = version.split('.').map(String::toInt)
+    val digit =
+        when (abi) {
+            null -> 0
+            "arm64-v8a" -> 1
+            "x86_64" -> 2
+            else -> error("no version code digit for ABI $abi")
+        }
+    return major * 100_000_000 + minor * 100_000 + patch * 10 + digit
+}
 
 /**
  * The release signing key, from the environment only (CI decodes it from repository secrets; it is
@@ -45,7 +66,8 @@ android {
         targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionName = workspaceVersion
-        versionCode = workspaceVersion.split('.').fold(0) { code, part -> code * 100 + part.toInt() }
+        // The AAB's; each ABI split's APK gets its own below.
+        versionCode = versionCodeOf(workspaceVersion, null)
     }
 
     flavorDimensions += "backend"
@@ -72,8 +94,28 @@ android {
         }
     }
 
+    // STORE-16: no dependency metadata block (Google encrypts it; F-Droid flags the APK block 0x504b4453), and
+    // `apk-check` fails if it comes back.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    // STORE-16: every language in every install. dail chooses its language in-app, which can differ from the
+    // device's, so a split would leave the chosen language out.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     buildTypes {
         release {
+            // STORE-16: `libdail.so` is built unstripped; Gradle strips it in the APKs and puts its symbol table in
+            // the AAB, so Play's crash reports name Rust functions.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
@@ -81,9 +123,11 @@ android {
         }
     }
 
+    // One APK per ABI, but not while bundling: AGP refuses an AAB with ABI splits (issuetracker 402800800), and the
+    // AAB carries every ABI itself. xtask runs `bundleLiveRelease` as a Gradle call of its own (STORE-16).
     splits {
         abi {
-            isEnable = true
+            isEnable = gradle.startParameter.taskNames.none { it.contains("bundle", ignoreCase = true) }
             reset()
             include(*dailAbis.toTypedArray())
             isUniversalApk = false
@@ -152,14 +196,18 @@ abstract class CargoNdk : DefaultTask() {
             workingDir = workspace.get().asFile
             commandLine(listOf("cargo") + args)
             environment("ANDROID_NDK_HOME", ndk.get().asFile.path)
+            // Gradle strips the APK's copy and keeps the symbols for the AAB (STORE-16).
+            environment("CARGO_PROFILE_RELEASE_STRIP", "false")
             environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS", pages)
             environment("CARGO_TARGET_X86_64_LINUX_ANDROID_RUSTFLAGS", pages)
         }
-        // cargo-ndk copies every cdylib it built, a dependency's too; the APK carries only ours.
+        // cargo-ndk copies every cdylib it built, a dependency's too; the APK carries only ours, as `libdail.so`
+        // (the crate's library is `dail_android`, MISC-34).
         files.sync {
             from(built)
             into(output)
-            include("*/libdail.so")
+            include("*/libdail_android.so")
+            rename("libdail_android.so", "libdail.so")
         }
     }
 }
@@ -211,6 +259,10 @@ androidComponents {
                 outputs.upToDateWhen { false }
             }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargo, CargoNdk::output)
+        variant.outputs.forEach { output ->
+            val abi = output.filters.find { it.filterType == FilterConfiguration.FilterType.ABI }?.identifier
+            output.versionCode.set(versionCodeOf(workspaceVersion, abi))
+        }
     }
 }
 

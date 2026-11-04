@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 
 use serde::Deserialize;
 
-use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, Task};
+use crate::config::{BlobRequest, Config, DebugTask, ImportTask, NotificationTask, SaveTask, Task};
 use crate::error::HostError;
 use crate::host::{Alert, BACKGROUND_LIMIT, Host};
 use crate::platform::Platform;
@@ -28,11 +28,7 @@ fn error(message: impl std::fmt::Display) -> Value {
 /// Runs `f`, turning a panic into an error.
 fn guarded<T>(f: impl FnOnce() -> T) -> Result<T, String> {
     catch_unwind(AssertUnwindSafe(f)).map_err(|payload| {
-        let message = payload
-            .downcast_ref::<&str>()
-            .map(|s| (*s).to_owned())
-            .or_else(|| payload.downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "unknown".to_owned());
+        let message = app_sync::executor::panic_text(payload.as_ref()).to_owned();
         tracing::error!(%message, "panic in a host call");
         format!("panic: {message}")
     })
@@ -61,6 +57,16 @@ fn host(handle: i32) -> Result<Arc<Host>, HostError> {
         .ok_or(HostError::NoHost(handle))
 }
 
+/// [`host`], refused once its engine stopped (STORE-4): the bridge's watcher wakes the front-end,
+/// whose next `frame` then answers [`HostError::Stopped`] instead of a stale frame.
+fn live(handle: i32) -> Result<Arc<Host>, HostError> {
+    let host = host(handle)?;
+    if host.stopped() {
+        return Err(HostError::Stopped);
+    }
+    Ok(host)
+}
+
 /// `open(config)`: `{"handle": n}`. Starts the platform's logs on the first call.
 pub fn open(platform: Platform, config: &str, wake: Wake, alert: Alert) -> String {
     answer(|| {
@@ -85,12 +91,12 @@ pub fn open(platform: Platform, config: &str, wake: Wake, alert: Alert) -> Strin
 
 /// `event(handle, event)`: `{"frame": …, "externals": […]}`.
 pub fn event(handle: i32, event: &str) -> String {
-    answer(|| Ok(serde_json::to_value(host(handle)?.event_json(event)?)?))
+    answer(|| Ok(serde_json::to_value(live(handle)?.event_json(event)?)?))
 }
 
 /// `frame(handle)`: `{"frame": …, "externals": […]}`.
 pub fn frame(handle: i32) -> String {
-    answer(|| Ok(serde_json::to_value(host(handle)?.frame())?))
+    answer(|| Ok(serde_json::to_value(live(handle)?.frame())?))
 }
 
 /// `blob(handle, request)`: the bytes, or `None` (Kotlin's `null`).
@@ -109,12 +115,13 @@ pub fn blob(handle: i32, request: &str) -> Option<Vec<u8>> {
 enum Background {
     Task(Task),
     Import(ImportTask),
+    Save(SaveTask),
     Notification(NotificationTask),
     Debug(DebugTask),
 }
 
 /// `background(handle, task)`: `{"done": true}`, or `{"done": false}` after 3 minutes; for an
-/// import, `{"attached": "<path of the copy>"}`; for a debug task (`{"exec": {"origin", "command"}}`, `"state"`), what [`Host::debug`] answers.
+/// import, `{"attached": "<path of the copy>"}`; for a save, `{"saved": bool}`; for a debug task (`{"exec": {"origin", "command"}}`, `"state"`), what [`Host::debug`] answers.
 pub fn background(handle: i32, task: &str) -> String {
     answer(|| match serde_json::from_str(task)? {
         Background::Task(task) => {
@@ -128,6 +135,10 @@ pub fn background(handle: i32, task: &str) -> String {
         }) => {
             let path = host(handle)?.import(draft, &name, &source)?;
             Ok(json!({ "attached": path }))
+        }
+        Background::Save(SaveTask::Save { blob, part, target }) => {
+            let saved = host(handle)?.save(blob, part, &target)?;
+            Ok(json!({ "saved": saved }))
         }
         Background::Notification(NotificationTask::Notification(act)) => {
             let done = host(handle)?.notification(&act, BACKGROUND_LIMIT)?;

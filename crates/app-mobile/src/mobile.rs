@@ -419,6 +419,8 @@ impl Mobile {
             UiEvent::Notification { act } => {
                 act.commands(state).into_iter().map(Request::user).collect()
             }
+            // The host ingests it as an event (STORE-8); nothing to draw.
+            UiEvent::Network { .. } => Vec::new(),
             UiEvent::Online => {
                 if self.visible && !state.accounts.is_empty() {
                     vec![Request::user(Command::SyncNow { account: None })]
@@ -1453,18 +1455,8 @@ impl Mobile {
             .map(|a| a.email.clone())
             .or_else(|| account.map(|a| a.email.clone()))
             .unwrap_or_default();
-        let aliases: Vec<String> = account
-            .map(|a| {
-                std::iter::once(a.email.clone())
-                    .chain(
-                        a.identities
-                            .iter()
-                            .map(|i| i.email.clone())
-                            .filter(|e| !e.eq_ignore_ascii_case(&a.email)),
-                    )
-                    .collect()
-            })
-            .unwrap_or_default();
+        // Any connected account's address (MISC-36); the draft moves to that account.
+        let aliases = compose::senders(state, draft.account);
         let mut from_choices = Vec::new();
         if aliases.len() > 1 && editable {
             for email in aliases {

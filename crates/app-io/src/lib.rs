@@ -1,6 +1,7 @@
 //! dail I/O: MIME parse/build, HTML→text, config (TOML), profile directories and the local `Store`.
 
 pub mod autoconfig;
+pub mod breaker;
 pub mod compose;
 pub mod config;
 pub mod document;
@@ -9,6 +10,7 @@ pub mod images;
 pub mod mime;
 pub mod original;
 pub mod pdf;
+pub mod plain;
 pub mod profile;
 pub mod store;
 pub mod update;

@@ -142,8 +142,8 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - A profile opened from a plain SSH login often cannot reach the OS keyring (no D-Bus session, or a locked keyring), so
   it cannot log in; the status line shows the keyring error. Attach to a GUI that runs in the desktop session, or start
   the TUI inside tmux from the desktop session and `tmux attach` over SSH.
-- HTML is rendered at 100 columns (`app_io::mime::TEXT_WIDTH`) and senders wrap plain text near 72, so text wraps
-  raggedly on a phone. Reflowing paragraphs is MISC-28.
+- The TUI still shows plain text as the sender wrapped it, and HTML at 100 columns (`app_io::mime::TEXT_WIDTH`); the
+  GUI and the phone reflow paragraphs since MISC-28a. The TUI's reflow and markers are MISC-28b.
 - An attached TUI reads the whole state snapshot again after each change. That is fine for a few thousand messages;
   deltas come later.
 
@@ -388,7 +388,7 @@ Android, and §2, §3, §8, §9, §11 and §12 where it touches them).
   `uiautomator dump`, `screencap` and `input` an agent drives and reads the app like the TUI under tmux.
 - **Tests.** `app-mobile` frames over a real `Engine` as `insta` JSON snapshots at three window sizes; contract
   fixtures that the Kotlin types decode strictly; Compose tests on the JVM (Robolectric) over the host-built
-  `libdail.so` and the memory backend; the Rust tests on an emulator; instrumented smoke tests.
+  `libdail.so` and the memory backend (*not landed*; STORE-9b adds an emulator UI test instead); the Rust tests on an emulator; instrumented smoke tests.
 
 **Out of scope** (plan §10): an agent channel and approvals on the phone, Google Play and F-Droid, iOS (a SwiftUI host
 over `app-mobile`), OAuth2 (with the desktop item), PDF viewing and "open original", widgets, Wear OS, at-rest
@@ -647,7 +647,7 @@ identifiers sent, install strategy per install kind as data, `install_update` is
 - Pushing `vX.Y.Z` publishes a GitHub Release with every artifact, `.sha256`s and a signed `manifest.json`.
 - A desktop build updates itself end to end from the testkit's fake update server; a tampered manifest, signature or
   artifact fails with `UpdateFailed`. MCP gets `origin_not_allowed` for `install_update`.
-- Cargo and Gradle update PRs pass CI unattended.
+- Cargo and Gradle update PRs pass CI unattended. *(Restored by STORE-2.)*
 
 ### R — Release pipeline
 - [x] ADR 0011: update manifest, signing key handling, HTTPS client on `app-tls`, privacy, install kinds, agent policy
@@ -773,10 +773,17 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
 - [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
-- [ ] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves
-- [ ] MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers
+- [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
+  auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
+- MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers.
+  Split in Wave 11, because it spans eight surfaces:
+  - [x] MISC-28a [io][core][front][gui][mobile][kt]: plain-text bodies as documents (reflowed paragraphs, one gap for a
+    run of blank lines, headings by Markdown, underline, capitals and guess, safe Markdown, folds), links numbered in
+    HTML and plain text alike; the GUI and Android draw the raised markers and the numbered *Links* list
+  - [ ] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
+    (after the Android launch, as Wave 11 decides for iOS)
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
-- [ ] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
+- [x] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 - [x] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;
   error slugs become `error_<code>_<slug>` (decided: errors have their own codes, separate from command ids; codes cover
   `CoreError` and every failure that reaches the user)
@@ -871,62 +878,65 @@ text ships in English and French.
 ### A — A clean base
 - [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
   §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator
-- [ ] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
-  stops at `action_required`; merge #19–#21, so that Wave 7's "pass CI unattended" is true again
+- [x] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
+  stops at `action_required`; merge #19–#21 (merged 2026-11-01), so that Wave 7's "pass CI unattended" is true again
 - MISC-34 from Wave 10 comes here
 
 ### B — Hardening: it survives real users
-- [ ] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
+- [x] STORE-3 (S) [kt]: every foreground-service start is guarded; a refused start falls back to the flush job instead
   of crashing
-- [ ] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
+- [x] STORE-4 (M) [android][sync]: a panic hook logs to `android.log`; a panicking effect becomes that effect's failure
   event and its worker keeps running; if the engine loop dies, the app says so instead of showing a stale screen
-- [ ] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
+- [x] STORE-5 (S) [kt][mobile]: *Restart* and *Copy diagnostics* (version, device, recent log lines; nothing sent
   automatically) replace the raw `Screen.Failed` text. Its strings live in `values` and `values-fr`, because Rust may be
   dead at that point
-- [ ] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build; every later version opens it with
+- [x] STORE-6 (M) [io][tk]: a golden profile frozen from the first closed-test build (v0.1.5 now; that build adds its own with `DAIL_GOLDEN_FREEZE`); every later version opens it with
   accounts, drafts, queued ops and blobs intact. Unreadable drafts and outbox rows are quarantined and shown, never
   dropped. AGENTS.md §5's stability rule extends to stored rows and `config.toml`
-- [ ] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
+- [x] STORE-7 (L) [io][host]: fuzz targets for MIME, HTML documents, images and PDF, run nightly, and what they find
   fixed. A crash-loop breaker: a message is marked before it is parsed, and if the process dies, that message is skipped
   and flagged at the next start
-- [ ] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,
+- [x] STORE-8 (M) [core][sync][kt]: prefetch skips messages over 1 MiB; Kotlin reports metered networks as an `Event`,
   and prefetch and backfill pause while metered (this answers MISC-29's open question)
-- [ ] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
+- [x] STORE-9 (S) [kt][host]: *Save* streams attachments through a file descriptor, like `Host.import`, not through a
   JNI byte array
-- [ ] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
-  compose, send and undo
-- [ ] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
+- [x] STORE-9b (M) [kt]: a golden-path UI test over the demo build in the emulator job: open, read, archive and undo,
+  compose, send and undo. The test found a bug: in the list and composer the snackbar sat under a 3-button navigation
+  bar, so its *Undo* opened Recents; it now keeps above the bar. `golden-path.yml` runs the test alone, by hand, with
+  a screenshot before each tap
+- [x] STORE-10 (S) [android][host]: `android.log` rotates at 1 MiB and replay logs are kept for 14 days, swept at open
 
 ### C — It connects and reads well
-- [ ] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,
+- [x] STORE-11 (L) [tls]: ADR 0014, then the hand-written primitives replaced by `chacha20poly1305`, `x25519-dalek`,
   `p256`, `p384` and `rsa` (the stable 0.9 line), with AES-128/256-GCM from `aes-gcm` and P-256/P-384 key exchange added.
   The Wycheproof and handshake tests stay and run against the new crates. `deny.toml` ignores RUSTSEC-2023-0071 with its
   reason. ADR 0014 retires ADR 0003's review promise, because no hand-written primitive remains, and records each crate's
   audit status. AGENTS.md §2 follows. The provider list is probed again and the results recorded
-- [ ] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
+- [x] STORE-12 (S) [front][mobile]: an OAuth-only domain table as provider data, so that Microsoft addresses stop before
   the password step; a *Create an App Password* link in Gmail setup
 - MISC-31, then MISC-28, from Wave 10 come here
-- [ ] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
+- [x] MISC-36 (M) [core][sync][front][mobile][kt]: reply from any connected account: `set_draft_from` accepts an address
   from any account and moves the draft there, and every composer's From field offers them all. Reproduce the docked reply
   layout on Linux and fix what is found. Following the iOS decision above, `ios/` only stays green
 
 ### D — Store packaging
-- [ ] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned
+- [x] STORE-13 (S) [kt][xtask]: `versionCode = major×10⁸ + minor×10⁵ + patch×10 + abi` (AAB 0, arm64 1, x86_64 2), pinned
   by a test. It must be final before the first upload
-- [ ] STORE-14 (S) [kt]: drop `dataSync`; below Android 14, `startForeground` without a type. Checked on API 29 and 33
-  emulators; `APK_PERMISSIONS` follows
-- [ ] STORE-15 (S) [android]: no update checks on Android; ADR 0011 amended
-- [ ] STORE-16 (M) [kt][xtask]: an AAB through `bundleLiveRelease`, with language splits off because the in-app language
+- [x] STORE-14 (S) [kt]: drop `dataSync`; below Android 14, `startForeground` without a type. Checked on API 29 and 33
+  emulators; `APK_PERMISSIONS` follows *(the API 29 and 33 runs wait for a machine with KVM or CI; STORE-23 covers devices)*
+- [x] STORE-15 (S) [android]: no update checks on Android; ADR 0011 amended
+- [x] STORE-16 (M) [kt][xtask]: an AAB through `bundleLiveRelease`, with language splits off because the in-app language
   can differ from the device's. `dependenciesInfo` off, and `apk-check` fails if the block returns. Native symbols go
   into the AAB while the APK stays stripped
 - [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
-  feature graphic
+  feature graphic *(made from the desktop logo, `packaging/store/`; waits for the user's approval of the art)*
 - [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
-  `changelogs/<versionCode>.txt` (500 characters at most)
-- [ ] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
+  `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an
+  emulator or device, with STORE-23)*
+- [x] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
-- [ ] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
+- [x] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
   action pinned to a SHA
 
 ### E — Closed test
@@ -946,7 +956,8 @@ text ships in English and French.
 - [ ] STORE-25 [user]: 1.0.0 tagged, production requested (review usually takes up to 7 days), a staged rollout
 - [ ] STORE-26 (M): the F-Droid recipe (Rust toolchain, `cargo-ndk`, NDK r28, `-Pdail.abis=…` per ABI, `live` only),
   tested locally, then the inclusion request. F-Droid wants 3 months of active development, which dail reaches on
-  2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier
+  2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier *(the recipe
+  is in `packaging/fdroid/`; the local `fdroid build` and the request are still to do)*
 - [ ] STORE-27 [user]: after F-Droid's first publish, its signing key added to `net.darii.dail`
 
 ### After launch, in this order

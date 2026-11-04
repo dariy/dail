@@ -1,0 +1,6 @@
+{
+  "args": {
+    "metered": true
+  },
+  "event": "network"
+}

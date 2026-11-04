@@ -53,6 +53,8 @@ pub struct LiveBackend {
     fulltext: Option<Arc<FullText>>,
     /// Where updates of dail are downloaded (the profile's `updates/`); none: no downloads.
     updates_dir: Option<std::path::PathBuf>,
+    /// The crash-loop breaker around body parsing (STORE-7), if the profile has one.
+    breaker: Option<Arc<app_io::breaker::Breaker>>,
 }
 
 impl LiveBackend {
@@ -75,6 +77,7 @@ impl LiveBackend {
             watchers: Mutex::new(HashMap::new()),
             idle_timeout: imap::IDLE_TIMEOUT,
             fulltext: None,
+            breaker: None,
             updates_dir: None,
         }
     }
@@ -83,6 +86,14 @@ impl LiveBackend {
     #[must_use]
     pub fn with_updates_dir(mut self, dir: std::path::PathBuf) -> Self {
         self.updates_dir = Some(dir);
+        self
+    }
+
+    /// Marks each body before it is parsed, and refuses the bodies a dead process was parsing
+    /// (STORE-7).
+    #[must_use]
+    pub fn with_breaker(mut self, breaker: Arc<app_io::breaker::Breaker>) -> Self {
+        self.breaker = Some(breaker);
         self
     }
 
@@ -213,8 +224,14 @@ impl LiveBackend {
     async fn store_blob(&self, message: MessageId, raw: Vec<u8>) -> Result<Stored, String> {
         let store = Arc::clone(&self.store);
         let fulltext = self.fulltext.clone();
+        let breaker = self.breaker.clone();
         tokio::task::spawn_blocking(move || {
+            let id = message.as_uuid().to_string();
+            if breaker.as_ref().is_some_and(|b| b.is_poisoned(&id)) {
+                return Err(app_io::breaker::POISONED_REASON.to_owned());
+            }
             let blob = store.put_blob(&raw).map_err(|err| err.to_string())?;
+            let _mark = breaker.as_ref().map(|b| b.parsing(&id));
             if let Some(index) = fulltext
                 && let Err(err) = index.add(message, &raw)
             {

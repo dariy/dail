@@ -453,6 +453,32 @@
       "type": "object"
     },
     {
+      "description": "The default network's metered state, at start and on every change (STORE-8). The host\npasses it to the engine as `Event::NetworkChanged`; the presenter ignores it.",
+      "properties": {
+        "args": {
+          "properties": {
+            "metered": {
+              "description": "Whether the network is billed by use.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "metered"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "network",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "A tap on a notification: what its `open` said, passed back verbatim (opens the thread\nor the draft, if it still exists).",
       "properties": {
         "args": {

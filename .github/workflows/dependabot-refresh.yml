@@ -1,0 +1,62 @@
+# Dependabot's PRs change versions but not what is derived from them, so CI fails them (Wave 7 D2, STORE-2):
+# Gradle PRs leave android/gradle/verification-metadata.xml stale, and Cargo and Gradle PRs leave the licence lists
+# (`cargo xtask android licences`) stale. This job regenerates both on the PR's branch and pushes them. Only for
+# Dependabot's own PRs, whose code is the version bump.
+#
+# A push made with GITHUB_TOKEN starts no workflow, and a run started by the bot's push waits at `action_required`.
+# So the job then dispatches `ci.yml` on the branch itself (`workflow_dispatch` is the one event GITHUB_TOKEN may
+# start); its checks land on the new commit and the PR passes unattended.
+name: dependabot-refresh
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["android/**", "Cargo.toml", "Cargo.lock"]
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      (startsWith(github.head_ref, 'dependabot/gradle/') || startsWith(github.head_ref, 'dependabot/cargo/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.2" "build-tools;37.0.0" > /dev/null
+      # The CI tasks resolve every configuration the build uses (`--dry-run` resolves none). Gradle writes the checksums
+      # even when a task fails (there is no NDK here for `libdail.so`), so the build's result is not this job's.
+      - if: startsWith(github.head_ref, 'dependabot/gradle/')
+        run: ./gradlew --no-daemon --write-verification-metadata sha256 --continue spotlessCheck licensee lint testLiveDebugUnitTest testDemoDebugUnitTest assembleLiveRelease assembleDemoDebug || true
+        working-directory: android
+      # Rewrites the Rust crate, Android library and PDF asset lists the About screen shows.
+      - run: cargo xtask android licences
+      - name: Push the refreshed files
+        id: push
+        run: |
+          if git diff --quiet; then
+            echo "nothing to refresh"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/gradle/verification-metadata.xml crates/app-mobile/licences
+          git commit -m "android: refresh verification metadata and licence lists"
+          git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+      - if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_HEAD_REF"

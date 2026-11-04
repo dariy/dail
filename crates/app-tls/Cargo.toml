@@ -12,16 +12,18 @@ publish = false
 workspace = true
 
 [dependencies]
+aes-gcm.workspace = true
+chacha20poly1305.workspace = true
 getrandom.workspace = true
+p256.workspace = true
+p384.workspace = true
+rsa.workspace = true
 rustls.workspace = true
 sha2.workspace = true
+x25519-dalek.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-chacha20poly1305.workspace = true
-p256.workspace = true
-p384.workspace = true
 proptest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-x25519-dalek.workspace = true

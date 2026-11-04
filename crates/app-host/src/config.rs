@@ -128,6 +128,22 @@ pub enum Task {
     Push,
 }
 
+/// `background`'s argument for *Save* (STORE-9): `{"save": {"blob", "part", "target"}}`. The host
+/// writes attachment `part` of `blob` to `target`, so the bytes never cross JNI as an array.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SaveTask {
+    /// Write one attachment.
+    Save {
+        /// The body's blob key.
+        blob: String,
+        /// The attachment's index.
+        part: usize,
+        /// Where to write it: Kotlin's `/proc/self/fd/<n>` of a descriptor opened for writing.
+        target: PathBuf,
+    },
+}
+
 /// `background`'s argument for a file the user picked or shared: `{"import": {…}}`. The host
 /// copies it into the app (`outgoing`) and attaches the copy to `draft`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

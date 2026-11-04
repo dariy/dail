@@ -1,6 +1,6 @@
 # 0003 — A TLS crypto provider written for dail replaces ring
 
-- Status: accepted
+- Status: accepted; amended by ADR 0014 (the primitives come from crates, AES-GCM and P-256/P-384 added)
 - Date: 2026-10-18
 - Plan: `docs/plan-tls.md`
 
@@ -60,5 +60,7 @@ Microsoft 365 and T-Online need AES-GCM with P-256/P-384 key exchange.
   Email don't work until tiers 2 and 3 land.
 - dail now owns about 1,900 lines of cryptographic code that no outside party has reviewed. The scope is kept small,
   every primitive is tested against published vectors, and an outside review is needed before a public release.
+  *Amended 2026-11-03:* releases became public (Wave 7) without that review. ADR 0014 retires the promise: the
+  hand-written primitives are replaced by crates, and only the glue remains dail's.
 - The rustls glue (`suites`, `aead`, `verify`, `hash`) follows rustls 0.23; an upgrade to 0.24 updates it together
   with its tests.

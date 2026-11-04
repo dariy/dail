@@ -22,7 +22,7 @@ loader ships `libjnidispatch.so`). The options weighed are in plan §1, the plat
     instead of a terminal buffer: `Mobile` with `frame(&state) -> Frame`, `event(UiEvent, &state) -> Vec<Request>`,
     `replies` and `externals`; every model `Serialize + JsonSchema`. It could serve an iOS host later.
   - `app-android` ← app-core, app-io, app-sync, app-mobile (and app-testkit behind its `demo` feature, as ADR 0001
-    allows for app-cli). A cdylib + rlib, `[lib] name = "dail"` (`libdail.so`): the `Host` (session, presenter) and
+    allows for app-cli). A cdylib + rlib, `[lib] name = "dail"` (`libdail.so`; *amended by MISC-34:* the target is `dail_android`, renamed to `libdail.so` by Gradle, because `dail` collided with app-cli's binary on Windows): the `Host` (session, presenter) and
     six JNI calls (`open`, `event`, `frame`, `blob`, `background`, `close`) through `jni` 0.22, carrying the JSON the
     command bus speaks. It builds on every host; the Android-only parts (Keystore store, ndk-context, logcat) sit
     behind `cfg(target_os = "android")`.

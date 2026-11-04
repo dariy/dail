@@ -42,12 +42,13 @@ You are an autonomous Staff Rust Systems Architect. Primary directive: **strict 
     ├── app-front/        # Toolkit-free front-end logic shared by GUI and TUI: palette flows, keymap, projections (ADR 0004).
     ├── app-tui/          # ratatui terminal UI, `dail tui` (ADR 0004).
     ├── app-testkit/      # Fake IMAP/SMTP transport, fixtures, replay helpers (dev-dependency only).
-    ├── app-tls/          # rustls crypto provider for the TLS client, in safe Rust (ADR 0003). No I/O but the OS RNG.
+    ├── app-tls/          # rustls crypto provider for the TLS client: safe-Rust glue over RustCrypto and dalek crates (ADR 0003, 0014). No I/O but the OS RNG.
     ├── app-theme/        # Design tokens: colour roles, type scale, metrics, built-in themes, contrast audit (ADR 0008).
     ├── app-mobile/       # Touch presenter: AppState → JSON frames, UI events → commands. No toolkit, tokio or JNI (ADR 0009).
     ├── app-host/         # Mobile host without the platform: session, presenter, the six calls (ADR 0010).
     ├── app-android/      # Android host, cdylib `libdail.so`: JNI exports, Keystore, logcat over app-host (ADR 0009).
     └── app-ios/          # iOS host, staticlib `libdail.a`: C exports (`include/dail.h`), Keychain, log file over app-host (ADR 0010).
+fuzz/                     # cargo-fuzz targets for hostile mail, outside the workspace, run nightly (STORE-7).
 vendor/                   # Patched third-party crates, outside the workspace (vendor/README.md; ADR 0012).
 android/                  # Gradle project: the Kotlin/Compose app. Draws frames, holds no rules (ADR 0009).
 ios/                      # XcodeGen spec (`project.yml`) and the SwiftUI app. Draws frames, holds no rules (ADR 0010).
@@ -57,7 +58,7 @@ ios/                      # XcodeGen spec (`project.yml`) and the SwiftUI app. D
 ```text
 app-core   ← (nothing internal)
 app-theme  ← (nothing internal)                (ADR 0008; external deps: serde only)
-app-tls    ← (nothing internal)                (ADR 0003; external deps: rustls without provider, sha2, getrandom, zeroize)
+app-tls    ← (nothing internal)                (ADR 0003, 0014; external deps: rustls without provider, sha2, getrandom, zeroize, chacha20poly1305, aes-gcm, x25519-dalek, p256, p384, rsa)
 app-io     ← app-core                         (ADR 0012: hayro from git, PDF pages)
 app-sync   ← app-core, app-io, app-tls
 app-mcp    ← app-core, app-sync
@@ -147,9 +148,9 @@ pub enum Command {
   - At the end of the frame, drain the queue into `session.submit(cmd)`.
   - Runtime events wake the UI via `egui::Context::request_repaint()`.
 - **Lint exception (ADR 0009, 0010).** `app-android` and `app-ios` are the only crates without `[lints] workspace = true`: their table is the workspace's with `unsafe_code = "deny"`, and only `src/jni.rs` (Android) or `src/ffi.rs` (iOS) allows unsafe code (with a `// reason:` line). A test in each pins the difference.
-- **Kotlin (`android/`).** No rules in Kotlin: it draws frames, returns events and performs host actions. Versions live in the Gradle version catalog, with dependency verification (checksums) and a licence allowlist. The APK carries no native code but `libdail.so`.
-- **Pure-Rust deps.** No C/C++ is compiled or linked at build time, without exception: rustls's crypto comes from `app-tls` (ADR 0003), and `ring` is banned. No `cc` (its remaining parents compile nothing), no `cmake`, `bindgen`, `openssl`, `native-tls`, `aws-lc-*` or `libsqlite3-sys`; `pkg-config` only for crates that load their library at run time (`wayland-sys` and `yeslogic-fontconfig-sys` with `dlopen`, `x11-dl`). `deny.toml` enforces this. A new dependency must be added to `[workspace.dependencies]` first.
-- **Serialization stability.** Command/Event JSON is a public API: agents and replay logs depend on it. Renaming a variant or field needs a `#[serde(alias = ...)]` or an ADR.
+- **Kotlin (`android/`).** No rules in Kotlin: it draws frames, returns events and performs host actions. Versions live in the Gradle version catalog, with dependency verification (checksums) and a licence allowlist. The APK carries no native code but `libdail.so` and the prebuilt libraries in `xtask`'s `PREBUILT_ALLOWLIST` (today AndroidX's `libandroidx.graphics.path.so`), each with its reason.
+- **Pure-Rust deps.** No C/C++ is compiled or linked at build time, without exception: rustls's crypto comes from `app-tls` (ADR 0003, 0014), and `ring` is banned. No `cc` (its remaining parents compile nothing), no `cmake`, `bindgen`, `openssl`, `native-tls`, `aws-lc-*` or `libsqlite3-sys`; `pkg-config` only for crates that load their library at run time (`wayland-sys` and `yeslogic-fontconfig-sys` with `dlopen`, `x11-dl`). `deny.toml` enforces this. A new dependency must be added to `[workspace.dependencies]` first. One exception, for tooling that never ships: `fuzz/` (outside the workspace) links libFuzzer, which cargo-fuzz compiles from C++ (STORE-7).
+- **Serialization stability.** Command/Event JSON is a public API: agents and replay logs depend on it. So are the rows of `state.redb` and `config.toml`: users' profiles depend on them, and every version must open the golden profiles in `crates/app-io/testdata/golden/` intact (STORE-6). Renaming a variant or field needs a `#[serde(alias = ...)]` or an ADR; a stored field that changes shape needs a migration. A golden profile is never edited.
 - **Error codes (ADR 0013).** Every `#[error]` message starts with a unique `ERR<code>: ` (a wrapper is `transparent`). A code is never changed or reused.
 - **Tests:** deterministic, no network by default. Use `insta` for receipt and schema snapshots and `proptest` for undo round trips. Live-server tests are `#[ignore]` and gated on `DAIL_IT_*` env vars. Integration tests form one binary per crate: add `tests/it/<name>.rs` plus `mod <name>;` in `tests/it/main.rs`, never a new `tests/<name>.rs` (each extra binary links every dependency again).
 

@@ -92,6 +92,7 @@ impl Term {
         let background = self.tui.refresh(&state);
         self.out.extend(background);
         let tui = &mut self.tui;
+        let _one = drawing();
         self.terminal.draw(|frame| tui.draw(frame, &state)).unwrap();
         let buffer = self.terminal.backend().buffer();
         let width = usize::from(buffer.area.width);
@@ -345,4 +346,14 @@ fn enrich(engine: &mut Engine) {
     );
     dispatch(engine, 508, Command::OpenComposer { id: open });
     dispatch(engine, 509, Command::FocusPane { pane: Pane::List });
+}
+
+/// Held while a test draws. A frame sets the process's language (`i18n::set_current`) and then renders, so two
+/// tests drawing at once in this binary could render in each other's language (a French settings test made the
+/// setup snapshot French on Windows CI).
+pub fn drawing() -> std::sync::MutexGuard<'static, ()> {
+    static DRAWING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    DRAWING
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }

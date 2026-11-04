@@ -138,8 +138,17 @@ impl Doc<'_> {
                 hit: false,
                 link,
                 image,
+                note: None,
             };
             out.extend(self.marked(&span.text, &style));
+            // The link's marker, a span of its own (MISC-28).
+            if let Some(number) = span.note {
+                out.push(DocSpan {
+                    link,
+                    note: Some(number),
+                    ..DocSpan::default()
+                });
+            }
         }
         out
     }
@@ -204,6 +213,33 @@ impl Doc<'_> {
         }
         flush(&mut current, &mut out);
         out
+    }
+}
+
+/// The *Links* entries of a body, label and target (MISC-28): a document's numbered links as `¹ url — title` (the
+/// marker repeated, then the full target, then the link's text if it has any), else the targets found in the text.
+fn link_entries(body: &Body) -> Vec<(String, String)> {
+    match body.document.as_ref().filter(|d| !d.notes().is_empty()) {
+        Some(document) => document
+            .notes()
+            .into_iter()
+            .map(|note| {
+                let mut label = format!(
+                    "{} {}",
+                    app_front::format::superscript(note.number),
+                    clean(&note.url)
+                );
+                if !note.title.is_empty() {
+                    label.push_str(" — ");
+                    label.push_str(&clean(&note.title));
+                }
+                (label, note.url)
+            })
+            .collect(),
+        None => link_targets(body)
+            .into_iter()
+            .map(|url| (clean(&url), url))
+            .collect(),
     }
 }
 
@@ -384,11 +420,11 @@ impl Mobile {
                 (true, None, _) => (None, Some(i18n::s(Key::Loading).to_owned())),
             };
             let links = match (&loaded, expanded) {
-                (Some(loaded), true) => link_targets(loaded)
+                (Some(loaded), true) => link_entries(loaded)
                     .into_iter()
-                    .map(|url| Button {
+                    .map(|(label, url)| Button {
                         icon: Some("link".to_owned()),
-                        label: clean(&url),
+                        label,
                         action: self.add(Act::Link(url)),
                     })
                     .collect(),

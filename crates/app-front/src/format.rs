@@ -165,6 +165,25 @@ pub fn size(bytes: u64) -> String {
     }
 }
 
+/// `n` in superscript digits (`¹²³`), for link markers in text-only places such as the *Links* list (MISC-28).
+pub fn superscript(n: u32) -> String {
+    n.to_string()
+        .chars()
+        .map(|c| match c {
+            '0' => '⁰',
+            '1' => '¹',
+            '2' => '²',
+            '3' => '³',
+            '4' => '⁴',
+            '5' => '⁵',
+            '6' => '⁶',
+            '7' => '⁷',
+            '8' => '⁸',
+            _ => '⁹',
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

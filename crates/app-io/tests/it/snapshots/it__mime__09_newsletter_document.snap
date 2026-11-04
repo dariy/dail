@@ -45,7 +45,8 @@ expression: document
             "spans": [
               {
                 "text": "First story",
-                "link": "https://example.net/1"
+                "link": "https://example.net/1",
+                "note": 1
               }
             ]
           }
@@ -149,7 +150,8 @@ expression: document
         },
         {
           "text": "Preferences",
-          "link": "https://example.net/u?id=1"
+          "link": "https://example.net/u?id=1",
+          "note": 2
         }
       ]
     }
