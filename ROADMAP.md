@@ -816,6 +816,8 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
   `set_setting { key: "language", value: <0|1|2> }`)
 - [ ] MISC-37 (S) [gui]: list and reader toolbars as icon buttons with tooltips that fit small windows; the
   conversation navigation (up/down buttons, "n of N") leaves the desktop reader
+- [ ] MISC-38 (S) [gui]: settings rows wrap their control to a new line below the title and detail when the
+  window is too narrow for both, so no control goes off the screen
 
 ### T — TUI device check (Wave 1.5, T5)
 

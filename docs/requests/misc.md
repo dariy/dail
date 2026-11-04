@@ -44,6 +44,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-35 | Stable, translation-independent error codes | M | app-core, app-io, app-sync, app-mcp, app-cli, app-front, app-gui, app-tui, app-mobile | 2026-11-01 |
 | MISC-36 | Reply from any connected account; check the docked reply layout on Linux | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui, app-mobile, android/ | 2026-11-02 |
 | MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
+| MISC-38 | Desktop: settings rows wrap their control below the title in narrow windows | S | app-gui | 2026-11-04 |
 
 ## Details
 
@@ -730,4 +731,15 @@ Bug on the desktop GUI: in a small window, the control buttons of the message li
 - **Commands:** none. Only the buttons go; `open_thread` and the next/previous keys stay.
 - **Touches:** `app-gui` only (`list.rs`, `reader.rs`, `ui` widgets, the gallery). The `NOfM` and
   `NextConversation` strings stay in `app-front`'s `i18n` table: `app-mobile`'s reader still uses them.
+- **Open questions:** none.
+
+### MISC-38 — Desktop: settings rows wrap their control below the title in narrow windows
+
+The settings page does not collapse to small window sizes: each row puts its control on the right of the title
+and detail, so in a narrow window the controls go out of the screen. When a row has no room for both, the control
+must wrap to a new line below the title (and detail) instead.
+
+- **Commands:** none.
+- **Touches:** `app-gui` only (`settings.rs`: the shared `row` helper with its `right_to_left` control, and the
+  other right-aligned rows in that file).
 - **Open questions:** none.
