@@ -863,6 +863,21 @@ async fn try_steps(
                     .await
                     .map_err(|err| StepError::imap(context, &err))?;
             }
+            RemoteStep::ExpungeAll { path, uid_validity } => {
+                select(session, path, *uid_validity, "").await?;
+                let mut uids: Vec<u32> = session
+                    .uid_search("ALL")
+                    .await
+                    .map_err(|err| StepError::imap(format!("IMAP UID SEARCH ALL in {path}"), &err))?
+                    .into_iter()
+                    .collect();
+                if uids.is_empty() {
+                    continue;
+                }
+                uids.sort_unstable();
+                store(session, path, &uids, "+FLAGS.SILENT (\\Deleted)").await?;
+                expunge(session, path, &uids, has_uidplus).await?;
+            }
             RemoteStep::Move {
                 path,
                 uid_validity,

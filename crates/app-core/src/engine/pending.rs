@@ -147,7 +147,9 @@ impl Engine {
                 push_unique(&mut resync, *to);
             }
             // Nothing local to revert: the cached messages had their own `set_flag` op.
-            RemoteOp::FlagMailbox { mailbox, .. } => push_unique(&mut resync, *mailbox),
+            RemoteOp::FlagMailbox { mailbox, .. } | RemoteOp::EmptyMailbox { mailbox } => {
+                push_unique(&mut resync, *mailbox);
+            }
         }
         // The server's state wins: re-read the mailboxes involved.
         let mut effects: Vec<Effect> = resync
@@ -207,6 +209,7 @@ fn op_json(op: &PendingOp) -> Value {
             "flag_mailbox",
             json!({ "mailbox": mailbox, "flag": flag, "value": value }),
         ),
+        RemoteOp::EmptyMailbox { mailbox } => ("empty_mailbox", json!({ "mailbox": mailbox })),
     };
     json!({
         "id": op.id,

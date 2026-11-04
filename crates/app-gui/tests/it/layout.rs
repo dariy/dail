@@ -452,3 +452,43 @@ fn a_pointer_click_on_a_hover_action_runs_it() {
         assert_eq!(h.state_mut().take(), [cmd], "{label}");
     }
 }
+
+/// MISC-41: the open Trash offers *Empty Trash*, which asks first with the count.
+#[test]
+fn the_trash_offers_to_empty_itself_after_a_confirmation() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut trash = state.mailboxes[&inbox].clone();
+    trash.id = app_core::IdGen::new(77).next_id();
+    trash.path = "Trash".into();
+    trash.role = Some(MailboxRole::Trash);
+    trash.total = 1;
+    let (id, account) = (trash.id, trash.account);
+    state.mailboxes.insert(id, trash);
+    let message = state.threads[&threads[0]].messages[0];
+    state.messages.get_mut(&message).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    assert!(h.query_by_label("Empty Trash").is_none(), "only in Trash");
+    apply(&mut h, Command::OpenMailbox { id });
+    h.state_mut().out.clear();
+    h.get_by_label("Empty Trash").click();
+    h.run();
+    let early = h.state_mut().pump();
+    h.run();
+    assert!(
+        !early
+            .iter()
+            .any(|c| matches!(c, Command::EmptyTrash { .. })),
+        "{early:?}"
+    );
+    h.get_by_label_contains("Empty Trash (1)").click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take()[0],
+        Command::EmptyTrash {
+            account,
+            confirm: true
+        }
+    );
+}

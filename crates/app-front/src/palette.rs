@@ -417,6 +417,46 @@ pub fn delete_folder(state: &AppState, id: MailboxId) -> Flow {
     )
 }
 
+/// The Trash of `account` and how many messages it holds: the server's count, or the cached
+/// ones if more are shown there (moves that have not reached the server yet).
+#[must_use]
+pub fn trash_of(state: &AppState, account: AccountId) -> Option<(MailboxId, u32)> {
+    let trash = state
+        .mailboxes
+        .values()
+        .find(|m| m.account == account && m.role == Some(app_core::MailboxRole::Trash))?;
+    let cached = state
+        .messages
+        .values()
+        .filter(|m| m.account == account && m.location() == trash.id)
+        .count();
+    Some((
+        trash.id,
+        trash.total.max(u32::try_from(cached).unwrap_or(u32::MAX)),
+    ))
+}
+
+/// "Empty Trash" of `account` (MISC-41): the confirmation step, with the number of messages.
+pub fn empty_trash(state: &AppState, account: AccountId) -> Flow {
+    let n = trash_of(state, account).map_or(0, |(_, n)| n).to_string();
+    let email = state
+        .accounts
+        .get(&account)
+        .map(|a| a.email.clone())
+        .unwrap_or_default();
+    ask(
+        crate::i18n::f(Key::EmptyTrashOfForever, &[("n", &n), ("email", &email)]),
+        AskKind::Confirm(crate::i18n::f(Key::EmptyTrashN, &[("n", &n)])),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::EmptyTrash {
+                account,
+                confirm: true,
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// `make` for the open mailbox, else for one the user picks.
 fn on_mailbox(
     state: &AppState,
@@ -1032,6 +1072,29 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 },
             ),
         },
+        CommandName::EmptyTrash => {
+            let open = state
+                .view
+                .mailbox
+                .filter(|_| !state.view.unified)
+                .and_then(|id| state.mailboxes.get(&id))
+                .map(|m| m.account);
+            let mut with_trash = state
+                .accounts
+                .keys()
+                .filter(|id| trash_of(state, **id).is_some());
+            match (open, with_trash.next(), with_trash.next()) {
+                (Some(account), _, _) | (None, Some(&account), None) => empty_trash(state, account),
+                _ => ask(
+                    crate::i18n::s(Key::EmptyTrashOfWhichAccount),
+                    AskKind::Accounts,
+                    |state, choice| match choice {
+                        Choice::Account(id) => empty_trash(state, id),
+                        _ => Flow::Hidden,
+                    },
+                ),
+            }
+        }
         CommandName::DeleteFolder => match state.view.mailbox.filter(|_| !state.view.unified) {
             Some(id) => delete_folder(state, id),
             None => ask(
@@ -1425,6 +1488,16 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                                     .map_or_else(String::new, mailbox_name),
                             ),
                         ],
+                    ),
+                    app_core::RemoteOp::EmptyMailbox { mailbox } => crate::i18n::f(
+                        Key::EmptyMailboxOp,
+                        &[(
+                            "mailbox",
+                            &state
+                                .mailboxes
+                                .get(mailbox)
+                                .map_or_else(String::new, mailbox_name),
+                        )],
                     ),
                 };
                 let detail = op

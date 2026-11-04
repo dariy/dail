@@ -812,8 +812,9 @@ which was never scheduled.
 - **Touches:** `app-core` (command, spec, engine, replay fixture), `app-sync` (effect), `app-testkit` (fake
   transport), `app-front` (the confirmation prompt), `app-gui` and `app-tui` (button in the Trash folder; text in
   English and French).
-- **Open questions:** should Junk get the same "Empty Junk" button (UX-7 lists both)? If so, the command becomes
-  `empty_mailbox { id, confirm }`, limited to the Trash and Junk roles.
+- **Decided (2026-11-04):** Trash only, as scheduled; an "Empty Junk" would be a separate request. The GUI button is
+  a text button with the delete icon (no new glyph in the icon subset). A message whose move to Trash has not
+  reached the server yet stays until the op (queued after that move) has run.
 
 ### MISC-42 — "Junk" / "Not junk" buttons: move messages between the inbox and Junk
 

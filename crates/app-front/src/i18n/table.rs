@@ -1670,6 +1670,21 @@ strings! {
     MarkAllUnreadMessagesReadUndoRestores:
         "Mark all {n} unread messages read? Undo restores only the cached ones.",
         "Marquer les {n} messages non lus comme lus ? L’annulation ne restaure que ceux en cache.";
+    EmptyTrashOfForever:
+        "Delete the {n} messages in the Trash of {email} forever? This cannot be undone.",
+        "Supprimer définitivement les {n} messages de la corbeille de {email} ? C’est irréversible.";
+    EmptyTrash:
+        "Empty Trash",
+        "Vider la corbeille";
+    EmptyTrashN:
+        "Empty Trash ({n})",
+        "Vider la corbeille ({n})";
+    EmptyTrashOfWhichAccount:
+        "Empty the Trash of which account?",
+        "Vider la corbeille de quel compte ?";
+    EmptyMailboxOp:
+        "empty {mailbox}",
+        "vider {mailbox}";
     MarkMessagesRead:
         "Mark {n} messages read",
         "Marquer {n} messages comme lus";

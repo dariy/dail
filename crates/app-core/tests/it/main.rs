@@ -15,6 +15,7 @@ mod contacts;
 mod discovery;
 mod draft_saves;
 mod drafts;
+mod empty_trash;
 mod engine;
 mod envelopes;
 mod expanded;

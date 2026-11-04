@@ -114,6 +114,12 @@ pub enum RemoteOp {
         /// `true` sets it, `false` clears it.
         value: bool,
     },
+    /// Delete every message the server has in a mailbox when the op runs, cached or not
+    /// (`UID SEARCH ALL`, `UID STORE +FLAGS (\Deleted)`, `UID EXPUNGE`; `empty_trash`, MISC-41).
+    EmptyMailbox {
+        /// The mailbox.
+        mailbox: MailboxId,
+    },
 }
 
 /// One copied message: the source and its placeholder in the target mailbox.
@@ -131,14 +137,14 @@ impl RemoteOp {
         match self {
             Self::SetFlag { messages, .. } | Self::Move { messages, .. } => messages.clone(),
             Self::Copy { copies, .. } => copies.iter().flat_map(|c| [c.source, c.copy]).collect(),
-            Self::FlagMailbox { .. } => Vec::new(),
+            Self::FlagMailbox { .. } | Self::EmptyMailbox { .. } => Vec::new(),
         }
     }
 
     /// The target mailbox of a move or copy.
     pub const fn target(&self) -> Option<MailboxId> {
         match self {
-            Self::SetFlag { .. } | Self::FlagMailbox { .. } => None,
+            Self::SetFlag { .. } | Self::FlagMailbox { .. } | Self::EmptyMailbox { .. } => None,
             Self::Move { to, .. } | Self::Copy { to, .. } => Some(*to),
         }
     }
@@ -242,5 +248,14 @@ pub enum RemoteStep {
         flag: FlagKind,
         /// `true` adds the flag, `false` removes it.
         value: bool,
+    },
+    /// `UID SEARCH ALL`, then `UID STORE uids +FLAGS.SILENT (\Deleted)` and `UID EXPUNGE uids`
+    /// of what it found: every message of the mailbox at that moment, and nothing that arrives
+    /// later.
+    ExpungeAll {
+        /// IMAP path of the mailbox.
+        path: String,
+        /// UIDVALIDITY the cache knows; the step fails if the server's differs.
+        uid_validity: u32,
     },
 }

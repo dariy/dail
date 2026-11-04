@@ -238,6 +238,16 @@ impl Engine {
                     });
                 }
             }
+            RemoteOp::EmptyMailbox { mailbox } => {
+                if let Some(mailbox) = self.state.mailboxes.get(mailbox)
+                    && let Some(uid_validity) = mailbox.uid_validity
+                {
+                    resolved.steps.push(RemoteStep::ExpungeAll {
+                        path: mailbox.path.clone(),
+                        uid_validity,
+                    });
+                }
+            }
         }
         resolved
     }
@@ -329,7 +339,7 @@ impl Engine {
             RemoteOp::Copy { copies, .. } => {
                 copies.retain(|c| c.source != message && c.copy != message);
             }
-            RemoteOp::FlagMailbox { .. } => {}
+            RemoteOp::FlagMailbox { .. } | RemoteOp::EmptyMailbox { .. } => {}
         }
     }
 
@@ -348,6 +358,11 @@ impl Engine {
         let mut changes = CacheChanges::default();
         changes.removed_ops.insert(id);
         let mut effects = Vec::new();
+        if let RemoteOp::EmptyMailbox { mailbox } = op.op {
+            // Messages whose move there reached the server before the op: gone with it.
+            self.drop_emptied(mailbox, &mut changes);
+            effects.extend(self.start_fetch(mailbox));
+        }
         if let Some(to) = op.op.target() {
             if let RemoteOp::Move { messages, .. } = &op.op {
                 for message in messages {
@@ -507,7 +522,7 @@ impl Engine {
                 messages.is_empty()
             }
             RemoteOp::Copy { copies, .. } => copies.is_empty(),
-            RemoteOp::FlagMailbox { .. } => false,
+            RemoteOp::FlagMailbox { .. } | RemoteOp::EmptyMailbox { .. } => false,
         });
         if empty {
             self.state.outbox.shift_remove(&id);

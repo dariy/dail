@@ -1262,6 +1262,37 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Delete every message in an account's Trash permanently, on the server too (`UID STORE\n+FLAGS (\\\\Deleted)` and `UID EXPUNGE` of the messages the server has in Trash when the\nchange runs, cached or not). Needs `confirm: true`; not undoable. The receipt gives the\nnumber of cached messages removed (`removed`) and the server's count (`total`).",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (from `list_mailboxes`)."
+            },
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the messages are gone for good.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "empty_trash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Choose the address a draft is sent from: an identity of any connected account. An address of\nanother account moves the draft there (its saved server copy moves too); a reply stays a\nreply. Undoable.",
       "properties": {
         "args": {

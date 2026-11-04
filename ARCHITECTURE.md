@@ -246,10 +246,12 @@ pub struct PendingOp{ id, account, op: RemoteOp, state: OpState /* Queued|Runnin
                       last_error: Option<String>, created_ms, next_attempt_ms: Option<i64>, awaiting_sync: bool }
 pub enum  RemoteOp  { SetFlag { flag: FlagKind /* Seen|Flagged */, value: bool, messages: Vec<MessageId> },
                       Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> },
-                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */ }
+                      FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */,
+                      EmptyMailbox { mailbox } /* expunge all on the server, MISC-41 */ }
 pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // resolved when the op starts
                       Move { path, uid_validity, uids, to: String, create }, Copy { … same … },
-                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */ }
+                      StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */,
+                      ExpungeAll { path, uid_validity } /* UID SEARCH ALL, STORE \Deleted, UID EXPUNGE */ }
 ```
 
 Folder tree (UX-2): `app_front::mailbox::tree(state, account) -> Vec<FolderNode { key: FolderKey { account, path },
@@ -542,7 +544,7 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    the queue; an op that could not reach the server keeps retrying, so a long time offline never loses or fails triage. A successful sync step
    of the account (`MailboxesListed`, `EnvelopesFetched`) means the server is reachable again: waiting ops run at once. While an op is in the outbox, flags reported by `EnvelopesFetched`/`FlagsChanged` get the op's
    change applied on top, so a sync never flips a local change back. A session that starts from a snapshot re-queues ops that
-   were `running`. Server side: `UID STORE`, `UID MOVE` (fallback `COPY` + `STORE \Deleted` + `UID EXPUNGE`), `APPEND`.
+   were `running`. Server side: `UID STORE`, `UID MOVE` (fallback `COPY` + `STORE \Deleted` + `UID EXPUNGE`), `APPEND`, and for `empty_trash` `UID SEARCH ALL` + `STORE \Deleted` + `UID EXPUNGE` (`ExpungeAll`).
 6. Moves (`archive_threads`, `trash_threads`, `move_threads`): an envelope's `mailbox`/`uid` always name its server location;
    a pending move only sets `moved_to`, and every listing (`list_threads`, `get_*`) uses `location()`. When the op succeeds
    the message becomes a *placeholder* in the target (`uid` 0, still shown where the user put it) and the engine fetches
@@ -1832,6 +1834,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `create_folder` | Mutation (no history) | `account, path` (trimmed; no control characters, `*`, `%` or empty segments; not an existing path, compared without case) → `{mailbox, path, undoable: false}`; the mailbox is cached at once (the account's delimiter, never fetched) and `ManageFolder{account, imap, action: create{path}}` runs IMAP `CREATE`; agents allowed | UX-14 |
 | `rename_folder` | Mutation | `id, path` (the new full path; not the inbox, not into itself, not an existing path) → `{mailbox, from, to}`; the folder and its subfolders get their new paths in the cache, and pins, hidden folders and collapsed parents follow; `ManageFolder{rename{from, to}}` (IMAP `RENAME`); undo renames it back; agents allowed | UX-14 |
 | `delete_folder` | Destructive | `id, confirm` (not the inbox, not a folder with subfolders) → `{deleted, path, undoable: false}`; drops the mailbox and its cached mail, `ManageFolder{delete{path}}` (IMAP `DELETE`); agents allowed with `confirm` | UX-14 |
+| `empty_trash` | Destructive | `account, confirm` → `{mailbox, removed, waiting, total, ops, undoable: false}`; drops the cached messages shown in the account's Trash (role `trash`, else the preset's `trash_mailbox`; error `error_007_no_mailbox_for_role` without one) and queues an `empty_mailbox{mailbox}` op whose `RemoteStep::ExpungeAll` runs `UID SEARCH ALL`, `UID STORE +FLAGS.SILENT (\Deleted)` and `UID EXPUNGE` of the UIDs found (uncached mail too, nothing that arrives later); messages whose move to Trash is still pending stay (`waiting`) until the op, which runs after their move, has succeeded; Trash is fetched again afterwards; no default key; the palette and the GUI's *Empty Trash* button in the Trash toolbar confirm with the count (`palette::empty_trash`); agents allowed with `confirm` | MISC-41 |
 | `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |

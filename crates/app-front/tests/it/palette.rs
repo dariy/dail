@@ -362,3 +362,32 @@ fn typed_themes_become_set_theme() {
         theme(Some(ThemeMode::System), None, None)
     );
 }
+
+/// MISC-41: "Empty Trash" in the open Trash confirms with the number of messages first.
+#[test]
+fn empty_trash_confirms_with_the_count() {
+    let mut state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let mut trash = state.mailboxes[&inbox].clone();
+    trash.id = app_core::IdGen::new(77).next_id();
+    trash.path = "Trash".into();
+    trash.role = Some(MailboxRole::Trash);
+    trash.total = 7;
+    let (id, account) = (trash.id, trash.account);
+    state.mailboxes.insert(id, trash);
+    state.view.mailbox = Some(id);
+    assert_eq!(palette::trash_of(&state, account), Some((id, 7)));
+    let Flow::Ask(step) = palette::flow(CommandName::EmptyTrash, &state) else {
+        panic!("emptying must be confirmed");
+    };
+    assert!(step.prompt.contains('7'), "{}", step.prompt);
+    assert!(matches!(step.kind, AskKind::Confirm(ref label) if label.contains('7')));
+    assert!(matches!(
+        step.answer(&state, Choice::Yes),
+        Flow::Run(Command::EmptyTrash { account: a, confirm: true }) if a == account
+    ));
+    assert!(matches!(
+        step.answer(&state, Choice::Text(String::new())),
+        Flow::Hidden
+    ));
+}

@@ -28,6 +28,7 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::CreateFolder => "Nouveau dossier",
         CommandName::RenameFolder => "Renommer le dossier",
         CommandName::DeleteFolder => "Supprimer le dossier",
+        CommandName::EmptyTrash => "Vider la corbeille",
         CommandName::SetDraftFrom => "Envoyer ce brouillon depuis…",
         CommandName::RemoveAccount => "Supprimer le compte",
         CommandName::SyncNow => "Synchroniser",
@@ -143,6 +144,9 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
             "Renommer ou déplacer un dossier sur le serveur, avec ses sous-dossiers."
         }
         CommandName::DeleteFolder => "Supprimer un dossier du serveur, avec tous ses messages.",
+        CommandName::EmptyTrash => {
+            "Supprimer définitivement tous les messages de la corbeille d’un compte, aussi sur le serveur."
+        }
         CommandName::SetDraftFrom => "Choisir l’adresse d’envoi d’un brouillon.",
         CommandName::RemoveAccount => "Retirer un compte et effacer son mot de passe du trousseau.",
         CommandName::SyncNow => {

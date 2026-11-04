@@ -262,6 +262,107 @@ impl Engine {
         })
     }
 
+    /// `empty_trash` (MISC-41): drops the cached messages shown in the account's Trash and
+    /// queues an `empty_mailbox` op that expunges everything the server has there when it runs.
+    /// A message whose move to Trash has not reached the server yet stays until it has: the
+    /// queue runs that move first, and the op's success drops it.
+    pub(super) fn empty_trash(
+        &mut self,
+        account: AccountId,
+        confirm: bool,
+        ctx: &Ctx,
+        receipt: CommandReceipt,
+    ) -> Result<Outcome, CoreError> {
+        if !confirm {
+            return Err(CoreError::ConfirmationRequired {
+                command: "empty_trash".to_owned(),
+            });
+        }
+        if !self.state.accounts.contains_key(&account) {
+            return Err(not_found("account", account));
+        }
+        let trash = match self.resolve_target(account, MoveKind::Trash)? {
+            Target::Existing(id) => id,
+            Target::Create { .. } => {
+                return Err(CoreError::NoMailboxForRole {
+                    account: account.to_string(),
+                    role: MailboxRole::Trash,
+                });
+            }
+        };
+        let shown: Vec<MessageId> = self
+            .state
+            .messages
+            .values()
+            .filter(|m| m.account == account && m.location() == trash)
+            .map(|m| m.id)
+            .collect();
+        let mut changes = CacheChanges::default();
+        let mut removed = 0_usize;
+        let mut waiting = Vec::new();
+        for id in shown {
+            if self.move_pending(id) {
+                waiting.push(id);
+            } else {
+                self.remove_message(id, &mut changes);
+                removed += 1;
+            }
+        }
+        let mut total = 0;
+        if let Some(mailbox) = self.state.mailboxes.get_mut(&trash) {
+            total = mailbox.total;
+            // The server's counts follow with the fetch after the op.
+            mailbox.total = 0;
+            mailbox.unread = 0;
+            changes.mailboxes.insert(trash);
+        }
+        let mut ids = ctx.ids();
+        let op = self.queue_op(
+            account,
+            RemoteOp::EmptyMailbox { mailbox: trash },
+            ctx,
+            &mut ids,
+            &mut changes,
+        );
+        let effects = self.pump_ops(account, ctx.now_ms, &mut changes);
+        let delta = self.delta(changes);
+        let mut receipt = receipt
+            .affecting(EntityRef::Account(account))
+            .affecting(EntityRef::Mailbox(trash))
+            .affecting(EntityRef::Op(op));
+        for thread in &delta.threads {
+            receipt = receipt.affecting(EntityRef::Thread(thread.id));
+        }
+        let receipt = receipt.with_data(serde_json::json!({
+            "mailbox": trash,
+            "removed": removed,
+            "waiting": waiting,
+            "total": total,
+            "ops": [op],
+            "undoable": false,
+        }));
+        let mut outcome = Outcome::new(receipt).with_effect(Effect::PersistState {
+            delta: PersistDelta::Mail(delta),
+        });
+        outcome.effects.extend(effects);
+        Ok(outcome)
+    }
+
+    /// After an `empty_mailbox` op: drops the cached messages that sit in `mailbox` on the
+    /// server and are shown there (messages moved out meanwhile stay).
+    pub(super) fn drop_emptied(&mut self, mailbox: MailboxId, changes: &mut CacheChanges) {
+        let gone: Vec<MessageId> = self
+            .state
+            .messages
+            .values()
+            .filter(|m| m.mailbox == mailbox && m.location() == mailbox)
+            .map(|m| m.id)
+            .collect();
+        for id in gone {
+            self.remove_message(id, changes);
+        }
+    }
+
     /// The mailbox `kind` moves `account`'s messages to.
     fn resolve_target(&self, account: AccountId, kind: MoveKind) -> Result<Target, CoreError> {
         let preset = self

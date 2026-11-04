@@ -711,3 +711,67 @@ async fn compaction_deletes_only_unused_bodies() {
     ));
     session.shutdown().await.unwrap();
 }
+
+#[tokio::test(start_paused = true)]
+async fn empty_trash_expunges_cached_and_uncached_mail_on_the_fake_server() {
+    let backend = Arc::new(MemoryBackend::from_fixture(
+        Fixture::builtin("basic").unwrap(),
+    ));
+    backend.edit_server(|server| {
+        let mut trash = app_testkit::FakeMailbox::new("Trash");
+        trash.special_use = Some("trash".into());
+        server.accounts[0].mailboxes.push(trash);
+    });
+    let session = open(&backend).await;
+    run(
+        &session,
+        Command::AddAccount {
+            preset: ProviderPreset::Hostinger,
+            email: "alice@example.com".into(),
+            display_name: None,
+            password: Some(Secret::new("pw")),
+            imap: None,
+            smtp: None,
+        },
+    )
+    .await;
+    run(&session, Command::SyncNow { account: None }).await;
+    let q3 = thread(&session, "Q3 numbers");
+    run(
+        &session,
+        Command::TrashThreads {
+            ids: vec![q3],
+            messages: vec![],
+        },
+    )
+    .await;
+    assert_eq!(server_subjects(&backend, "Trash"), ["Q3 numbers"]);
+    // Mail another client put in Trash, never fetched here.
+    backend.edit_server(|server| {
+        let trash = server.accounts[0]
+            .mailboxes
+            .iter_mut()
+            .find(|m| m.path == "Trash")
+            .unwrap();
+        trash.append(
+            Vec::new(),
+            "Message-ID: <x@y>\r\nSubject: Elsewhere\r\n\r\nhi\r\n".into(),
+        );
+    });
+    let account = *session.state().accounts.keys().next().unwrap();
+    let receipt = run(
+        &session,
+        Command::EmptyTrash {
+            account,
+            confirm: true,
+        },
+    )
+    .await;
+    assert_eq!(receipt.data["removed"], 1);
+    assert!(server_subjects(&backend, "Trash").is_empty());
+    assert_eq!(server_subjects(&backend, "INBOX"), ["Lunch?"]);
+    let state = session.state();
+    assert!(state.outbox.is_empty());
+    assert!(state.messages.values().all(|m| m.subject != "Q3 numbers"));
+    session.shutdown().await.unwrap();
+}

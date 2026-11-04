@@ -823,7 +823,7 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
   by `cargo xtask icons` and an `icons.yml` workflow that runs only when the SVG changes
 - [x] MISC-40 (S) [gui]: the message list's hover actions (move to trash, archive, star, read, pin) run on a
   pointer click; before, the icons vanished from the frame of the click (bug)
-- [ ] MISC-41 (M) [core] [sync] [front] [gui] [tui]: "Empty Trash" in the Trash folder: `Destructive`
+- [x] MISC-41 (M) [core] [sync] [front] [gui] [tui]: "Empty Trash" in the Trash folder: `Destructive`
   `empty_trash { account, confirm }` that expunges every Trash message on the server too, after a confirmation with
   the count
 - [ ] MISC-42 (M) [core] [sync] [front] [gui] [tui]: "Junk" / "Not junk" buttons: `mark_junk` / `mark_not_junk`

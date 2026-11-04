@@ -199,6 +199,17 @@ pub enum Command {
         #[serde(default)]
         confirm: bool,
     },
+    /// Delete every message in an account's Trash permanently, on the server too (`UID STORE
+    /// +FLAGS (\\Deleted)` and `UID EXPUNGE` of the messages the server has in Trash when the
+    /// change runs, cached or not). Needs `confirm: true`; not undoable. The receipt gives the
+    /// number of cached messages removed (`removed`) and the server's count (`total`).
+    EmptyTrash {
+        /// The account (from `list_mailboxes`).
+        account: AccountId,
+        /// Must be `true`: the messages are gone for good.
+        #[serde(default)]
+        confirm: bool,
+    },
     /// Choose the address a draft is sent from: an identity of any connected account. An address of
     /// another account moves the draft there (its saved server copy moves too); a reply stays a
     /// reply. Undoable.
@@ -1108,6 +1119,7 @@ impl Command {
             | Self::CreateFolder { .. }
             | Self::RenameFolder { .. }
             | Self::DeleteFolder { .. }
+            | Self::EmptyTrash { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
             | Self::ListMailboxes { .. }
@@ -1198,6 +1210,7 @@ impl Command {
             Self::CreateFolder { .. } => CommandName::CreateFolder,
             Self::RenameFolder { .. } => CommandName::RenameFolder,
             Self::DeleteFolder { .. } => CommandName::DeleteFolder,
+            Self::EmptyTrash { .. } => CommandName::EmptyTrash,
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,
