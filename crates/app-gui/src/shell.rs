@@ -418,7 +418,7 @@ impl Shell {
                     Placement::Pane => self.composer.show(ui, &t, state, now_ms, &mut queue),
                     Placement::None => {
                         self.docked = None;
-                        self.show_reader(ui, &t, state, now_ms, &rows.ids, false, &mut queue);
+                        self.show_reader(ui, &t, state, now_ms, false, &mut queue);
                     }
                     Placement::Docked(draft) => {
                         // A reply to the open conversation shows under it (UI-13). The reader
@@ -440,7 +440,7 @@ impl Shell {
                         let rest = ui.available_rect_before_wrap();
                         ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| {
                             ui.set_clip_rect(rest.intersect(ui.clip_rect()));
-                            self.show_reader(ui, &t, state, now_ms, &rows.ids, opened, &mut queue);
+                            self.show_reader(ui, &t, state, now_ms, opened, &mut queue);
                         });
                     }
                 }
@@ -457,7 +457,6 @@ impl Shell {
         t: &theme::Tokens,
         state: &AppState,
         now_ms: i64,
-        rows: &[app_core::ThreadId],
         scroll_to_end: bool,
         queue: &mut Vec<Request>,
     ) {
@@ -475,7 +474,6 @@ impl Shell {
                 previews: &mut self.previews,
                 queue: &mut *queue,
                 externals: &mut self.externals,
-                rows,
                 ask: &mut ask,
                 scroll_to_end,
             },

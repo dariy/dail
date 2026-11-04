@@ -1020,9 +1020,9 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   one). The palette's *Expand/Collapse all messages* send them with no `ids`. Quoted text and signatures are folded
   behind *··· Show quoted text* / *··· Show signature* (`fold` blocks of documents, `app_front::fold::split` of plain
   text); opening a fold is presentation, like scrolling (`reader::Folds`, per message and kind), not a command.
-- **Reader** (UI-7): a 48 px toolbar outside the scroll area (*Reply* primary, *Reply all*, *Forward*; icon buttons
-  named with their keys for star, read, archive, trash and *Move…*, which opens the palette at its step; on the right
-  "n of N" with the previous and next conversation, as `k` and `j`, and close), the subject in `headline_xl`, a meta line
+- **Reader** (UI-7, MISC-37): a 48 px toolbar outside the scroll area, one wrapping flow of icon buttons named with
+  their keys (reply, reply all, forward; star, read, archive, trash and *Move…*, which opens the palette at its step;
+  close); no conversation navigation on desktop, `j`/`k` and the palette move between conversations), the subject in `headline_xl`, a meta line
   of chips (the mailbox when it is not the inbox, the message count, the account with several), then the messages:
   an expanded one is a card with an initials avatar, the sender in `headline_md`, "to …" and the date in mono; a
   collapsed one is a line with a small avatar, the sender (600 when unread), the first line of its text and its age.
@@ -1086,7 +1086,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   this month*, then *November 2023*, UTC days — as heading rows that take one row slot each, so `show_rows` stays
   uniform; the densities are `list_density`'s), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
-  *Mark all as read* and *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched)) and the footer; its rows come in three densities
+  *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched) and *Mark all as read* as
+  icon buttons with tooltips, in the same wrapping flow (MISC-37)) and the footer; its rows come in three densities
   (`list::Density`): cozy, 48 px on two lines (check box, account tag, unread pip, the sender in 600 when unread, star,
   clip, message count and the date in mono; then the subject), compact, 40 px on one line (the sender in a fixed
   column), and preview, 72 px on three lines (the snippet on the third). Cozy and compact rows put the newest message's

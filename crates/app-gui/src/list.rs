@@ -242,7 +242,7 @@ fn toolbar(
     if state.view.mailbox.is_none() && state.view.search.is_none() && !state.view.unified {
         return;
     }
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.add_space(t.m.space.md);
         ui.spacing_mut().item_spacing.x = t.m.space.sm;
         let checked = &state.view.checked;
@@ -284,31 +284,41 @@ fn toolbar(
         else {
             return;
         };
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let syncing = state
-                .status
-                .sync
-                .get(&mailbox.account)
-                .is_some_and(app_core::SyncStatus::is_syncing)
-                || state.status.fetching.contains(&mailbox.id);
-            if syncing {
-                ui.add(egui::Spinner::new())
-                    .on_hover_text(t.s(Key::Refreshing));
-            } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, t.s(Key::Refresh))
-                .clicked()
-            {
-                queue.push(Request::user(Command::SyncNow {
-                    account: Some(mailbox.account),
-                }));
-            }
-            if ui::secondary(ui, t, t.s(Key::MarkAllRead), None, mailbox.unread > 0) {
-                match app_front::palette::flow(app_core::CommandName::MarkMailboxRead, state) {
-                    app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
-                    app_front::palette::Flow::Ask(step) => local.ask = Some(step),
-                    _ => {}
-                }
-            }
+        // MISC-37: icon buttons in the same flow as the chips, so a narrow pane wraps them
+        // instead of drawing them over each other.
+        ui::vdivider(ui, t);
+        let syncing = state
+            .status
+            .sync
+            .get(&mailbox.account)
+            .is_some_and(app_core::SyncStatus::is_syncing)
+            || state.status.fetching.contains(&mailbox.id);
+        if syncing {
+            ui.add(egui::Spinner::new())
+                .on_hover_text(t.s(Key::Refreshing));
+        } else if ui::icon_button(ui, t, t.text_secondary, Icon::Sync, t.s(Key::Refresh)).clicked()
+        {
+            queue.push(Request::user(Command::SyncNow {
+                account: Some(mailbox.account),
+            }));
+        }
+        let mark = ui.add_enabled_ui(mailbox.unread > 0, |ui| {
+            ui::icon_button(
+                ui,
+                t,
+                t.text_secondary,
+                Icon::MarkEmailRead,
+                t.s(Key::MarkAllRead),
+            )
+            .clicked()
         });
+        if mark.inner {
+            match app_front::palette::flow(app_core::CommandName::MarkMailboxRead, state) {
+                app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                app_front::palette::Flow::Ask(step) => local.ask = Some(step),
+                _ => {}
+            }
+        }
     });
 }
 
