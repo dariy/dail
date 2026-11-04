@@ -150,6 +150,17 @@ class GoldenPathTest {
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
+    /** The node labelled [label] once it stays put for half a second: a layout still moving would take a tap elsewhere. */
+    private fun settled(label: String): Node {
+        var last = await(label, find = labelled(label))
+        while (true) {
+            Thread.sleep(500)
+            val now = await(label, find = labelled(label))
+            if (now == last) return now
+            last = now
+        }
+    }
+
     /** The drafts, compactly, for a failure's message. */
     private fun drafts(state: JSONObject): List<String> {
         val drafts = state.optJSONObject("drafts") ?: return emptyList()
@@ -270,8 +281,10 @@ class GoldenPathTest {
             "content call --uri content://$app.debug --method exec " +
                 """--arg {"cmd":"set_setting","args":{"key":"undo_send_ms","value":60000}}""",
         )
-        // Send, then undo inside the window.
-        tap("Send")
+        // Send, then undo inside the window. The composer scrolls as the keyboard leaves and the snackbar takes its place,
+        // which can carry Send half under the top bar: scroll back to the top, and tap where Send has come to rest.
+        shell("input swipe 160 250 160 550")
+        tap(settled("Send"))
         awaitState("the send scheduled") { scheduled(it) }
         awaitState("the subject typed") { s -> drafts(s).any { it.startsWith("subject=$NEW_SUBJECT ") } }
         // The snackbar's Undo (cancel_send) is the lowest "Undo" on screen.
