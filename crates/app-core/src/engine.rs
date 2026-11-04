@@ -784,6 +784,24 @@ impl Engine {
                 ctx,
                 receipt,
             ),
+            Command::MarkJunk { ids, messages } => self.move_messages(
+                moves::MoveRequest {
+                    kind: moves::MoveKind::Junk,
+                    threads: ids,
+                    messages,
+                },
+                ctx,
+                receipt,
+            ),
+            Command::MarkNotJunk { ids, messages } => self.move_messages(
+                moves::MoveRequest {
+                    kind: moves::MoveKind::NotJunk,
+                    threads: ids,
+                    messages,
+                },
+                ctx,
+                receipt,
+            ),
             Command::ListPendingOps { account } => {
                 self.list_pending_ops(account, receipt).map(Applied::plain)
             }

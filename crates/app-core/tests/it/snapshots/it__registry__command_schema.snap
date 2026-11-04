@@ -2261,6 +2261,72 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Report threads or single messages as junk: move them to the account's Junk folder and set\nthe `$Junk` keyword (removing `$NotJunk`) so the server's filter can learn. Sent mail and\ndrafts of a thread stay. Give `ids`, `messages` or both. Applied locally at once and on\nthe server in the background. Undoable (undo moves them back; the keyword stays).",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to report.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to report (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_junk",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The opposite of `mark_junk`: move threads or single messages from the Junk folder back to\nthe inbox and set the `$NotJunk` keyword (removing `$Junk`). Only messages in Junk move,\nunless named in `messages`. Give `ids`, `messages` or both. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "ids": {
+              "description": "Threads to rescue.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "description": "Individual messages to rescue (IDs from `get_thread`).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "mark_not_junk",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Move threads or single messages to another mailbox of the same account (e.g. back to the\ninbox). Sent mail and drafts of a thread stay where they are unless named in `messages`.\nGive `ids`, `messages` or both. Applied locally at once and on the server in the\nbackground. Undoable.",
       "properties": {
         "args": {

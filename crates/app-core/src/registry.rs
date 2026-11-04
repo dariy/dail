@@ -193,6 +193,10 @@ pub enum CommandName {
     ArchiveThreads,
     /// See [`Command::TrashThreads`].
     TrashThreads,
+    /// See [`Command::MarkJunk`].
+    MarkJunk,
+    /// See [`Command::MarkNotJunk`].
+    MarkNotJunk,
     /// See [`Command::MoveThreads`].
     MoveThreads,
     /// See [`Command::ListPendingOps`].
@@ -288,6 +292,16 @@ fn has_trash(state: &AppState) -> bool {
         .mailboxes
         .values()
         .any(|m| m.role == Some(crate::mailbox::MailboxRole::Trash))
+}
+
+/// The open mailbox is a Junk folder: *Not junk* replaces *Mark as junk* (MISC-42).
+fn viewing_junk(state: &AppState) -> bool {
+    state
+        .view
+        .mailbox
+        .filter(|_| !state.view.unified)
+        .and_then(|id| state.mailboxes.get(&id))
+        .is_some_and(|m| m.role == Some(crate::mailbox::MailboxRole::Junk))
 }
 
 fn has_threads(state: &AppState) -> bool {
@@ -408,6 +422,8 @@ impl CommandName {
         Self::UnpinThreads,
         Self::ArchiveThreads,
         Self::TrashThreads,
+        Self::MarkJunk,
+        Self::MarkNotJunk,
         Self::MoveThreads,
         Self::ListPendingOps,
         Self::RetryPendingOps,
@@ -507,6 +523,8 @@ impl CommandName {
             Self::UnpinThreads => "unpin_threads",
             Self::ArchiveThreads => "archive_threads",
             Self::TrashThreads => "trash_threads",
+            Self::MarkJunk => "mark_junk",
+            Self::MarkNotJunk => "mark_not_junk",
             Self::MoveThreads => "move_threads",
             Self::ListPendingOps => "list_pending_ops",
             Self::RetryPendingOps => "retry_pending_ops",
@@ -608,6 +626,8 @@ impl CommandName {
             | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
+            | Self::MarkJunk
+            | Self::MarkNotJunk
             | Self::MoveThreads
             | Self::RetryPendingOps
             | Self::DiscardPendingOp
@@ -720,6 +740,8 @@ impl CommandName {
             | Self::UnpinThreads
             | Self::ArchiveThreads
             | Self::TrashThreads
+            | Self::MarkJunk
+            | Self::MarkNotJunk
             | Self::MoveThreads
             | Self::ListPendingOps
             | Self::RetryPendingOps
@@ -996,6 +1018,14 @@ impl CommandName {
             Self::TrashThreads => CommandSpec {
                 available: has_threads,
                 ..base("Move to Trash", Category::Mail, &["#"])
+            },
+            Self::MarkJunk => CommandSpec {
+                available: |state| has_threads(state) && !viewing_junk(state),
+                ..base("Mark as junk", Category::Mail, &["!"])
+            },
+            Self::MarkNotJunk => CommandSpec {
+                available: |state| has_threads(state) && viewing_junk(state),
+                ..base("Not junk", Category::Mail, &["!"])
             },
             Self::MoveThreads => CommandSpec {
                 available: has_threads,
@@ -1335,6 +1365,14 @@ impl CommandName {
                 messages: Vec::new(),
             },
             Self::TrashThreads => Command::TrashThreads {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::MarkJunk => Command::MarkJunk {
+                ids: vec![EXAMPLE_THREAD],
+                messages: Vec::new(),
+            },
+            Self::MarkNotJunk => Command::MarkNotJunk {
                 ids: vec![EXAMPLE_THREAD],
                 messages: Vec::new(),
             },

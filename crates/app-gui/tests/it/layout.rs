@@ -492,3 +492,48 @@ fn the_trash_offers_to_empty_itself_after_a_confirmation() {
         }
     );
 }
+
+/// MISC-42: rows offer *Junk*; in a Junk folder rows and the reader offer *Not junk*.
+#[test]
+fn rows_and_the_reader_offer_junk_or_not_junk_by_folder() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut junk = state.mailboxes[&inbox].clone();
+    junk.id = app_core::IdGen::new(78).next_id();
+    junk.path = "Junk".into();
+    junk.role = Some(MailboxRole::Junk);
+    let id = junk.id;
+    state.mailboxes.insert(id, junk);
+    let spam = state.threads[&threads[1]].messages[0];
+    state.messages.get_mut(&spam).unwrap().mailbox = id;
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::SelectThreads {
+            ids: vec![threads[0]],
+        },
+    );
+    apply(&mut h, Command::FocusPane { pane: Pane::List });
+    h.state_mut().out.clear();
+    h.get(By::new().role(Role::Button).label("Junk conversation"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::MarkJunk {
+            ids: vec![threads[0]],
+            messages: Vec::new()
+        }]
+    );
+    apply(&mut h, Command::OpenMailbox { id });
+    apply(&mut h, Command::OpenThread { id: threads[1] });
+    h.state_mut().out.clear();
+    assert!(h.query_by_label("Junk (!)").is_none());
+    h.get_by_label("Not junk (!)").click();
+    h.run();
+    assert!(h.state_mut().take().contains(&Command::MarkNotJunk {
+        ids: vec![threads[1]],
+        messages: Vec::new()
+    }));
+}

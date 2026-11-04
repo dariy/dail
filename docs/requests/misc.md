@@ -830,5 +830,8 @@ the message back to the inbox. Today this takes `move_threads` with a folder ID 
 - **Touches:** `app-core` (commands, specs, engine, replay fixture), `app-sync` (move plus keyword store),
   `app-testkit`, `app-front` (which button a folder shows), `app-gui` and `app-tui` (buttons, keys; text in English
   and French).
-- **Open questions:** default keys (e.g. `!` like Gmail for Junk)? Does Hostinger's server learn from `$Junk`, or
-  does the move alone do it?
+- **Decided (2026-11-04):** key `!` for both, like Gmail; each command is available only where it applies
+  (`mark_not_junk` in a Junk folder), so the key does the right one. The keywords are stored on the source UIDs before
+  the move, so they travel with the message; undo moves the messages back and leaves the keyword. The GUI uses the
+  existing `report` and `inbox` glyphs. Whether Hostinger's filter learns from `$Junk` is not known; the move happens
+  either way.

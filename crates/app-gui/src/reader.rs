@@ -313,6 +313,14 @@ fn toolbar(
                 messages: Vec::new(),
             });
         }
+        let (junk_icon, junk_name) = if app_front::mailbox::in_junk(tool.state) {
+            (Icon::Inbox, t.s(Key::NotJunkKey))
+        } else {
+            (Icon::Report, t.s(Key::JunkKey))
+        };
+        if ui::icon_button(ui, t, icon_color, junk_icon, junk_name).clicked() {
+            push(app_front::mailbox::junk_command(tool.state, ids.clone()));
+        }
         if ui::icon_button(ui, t, icon_color, Icon::DriveFileMove, t.s(Key::MoveKey)).clicked()
             && let app_front::palette::Flow::Ask(step) =
                 app_front::palette::flow(app_core::CommandName::MoveThreads, tool.state)

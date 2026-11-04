@@ -334,3 +334,29 @@ pub fn sidebar_tree(state: &AppState, account: AccountId) -> Vec<FolderNode> {
         vec![node]
     })
 }
+
+/// Whether the open mailbox is a Junk folder: triage then offers *Not junk* instead of *Junk*
+/// (MISC-42).
+pub fn in_junk(state: &app_core::AppState) -> bool {
+    state
+        .view
+        .mailbox
+        .filter(|_| !state.view.unified)
+        .and_then(|id| state.mailboxes.get(&id))
+        .is_some_and(|m| m.role == Some(app_core::MailboxRole::Junk))
+}
+
+/// `mark_junk`, or `mark_not_junk` in a Junk folder, of `ids` (MISC-42).
+pub fn junk_command(state: &app_core::AppState, ids: Vec<app_core::ThreadId>) -> app_core::Command {
+    if in_junk(state) {
+        app_core::Command::MarkNotJunk {
+            ids,
+            messages: Vec::new(),
+        }
+    } else {
+        app_core::Command::MarkJunk {
+            ids,
+            messages: Vec::new(),
+        }
+    }
+}

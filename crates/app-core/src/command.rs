@@ -488,6 +488,29 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         messages: Vec<MessageId>,
     },
+    /// Report threads or single messages as junk: move them to the account's Junk folder and set
+    /// the `$Junk` keyword (removing `$NotJunk`) so the server's filter can learn. Sent mail and
+    /// drafts of a thread stay. Give `ids`, `messages` or both. Applied locally at once and on
+    /// the server in the background. Undoable (undo moves them back; the keyword stays).
+    MarkJunk {
+        /// Threads to report.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to report (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// The opposite of `mark_junk`: move threads or single messages from the Junk folder back to
+    /// the inbox and set the `$NotJunk` keyword (removing `$Junk`). Only messages in Junk move,
+    /// unless named in `messages`. Give `ids`, `messages` or both. Undoable.
+    MarkNotJunk {
+        /// Threads to rescue.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ids: Vec<ThreadId>,
+        /// Individual messages to rescue (IDs from `get_thread`).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
     /// Move threads or single messages to another mailbox of the same account (e.g. back to the
     /// inbox). Sent mail and drafts of a thread stay where they are unless named in `messages`.
     /// Give `ids`, `messages` or both. Applied locally at once and on the server in the
@@ -1152,6 +1175,8 @@ impl Command {
             | Self::UnpinThreads { .. }
             | Self::ArchiveThreads { .. }
             | Self::TrashThreads { .. }
+            | Self::MarkJunk { .. }
+            | Self::MarkNotJunk { .. }
             | Self::MoveThreads { .. }
             | Self::ListPendingOps { .. }
             | Self::RetryPendingOps { .. }
@@ -1244,6 +1269,8 @@ impl Command {
             Self::UnpinThreads { .. } => CommandName::UnpinThreads,
             Self::ArchiveThreads { .. } => CommandName::ArchiveThreads,
             Self::TrashThreads { .. } => CommandName::TrashThreads,
+            Self::MarkJunk { .. } => CommandName::MarkJunk,
+            Self::MarkNotJunk { .. } => CommandName::MarkNotJunk,
             Self::MoveThreads { .. } => CommandName::MoveThreads,
             Self::ListPendingOps { .. } => CommandName::ListPendingOps,
             Self::RetryPendingOps { .. } => CommandName::RetryPendingOps,

@@ -149,6 +149,7 @@ pub fn show(
                         .mailbox
                         .filter(|_| state.view.search.is_none() && !state.view.unified),
                     checked_ids: &state.view.checked,
+                    junk: app_front::mailbox::in_junk(state),
                 };
                 match row(ui, t, &summary, &look, density, now_ms) {
                     Some(Click::Open) => {
@@ -347,7 +348,12 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             t.text_strong,
         ));
         let ids = || checked.clone();
-        let actions: [(&str, Command); 5] = [
+        let junk = if app_front::mailbox::in_junk(state) {
+            t.s(Key::NotJunk)
+        } else {
+            t.s(Key::MarkJunk)
+        };
+        let actions: [(&str, Command); 6] = [
             (
                 t.s(Key::Archive),
                 Command::ArchiveThreads {
@@ -362,6 +368,7 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                     messages: Vec::new(),
                 },
             ),
+            (junk, app_front::mailbox::junk_command(state, ids())),
             (
                 t.s(Key::MarkRead),
                 Command::MarkRead {
@@ -452,10 +459,33 @@ enum Click {
     Move,
 }
 
-/// The actions a row offers on hover and in its context menu: archive, trash, star or unstar,
-/// read or unread, pin or unpin (by its current state).
-fn row_actions(t: &Tokens, summary: &ThreadSummary<'_>) -> [(Icon, &'static str, Command); 5] {
+/// The actions a row offers on hover and in its context menu: archive, trash, junk (not junk
+/// in a Junk folder), star or unstar, read or unread, pin or unpin (by its current state).
+fn row_actions(
+    t: &Tokens,
+    summary: &ThreadSummary<'_>,
+    junk: bool,
+) -> [(Icon, &'static str, Command); 6] {
     let ids = || vec![summary.thread.id];
+    let junk = if junk {
+        (
+            Icon::Inbox,
+            t.s(Key::NotJunk),
+            Command::MarkNotJunk {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    } else {
+        (
+            Icon::Report,
+            t.s(Key::MarkJunk),
+            Command::MarkJunk {
+                ids: ids(),
+                messages: Vec::new(),
+            },
+        )
+    };
     let star = if summary.flagged {
         (
             Icon::Star,
@@ -511,6 +541,7 @@ fn row_actions(t: &Tokens, summary: &ThreadSummary<'_>) -> [(Icon, &'static str,
                 messages: Vec::new(),
             },
         ),
+        junk,
         star,
         read,
         if summary.pinned {
@@ -542,8 +573,9 @@ fn hover_actions(
     t: &Tokens,
     rect: egui::Rect,
     summary: &ThreadSummary<'_>,
+    junk: bool,
 ) -> Option<Click> {
-    let actions = row_actions(t, summary);
+    let actions = row_actions(t, summary, junk);
     let side = t.m.controls.icon_button;
     let width = side * actions.len() as f32 + t.m.space.sm;
     let area = egui::Rect::from_min_max(
@@ -637,6 +669,8 @@ struct RowLook<'a> {
     mailbox: Option<app_core::MailboxId>,
     /// Every checked thread, dragged together.
     checked_ids: &'a [ThreadId],
+    /// The list shows a Junk folder: *Not junk* instead of *Junk* (MISC-42).
+    junk: bool,
 }
 
 /// The threads a list row drag carries (UX-11): the sidebar's folders of the same account
@@ -855,10 +889,10 @@ fn row(
     // drawn in that frame for the click to land.
     let mut action = None;
     if response.contains_pointer() || cursor {
-        action = hover_actions(ui, t, rect, summary);
+        action = hover_actions(ui, t, rect, summary, look.junk);
     }
     response.context_menu(|ui| {
-        for (_, label, cmd) in row_actions(t, summary) {
+        for (_, label, cmd) in row_actions(t, summary, look.junk) {
             if ui.button(label).clicked() {
                 action = Some(Click::Run(cmd));
                 ui.close();

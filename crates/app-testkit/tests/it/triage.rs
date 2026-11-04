@@ -775,3 +775,70 @@ async fn empty_trash_expunges_cached_and_uncached_mail_on_the_fake_server() {
     assert!(state.messages.values().all(|m| m.subject != "Q3 numbers"));
     session.shutdown().await.unwrap();
 }
+
+fn server_flags_of(backend: &MemoryBackend, path: &str, subject: &str) -> Vec<String> {
+    let mailbox = backend.server();
+    let mailbox = mailbox.mailbox("alice@example.com", path).unwrap();
+    mailbox
+        .messages
+        .iter()
+        .find(|m| app_io::mime::summarize_headers(m.raw.as_bytes()).subject == subject)
+        .unwrap_or_else(|| panic!("no {subject} in {path}"))
+        .flags
+        .clone()
+}
+
+#[tokio::test(start_paused = true)]
+async fn junk_and_not_junk_move_mail_with_their_keyword_on_the_fake_server() {
+    let backend = Arc::new(MemoryBackend::from_fixture(
+        Fixture::builtin("basic").unwrap(),
+    ));
+    backend.edit_server(|server| {
+        let mut junk = app_testkit::FakeMailbox::new("Junk");
+        junk.special_use = Some("junk".into());
+        server.accounts[0].mailboxes.push(junk);
+    });
+    let session = open(&backend).await;
+    run(
+        &session,
+        Command::AddAccount {
+            preset: ProviderPreset::Hostinger,
+            email: "alice@example.com".into(),
+            display_name: None,
+            password: Some(Secret::new("pw")),
+            imap: None,
+            smtp: None,
+        },
+    )
+    .await;
+    run(&session, Command::SyncNow { account: None }).await;
+    let q3 = thread(&session, "Q3 numbers");
+    let receipt = run(
+        &session,
+        Command::MarkJunk {
+            ids: vec![q3],
+            messages: vec![],
+        },
+    )
+    .await;
+    assert_eq!(
+        receipt.undo_label.as_deref(),
+        Some("Mark as junk (1 message)")
+    );
+    assert_eq!(server_subjects(&backend, "Junk"), ["Q3 numbers"]);
+    assert!(server_flags_of(&backend, "Junk", "Q3 numbers").contains(&"$Junk".to_owned()));
+    run(
+        &session,
+        Command::MarkNotJunk {
+            ids: vec![q3],
+            messages: vec![],
+        },
+    )
+    .await;
+    assert!(server_subjects(&backend, "Junk").is_empty());
+    let flags = server_flags_of(&backend, "INBOX", "Q3 numbers");
+    assert!(flags.contains(&"$NotJunk".to_owned()), "{flags:?}");
+    assert!(!flags.contains(&"$Junk".to_owned()), "{flags:?}");
+    assert!(session.state().outbox.is_empty());
+    session.shutdown().await.unwrap();
+}

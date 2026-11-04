@@ -30,6 +30,10 @@ pub(super) enum MoveKind {
     Archive,
     /// The account's Trash.
     Trash,
+    /// The account's Junk, with `$Junk` (`mark_junk`, MISC-42).
+    Junk,
+    /// Out of Junk to the inbox, with `$NotJunk` (`mark_not_junk`, MISC-42).
+    NotJunk,
     /// An explicit mailbox.
     To(MailboxId),
 }
@@ -56,6 +60,8 @@ impl MoveKind {
         match self {
             Self::Archive => "Archive",
             Self::Trash => "Move to Trash",
+            Self::Junk => "Mark as junk",
+            Self::NotJunk => "Not junk",
             Self::To(_) => "Move",
         }
     }
@@ -68,7 +74,7 @@ impl MoveKind {
                 role,
                 Some(MailboxRole::Trash | MailboxRole::All | MailboxRole::Flagged)
             ),
-            Self::To(_) => !matches!(
+            Self::To(_) | Self::Junk => !matches!(
                 role,
                 Some(
                     MailboxRole::Sent
@@ -77,12 +83,22 @@ impl MoveKind {
                         | MailboxRole::Flagged
                 )
             ),
+            Self::NotJunk => matches!(role, Some(MailboxRole::Junk)),
         }
     }
 
     /// Whether a message that is only in All Mail is taken from there.
     const fn falls_back_to_all(self) -> bool {
-        !matches!(self, Self::Archive)
+        !matches!(self, Self::Archive | Self::NotJunk)
+    }
+
+    /// The junk keyword the move sets (`RemoteOp::Move::junk`).
+    const fn junk(self) -> Option<bool> {
+        match self {
+            Self::Junk => Some(true),
+            Self::NotJunk => Some(false),
+            Self::Archive | Self::Trash | Self::To(_) => None,
+        }
     }
 }
 
@@ -216,7 +232,11 @@ impl Engine {
         for (account, to) in &resolved {
             let mut queued = Vec::new();
             if let Some(messages) = moves.shift_remove(account) {
-                queued.push(RemoteOp::Move { to: *to, messages });
+                queued.push(RemoteOp::Move {
+                    to: *to,
+                    messages,
+                    junk: request.kind.junk(),
+                });
             }
             if let Some(copies) = copies.shift_remove(account) {
                 queued.push(RemoteOp::Copy { to: *to, copies });
@@ -394,6 +414,13 @@ impl Engine {
                 }
                 Ok(Target::Existing(id))
             }
+            MoveKind::Junk => by_role(MailboxRole::Junk)
+                .or_else(|| by_path(profile.junk_mailbox))
+                .map(Target::Existing)
+                .ok_or_else(|| missing(MailboxRole::Junk)),
+            MoveKind::NotJunk => by_role(MailboxRole::Inbox)
+                .map(Target::Existing)
+                .ok_or_else(|| missing(MailboxRole::Inbox)),
             MoveKind::Trash => by_role(MailboxRole::Trash)
                 .or_else(|| by_path(profile.trash_mailbox))
                 .map(Target::Existing)

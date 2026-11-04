@@ -95,6 +95,11 @@ pub enum RemoteOp {
         to: MailboxId,
         /// The messages, wherever they are on the server when the op starts.
         messages: Vec<MessageId>,
+        /// `mark_junk` / `mark_not_junk` (MISC-42): before the move, set `$Junk` (`true`) or
+        /// `$NotJunk` (`false`) on the messages and remove the other keyword, so the keyword
+        /// travels with them.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        junk: Option<bool>,
     },
     /// Copy messages to another mailbox (`UID COPY`): used when the source is a virtual
     /// mailbox that keeps every message (role `all`, e.g. Gmail's All Mail).
@@ -248,6 +253,19 @@ pub enum RemoteStep {
         flag: FlagKind,
         /// `true` adds the flag, `false` removes it.
         value: bool,
+    },
+    /// `UID STORE uids +FLAGS.SILENT ($Junk)` and `-FLAGS.SILENT ($NotJunk)` (or the other way
+    /// round): the junk keywords of `mark_junk` / `mark_not_junk` (MISC-42). Skipped where the
+    /// mailbox keeps no keywords.
+    Junk {
+        /// IMAP path of the mailbox.
+        path: String,
+        /// UIDVALIDITY the UIDs belong to; the step fails if the server's differs.
+        uid_validity: u32,
+        /// The messages' UIDs, ascending.
+        uids: Vec<u32>,
+        /// `true`: `$Junk`; `false`: `$NotJunk`.
+        junk: bool,
     },
     /// `UID SEARCH ALL`, then `UID STORE uids +FLAGS.SILENT (\Deleted)` and `UID EXPUNGE uids`
     /// of what it found: every message of the mailbox at that moment, and nothing that arrives

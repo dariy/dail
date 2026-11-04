@@ -62,6 +62,8 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::UnpinThreads => "Détacher",
         CommandName::ArchiveThreads => "Archiver",
         CommandName::TrashThreads => "Mettre à la corbeille",
+        CommandName::MarkJunk => "Signaler comme indésirable",
+        CommandName::MarkNotJunk => "Pas indésirable",
         CommandName::MoveThreads => "Déplacer vers…",
         CommandName::ListPendingOps => "Afficher les modifications en attente",
         CommandName::RetryPendingOps => "Réessayer les modifications en attente",
@@ -206,6 +208,8 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         CommandName::UnpinThreads => "Détacher des discussions ou des messages.",
         CommandName::ArchiveThreads => "Archiver des discussions ou des messages.",
         CommandName::TrashThreads => "Mettre des discussions ou des messages à la corbeille.",
+        CommandName::MarkJunk => "Déplacer des discussions ou des messages dans les indésirables.",
+        CommandName::MarkNotJunk => "Remettre des indésirables dans la boîte de réception.",
         CommandName::MoveThreads => {
             "Déplacer des discussions ou des messages vers un autre dossier du même compte."
         }

@@ -863,6 +863,24 @@ async fn try_steps(
                     .await
                     .map_err(|err| StepError::imap(context, &err))?;
             }
+            RemoteStep::Junk {
+                path,
+                uid_validity,
+                uids,
+                junk,
+            } => {
+                let (set, clear) = if *junk {
+                    ("$Junk", "$NotJunk")
+                } else {
+                    ("$NotJunk", "$Junk")
+                };
+                if !select(session, path, *uid_validity, set).await? {
+                    refused.push(path.clone());
+                    continue;
+                }
+                store(session, path, uids, &format!("+FLAGS.SILENT ({set})")).await?;
+                store(session, path, uids, &format!("-FLAGS.SILENT ({clear})")).await?;
+            }
             RemoteStep::ExpungeAll { path, uid_validity } => {
                 select(session, path, *uid_validity, "").await?;
                 let mut uids: Vec<u32> = session

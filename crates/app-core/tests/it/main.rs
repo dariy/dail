@@ -24,6 +24,7 @@ mod folders;
 mod history;
 mod identities;
 mod images;
+mod junk;
 mod keys;
 mod listbar;
 mod mailboxes;

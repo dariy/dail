@@ -359,6 +359,18 @@ strings! {
     TrashKey:
         "Trash (#)",
         "Corbeille (#)";
+    JunkKey:
+        "Junk (!)",
+        "Indésirable (!)";
+    NotJunkKey:
+        "Not junk (!)",
+        "Pas indésirable (!)";
+    MarkJunk:
+        "Junk",
+        "Indésirable";
+    NotJunk:
+        "Not junk",
+        "Pas indésirable";
     MoveKey:
         "Move… (V)",
         "Déplacer… (V)";

@@ -855,6 +855,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 ),
             }
         }
+        CommandName::MarkJunk => on_threads(state, |ids| Command::MarkJunk {
+            ids,
+            messages: Vec::new(),
+        }),
+        CommandName::MarkNotJunk => on_threads(state, |ids| Command::MarkNotJunk {
+            ids,
+            messages: Vec::new(),
+        }),
         CommandName::MarkRead => on_threads(state, |ids| Command::MarkRead {
             ids,
             messages: Vec::new(),
@@ -1452,7 +1460,7 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                             ("n", &messages.len().to_string()),
                         ],
                     ),
-                    app_core::RemoteOp::Move { to, messages } => format!(
+                    app_core::RemoteOp::Move { to, messages, .. } => format!(
                         "move {} message(s) to {}",
                         messages.len(),
                         state

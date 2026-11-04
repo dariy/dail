@@ -56,6 +56,8 @@ fn keys_are_shared_only_where_the_view_decides() {
             ],
         ),
         ("u", vec![CommandName::MarkRead, CommandName::MarkUnread]),
+        // MISC-42: *Not junk* in a Junk folder, *Junk* elsewhere.
+        ("!", vec![CommandName::MarkJunk, CommandName::MarkNotJunk]),
     ]
     .into_iter()
     .map(|(k, v)| (k.to_owned(), v))

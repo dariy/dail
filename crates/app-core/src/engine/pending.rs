@@ -193,7 +193,10 @@ fn op_json(op: &PendingOp) -> Value {
             "set_flag",
             json!({ "flag": flag, "value": value, "messages": messages }),
         ),
-        RemoteOp::Move { to, messages } => ("move", json!({ "to": to, "messages": messages })),
+        RemoteOp::Move { to, messages, junk } => (
+            "move",
+            json!({ "to": to, "messages": messages, "junk": junk }),
+        ),
         RemoteOp::Copy { to, copies } => (
             "copy",
             json!({

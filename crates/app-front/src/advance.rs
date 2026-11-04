@@ -1,6 +1,6 @@
-//! Auto-advance after triage (UX-12): when the open conversation is archived, trashed or
-//! moved, the GUI and the TUI open its neighbour in the list or go back to the list, as the
-//! `after_triage` setting says. Plain View commands, submitted right after the triage.
+//! Auto-advance after triage (UX-12): when the open conversation is archived, trashed, moved
+//! or marked (not) junk, the GUI and the TUI open its neighbour in the list or go back to the
+//! list, as the `after_triage` setting says. Plain View commands, submitted right after the triage.
 
 use app_core::{AppState, Command, ThreadId, listing};
 
@@ -12,6 +12,8 @@ pub fn after(state: &AppState, cmd: &Command) -> Option<Command> {
     let ids: &[ThreadId] = match cmd {
         Command::ArchiveThreads { ids, .. }
         | Command::TrashThreads { ids, .. }
+        | Command::MarkJunk { ids, .. }
+        | Command::MarkNotJunk { ids, .. }
         | Command::MoveThreads { ids, .. } => ids,
         _ => return None,
     };

@@ -210,8 +210,11 @@ impl Engine {
                     }
                 }
             }
-            RemoteOp::Move { to, messages } => {
+            RemoteOp::Move { to, messages, junk } => {
                 let sources = self.sources(messages.iter().copied(), *to, &mut resolved);
+                if let Some(junk) = junk {
+                    self.junk_steps(&sources, *junk, &mut resolved);
+                }
                 self.transfer_steps(sources, *to, false, &mut resolved);
             }
             RemoteOp::Copy { to, copies } => {
@@ -275,6 +278,23 @@ impl Engine {
             }
         }
         self.uids_by_mailbox(&located)
+    }
+
+    /// The junk keyword stores that go before a move (MISC-42), where the mailbox keeps keywords.
+    fn junk_steps(&self, sources: &ByMailbox, junk: bool, out: &mut Resolved) {
+        for (mailbox, uids) in sources {
+            if let Some(source) = self.state.mailboxes.get(mailbox)
+                && let Some(uid_validity) = source.uid_validity
+                && source.custom_keywords != Some(false)
+            {
+                out.steps.push(RemoteStep::Junk {
+                    path: source.path.clone(),
+                    uid_validity,
+                    uids: uids.clone(),
+                    junk,
+                });
+            }
+        }
     }
 
     fn transfer_steps(&self, sources: ByMailbox, to: MailboxId, copy: bool, out: &mut Resolved) {

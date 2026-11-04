@@ -245,11 +245,12 @@ pub struct AttachmentRef { path /* absolute */, name /* last path component */,
 pub struct PendingOp{ id, account, op: RemoteOp, state: OpState /* Queued|Running|Failed */, attempts: u32,
                       last_error: Option<String>, created_ms, next_attempt_ms: Option<i64>, awaiting_sync: bool }
 pub enum  RemoteOp  { SetFlag { flag: FlagKind /* Seen|Flagged */, value: bool, messages: Vec<MessageId> },
-                      Move { to: MailboxId, messages }, Copy { to, copies: Vec<CopyRef { source, copy }> },
+                      Move { to: MailboxId, messages, junk: Option<bool> /* MISC-42 */ }, Copy { to, copies: Vec<CopyRef { source, copy }> },
                       FlagMailbox { mailbox, flag, value } /* every message on the server, UX-7 */,
                       EmptyMailbox { mailbox } /* expunge all on the server, MISC-41 */ }
 pub enum  RemoteStep{ Store { path, uid_validity, uids, flag, value },     // resolved when the op starts
                       Move { path, uid_validity, uids, to: String, create }, Copy { … same … },
+                      Junk { path, uid_validity, uids, junk } /* $Junk / $NotJunk before a move */,
                       StoreAll { path, uid_validity, flag, value } /* UID STORE 1:* */,
                       ExpungeAll { path, uid_validity } /* UID SEARCH ALL, STORE \Deleted, UID EXPUNGE */ }
 ```
@@ -545,7 +546,7 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    of the account (`MailboxesListed`, `EnvelopesFetched`) means the server is reachable again: waiting ops run at once. While an op is in the outbox, flags reported by `EnvelopesFetched`/`FlagsChanged` get the op's
    change applied on top, so a sync never flips a local change back. A session that starts from a snapshot re-queues ops that
    were `running`. Server side: `UID STORE`, `UID MOVE` (fallback `COPY` + `STORE \Deleted` + `UID EXPUNGE`), `APPEND`, and for `empty_trash` `UID SEARCH ALL` + `STORE \Deleted` + `UID EXPUNGE` (`ExpungeAll`).
-6. Moves (`archive_threads`, `trash_threads`, `move_threads`): an envelope's `mailbox`/`uid` always name its server location;
+6. Moves (`archive_threads`, `trash_threads`, `move_threads`, `mark_junk`, `mark_not_junk`): an envelope's `mailbox`/`uid` always name its server location;
    a pending move only sets `moved_to`, and every listing (`list_threads`, `get_*`) uses `location()`. When the op succeeds
    the message becomes a *placeholder* in the target (`uid` 0, still shown where the user put it) and the engine fetches
    the target: the fetched envelope with the same `Message-ID` (or, without one, subject + date + size) is *located* — the
@@ -556,8 +557,8 @@ first value is the engine's state after `Engine::new` (which re-queues running o
    after that sync are dropped. Moving out of a mailbox with the `all` role into anything but Trash/Junk is a *copy*
    (Gmail: add a label; All Mail keeps the message): a placeholder is created in the target and a `Copy` op queued.
    Sources per thread, grouping copies by `Message-ID`: archive takes copies shown in Inbox, Junk or role-less folders;
-   trash takes everything but Trash/All/Flagged; `move_threads` everything but Sent/Drafts/All/Flagged; if a message has
-   no such copy and none in the target, its All Mail copy is taken (trash, move). Named `messages` always move. Undo is
+   trash takes everything but Trash/All/Flagged; `move_threads` and `mark_junk` everything but Sent/Drafts/All/Flagged; `mark_not_junk` only Junk; if a message has
+   no such copy and none in the target, its All Mail copy is taken (trash, move, junk). Named `messages` always move. Undo is
    `move_threads{messages, to: <where they were shown>}` per source.
 7. Unsent ops are edited, not answered: an op is *unsent* while it is `queued` with `attempts == 0`. Setting a flag takes the
    message out of an unsent op that sets it the other way (no new op). Moving a message takes it out of an unsent move; if it
@@ -1859,6 +1860,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
 | `pin_threads` / `unpin_threads` | Mutation | same as `star` / `unstar` (pinning a thread marks its newest message, unpinning all) → `{changed, ops, cancelled}`; `Flags.pinned`, the IMAP keyword `$Pinned` (`FlagKind::Pinned`, a `set_flag` op), so the pin syncs like a star; pinned threads come first in every list (`listing::sort_newest_first`: pinned, then newest; `list_threads` has `pinned`); `Shift+P` toggles; agents allowed. Where the server keeps no keywords (a `SELECT` whose `PERMANENTFLAGS` has neither `\\*` nor `$Pinned`) the runtime skips the keyword `STORE` and reports `KeywordsRefused{account, path}` before the op's success: the mailbox gets `custom_keywords: false`, its pins stay on the device (server flag merges keep them, no store is queued) | MISC-4 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `error_007_no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
+| `mark_junk` / `mark_not_junk` | Mutation | `ids?, messages?` → the move receipt `{moved, copied, cancelled, ops, to}`; `mark_junk` moves to the account's Junk (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`; error `error_007_no_mailbox_for_role` without one, no folder is created) and takes what `move_threads` takes; `mark_not_junk` moves only copies shown in Junk (and named `messages`) to the inbox; the op is a `move` with `junk: true/false`, which stores `$Junk` / `$NotJunk` (and removes the other) on the source UIDs before the move (`RemoteStep::Junk`, skipped where the mailbox keeps no keywords); undo (*Mark as junk (n messages)*, *Not junk (n messages)*) moves them back, the keyword stays; key `!` for both, each available only where it applies (`mark_not_junk` in a Junk folder); the GUI's rows, bulk bar and reader show *Junk* or *Not junk* by folder (`app_front::mailbox::in_junk`); agents allowed | MISC-42 |
 | `move_threads` | Mutation | `ids?, messages?, to: MailboxId` (same account) | M3 |
 | `list_pending_ops` | Query | `account?` → `{ops: [{id, account, action: set_flag\|move\|copy, detail, state, attempts, last_error, next_attempt_ms, created_ms}]}`, oldest first | M3 |
 | `retry_pending_ops` / `discard_pending_op` | Mutation (no history) | `id?` / `id`. Retry: failed ops get one more attempt, waiting ops run now → `{retried}`. Discard (not a running op): drops the op, reverts its local change where no later op touches it (flag back, `moved_to` cleared, copy placeholder deleted) and re-fetches the mailboxes involved → `{discarded, reverted, undoable: false}` | M3 |
