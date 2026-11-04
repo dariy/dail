@@ -45,6 +45,7 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-36 | Reply from any connected account; check the docked reply layout on Linux | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui, app-mobile, android/ | 2026-11-02 |
 | MISC-37 | Desktop: list and reader toolbars as icon buttons that fit small windows | S | app-gui | 2026-11-04 |
 | MISC-38 | Desktop: settings rows wrap their control below the title in narrow windows | S | app-gui | 2026-11-04 |
+| MISC-39 | App icon on every platform: desktop window, Windows executable, iOS | M | app-gui, app-cli, xtask, packaging/, ios/, .github/ | 2026-11-04 |
 
 ## Details
 
@@ -742,4 +743,34 @@ must wrap to a new line below the title (and detail) instead.
 - **Commands:** none.
 - **Touches:** `app-gui` only (`settings.rs`: the shared `row` helper with its `right_to_left` control, and the
   other right-aligned rows in that file).
+- **Open questions:** none.
+
+### MISC-39 — App icon on every platform: desktop window, Windows executable, iOS
+
+The desktop window shows no dail icon: `app-gui/src/lib.rs` `run` builds its `ViewportBuilder` without
+`with_icon`, so the title bar, taskbar and Alt-Tab show the system's default icon (on Linux the icon comes only from
+an installed `dail.desktop`, which a bare `cargo run` or the tarball does not have). Give the window the dail icon,
+then check the other platforms and add it where it is absent.
+
+State found on 2026-11-04:
+- **Desktop window (egui, Linux and Windows):** absent. Set `with_icon` from an icon embedded in the binary,
+  rendered from `packaging/linux/dail.svg` (same artwork as `packaging/store/icon.svg`).
+- **Windows `dail.exe`:** absent. `app-cli/build.rs` embeds only `dail.manifest`, no `.ico` resource, so Explorer,
+  the Start menu and the MSI (`packaging/windows/dail.wxs`, no `Icon`/`ARPPRODUCTICON`) show a generic icon. The
+  resource must be added without a C toolchain (AGENTS.md §5: no `cc`; e.g. a prebuilt `.res` passed to the linker,
+  as the manifest is).
+- **Linux packaging:** present (`dail.desktop` `Icon=dail`, `dail.svg` in the tarball, `.deb` and AppImage).
+- **Android:** present (adaptive `ic_launcher`, `res/mipmap-anydpi`).
+- **iOS:** absent. `ios/` has no asset catalog and `project.yml` sets no `AppIcon`; the App Store requires one.
+
+- **Commands:** none.
+- **Touches:** `app-gui` (window icon), `app-cli` (`build.rs`, Windows resource), `xtask` (`icons`), `packaging/`
+  (`.ico`, PNG renderings, `dail.wxs`), `ios/` (`Assets.xcassets/AppIcon`, `project.yml`), `.github/workflows/`.
+- **Assets:** the PNG and ICO renderings are committed to the repo, not generated at build time (decided by the user,
+  2026-11-04: the output never changes, so regenerating it only wastes build time).
+- **Regeneration is automated, not part of the build.** `cargo xtask icons` renders every PNG and the ICO from
+  `packaging/linux/dail.svg` in pure Rust (e.g. `resvg` for the PNGs, `ico` for the ICO; xtask only, nothing ships).
+  A GitHub workflow (`.github/workflows/icons.yml`) that runs only when the SVG changes (`paths:` filter) runs it and
+  commits the changed files to the branch. The build and `cargo xtask verify` never run it. This runs only a few
+  times in the life of the project.
 - **Open questions:** none.
