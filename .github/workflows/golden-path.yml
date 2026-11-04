@@ -1,0 +1,115 @@
+# Runs only the instrumented golden path (STORE-9b) on an emulator, by hand, on any branch:
+#   gh workflow run golden-path.yml --ref <branch> [-f test=<class[#method]>] [-f api-level=<n>]
+# It skips what ci.yml's android-emulator job also does (the Rust tests on the device), keeps warm caches of its own
+# (AVD snapshot, Rust, Gradle), and always uploads the evidence: the test's screenshot and window dump, logcat,
+# `dumpsys window` and the JUnit results. ci.yml stays the gate; this is the fast loop for debugging the test.
+name: golden-path
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: Instrumented test class, optionally `#method`
+        default: net.darii.dail.GoldenPathTest
+      api-level:
+        description: Emulator API level
+        default: "36"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  NDK: "28.2.13676358"
+  EMULATOR_OPTIONS: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+
+jobs:
+  golden-path:
+    runs-on: ubuntu-latest
+    steps:
+      # The API 36 AVD's userdata partition needs ~7.4 GB (see ci.yml's android-emulator job).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          df -h /
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: rustup target add x86_64-linux-android
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-ndk
+      # A key of its own, saved from any branch: ci.yml never reads it, so its main-only rule still holds there.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: golden-path
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: false
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # The runner image already carries most of the SDK: install only what is missing.
+      - name: SDK packages
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$NDK" >> "$GITHUB_ENV"
+          need=""
+          [ -d "$ANDROID_SDK_ROOT/ndk/$NDK" ] || need="$need ndk;$NDK"
+          [ -d "$ANDROID_SDK_ROOT/platforms/android-37.2" ] || need="$need platforms;android-37.2"
+          [ -d "$ANDROID_SDK_ROOT/build-tools/37.0.0" ] || need="$need build-tools;37.0.0"
+          echo "missing:${need:- nothing}"
+          [ -z "$need" ] || yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" $need > /dev/null
+      # The booted AVD, as a snapshot: later runs start from it instead of a cold boot.
+      - id: avd
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ inputs.api-level }}-x86_64-default
+      - name: Create the AVD snapshot
+        if: steps.avd.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ inputs.api-level }}
+          arch: x86_64
+          target: default
+          force-avd-creation: false
+          emulator-options: ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: false
+          script: echo "AVD snapshot created"
+      # Each script line runs in its own shell and a failing line ends the step, so the test's failure is recorded and
+      # the evidence gathered before the last line fails the step.
+      - name: Golden path
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        # The input reaches the shell as a variable, never pasted into the script.
+        env:
+          TEST: ${{ inputs.test }}
+        with:
+          api-level: ${{ inputs.api-level }}
+          arch: x86_64
+          target: default
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: true
+          script: |
+            mkdir -p evidence
+            ./android/gradlew -p android connectedDemoDebugAndroidTest -Pdail.abis=x86_64 -Pandroid.testInstrumentationRunnerArguments.class="$TEST" || touch evidence/failed
+            adb shell dumpsys window windows > evidence/dumpsys-window.txt || true
+            adb logcat -d > evidence/logcat.txt || true
+            adb pull /data/local/tmp/golden evidence/device || true
+            test ! -f evidence/failed
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: golden-path-evidence
+          path: |
+            evidence/
+            android/app/build/outputs/androidTest-results/
+          if-no-files-found: warn
