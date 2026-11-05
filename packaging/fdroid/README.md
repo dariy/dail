@@ -13,7 +13,21 @@ it with its own key; reproducible builds are not part of the launch (ROADMAP Wav
    ```sh
    fdroid readmeta
    fdroid lint net.darii.dail
-   fdroid build -v -l net.darii.dail     # in the buildserver VM or the fdroidserver Docker image
+   fdroid fetchsrclibs net.darii.dail:<versionCode> --verbose
+   fdroid build --verbose --test --on-server --no-tarball net.darii.dail:<versionCode>
+   ```
+
+   Run these as fdroiddata's CI does: in the `registry.gitlab.com/fdroid/fdroidserver:buildserver` image (Debian 13,
+   which is why the recipe takes JDK 17 from bookworm), with a fdroidserver checkout on `PATH`, its `examples/` on
+   `PYTHONPATH` (for `fetchsrclibs`) and `ANDROID_HOME` set to `/opt/android-sdk`. For example, with podman, from the
+   fdroiddata checkout:
+
+   ```sh
+   podman run --rm -v "$PWD":/repo:Z -v /path/to/fdroidserver:/fdroidserver:Z -w /repo \
+     -e ANDROID_HOME=/opt/android-sdk registry.gitlab.com/fdroid/fdroidserver:buildserver \
+     bash -c 'export PATH=/fdroidserver:$PATH PYTHONPATH=/fdroidserver:/fdroidserver/examples
+              fdroid fetchsrclibs net.darii.dail:<versionCode> &&
+              fdroid build --verbose --test --on-server --no-tarball net.darii.dail:<versionCode>'
    ```
 
    The build needs network for crates.io (F-Droid allows it for Rust) and NDK r28c, which the `ndk:` field fetches.
