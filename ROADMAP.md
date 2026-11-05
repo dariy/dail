@@ -892,9 +892,9 @@ text ships in English and French.
   Play's internal track; promotion to users stays manual.
 
 ### A — A clean base
-- [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
+- [x] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
   §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator *(the note is
-  `Key::ServersNote` and every §4 doc agrees with the code; the PR is still to read)*
+  `Key::ServersNote`; every §4 doc agrees with the code; PR #33 is green in every job, 2026-11-05)*
 - [x] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
   stops at `action_required`; merge #19–#21 (merged 2026-11-01), so that Wave 7's "pass CI unattended" is true again
 - MISC-34 from Wave 10 comes here
