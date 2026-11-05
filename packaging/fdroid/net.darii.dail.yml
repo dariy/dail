@@ -1,7 +1,7 @@
 # The F-Droid build recipe for dail (STORE-26), to go into fdroiddata as metadata/net.darii.dail.yml with the
 # inclusion request. F-Droid builds and signs: one build per ABI, `live` flavour only, each with its own version code
 # (STORE-13: major×10⁸ + minor×10⁵ + patch×10 + abi, arm64 1, x86_64 2). The listing text and images come from
-# fastlane/metadata/android/ in the source. Not yet run through `fdroid build` (see packaging/fdroid/README.md).
+# fastlane/metadata/android/ in the source. Built locally with `fdroid build` (packaging/fdroid/README.md).
 Categories:
   - Internet
 # dail is MIT OR Apache-2.0; fdroid lint takes one SPDX tag (no expressions), so the listing names one of the two.

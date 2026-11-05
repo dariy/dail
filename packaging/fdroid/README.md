@@ -39,5 +39,7 @@ it with its own key; reproducible builds are not part of the launch (ROADMAP Wav
 
 ## What is not done here
 
-The local `fdroid build` has not been run in the session that wrote this recipe: it needs fdroidserver's build
-environment. The inclusion request is the user's to open.
+The recipe was built locally on 2026-11-05, as above, for the arm64 build pinned to commit `1c08716` as 0.1.7
+(versionCode 100071): `fdroid lint` passes, the scanner finds nothing, and the unsigned APK carries only `libdail.so`
+and `libandroidx.graphics.path.so` (about 25 minutes on 4 cores). The x86_64 build differs only in its ABI. The recipe
+still names `v0.9.0`, which does not exist yet; step 1 applies. The inclusion request is the user's to open.
