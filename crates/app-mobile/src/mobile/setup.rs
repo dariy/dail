@@ -493,10 +493,7 @@ impl Mobile {
                                 clean(&i18n::f(Key::NotFound, &[("error", &error.to_string())]))
                             }
                         },
-                        (None | Some(_), None) => "host:port, optionally :tls or :starttls. \
-                                                  Find servers asks the provider, then \
-                                                  Mozilla's list."
-                            .to_owned(),
+                        (None | Some(_), None) => i18n::s(Key::ServersNote).to_owned(),
                     });
                     busy = setup.looking.is_some();
                     let valid =

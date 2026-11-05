@@ -614,6 +614,9 @@ strings! {
     FindServersHint:
         "Asks the provider's web server, then Mozilla's list.",
         "Interroge le serveur web du fournisseur, puis la liste de Mozilla.";
+    ServersNote:
+        "host:port, optionally :tls or :starttls. Find servers asks the provider, then Mozilla's list.",
+        "hôte:port, avec :tls ou :starttls en option. « Trouver les serveurs » interroge le fournisseur, puis la liste de Mozilla.";
     Back:
         "Back",
         "Retour";

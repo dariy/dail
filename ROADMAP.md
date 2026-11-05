@@ -811,7 +811,7 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
 
 ### P — Pre-launch polish
 
-- [ ] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
+- [x] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
   a list of implemented locales by display name, not a raw string; the `language` command stays
   `set_setting { key: "language", value: <0|1|2> }`)
 - [x] MISC-37 (S) [gui]: list and reader toolbars as icon buttons with tooltips that fit small windows; the
@@ -893,7 +893,8 @@ text ships in English and French.
 
 ### A — A clean base
 - [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
-  §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator
+  §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator *(the note is
+  `Key::ServersNote` and every §4 doc agrees with the code; the PR is still to read)*
 - [x] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
   stops at `action_required`; merge #19–#21 (merged 2026-11-01), so that Wave 7's "pass CI unattended" is true again
 - MISC-34 from Wave 10 comes here
