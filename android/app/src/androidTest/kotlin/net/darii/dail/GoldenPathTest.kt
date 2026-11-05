@@ -139,13 +139,64 @@ class GoldenPathTest {
 
     private var taps = 0
 
-    /** Taps [node], and records it: a log line and a screenshot just before, numbered, for golden-path.yml. */
-    private fun tap(node: Node) {
+    /**
+     * Taps [node], and records it: a log line and a screenshot, numbered, for golden-path.yml. The screenshot comes just
+     * before the tap, or just after it when [fast]: on a slow emulator `screencap` takes seconds an offer may not have.
+     */
+    private fun tap(
+        node: Node,
+        fast: Boolean = false,
+    ) {
         taps += 1
+        val shot = "screencap -p $EVIDENCE/tap-${taps.toString().padStart(2, '0')}.png"
+        if (fast) {
+            shell("input tap ${node.x} ${node.y}")
+            Log.i(TAG, "tap $taps (fast): $node; snackbar after: ${bridge("frame").opt("snackbar")}")
+            shell("mkdir -p $EVIDENCE")
+            shell(shot)
+            return
+        }
         Log.i(TAG, "tap $taps: $node; snackbar: ${bridge("frame").opt("snackbar")}")
         shell("mkdir -p $EVIDENCE")
-        shell("screencap -p $EVIDENCE/tap-${taps.toString().padStart(2, '0')}.png")
+        shell(shot)
         shell("input tap ${node.x} ${node.y}")
+    }
+
+    /** The text of the frame's snackbar while it offers an action (an undo), else null. */
+    private fun offer(): String? =
+        bridge("frame")
+            .optJSONObject("snackbar")
+            ?.takeIf { it.optJSONObject("action") != null }
+            ?.optString("text")
+
+    /**
+     * Undoes the archive with the snackbar's Undo until [SUBJECT] is listed again. The offer lasts 6 s (`NOTICE_MS` in
+     * app-mobile) and the reader opens the next conversation meanwhile: a tap can come too late or miss. So the tap is
+     * fast, on the lowest Undo, and tried again while the same offer stands. An undo that goes through clears the offer,
+     * so a second tap never undoes an earlier step.
+     */
+    private fun undoArchive() {
+        awaitThat("the archive's undo offer (it lasts 6 s)") { offer() != null }
+        val offered = offer()
+        repeat(UNDO_TRIES) { attempt ->
+            val undo =
+                nodes().filter(labelled("Undo")).maxByOrNull { it.y }
+                    ?: await("the snackbar's Undo", find = labelled("Undo"))
+            tap(undo, fast = true)
+            val deadline = System.currentTimeMillis() + 5_000L
+            while (System.currentTimeMillis() < deadline) {
+                if (listed(SUBJECT)) return
+                Thread.sleep(250)
+            }
+            val now = offer()
+            if (now == null) {
+                // The undo went through and the list is slow, or the offer ran out: the list says which.
+                awaitThat("back in the inbox; the offer ended after ${attempt + 1} taps") { listed(SUBJECT) }
+                return
+            }
+            check(now == offered) { "never true: back in the inbox; offer before: $offered, now: $now" }
+        }
+        error("never true: back in the inbox after $UNDO_TRIES taps on Undo; offer: ${offer()}")
     }
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
@@ -255,8 +306,7 @@ class GoldenPathTest {
         // Archive, then undo.
         tap("Archive")
         awaitThat("archived") { !listed(SUBJECT) }
-        tap("Undo")
-        awaitThat("back in the inbox") { listed(SUBJECT) }
+        undoArchive()
 
         // Back to the list, then compose.
         shell("input keyevent KEYCODE_BACK")
@@ -301,5 +351,8 @@ class GoldenPathTest {
         const val NEW_SUBJECT = "Golden"
         const val TAG = "GoldenPath"
         const val EVIDENCE = "/data/local/tmp/golden"
+
+        /** Taps on the archive's Undo before the test gives up. */
+        const val UNDO_TRIES = 3
     }
 }
