@@ -192,9 +192,22 @@ abstract class CargoNdk : DefaultTask() {
         if (release.get()) args += "--release"
         if (demo.get()) args += listOf("--features", "demo")
         val pages = "-C link-arg=-Wl,-z,max-page-size=16384"
+        // rustup's bin directory comes after PATH, so that a build whose shell never sourced `~/.cargo/env` (F-Droid's
+        // prebuild installs rustup there, STORE-26) still finds cargo, and cargo finds cargo-ndk.
+        val rustup =
+            (System.getenv("CARGO_HOME")?.let(::File) ?: File(System.getProperty("user.home"), ".cargo")).resolve("bin")
+        val dirs =
+            System
+                .getenv("PATH")
+                .orEmpty()
+                .split(File.pathSeparator)
+                .filter(String::isNotEmpty) + rustup.path
+        val exe = if (System.getProperty("os.name").startsWith("Windows")) "cargo.exe" else "cargo"
+        val cargo = dirs.map { File(it, exe) }.firstOrNull(File::canExecute)?.path ?: "cargo"
         exec.exec {
             workingDir = workspace.get().asFile
-            commandLine(listOf("cargo") + args)
+            commandLine(listOf(cargo) + args)
+            environment("PATH", dirs.joinToString(File.pathSeparator))
             environment("ANDROID_NDK_HOME", ndk.get().asFile.path)
             // Gradle strips the APK's copy and keeps the symbols for the AAB (STORE-16).
             environment("CARGO_PROFILE_RELEASE_STRIP", "false")

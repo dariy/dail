@@ -13,7 +13,21 @@ it with its own key; reproducible builds are not part of the launch (ROADMAP Wav
    ```sh
    fdroid readmeta
    fdroid lint net.darii.dail
-   fdroid build -v -l net.darii.dail     # in the buildserver VM or the fdroidserver Docker image
+   fdroid fetchsrclibs net.darii.dail:<versionCode> --verbose
+   fdroid build --verbose --test --on-server --no-tarball net.darii.dail:<versionCode>
+   ```
+
+   Run these as fdroiddata's CI does: in the `registry.gitlab.com/fdroid/fdroidserver:buildserver` image (Debian 13,
+   which is why the recipe takes JDK 17 from bookworm), with a fdroidserver checkout on `PATH`, its `examples/` on
+   `PYTHONPATH` (for `fetchsrclibs`) and `ANDROID_HOME` set to `/opt/android-sdk`. For example, with podman, from the
+   fdroiddata checkout:
+
+   ```sh
+   podman run --rm -v "$PWD":/repo:Z -v /path/to/fdroidserver:/fdroidserver:Z -w /repo \
+     -e ANDROID_HOME=/opt/android-sdk registry.gitlab.com/fdroid/fdroidserver:buildserver \
+     bash -c 'export PATH=/fdroidserver:$PATH PYTHONPATH=/fdroidserver:/fdroidserver/examples
+              fdroid fetchsrclibs net.darii.dail:<versionCode> &&
+              fdroid build --verbose --test --on-server --no-tarball net.darii.dail:<versionCode>'
    ```
 
    The build needs network for crates.io (F-Droid allows it for Rust) and NDK r28c, which the `ndk:` field fetches.
@@ -25,5 +39,7 @@ it with its own key; reproducible builds are not part of the launch (ROADMAP Wav
 
 ## What is not done here
 
-The local `fdroid build` has not been run in the session that wrote this recipe: it needs fdroidserver's build
-environment. The inclusion request is the user's to open.
+The recipe was built locally on 2026-11-05, as above, for the arm64 build pinned to commit `1c08716` as 0.1.7
+(versionCode 100071): `fdroid lint` passes, the scanner finds nothing, and the unsigned APK carries only `libdail.so`
+and `libandroidx.graphics.path.so` (about 25 minutes on 4 cores). The x86_64 build differs only in its ABI. The recipe
+still names `v0.9.0`, which does not exist yet; step 1 applies. The inclusion request is the user's to open.

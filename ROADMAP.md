@@ -811,7 +811,7 @@ tray icon (GTK / D-Bus), RTL (egui has no bidi).
 
 ### P — Pre-launch polish
 
-- [ ] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
+- [x] i18n: the TUI's named language choice (`language` setting in the TUI's Settings › General:
   a list of implemented locales by display name, not a raw string; the `language` command stays
   `set_setting { key: "language", value: <0|1|2> }`)
 - [x] MISC-37 (S) [gui]: list and reader toolbars as icon buttons with tooltips that fit small windows; the
@@ -892,8 +892,9 @@ text ships in English and French.
   Play's internal track; promotion to users stays manual.
 
 ### A — A clean base
-- [ ] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
-  §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator
+- [x] STORE-1 (S): translate the hard-coded `setup.rs:509` note; correct the docs that disagree with the code (review
+  §4); open the `go/misc` → `main` PR and read every job, including Windows, iOS and the emulator *(the note is
+  `Key::ServersNote`; every §4 doc agrees with the code; PR #33 is green in every job, 2026-11-05)*
 - [x] STORE-2 (S) [ci]: the Dependabot refresh job also regenerates the licence lists, and its commit's CI run no longer
   stops at `action_required`; merge #19–#21 (merged 2026-11-01), so that Wave 7's "pass CI unattended" is true again
 - MISC-34 from Wave 10 comes here
@@ -973,7 +974,7 @@ text ships in English and French.
 - [ ] STORE-26 (M): the F-Droid recipe (Rust toolchain, `cargo-ndk`, NDK r28, `-Pdail.abis=…` per ABI, `live` only),
   tested locally, then the inclusion request. F-Droid wants 3 months of active development, which dail reaches on
   2027-01-16, unless the app has "proven to have some users"; the closed test can support that earlier *(the recipe
-  is in `packaging/fdroid/`; the local `fdroid build` and the request are still to do)*
+  is in `packaging/fdroid/` and builds locally in fdroid's buildserver image; the request is still to do)*
 - [ ] STORE-27 [user]: after F-Droid's first publish, its signing key added to `net.darii.dail`
 
 ### After launch, in this order
