@@ -14,6 +14,9 @@ ignore = [
     { id = "RUSTSEC-2026-0370", reason = "zvariant: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
     { id = "RUSTSEC-2026-0371", reason = "zbus_names: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
     { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: merged into zbus 6; no upgrade path in keyring/accesskit yet" },
+    # pin-utils: unmaintained (not vulnerable), a few pinning macros. It comes in only through
+    # async-imap, whose newest release (0.12.0) still depends on it. Drop this once async-imap does.
+    { id = "RUSTSEC-2026-0441", reason = "pin-utils: unmaintained, not vulnerable; async-imap 0.12.0 (newest) still uses it" },
 ]
 
 [licenses]
