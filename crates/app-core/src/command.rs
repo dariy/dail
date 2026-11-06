@@ -1015,6 +1015,25 @@ impl SettingKey {
         Self::Language,
     ];
 
+    /// Whether the setting follows the user to every device through the synced settings
+    /// document (ADR 0015, SET-7): the device-independent preferences. The theme mode is shared
+    /// as part of the document's `theme`, not here. The others stay on this device.
+    pub const fn is_shared(self) -> bool {
+        matches!(
+            self,
+            Self::UndoSendMs
+                | Self::ListDensity
+                | Self::MarkReadAfterMs
+                | Self::AfterTriage
+                | Self::Language
+        )
+    }
+
+    /// The key named `name`, if any.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|key| key.as_str() == name)
+    }
+
     /// The key's `snake_case` name.
     pub const fn as_str(self) -> &'static str {
         match self {

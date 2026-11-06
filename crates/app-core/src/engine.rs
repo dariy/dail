@@ -565,7 +565,9 @@ impl Engine {
                 self.set_keybinding(&command, keys, receipt)
             }
             Command::SetKeyPreset { preset } => Ok(self.set_key_preset(preset, receipt)),
-            Command::SetTheme { mode, light, dark } => self.set_theme(mode, light, dark, receipt),
+            Command::SetTheme { mode, light, dark } => {
+                self.set_theme(mode, light, dark, ctx.now_ms, receipt)
+            }
             Command::SetSetting { key, value } => {
                 let new = validate_setting(key, &value)?;
                 // The legacy high-contrast values name a theme now (ADR 0008).
@@ -583,11 +585,20 @@ impl Engine {
                             None,
                         )
                     };
-                    return self.set_theme(Some(mode), light, dark, receipt);
+                    return self.set_theme(Some(mode), light, dark, ctx.now_ms, receipt);
                 }
                 let previous = key.get(&self.state.settings);
                 key.set(&mut self.state.settings, new);
-                let outcome = Outcome::new(receipt.affecting(EntityRef::Settings).with_data(
+                // A shared setting is stamped in the synced document too (SET-7); the theme
+                // mode as the document's `theme`.
+                let synced = if key == SettingKey::Theme {
+                    Some(self.stamp_theme(ctx.now_ms))
+                } else if key.is_shared() {
+                    Some(self.stamp_pref(key, new, ctx.now_ms))
+                } else {
+                    None
+                };
+                let mut outcome = Outcome::new(receipt.affecting(EntityRef::Settings).with_data(
                     serde_json::json!({
                         "key": key,
                         "value": new,
@@ -597,6 +608,7 @@ impl Engine {
                 .with_effect(Effect::PersistState {
                     delta: PersistDelta::Settings(self.state.settings.clone()),
                 });
+                outcome.effects.extend(synced);
                 let inverse = Command::SetSetting {
                     key,
                     value: serde_json::Value::from(previous),

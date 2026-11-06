@@ -502,7 +502,7 @@ impl Mobile {
             },
             SettingsGroup {
                 title: i18n::s(Key::SyncedSettings).to_owned(),
-                hint: None,
+                hint: Some(i18n::s(Key::SettingsShared).to_owned()),
                 rows: vec![server],
             },
         ]

@@ -43,6 +43,7 @@ mod search;
 mod searching;
 mod sends;
 mod settings_sync;
+mod shared_settings;
 mod sync;
 mod synced;
 mod theme;

@@ -1,5 +1,6 @@
 //! The settings stored on the mail server (ADR 0015, SET-3), as the settings screens show
-//! them: which account holds them, and where the last pull or push stands, with its error.
+//! them: which account holds them, where the last pull or push stands, with its error, which
+//! settings follow the account (SET-7) and whether local changes wait for a push.
 
 use app_core::{AccountId, AppState};
 
@@ -16,6 +17,10 @@ pub struct Panel {
     pub status: String,
     /// Whether `status` is an error.
     pub failed: bool,
+    /// Which settings follow the account and which stay on the device (SET-7).
+    pub shared: &'static str,
+    /// `Changes not stored on the server yet` while local changes wait for a push.
+    pub pending: Option<&'static str>,
 }
 
 /// The panel for `state`; `None` without accounts.
@@ -52,5 +57,7 @@ pub fn panel(state: &AppState) -> Option<Panel> {
         account_label,
         status,
         failed,
+        shared: s(Key::SettingsShared),
+        pending: synced.dirty.then(|| s(Key::RulesNotStored)),
     })
 }

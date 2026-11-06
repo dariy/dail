@@ -2234,6 +2234,9 @@ strings! {
     SettingsSyncState:
         "Settings sync",
         "Synchronisation des paramètres";
+    SettingsShared:
+        "Follow this account on every device: the theme, language, list density, mark-read delay, undo-send window and what shows after triage. The rest stays on this device.",
+        "Suivent ce compte sur chaque appareil : le thème, la langue, la densité de la liste, le délai avant lecture, le délai d’annulation d’envoi et ce qui s’affiche après le tri. Le reste reste sur cet appareil.";
     RuleSenderContains:
         "Sort mail whose sender contains…",
         "Trier le courrier dont l’expéditeur contient…";

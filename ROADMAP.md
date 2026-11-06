@@ -1015,7 +1015,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 - [x] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
 
 ### C — Theme and preferences
-- [ ] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only
+- [x] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only
   settings listed in ARCHITECTURE
 
 ### D — Server-side execution

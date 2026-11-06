@@ -262,8 +262,17 @@ fn synced_rows(state: &AppState) -> Vec<Row> {
         },
         Row {
             key: s(Key::SettingsSyncState).to_owned(),
-            value: panel.status,
+            value: match panel.pending {
+                Some(pending) => format!("{} · {pending}", panel.status),
+                None => panel.status,
+            },
             change: Some(CommandName::PullSettings),
+            rule: None,
+        },
+        Row {
+            key: String::new(),
+            value: panel.shared.to_owned(),
+            change: None,
             rule: None,
         },
     ]

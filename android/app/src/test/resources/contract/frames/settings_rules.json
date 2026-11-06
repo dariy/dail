@@ -58,6 +58,7 @@
         "title": "Sorting rules"
       },
       {
+        "hint": "Follow this account on every device: the theme, language, list density, mark-read delay, undo-send window and what shows after triage. The rest stays on this device.",
         "rows": [
           {
             "actions": [

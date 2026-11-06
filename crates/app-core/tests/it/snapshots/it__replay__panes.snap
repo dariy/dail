@@ -117,10 +117,19 @@ expression: first
       }
     },
     "synced": {
+      "dirty": true,
       "pulled_ms": 1700000001000,
       "settings": {
-        "schema": 0,
-        "updated_ms": 0
+        "schema": 1,
+        "theme": {
+          "updated_ms": 1700000013000,
+          "value": {
+            "dark": "dail-dark",
+            "light": "dail-light",
+            "mode": 1
+          }
+        },
+        "updated_ms": 1700000013000
       },
       "source": "00000000-0000-0001-0000-000000000000"
     },
@@ -794,6 +803,29 @@ expression: first
                     "updates": {
                       "checks": "unset",
                       "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000013000,
+                        "value": {
+                          "dark": "dail-dark",
+                          "light": "dail-light",
+                          "mode": 1
+                        }
+                      },
+                      "updated_ms": 1700000013000
                     }
                   }
                 }

@@ -5,6 +5,7 @@
 //! when its watch reports a change.
 
 use crate::command::Command;
+use crate::command::SettingKey;
 use crate::ctx::Ctx;
 use crate::error::CoreError;
 use crate::event::{Effect, PersistDelta};
@@ -12,8 +13,8 @@ use crate::ids::AccountId;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::SyncIssue;
 use crate::synced::{
-    LocalSettings, SettingsCopy, SettingsError, SyncedSettings, SyncedState, has_error_code,
-    settings_folder,
+    LocalSettings, SETTINGS_SCHEMA, SettingsCopy, SettingsError, Stamped, SyncedSettings,
+    SyncedState, SyncedTheme, has_error_code, settings_folder,
 };
 
 use super::{Applied, Engine, invalid, not_found};
@@ -71,6 +72,90 @@ impl Engine {
         Effect::PersistState {
             delta: PersistDelta::Synced(LocalSettings::of(&self.state.synced)),
         }
+    }
+
+    /// The stamp of a local change to a synced field last stamped at `previous`: `now_ms`, but
+    /// always after the previous stamp, so that the change wins the merge (as rules do). Marks
+    /// the document as changed.
+    fn next_stamp(&mut self, previous: Option<i64>, now_ms: i64) -> i64 {
+        let at = now_ms.max(previous.map_or(i64::MIN, |ms| ms.saturating_add(1)));
+        let doc = &mut self.state.synced.settings;
+        doc.schema = doc.schema.max(SETTINGS_SCHEMA);
+        doc.updated_ms = doc.updated_ms.max(at);
+        self.state.synced.dirty = true;
+        at
+    }
+
+    /// Copies the local theme into the synced document (SET-7) and returns its `PersistState`.
+    pub(super) fn stamp_theme(&mut self, now_ms: i64) -> Effect {
+        let previous = self
+            .state
+            .synced
+            .settings
+            .theme
+            .as_ref()
+            .map(|t| t.updated_ms);
+        let updated_ms = self.next_stamp(previous, now_ms);
+        let settings = &self.state.settings;
+        let value = SyncedTheme {
+            mode: settings.theme.min(2),
+            light: settings.theme_light.clone(),
+            dark: settings.theme_dark.clone(),
+        };
+        self.state.synced.settings.theme = Some(Stamped { updated_ms, value });
+        self.persist_synced()
+    }
+
+    /// Copies a shared preference into the synced document (SET-7) and returns its
+    /// `PersistState`.
+    pub(super) fn stamp_pref(&mut self, key: SettingKey, value: u64, now_ms: i64) -> Effect {
+        let name = key.as_str();
+        let previous = self
+            .state
+            .synced
+            .settings
+            .prefs
+            .get(name)
+            .map(|p| p.updated_ms);
+        let updated_ms = self.next_stamp(previous, now_ms);
+        self.state.synced.settings.prefs.insert(
+            name.to_owned(),
+            Stamped {
+                updated_ms,
+                value: serde_json::Value::from(value),
+            },
+        );
+        self.persist_synced()
+    }
+
+    /// Makes the local settings follow the synced document after a pull (SET-7): its theme and
+    /// every shared preference it holds. A field the document lacks, a preference that is not
+    /// shared and a value out of range (another client wrote it) leave the local value alone.
+    /// Returns whether a local setting changed.
+    fn follow_synced(&mut self) -> bool {
+        let doc = &self.state.synced.settings;
+        let mut next = self.state.settings.clone();
+        if let Some(theme) = &doc.theme {
+            let t = &theme.value;
+            if t.mode <= 2 && super::keys::is_slug(&t.light) && super::keys::is_slug(&t.dark) {
+                next.theme = t.mode;
+                next.theme_light.clone_from(&t.light);
+                next.theme_dark.clone_from(&t.dark);
+            }
+        }
+        for (name, pref) in &doc.prefs {
+            let Some(key) = SettingKey::from_name(name).filter(|k| k.is_shared()) else {
+                continue;
+            };
+            if let Some(value) = pref.value.as_u64().filter(|v| key.accepts(*v)) {
+                key.set(&mut next, value);
+            }
+        }
+        if next == self.state.settings {
+            return false;
+        }
+        self.state.settings = next;
+        true
     }
 
     /// Forgets what was read from or written to the settings account (not the merged
@@ -228,7 +313,13 @@ impl Engine {
                     merged.prune(ctx.now_ms);
                     synced.settings = merged;
                     let persist = self.persist_synced();
-                    return Outcome::new(receipt).with_effect(persist);
+                    let mut outcome = Outcome::new(receipt).with_effect(persist);
+                    if self.follow_synced() {
+                        outcome.effects.push(Effect::PersistState {
+                            delta: PersistDelta::Settings(self.state.settings.clone()),
+                        });
+                    }
+                    return outcome;
                 }
                 Err(err) => {
                     synced.error = Some(SyncIssue {

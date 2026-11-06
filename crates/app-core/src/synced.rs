@@ -536,7 +536,7 @@ pub struct SyncedState {
     /// A push is in flight.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pushing: bool,
-    /// The document has local changes (`save_rule`, `delete_rule`, `enable_rule`) that no push
+    /// The document has local changes (rules, the theme, shared preferences) that no push
     /// has taken yet. A push clears it when it starts; a failed push sets it again.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub dirty: bool,

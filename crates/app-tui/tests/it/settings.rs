@@ -53,11 +53,12 @@ fn the_language_is_a_named_choice() {
     let row = screen.lines().find(|l| l.contains("language")).unwrap();
     assert!(row.contains("System"), "{screen}");
 
-    // The last rows are language, theme_light, theme_dark and the two settings-sync rows.
+    // The last rows are language, theme_light, theme_dark and the three settings-sync rows
+    // (account, state, which settings follow the account).
     for _ in 0..40 {
         t.key(KeyCode::Down);
     }
-    for _ in 0..4 {
+    for _ in 0..5 {
         t.key(KeyCode::Up);
     }
     t.key(KeyCode::Enter);

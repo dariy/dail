@@ -344,7 +344,25 @@ finished pull, so a newer server copy is never overwritten unread; `WriteSetting
 `SettingsFailed{account, write, error}`; a diagnostic without an `ERR<code>: ` prefix is wrapped as `ERR023` (read) or
 `ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
 (`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
-(GUI: *General → Settings on the server*; TUI: two rows of the general section).
+(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the group under the Rules
+screen), with a short note of which settings follow the account and `Changes not stored on the server yet` while
+`synced.dirty`.
+
+Shared and local settings (SET-7). The local `Settings` (in `config.toml`) stay the effective values every front end
+reads; the document carries the shared ones. Shared: the theme (`set_theme`, and `set_setting theme`, as the
+document's `theme{mode, light, dark}` with built-in theme names, ADR 0008) and the `set_setting` keys for which
+`SettingKey::is_shared` holds: `undo_send_ms`, `list_density`, `mark_read_after_ms`, `after_triage`, `language` (in
+`prefs` by key). A change of one also stamps its field with `max(now, previous + 1)`, sets `synced.dirty` and emits
+`PersistDelta::Synced` next to `PersistDelta::Settings`; undo and redo run the same commands, so they set the old or
+new value again with a newer stamp. After a pull merges a valid copy, `follow_synced` writes the merged theme and
+shared prefs into `Settings` (persisted as `PersistDelta::Settings` when something changed); a field the document lacks,
+a key that is not shared and a value out of range or with an invalid theme name leave the local value alone. A pull
+never sets `dirty`, and pushing stays explicit.
+
+Local-only settings (never in the document): `text_scale` (screen), `tui_colors` (terminal), `notifications`,
+`poll_secs`, `stale_secs`, `full_sync_secs`, `initial_window`, `background_sync`, `background_interval_mins`,
+`history_cap`, the key preset and keybindings, the update policy and skipped version, `settings_account`, per-mailbox
+preferences (sync window, identity), window sizes and pane layout, paths, accounts and every secret.
 
 Sorting rules run in the engine (SET-4). `app_core::rules` is the pure evaluator: text tests are case-insensitive
 substring tests (Unicode lower case) over the envelope (`from`/`to`/`cc` match an address's name or email; `list_id` is

@@ -757,6 +757,8 @@ fn synced(ui: &mut Ui, t: &Tokens, state: &AppState, actions: &mut SettingsActio
     };
     ui.add_space(t.m.space.lg);
     ui::caption(ui, t, t.s(Key::SyncedSettings));
+    ui.label(ui::text(&t.type_scale.body_sm, panel.shared, t.text_muted));
+    ui.add_space(t.m.space.sm);
     let detail = format!("{}\n{}", panel.account_label, t.s(Key::SettingsAccountHint));
     row(ui, t, t.s(Key::SettingsAccount), &detail, |ui| {
         let more = state.accounts.len() > 1;
@@ -767,7 +769,11 @@ fn synced(ui: &mut Ui, t: &Tokens, state: &AppState, actions: &mut SettingsActio
             actions.ask = Some(step);
         }
     });
-    row(ui, t, t.s(Key::SettingsSyncState), &panel.status, |_| {});
+    let status = match panel.pending {
+        Some(pending) => format!("{}\n{pending}", panel.status),
+        None => panel.status,
+    };
+    row(ui, t, t.s(Key::SettingsSyncState), &status, |_| {});
 }
 
 /// The Rules section (ADR 0015, SET-5): every sorting rule with its switch, *Edit…* and
