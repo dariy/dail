@@ -416,6 +416,10 @@ pub struct Settings {
     pub hidden_mailboxes: BTreeSet<FolderKey>,
     /// Update checks of dail itself (`set_update_policy`, `skip_update_version`; ADR 0011).
     pub updates: crate::update::UpdatePolicy,
+    /// The account whose `dail/Settings` folder holds the synced settings
+    /// (`set_settings_account`, ADR 0015). `None` or an account that is gone: the first account.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_account: Option<crate::ids::AccountId>,
 }
 
 /// A set of key bindings.
@@ -471,6 +475,7 @@ impl Default for Settings {
             pinned_mailboxes: Vec::new(),
             hidden_mailboxes: BTreeSet::new(),
             updates: crate::update::UpdatePolicy::default(),
+            settings_account: None,
         }
     }
 }

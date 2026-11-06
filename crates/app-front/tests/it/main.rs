@@ -11,5 +11,6 @@ mod keys;
 mod palette;
 mod result;
 mod status;
+mod synced;
 mod tree;
 mod updates;

@@ -1,0 +1,12 @@
+# The settings account (ADR 0015, SET-3): choose, refused for agents, coded errors, undo/redo, removal falls back.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.com", "imap": {"host": "imap.example.com", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.com", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "seed": 36893488147419103232, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "other@example.com", "imap": {"host": "imap.example.org", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.org", "port": 465, "security": "tls"}}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "settings_read", "args": {"account": "00000000-0000-0001-0000-000000000000", "copy": {"uid_validity": 9, "uid": 4}, "document": "{\"schema\":1,\"updated_ms\":50,\"prefs\":{\"list_density\":{\"updated_ms\":50,\"value\":2}}}"}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "set_settings_account", "args": {"account": "00000000-0000-0002-0000-000000000000"}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "set_settings_account", "args": {"account": "00000000-0000-0000-0000-000000000077"}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "set_settings_account", "args": {"account": "00000000-0000-0002-0000-000000000000"}}}}
+{"t": 1700000006000, "origin": "runtime", "input": {"event": {"event": "settings_failed", "args": {"account": "00000000-0000-0002-0000-000000000000", "error": "connection reset"}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000008000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000009000, "origin": "cli", "input": {"command": {"cmd": "remove_account", "args": {"id": "00000000-0000-0002-0000-000000000000", "confirm": true}}}}
+{"t": 1700000010000, "origin": "cli", "input": {"command": {"cmd": "pull_settings", "args": {}}}}

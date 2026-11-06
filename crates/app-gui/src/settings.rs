@@ -114,6 +114,7 @@ impl SettingsState {
                     SettingsSection::General => {
                         general(ui, t, state, queue);
                         updates(ui, t, state, now_ms, &mut actions, queue);
+                        synced(ui, t, state, &mut actions);
                     }
                     SettingsSection::Accounts => {
                         self.accounts(ui, t, state, &mut actions, queue);
@@ -744,6 +745,27 @@ fn updates(
             }));
         }
     });
+}
+
+/// The settings on the mail server (ADR 0015, SET-3): which account holds them, with
+/// *Change…*, and where the last pull or push stands, or its error with its code.
+fn synced(ui: &mut Ui, t: &Tokens, state: &AppState, actions: &mut SettingsActions) {
+    let Some(panel) = app_front::synced::panel(state) else {
+        return;
+    };
+    ui.add_space(t.m.space.lg);
+    ui::caption(ui, t, t.s(Key::SyncedSettings));
+    let detail = format!("{}\n{}", panel.account_label, t.s(Key::SettingsAccountHint));
+    row(ui, t, t.s(Key::SettingsAccount), &detail, |ui| {
+        let more = state.accounts.len() > 1;
+        if ui::secondary(ui, t, t.s(Key::Change), None, more)
+            && let Flow::Ask(step) =
+                app_front::palette::flow(CommandName::SetSettingsAccount, state)
+        {
+            actions.ask = Some(step);
+        }
+    });
+    row(ui, t, t.s(Key::SettingsSyncState), &panel.status, |_| {});
 }
 
 /// The About section (MISC-27): the name, the version, the licence, the links and the texts of

@@ -59,7 +59,7 @@
   },
   "palette": {
     "close": {
-      "action": 83,
+      "action": 84,
       "icon": "close",
       "label": "Close"
     },
@@ -432,15 +432,20 @@
           {
             "action": 74,
             "detail": "App",
-            "title": "Compact the local store"
+            "title": "Choose the settings account"
           },
           {
             "action": 75,
             "detail": "App",
-            "title": "Check for updates"
+            "title": "Compact the local store"
           },
           {
             "action": 76,
+            "detail": "App",
+            "title": "Check for updates"
+          },
+          {
+            "action": 77,
             "detail": "App",
             "title": "Update checks"
           }
@@ -450,25 +455,25 @@
       {
         "rows": [
           {
-            "action": 77,
+            "action": 78,
             "detail": "alice@example.com",
             "keys": "g i",
             "title": "Go to Inbox"
           },
           {
-            "action": 78,
+            "action": 79,
             "detail": "alice@example.com",
             "keys": "g s",
             "title": "Go to Sent"
           },
           {
-            "action": 79,
+            "action": 80,
             "detail": "alice@example.com",
             "keys": "g d",
             "title": "Go to Drafts"
           },
           {
-            "action": 80,
+            "action": 81,
             "detail": "alice@example.com",
             "keys": "g a",
             "title": "Go to Archive"
@@ -479,12 +484,12 @@
       {
         "rows": [
           {
-            "action": 81,
+            "action": 82,
             "detail": "Carol",
             "title": "Lunch?"
           },
           {
-            "action": 82,
+            "action": 83,
             "detail": "Bob",
             "title": "Q3 numbers"
           }

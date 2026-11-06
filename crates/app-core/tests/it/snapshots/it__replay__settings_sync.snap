@@ -93,7 +93,7 @@ expression: first
       },
       "error": {
         "at_ms": 1700000009000,
-        "error": "IMAP EXAMINE dail/Settings failed: connection reset",
+        "error": "ERR023: the settings could not be read from the server: IMAP EXAMINE dail/Settings failed: connection reset",
         "mailbox": null
       },
       "pulled_ms": 1700000005000,

@@ -254,7 +254,8 @@ pub enum Command {
     /// background; the result is in `synced` (`pulled_ms`, `error`). A server copy that is too
     /// large or invalid is ignored and its error shown. Also runs on connect. Not undoable.
     PullSettings {
-        /// The account to read from. Omit for the settings account (the first account).
+        /// The account to read from. Omit for the settings account (`set_settings_account`;
+        /// default: the first account).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         account: Option<AccountId>,
     },
@@ -264,6 +265,16 @@ pub enum Command {
     /// overwritten unread. Only the user can do this (GUI or CLI); agents (MCP)
     /// get `error_008_origin_not_allowed`. Not undoable.
     PushSettings {},
+    /// Choose which account's hidden `dail/Settings` folder holds the settings that follow the
+    /// user across devices (ADR 0015), for this profile. The default is the first account; if
+    /// the chosen account is removed, the first account is used again. Forgets the copy read
+    /// from the old account and pulls from the new one. `pull_settings` and `push_settings`
+    /// without an account use it. Only the user can do this (GUI or CLI); agents (MCP) get
+    /// `error_008_origin_not_allowed`. Undoable.
+    SetSettingsAccount {
+        /// The account (an ID from `get_view` or `list_mailboxes`).
+        account: AccountId,
+    },
     /// List cached mailboxes with their role (`inbox`, `sent`, …) and unread/total counts,
     /// grouped by account with the inbox first. Read-only.
     ListMailboxes {
@@ -1175,6 +1186,7 @@ impl Command {
             | Self::SyncNow { .. }
             | Self::PullSettings { .. }
             | Self::PushSettings {}
+            | Self::SetSettingsAccount { .. }
             | Self::ListMailboxes { .. }
             | Self::SetSyncWindow { .. }
             | Self::ListThreads { .. }
@@ -1272,6 +1284,7 @@ impl Command {
             Self::SyncNow { .. } => CommandName::SyncNow,
             Self::PullSettings { .. } => CommandName::PullSettings,
             Self::PushSettings {} => CommandName::PushSettings,
+            Self::SetSettingsAccount { .. } => CommandName::SetSettingsAccount,
             Self::ListMailboxes { .. } => CommandName::ListMailboxes,
             Self::SetSyncWindow { .. } => CommandName::SetSyncWindow,
             Self::ListThreads { .. } => CommandName::ListThreads,

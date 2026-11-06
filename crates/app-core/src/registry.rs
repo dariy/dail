@@ -139,6 +139,8 @@ pub enum CommandName {
     PullSettings,
     /// See [`Command::PushSettings`].
     PushSettings,
+    /// See [`Command::SetSettingsAccount`].
+    SetSettingsAccount,
     /// See [`Command::ListMailboxes`].
     ListMailboxes,
     /// See [`Command::SetSyncWindow`].
@@ -408,6 +410,7 @@ impl CommandName {
         Self::SyncNow,
         Self::PullSettings,
         Self::PushSettings,
+        Self::SetSettingsAccount,
         Self::ListMailboxes,
         Self::SetSyncWindow,
         Self::ListThreads,
@@ -512,6 +515,7 @@ impl CommandName {
             Self::SyncNow => "sync_now",
             Self::PullSettings => "pull_settings",
             Self::PushSettings => "push_settings",
+            Self::SetSettingsAccount => "set_settings_account",
             Self::ListMailboxes => "list_mailboxes",
             Self::SetSyncWindow => "set_sync_window",
             Self::ListThreads => "list_threads",
@@ -611,6 +615,7 @@ impl CommandName {
             | Self::SetKeybinding
             | Self::SetKeyPreset
             | Self::SetTheme
+            | Self::SetSettingsAccount
             | Self::Undo
             | Self::Redo
             | Self::AddAccount
@@ -714,6 +719,7 @@ impl CommandName {
             | Self::ApproveRequest
             | Self::RejectRequest
             | Self::PushSettings
+            | Self::SetSettingsAccount
             | Self::InstallUpdate => AgentAccess::UserOnly,
             Self::SendDraft => AgentAccess::Approval,
             Self::GetSettings
@@ -915,6 +921,10 @@ impl CommandName {
             Self::PushSettings => CommandSpec {
                 available: |state| state.synced.pulled_ms.is_some(),
                 ..base("Push settings to the server", Category::App, &[])
+            },
+            Self::SetSettingsAccount => CommandSpec {
+                available: has_accounts,
+                ..base("Choose the settings account", Category::App, &[])
             },
             Self::ListMailboxes => CommandSpec {
                 available: has_accounts,
@@ -1320,6 +1330,9 @@ impl CommandName {
             Self::SyncNow => Command::SyncNow { account: None },
             Self::PullSettings => Command::PullSettings { account: None },
             Self::PushSettings => Command::PushSettings {},
+            Self::SetSettingsAccount => Command::SetSettingsAccount {
+                account: EXAMPLE_ACCOUNT,
+            },
             Self::ListMailboxes => Command::ListMailboxes { account: None },
             Self::SetSyncWindow => Command::SetSyncWindow {
                 mailbox: EXAMPLE_MAILBOX,

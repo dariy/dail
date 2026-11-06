@@ -53,12 +53,13 @@ fn the_language_is_a_named_choice() {
     let row = screen.lines().find(|l| l.contains("language")).unwrap();
     assert!(row.contains("System"), "{screen}");
 
-    // The last rows are language, theme_light and theme_dark.
+    // The last rows are language, theme_light, theme_dark and the two settings-sync rows.
     for _ in 0..40 {
         t.key(KeyCode::Down);
     }
-    t.key(KeyCode::Up);
-    t.key(KeyCode::Up);
+    for _ in 0..4 {
+        t.key(KeyCode::Up);
+    }
     t.key(KeyCode::Enter);
     assert_eq!(t.pump(), [Command::OpenPalette {}]);
     let screen = t.screen();

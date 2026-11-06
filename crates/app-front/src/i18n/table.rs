@@ -2204,4 +2204,34 @@ strings! {
     ToNameLower:
         "to {name}",
         "à {name}";
+    SyncedSettings:
+        "Settings on the server",
+        "Paramètres sur le serveur";
+    SettingsAccount:
+        "Settings account",
+        "Compte des paramètres";
+    SettingsAccountHint:
+        "Its hidden dail/Settings folder holds the settings shared by your devices",
+        "Son dossier caché dail/Settings garde les paramètres partagés par vos appareils";
+    SettingsAccountFirst:
+        "{email} (first account)",
+        "{email} (premier compte)";
+    SettingsAccountWhich:
+        "Which account holds the settings?",
+        "Quel compte garde les paramètres ?";
+    SettingsReading:
+        "reading from the server…",
+        "lecture sur le serveur…";
+    SettingsWriting:
+        "storing on the server…",
+        "enregistrement sur le serveur…";
+    SettingsUpToDate:
+        "up to date",
+        "à jour";
+    SettingsNotRead:
+        "not read yet",
+        "pas encore lus";
+    SettingsSyncState:
+        "Settings sync",
+        "Synchronisation des paramètres";
 }

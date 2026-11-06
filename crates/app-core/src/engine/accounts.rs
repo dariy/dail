@@ -233,9 +233,19 @@ impl Engine {
                 command: "remove_account".to_owned(),
             });
         }
+        let settings_before = self.settings_account();
         let Some(account) = self.state.accounts.shift_remove(&id) else {
             return Err(not_found("account", id));
         };
+        // The settings account falls back to the first one: forget the choice and what was
+        // read from the removed account, so a push waits for a pull from the new one.
+        let forget_choice = self.state.settings.settings_account == Some(id);
+        if forget_choice {
+            self.state.settings.settings_account = None;
+        }
+        if settings_before == Some(id) {
+            self.reset_synced_copy();
+        }
         let cache = self.forget_account_cache(id);
         let mut outcome = Outcome::new(receipt.affecting(EntityRef::Account(id)).with_data(
             serde_json::json!({
@@ -247,6 +257,11 @@ impl Engine {
         .with_effect(Effect::PersistState {
             delta: PersistDelta::AccountRemoved(id),
         });
+        if forget_choice {
+            outcome = outcome.with_effect(Effect::PersistState {
+                delta: PersistDelta::Settings(self.state.settings.clone()),
+            });
+        }
         if !cache.is_empty() {
             outcome = outcome.with_effect(Effect::PersistState {
                 delta: PersistDelta::Mail(cache),

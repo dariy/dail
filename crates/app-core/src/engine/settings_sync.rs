@@ -4,20 +4,80 @@
 //! run when the settings account's folders are listed (on connect and every full round) and
 //! when its watch reports a change.
 
+use crate::command::Command;
 use crate::ctx::Ctx;
 use crate::error::CoreError;
-use crate::event::Effect;
+use crate::event::{Effect, PersistDelta};
 use crate::ids::AccountId;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::SyncIssue;
-use crate::synced::{SettingsCopy, SyncedSettings, settings_folder};
+use crate::synced::{
+    SettingsCopy, SettingsError, SyncedSettings, SyncedState, has_error_code, settings_folder,
+};
 
-use super::{Engine, invalid, not_found};
+use super::{Applied, Engine, invalid, not_found};
 
 impl Engine {
-    /// The account that holds the settings: the first account (SET-3 makes it choosable).
+    /// The account that holds the settings: the chosen one (`set_settings_account`) while it
+    /// exists, else the first account.
     pub(super) fn settings_account(&self) -> Option<AccountId> {
-        self.state.accounts.keys().next().copied()
+        self.state
+            .settings
+            .settings_account
+            .filter(|id| self.state.accounts.contains_key(id))
+            .or_else(|| self.state.accounts.keys().next().copied())
+    }
+
+    /// `set_settings_account`: store the choice in the profile's settings, forget the copy read
+    /// from the old account (the merged document stays) and pull from the new one.
+    pub(super) fn set_settings_account(
+        &mut self,
+        account: AccountId,
+        receipt: CommandReceipt,
+    ) -> Result<Applied, CoreError> {
+        if !self.state.accounts.contains_key(&account) {
+            return Err(not_found("account", account));
+        }
+        let before_choice = self.state.settings.settings_account;
+        let before = self.settings_account();
+        let receipt = receipt
+            .affecting(EntityRef::Account(account))
+            .affecting(EntityRef::Settings)
+            .with_data(serde_json::json!({ "account": account }));
+        if before_choice == Some(account) {
+            return Ok(Applied::plain(Outcome::new(receipt)));
+        }
+        self.state.settings.settings_account = Some(account);
+        let mut outcome = Outcome::new(receipt).with_effect(Effect::PersistState {
+            delta: PersistDelta::Settings(self.state.settings.clone()),
+        });
+        if before != Some(account) {
+            self.reset_synced_copy();
+            outcome.effects.extend(self.start_settings_pull(account));
+        }
+        // Undo restores the old account explicitly: the first account when none was chosen.
+        let undo = before_choice.or(before).map(|previous| {
+            (
+                "Choose the settings account".to_owned(),
+                vec![Command::SetSettingsAccount { account: previous }],
+            )
+        });
+        Ok(Applied { outcome, undo })
+    }
+
+    /// Forgets what was read from or written to the settings account (not the merged
+    /// document): the settings account changed.
+    pub(super) fn reset_synced_copy(&mut self) {
+        let synced = &mut self.state.synced;
+        *synced = SyncedState {
+            settings: std::mem::take(&mut synced.settings),
+            ..SyncedState::default()
+        };
+    }
+
+    /// Whether a read answer from `account` is the one the pull in flight waits for.
+    fn awaited_read(&self, account: AccountId) -> bool {
+        self.state.synced.pulling && self.state.synced.pulling_from == Some(account)
     }
 
     /// The IMAP path of `account`'s settings folder, with its hierarchy delimiter.
@@ -37,6 +97,7 @@ impl Engine {
             .copy
             .filter(|_| self.state.synced.source == Some(account));
         self.state.synced.pulling = true;
+        self.state.synced.pulling_from = Some(account);
         Some(Effect::ReadSettingsBlob {
             account,
             imap,
@@ -78,7 +139,7 @@ impl Engine {
         let account = self
             .settings_account()
             .ok_or_else(|| invalid("account", "add an account first"))?;
-        if self.state.synced.pulled_ms.is_none() {
+        if self.state.synced.pulled_ms.is_none() || self.state.synced.source != Some(account) {
             return Err(invalid(
                 "settings",
                 "run pull_settings first, so that a newer server copy is not overwritten",
@@ -135,8 +196,16 @@ impl Engine {
         ctx: &Ctx,
         receipt: CommandReceipt,
     ) -> Outcome {
+        let receipt = receipt
+            .affecting(EntityRef::Account(account))
+            .affecting(EntityRef::Settings);
+        if !self.awaited_read(account) {
+            // A late answer from an account that is no longer the one being read.
+            return Outcome::new(receipt);
+        }
         let synced = &mut self.state.synced;
         synced.pulling = false;
+        synced.pulling_from = None;
         synced.source = Some(account);
         synced.copy = copy;
         synced.pulled_ms = Some(ctx.now_ms);
@@ -157,11 +226,7 @@ impl Engine {
                 }
             }
         }
-        Outcome::new(
-            receipt
-                .affecting(EntityRef::Account(account))
-                .affecting(EntityRef::Settings),
-        )
+        Outcome::new(receipt)
     }
 
     /// `SettingsWritten`: read the folder again, which records the new copy as known.
@@ -194,12 +259,28 @@ impl Engine {
         ctx: &Ctx,
         receipt: CommandReceipt,
     ) -> Outcome {
+        if !write && !self.awaited_read(account) {
+            // A late failure of a pull from an account that is no longer being read.
+            return Outcome::new(
+                receipt
+                    .affecting(EntityRef::Account(account))
+                    .affecting(EntityRef::Settings),
+            );
+        }
         let synced = &mut self.state.synced;
         if write {
             synced.pushing = false;
         } else {
             synced.pulling = false;
+            synced.pulling_from = None;
         }
+        let error = if has_error_code(&error) {
+            error
+        } else if write {
+            SettingsError::WriteFailed { reason: error }.to_string()
+        } else {
+            SettingsError::ReadFailed { reason: error }.to_string()
+        };
         synced.error = Some(SyncIssue {
             error,
             mailbox: None,
@@ -229,6 +310,7 @@ impl Engine {
         }
         let synced = &mut self.state.synced;
         if !synced.pulling {
+            synced.pulling_from = None;
             synced.source = Some(account);
             synced.copy = None;
             synced.pulled_ms = Some(now_ms);

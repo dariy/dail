@@ -208,6 +208,29 @@ pub enum SettingsError {
         /// What is wrong.
         reason: String,
     },
+    /// Reading the settings folder failed (connection, login, IMAP), with a diagnostic that
+    /// carries no code of its own.
+    #[error("ERR023: the settings could not be read from the server: {reason}")]
+    #[serde(rename = "error_023_settings_read_failed")]
+    ReadFailed {
+        /// The diagnostic.
+        reason: String,
+    },
+    /// Storing the settings document failed, with a diagnostic that carries no code of its own.
+    #[error("ERR024: the settings could not be stored on the server: {reason}")]
+    #[serde(rename = "error_024_settings_write_failed")]
+    WriteFailed {
+        /// The diagnostic.
+        reason: String,
+    },
+}
+
+/// Whether `text` starts with an error code, `ERR<digits>: `.
+pub fn has_error_code(text: &str) -> bool {
+    text.strip_prefix("ERR").is_some_and(|rest| {
+        let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+        digits > 0 && rest[digits..].starts_with(": ")
+    })
 }
 
 impl SettingsError {
@@ -501,6 +524,10 @@ pub struct SyncedState {
     /// A pull is in flight.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pulling: bool,
+    /// The account the pull in flight reads from: a late answer from another account (the
+    /// settings account changed or was removed meanwhile) is ignored.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pulling_from: Option<AccountId>,
     /// A push is in flight.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pushing: bool,

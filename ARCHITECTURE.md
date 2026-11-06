@@ -324,8 +324,13 @@ documents are under `crates/app-io/testdata/golden/settings/` and are never edit
 
 `AppState.synced` (`SyncedState`, not persisted: the first pull of a session fills it) holds the merged document, the
 account the last pull read from (`source`), the server copy read last (`copy: {uid_validity, uid}`), `pulled_ms`,
-`pushed_ms`, `pulling`/`pushing` and `error` (a `SyncIssue`). The settings account is the first account (SET-3 makes it
-choosable). Its folder is `dail<delimiter>Settings` (`synced::settings_folder`); `ingest_mailboxes_listed` never makes it
+`pushed_ms`, `pulling`/`pushing` and `error` (a `SyncIssue`). The settings account is chosen per profile with
+`set_settings_account` (user only, undoable), stored as the optional `Settings.settings_account` in `config.toml` (absent:
+the first account). Choosing another account keeps the merged document, forgets `source`, `copy`, the times and the
+error, and pulls from the new account; `remove_account` of the settings account does the same reset and clears a
+`settings_account` naming it (removal has no undo), so the first account takes over. `push_settings` needs the last
+pull to have read from the current settings account (`source`). `pulling_from` names the account the pull in flight
+reads; a late `SettingsRead` or read `SettingsFailed` from another account is ignored. Its folder is `dail<delimiter>Settings` (`synced::settings_folder`); `ingest_mailboxes_listed` never makes it
 (nor a `dail` parent without other subfolders) a mailbox, so no front end lists it. Each listing of the settings account
 (connect, `sync_now`, full rounds) pulls if the folder is listed, and otherwise counts as a finished pull with no copy;
 a change seen by the account's IDLE watch pulls again once a copy is known. `ReadSettingsBlob` (`app_sync::settings::read`)
@@ -336,7 +341,10 @@ refuses a message over `app_io::settings_blob::MAX_RAW_BYTES` before downloading
 finished pull, so a newer server copy is never overwritten unread; `WriteSettingsBlob` (`app_sync::settings::write`)
 `APPEND`s `app_io::settings_blob::render` (one `application/json` part, `\Seen`), creating the folder if the first
 `APPEND` fails, then stores `\Deleted` on and expunges every older UID of that folder only. Failures are
-`SettingsFailed{account, write, error}`. The fake server (`app-testkit`) implements both.
+`SettingsFailed{account, write, error}`; a diagnostic without an `ERR<code>: ` prefix is wrapped as `ERR023` (read) or
+`ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
+(`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
+(GUI: *General → Settings on the server*; TUI: two rows of the general section).
 
 ### 4.3 Command / Event / Effect
 
@@ -1856,8 +1864,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
-| `pull_settings` | Mutation (no history) | `account?` (none: the settings account, the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
+| `pull_settings` | Mutation (no history) | `account?` (none: the settings account, `set_settings_account`, else the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
 | `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
+| `set_settings_account` | Mutation (user only, ADR 0015) | `account` → `{account}`; unknown account `ERR004`; stores `settings.settings_account` (`PersistState{Settings}`); another account than the current one resets the synced copy state and emits `ReadSettingsBlob`; undo restores the previous account | SET-3 |
 | `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
 | `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |

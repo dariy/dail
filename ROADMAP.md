@@ -1004,7 +1004,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 - [x] SET-2 (M) [core][sync][tk]: `pull_settings` / `push_settings` commands and the `ReadSettingsBlob` /
   `WriteSettingsBlob` effects over the `dail/Settings` folder (APPEND, newest UID wins, old copies expunged); pull on
   connect and on IDLE change; the fake IMAP implements the folder; the folder is hidden from mailbox lists
-- [ ] SET-3 (S) [core][front]: choose the settings account per profile (`UserOnly`); validation errors and the 256 KiB cap
+- [x] SET-3 (S) [core][front]: choose the settings account per profile (`UserOnly`); validation errors and the 256 KiB cap
   surface in state with ERR codes
 
 ### B — Rules

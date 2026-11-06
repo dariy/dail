@@ -1429,7 +1429,7 @@ expression: command_schema()
                   "type": "null"
                 }
               ],
-              "description": "The account to read from. Omit for the settings account (the first account)."
+              "description": "The account to read from. Omit for the settings account (`set_settings_account`;\ndefault: the first account)."
             }
           },
           "type": "object"
@@ -1453,6 +1453,32 @@ expression: command_schema()
         },
         "cmd": {
           "const": "push_settings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Choose which account's hidden `dail/Settings` folder holds the settings that follow the\nuser across devices (ADR 0015), for this profile. The default is the first account; if\nthe chosen account is removed, the first account is used again. Forgets the copy read\nfrom the old account and pulls from the new one. `pull_settings` and `push_settings`\nwithout an account use it. Only the user can do this (GUI or CLI); agents (MCP) get\n`error_008_origin_not_allowed`. Undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account (an ID from `get_view` or `list_mailboxes`)."
+            }
+          },
+          "required": [
+            "account"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "set_settings_account",
           "type": "string"
         }
       },

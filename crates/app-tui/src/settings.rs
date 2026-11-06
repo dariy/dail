@@ -112,9 +112,30 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                         change: Some(CommandName::SetTheme),
                     },
                 ])
+                .chain(synced_rows(state))
                 .collect()
         }
     }
+}
+
+/// The settings on the mail server (ADR 0015, SET-3): the account that holds them and the
+/// state of the last pull or push, with its error.
+fn synced_rows(state: &AppState) -> Vec<Row> {
+    let Some(panel) = app_front::synced::panel(state) else {
+        return Vec::new();
+    };
+    vec![
+        Row {
+            key: s(Key::SettingsAccount).to_owned(),
+            value: panel.account_label,
+            change: Some(CommandName::SetSettingsAccount),
+        },
+        Row {
+            key: s(Key::SettingsSyncState).to_owned(),
+            value: panel.status,
+            change: Some(CommandName::PullSettings),
+        },
+    ]
 }
 
 /// The update rows (Wave 7 F1): the version and status, one row per button, and the policy.

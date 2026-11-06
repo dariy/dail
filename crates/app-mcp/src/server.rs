@@ -36,7 +36,8 @@ their passwords and sending addresses (`add_account`, `update_account`, `set_pas
 `set_identity`, `remove_identity`), saving attachments to disk (`save_attachments`), \
 `restore_draft` (use `undo` to bring back a discarded draft), installing an update of dail \
 (`install_update`; you may check for and download one), pushing the settings to the mail server \
-(`push_settings`; you may `pull_settings`) and deciding approval requests \
+(`push_settings`; you may `pull_settings`), choosing the account that holds them \
+(`set_settings_account`) and deciding approval requests \
 (`approve_request`, `reject_request`). Ask the user to do these in \
 the dail GUI or CLI.\n\n\
 Mutations (read/star/archive/move/trash, drafts, settings) apply locally at once and can be \

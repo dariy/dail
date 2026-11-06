@@ -701,6 +701,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         CommandName::SyncNow => Flow::Run(Command::SyncNow { account: None }),
         CommandName::PullSettings => Flow::Run(Command::PullSettings { account: None }),
         CommandName::PushSettings => Flow::Run(Command::PushSettings {}),
+        CommandName::SetSettingsAccount => ask(
+            crate::i18n::s(Key::SettingsAccountWhich),
+            AskKind::Accounts,
+            |_, choice| match choice {
+                Choice::Account(account) => Flow::Run(Command::SetSettingsAccount { account }),
+                _ => Flow::Hidden,
+            },
+        ),
         CommandName::ListMailboxes => Flow::Run(Command::ListMailboxes { account: None }),
         CommandName::ListThreads => {
             pick_mailbox(crate::i18n::s(Key::WhichMailbox), None, |mailbox| {

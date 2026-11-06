@@ -691,6 +691,7 @@ impl Engine {
                 self.pull_settings(account, receipt).map(Applied::plain)
             }
             Command::PushSettings {} => self.push_settings(ctx, receipt).map(Applied::plain),
+            Command::SetSettingsAccount { account } => self.set_settings_account(account, receipt),
             Command::ListMailboxes { account } => {
                 self.list_mailboxes(account, receipt).map(Applied::plain)
             }
