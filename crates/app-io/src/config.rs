@@ -50,6 +50,10 @@ pub struct AccountConfig {
     /// Addresses it sends from, with names and signatures (`[[account.identity]]`).
     #[serde(default, rename = "identity", skip_serializing_if = "Vec::is_empty")]
     pub identities: Vec<app_core::Identity>,
+    /// ManageSieve server (`[account.managesieve]`: host, port, security), e.g. a self-hosted Dovecot on
+    /// port 4190. Absent: the preset's default, if any (SET-8).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managesieve: Option<Endpoint>,
 }
 
 impl From<&Account> for AccountConfig {
@@ -63,6 +67,7 @@ impl From<&Account> for AccountConfig {
             smtp: account.smtp.clone(),
             secret: account.secret.clone(),
             identities: account.identities.clone(),
+            managesieve: account.managesieve.clone(),
         }
     }
 }
@@ -80,6 +85,7 @@ impl AccountConfig {
             secret: self.secret.clone(),
             status: AccountStatus::Unverified,
             identities: self.identities.clone(),
+            managesieve: self.managesieve.clone(),
         }
     }
 }

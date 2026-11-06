@@ -196,7 +196,8 @@ pub struct AppState {
 
 pub struct Account  { id, display_name, email, preset: ProviderPreset, imap: Endpoint, smtp: Endpoint,
                       secret: SecretRef, status: AccountStatus /* Unverified|Verified{at_ms}|Failed{error,at_ms} */,
-                      identities: Vec<Identity { email, name?, signature? }> /* aliases; the own address's name/signature */ }
+                      identities: Vec<Identity { email, name?, signature? }> /* aliases; the own address's name/signature */,
+                      managesieve: Option<Endpoint> /* own ManageSieve server; Account::managesieve() falls back to the preset's (§5.3) */ }
 pub struct Endpoint { host, port: u16, security: Security /* Tls|StartTls — no plaintext */ }
 pub struct SecretRef { service: "dail", user: "account/<id>" }   // keyring entry; the secret is never in state
 pub struct Secret(String) // write-only command/effect field: Debug and Serialize print "<redacted>"
@@ -731,6 +732,11 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 | `hostinger` | imap.hostinger.com:993 TLS | smtp.hostinger.com:465 TLS | move → `archive` role, else `Archive` (created on first use, inside `INBOX<delim>` if the account's folders live there) | APPEND to Sent | |
 | `gmail` | imap.gmail.com:993 TLS | smtp.gmail.com:465 TLS | move INBOX → `[Gmail]/All Mail` (`archive_to_all`: the `all` role) | SMTP saves it automatically, so skip APPEND | App Password (2FA required); trash = `trash` role, else `[Gmail]/Trash`; server search via `X-GM-RAW` (`raw_search`) |
 | `custom` | user-supplied | user-supplied | SPECIAL-USE `\Archive` or `Archive` | APPEND | STARTTLS on 143/587 supported |
+
+ManageSieve (RFC 5804, SET-8): `PresetProfile::managesieve` is the preset's default server and is `None` for all three
+(probed 2026-11-04: Hostinger resets ports 4190 and 2000 after IMAP login; Gmail has none). An account sets its own in
+`config.toml` (`[account.managesieve]` with `host`, `port` (usually 4190), `security = "starttls"`), e.g. a self-hosted
+Dovecot; `Account::managesieve()` returns that, else the preset's. Absent from older configs and golden profiles: `None`.
 
 TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
 (`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for

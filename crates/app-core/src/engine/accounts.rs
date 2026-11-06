@@ -80,6 +80,7 @@ impl Engine {
             secret: SecretRef::for_account(id),
             status: AccountStatus::Unverified,
             identities: Vec::new(),
+            managesieve: None,
         };
         self.state.accounts.insert(id, account.clone());
 

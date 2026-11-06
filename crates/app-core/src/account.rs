@@ -33,6 +33,10 @@ pub struct Account {
     /// address when it has a name or a signature of its own.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub identities: Vec<Identity>,
+    /// ManageSieve server (RFC 5804) set for this account, e.g. a self-hosted Dovecot on port
+    /// 4190 with STARTTLS. Unset: the preset's default, if any ([`Account::managesieve`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managesieve: Option<Endpoint>,
 }
 
 /// An address an account sends from, with its name and signature.
@@ -91,6 +95,14 @@ impl Account {
 }
 
 impl Account {
+    /// The ManageSieve server for this account: its own setting, else the preset's default.
+    /// `None`: the server cannot store sorting rules (`ARCHITECTURE.md §5.3`, ADR 0015).
+    pub fn managesieve(&self) -> Option<Endpoint> {
+        self.managesieve
+            .clone()
+            .or_else(|| self.preset.managesieve().map(ServerDefault::to_endpoint))
+    }
+
     /// What the runtime needs to authenticate to this account's SMTP server.
     pub fn smtp_login(&self) -> SmtpLogin {
         SmtpLogin {
@@ -263,6 +275,9 @@ pub struct PresetProfile {
     /// Server searches use Gmail's own query language (`X-GM-RAW`) instead of IMAP `SEARCH`
     /// criteria.
     pub raw_search: bool,
+    /// Default ManageSieve server (RFC 5804; usually port 4190 with STARTTLS). `None`: the
+    /// provider has none; an account may still set one (`Account::managesieve`).
+    pub managesieve: Option<ServerDefault>,
 }
 
 const HOSTINGER: PresetProfile = PresetProfile {
@@ -283,6 +298,8 @@ const HOSTINGER: PresetProfile = PresetProfile {
     trash_mailbox: None,
     junk_mailbox: None,
     raw_search: false,
+    // Probed 2026-11-04: ports 4190 and 2000 accept TCP but reset the connection after IMAP login.
+    managesieve: None,
 };
 
 const GMAIL: PresetProfile = PresetProfile {
@@ -303,6 +320,8 @@ const GMAIL: PresetProfile = PresetProfile {
     trash_mailbox: Some("[Gmail]/Trash"),
     junk_mailbox: Some("[Gmail]/Spam"),
     raw_search: true,
+    // Probed 2026-11-04: Gmail has no ManageSieve server (filters are web or API only).
+    managesieve: None,
 };
 
 const CUSTOM: PresetProfile = PresetProfile {
@@ -315,6 +334,8 @@ const CUSTOM: PresetProfile = PresetProfile {
     trash_mailbox: None,
     junk_mailbox: None,
     raw_search: false,
+    // Servers must be given: the account's own `managesieve` turns it on (self-hosted Dovecot).
+    managesieve: None,
 };
 
 impl ProviderPreset {
@@ -337,6 +358,11 @@ impl ProviderPreset {
             Self::Gmail => &GMAIL,
             Self::Custom => &CUSTOM,
         }
+    }
+
+    /// The preset's default ManageSieve server, if the provider has one.
+    pub const fn managesieve(self) -> Option<ServerDefault> {
+        self.profile().managesieve
     }
 }
 

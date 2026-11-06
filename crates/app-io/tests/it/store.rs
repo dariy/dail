@@ -42,6 +42,7 @@ pub(super) fn account(n: u128) -> Account {
         secret: SecretRef::for_account(id),
         status: AccountStatus::Unverified,
         identities: Vec::new(),
+        managesieve: None,
     }
 }
 
