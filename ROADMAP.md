@@ -1021,8 +1021,15 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 ### D — Server-side execution
 - [x] SET-8 (S) [sync]: a `ProviderPreset` field for ManageSieve (Hostinger and Gmail: none, probed 2026-11-04), so
   that self-hosted Dovecot servers can turn it on
-- [ ] SET-9 (M) [io][sync]: compile rules to Sieve and upload over ManageSieve where the preset says it exists; rules
-  Sieve cannot express are marked client-only
+- SET-9 (split 2026-11-06, too large for one change): compile rules to Sieve and upload over ManageSieve where the
+  preset says it exists; rules Sieve cannot express are marked client-only
+  - [ ] SET-9a (S) [core][io]: a pure classifier in `app-core` (`Server` or `ClientOnly(reason)`: mailbox tests,
+    has attachment, add_label, and archive without a known special-use folder are client-only) and a deterministic
+    script `dail` in `app-io` (`fileinto`, `imap4flags`), strings escaped per RFC 5228; hostile-pattern and snapshot tests
+  - [ ] SET-9b (M) [core][sync][tk]: `UploadSieve` effect carrying the rules (app-sync compiles through app-io),
+    `SieveUploaded` / `SieveFailed` with status and ERR codes in state, fired after a successful `push_settings` when
+    `managesieve()` is set; a ManageSieve client (STARTTLS, PLAIN, PUTSCRIPT, SETACTIVE) and a fake in app-testkit
+  - [ ] SET-9c (S) [front][gui][tui][mobile][kt]: rule rows say *client-only (reason)* or *also on the server*
 - Gmail filter export waits for Gmail OAuth2 (Wave 11, *After launch*, item 6)
 
 ---
