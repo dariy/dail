@@ -60,6 +60,8 @@ fn kinds_follow_the_catalogue() {
     assert_eq!(CommandName::GetSettings.kind(), CommandKind::Query);
     assert_eq!(CommandName::SetSetting.kind(), CommandKind::Mutation);
     assert_eq!(CommandName::OpenPalette.kind(), CommandKind::View);
+    assert_eq!(CommandName::EditDraft.kind(), CommandKind::Mutation);
+    assert_eq!(CommandName::EditDraft.agent_access(), AgentAccess::Allowed);
 }
 
 #[test]

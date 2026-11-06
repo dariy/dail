@@ -151,6 +151,16 @@ pub fn parse_message(raw: &[u8]) -> ParsedMessage {
     parse(raw, false).0
 }
 
+/// What `edit_draft` takes from a stored draft (MISC-44): its readable text and its `Bcc`
+/// recipients, which no envelope carries. Never fails: an unparsable message yields empty fields.
+pub fn draft_text(raw: &[u8]) -> (String, Vec<Addr>) {
+    let bcc = MessageParser::default()
+        .parse_headers(raw)
+        .map(|message| addresses(message.bcc()))
+        .unwrap_or_default();
+    (parse_message(raw).text, bcc)
+}
+
 /// [`parse_message`], plus the body as a [`Document`] for display: the HTML's, or the plain text read as
 /// paragraphs, headings and Markdown (`app_io::plain`), with its links numbered (MISC-28).
 pub fn parse_message_with_document(raw: &[u8]) -> (ParsedMessage, Option<Document>) {

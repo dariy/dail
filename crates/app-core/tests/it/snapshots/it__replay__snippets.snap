@@ -692,6 +692,7 @@ expression: first
                 },
                 "date_ms": 1699000000000,
                 "downloading": false,
+                "draft": null,
                 "flags": {
                   "answered": false,
                   "draft": false,
@@ -700,6 +701,7 @@ expression: first
                 },
                 "has_attachments": false,
                 "id": "00000000-0000-0006-0000-000000000001",
+                "is_draft": false,
                 "mailbox": "00000000-0000-0005-0000-000000000000",
                 "moving": false,
                 "size": 0,

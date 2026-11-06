@@ -236,6 +236,8 @@ pub enum CommandName {
     UpdateDraft,
     /// See [`Command::DiscardDraft`].
     DiscardDraft,
+    /// See [`Command::EditDraft`].
+    EditDraft,
     /// See [`Command::RestoreDraft`].
     RestoreDraft,
     /// See [`Command::AttachFile`].
@@ -336,6 +338,19 @@ fn has_threads(state: &AppState) -> bool {
 
 fn has_messages(state: &AppState) -> bool {
     !state.messages.is_empty()
+}
+
+/// The open conversation has a draft (`edit_draft`, MISC-44).
+fn open_thread_has_draft(state: &AppState) -> bool {
+    state
+        .view
+        .thread
+        .and_then(|t| state.threads.get(&t))
+        .is_some_and(|t| {
+            t.messages
+                .iter()
+                .any(|id| state.messages.get(id).is_some_and(|m| state.is_draft(m)))
+        })
 }
 
 fn has_ops(state: &AppState) -> bool {
@@ -501,6 +516,7 @@ impl CommandName {
         Self::Forward,
         Self::UpdateDraft,
         Self::DiscardDraft,
+        Self::EditDraft,
         Self::RestoreDraft,
         Self::AttachFile,
         Self::RemoveAttachment,
@@ -611,6 +627,7 @@ impl CommandName {
             Self::Forward => "forward",
             Self::UpdateDraft => "update_draft",
             Self::DiscardDraft => "discard_draft",
+            Self::EditDraft => "edit_draft",
             Self::RestoreDraft => "restore_draft",
             Self::AttachFile => "attach_file",
             Self::RemoveAttachment => "remove_attachment",
@@ -721,6 +738,7 @@ impl CommandName {
             | Self::Forward
             | Self::UpdateDraft
             | Self::DiscardDraft
+            | Self::EditDraft
             | Self::RestoreDraft
             | Self::AttachFile
             | Self::RemoveAttachment
@@ -847,6 +865,7 @@ impl CommandName {
             | Self::Forward
             | Self::UpdateDraft
             | Self::DiscardDraft
+            | Self::EditDraft
             | Self::AttachFile
             | Self::RemoveAttachment
             | Self::CancelSend
@@ -1194,6 +1213,10 @@ impl CommandName {
             Self::DiscardDraft => CommandSpec {
                 available: has_drafts,
                 ..base("Discard draft", Category::Compose, &[])
+            },
+            Self::EditDraft => CommandSpec {
+                available: open_thread_has_draft,
+                ..base("Edit a draft from the conversation", Category::Compose, &[])
             },
             // Only undo needs it; it is not offered in the palette.
             Self::RestoreDraft => CommandSpec {
@@ -1562,7 +1585,13 @@ impl CommandName {
                 subject: None,
                 body: Some("Tomorrow at one?".to_owned()),
             },
-            Self::DiscardDraft => Command::DiscardDraft { id: EXAMPLE_DRAFT },
+            Self::DiscardDraft => Command::DiscardDraft {
+                id: EXAMPLE_DRAFT,
+                keep_server_copy: false,
+            },
+            Self::EditDraft => Command::EditDraft {
+                message: EXAMPLE_MESSAGE,
+            },
             Self::AttachFile => Command::AttachFile {
                 draft: EXAMPLE_DRAFT,
                 path: "/home/me/q3.pdf".to_owned(),
@@ -1656,6 +1685,7 @@ impl CommandName {
                     send_at: None,
                     sending: false,
                     send_error: None,
+                    loading_from: None,
                     from: None,
                 }),
             },

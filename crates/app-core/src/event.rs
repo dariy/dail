@@ -8,7 +8,7 @@ use crate::approval::ApprovalRequest;
 use crate::draft::{Draft, OutgoingMessage};
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, RemoteMailbox};
-use crate::message::{Envelope, RemoteEnvelope, Thread, UidFlags, UidRange};
+use crate::message::{Addr, Envelope, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::ops::{PendingOp, RemoteStep};
 use crate::search::Query;
 use crate::state::ViewPrefs;
@@ -275,6 +275,27 @@ pub enum Event {
         /// Diagnostic.
         error: String,
     },
+    /// An [`Effect::ReadDraft`] read a server draft's text (MISC-44). Email content.
+    DraftRead {
+        /// The local draft that receives the text.
+        draft: DraftId,
+        /// The server draft it was read from.
+        message: MessageId,
+        /// Plain-text body (the HTML's text if the draft has no plain part).
+        body: String,
+        /// `Bcc` recipients (only the stored draft knows them).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        bcc: Vec<Addr>,
+    },
+    /// An [`Effect::ReadDraft`] failed: the stored message is missing or unreadable.
+    DraftReadFailed {
+        /// The local draft.
+        draft: DraftId,
+        /// The server draft.
+        message: MessageId,
+        /// Diagnostic.
+        error: String,
+    },
     /// An [`Effect::DiscoverServers`] found the servers of a domain.
     ServersDiscovered {
         /// The address looked up.
@@ -496,6 +517,8 @@ impl Event {
             Self::SendFailed { .. } => "send_failed",
             Self::AttachmentInspected { .. } => "attachment_inspected",
             Self::AttachmentFailed { .. } => "attachment_failed",
+            Self::DraftRead { .. } => "draft_read",
+            Self::DraftReadFailed { .. } => "draft_read_failed",
             Self::AttachmentsSaved { .. } => "attachments_saved",
             Self::MailboxWatched { .. } => "mailbox_watched",
             Self::OlderFetched { .. } => "older_fetched",
@@ -728,6 +751,16 @@ pub enum Effect {
         /// Absolute path of the file.
         path: String,
     },
+    /// Read the text and `Bcc` of a stored server draft (blob `blob`) into local draft `draft`
+    /// (`edit_draft`, MISC-44). Reports `DraftRead` or `DraftReadFailed`.
+    ReadDraft {
+        /// The local draft.
+        draft: DraftId,
+        /// The server draft.
+        message: MessageId,
+        /// Content address of its raw message in the store.
+        blob: String,
+    },
     /// Look up a domain's mail servers over HTTPS (ADR 0006). Reports `ServersDiscovered` or
     /// `DiscoveryFailed`.
     DiscoverServers {
@@ -876,6 +909,7 @@ impl Effect {
             Self::FetchBody { .. } => "fetch_body",
             Self::RunRemoteOp { .. } => "run_remote_op",
             Self::InspectAttachment { .. } => "inspect_attachment",
+            Self::ReadDraft { .. } => "read_draft",
             Self::SaveAttachments { .. } => "save_attachments",
             Self::WatchMailbox { .. } => "watch_mailbox",
             Self::FetchOlder { .. } => "fetch_older",
@@ -941,6 +975,11 @@ impl Effect {
             Self::InspectAttachment { draft, path } => Event::AttachmentFailed {
                 draft: *draft,
                 path: path.clone(),
+                error,
+            },
+            Self::ReadDraft { draft, message, .. } => Event::DraftReadFailed {
+                draft: *draft,
+                message: *message,
                 error,
             },
             Self::CompactStore { .. } => Event::CompactFailed { error },

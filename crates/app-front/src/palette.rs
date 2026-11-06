@@ -168,9 +168,9 @@ pub fn targets(state: &AppState) -> Vec<ThreadId> {
     }
 }
 
-/// The newest message of a thread.
+/// The newest message of a thread that is not a draft (see `AppState::newest_message`).
 pub fn newest_message(state: &AppState, thread: ThreadId) -> Option<MessageId> {
-    state.threads.get(&thread)?.messages.last().copied()
+    state.newest_message(thread)
 }
 
 /// The sender of the open thread's newest message.
@@ -219,6 +219,34 @@ fn on_message(state: &AppState, make: fn(MessageId) -> Command) -> Flow {
             Choice::Thread(id) => {
                 newest_message(state, id).map_or(Flow::Hidden, |m| Flow::Run(make(m)))
             }
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// The newest draft message of a thread (a message with `AppState::is_draft`).
+fn newest_draft(state: &AppState, thread: ThreadId) -> Option<MessageId> {
+    state
+        .threads
+        .get(&thread)?
+        .messages
+        .iter()
+        .rev()
+        .find(|id| state.messages.get(*id).is_some_and(|m| state.is_draft(m)))
+        .copied()
+}
+
+/// `edit_draft` on the open thread's newest draft, or on one of a chosen thread.
+fn on_thread_draft(state: &AppState) -> Flow {
+    let edit = |message| Flow::Run(Command::EditDraft { message });
+    if let Some(message) = state.view.thread.and_then(|t| newest_draft(state, t)) {
+        return edit(message);
+    }
+    ask(
+        crate::i18n::s(Key::WhichConversation),
+        AskKind::Threads,
+        move |state, choice| match choice {
+            Choice::Thread(id) => newest_draft(state, id).map_or(Flow::Hidden, edit),
             _ => Flow::Hidden,
         },
     )
@@ -1415,6 +1443,7 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 _ => pick_account(move |_, id| make(id)),
             }
         }
+        CommandName::EditDraft => on_thread_draft(state),
         CommandName::Reply => on_message(state, |message| Command::Reply {
             message,
             body: None,
@@ -1429,7 +1458,10 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         }),
         // Drafts are edited in the composer.
         CommandName::UpdateDraft => on_draft(state, false, |id| Command::OpenComposer { id }),
-        CommandName::DiscardDraft => on_draft(state, false, |id| Command::DiscardDraft { id }),
+        CommandName::DiscardDraft => on_draft(state, false, |id| Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        }),
         // Only `undo` restores drafts.
         CommandName::RestoreDraft => Flow::Hidden,
         CommandName::AttachFile => {

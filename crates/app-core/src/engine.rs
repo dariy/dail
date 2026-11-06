@@ -298,15 +298,33 @@ impl Engine {
                 blob,
                 has_attachments,
                 snippet,
-            } => Ok(self.ingest_body(
-                message,
-                BodyState::Fetched { blob },
-                Some((has_attachments, snippet)),
-                receipt,
-            )),
-            Event::BodyFetchFailed { message, error } => {
-                Ok(self.ingest_body(message, BodyState::Failed { error }, None, receipt))
+            } => {
+                let mut outcome = self.ingest_body(
+                    message,
+                    BodyState::Fetched { blob },
+                    Some((has_attachments, snippet)),
+                    receipt,
+                );
+                self.drafts_after_body(message, &mut outcome);
+                Ok(outcome)
             }
+            Event::BodyFetchFailed { message, error } => {
+                let mut outcome =
+                    self.ingest_body(message, BodyState::Failed { error }, None, receipt);
+                self.drafts_after_body(message, &mut outcome);
+                Ok(outcome)
+            }
+            Event::DraftRead {
+                draft,
+                message,
+                body,
+                bcc,
+            } => Ok(self.ingest_draft_read(draft, message, Ok((body, bcc)), receipt)),
+            Event::DraftReadFailed {
+                draft,
+                message,
+                error,
+            } => Ok(self.ingest_draft_read(draft, message, Err(error), receipt)),
             Event::SyncFailed {
                 account,
                 mailbox,
@@ -908,7 +926,11 @@ impl Engine {
                 ctx,
                 receipt,
             ),
-            Command::DiscardDraft { id } => self.discard_draft(id, receipt),
+            Command::DiscardDraft {
+                id,
+                keep_server_copy,
+            } => self.discard_draft(id, keep_server_copy, receipt),
+            Command::EditDraft { message } => self.edit_draft(message, ctx, receipt),
             Command::RestoreDraft { draft } => self.restore_draft(*draft, ctx, receipt),
             Command::AttachFile { draft, path, index } => {
                 self.attach_file(draft, path, index, ctx, receipt)

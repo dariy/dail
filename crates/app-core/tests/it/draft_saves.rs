@@ -250,7 +250,14 @@ fn discarding_a_saved_draft_deletes_its_server_copy_and_undo_saves_it_again() {
     let mut m = mailboxes();
     let (id, _) = create(&mut m);
     // Never saved: nothing to delete.
-    let discard = dispatch(&mut m, Command::DiscardDraft { id }, T0 + 1);
+    let discard = dispatch(
+        &mut m,
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        },
+        T0 + 1,
+    );
     assert!(of_kind(&discard.effects, "delete_draft").is_empty());
     dispatch(&mut m, Command::Undo {}, T0 + 2);
 
@@ -269,7 +276,14 @@ fn discarding_a_saved_draft_deletes_its_server_copy_and_undo_saves_it_again() {
     );
     assert!(!state(&m).drafts[&id].needs_save());
     let message_id = state(&m).drafts[&id].message_id_hdr.clone();
-    let discard = dispatch(&mut m, Command::DiscardDraft { id }, T0 + 9_000);
+    let discard = dispatch(
+        &mut m,
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        },
+        T0 + 9_000,
+    );
     assert!(matches!(
         of_kind(&discard.effects, "delete_draft")[..],
         [Effect::DeleteDraft { draft, path, message_id: mid, .. }]
@@ -289,7 +303,14 @@ fn discarding_while_saving_deletes_the_copy_being_saved() {
     let mut m = mailboxes();
     let (id, _) = create(&mut m);
     tick(&mut m, T0 + DRAFT_SAVE_IDLE_MS);
-    let discard = dispatch(&mut m, Command::DiscardDraft { id }, T0 + 5_100);
+    let discard = dispatch(
+        &mut m,
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        },
+        T0 + 5_100,
+    );
     assert_eq!(of_kind(&discard.effects, "delete_draft").len(), 1);
     assert!(state(&m).status.drafts_saving.is_empty());
     // The save's result arrives for a draft that is gone.

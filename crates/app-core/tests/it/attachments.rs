@@ -251,7 +251,11 @@ fn a_restored_draft_has_its_attachments_checked_again() {
     };
 
     // Undo of a discard: the file may have changed meanwhile.
-    m.run(Command::DiscardDraft { id }).unwrap();
+    m.run(Command::DiscardDraft {
+        id,
+        keep_server_copy: false,
+    })
+    .unwrap();
     let undo = m.run(Command::Undo {}).unwrap();
     assert_eq!(state(&m, id, 0), AttachmentState::Checking);
     assert_eq!(inspects(&undo.effects), ["/home/me/q3.pdf"]);
@@ -259,7 +263,11 @@ fn a_restored_draft_has_its_attachments_checked_again() {
 
     // A check that comes with the draft is never trusted.
     let mut forged = m.engine.state().drafts[&id].clone();
-    m.run(Command::DiscardDraft { id }).unwrap();
+    m.run(Command::DiscardDraft {
+        id,
+        keep_server_copy: false,
+    })
+    .unwrap();
     forged.attachments[0].state = AttachmentState::Ready {
         size: 1,
         content_type: "text/plain".into(),
@@ -273,7 +281,11 @@ fn a_restored_draft_has_its_attachments_checked_again() {
     assert_eq!(inspects(&restored.effects), ["/home/me/q3.pdf"]);
 
     // Paths are held to the rules of `attach_file`.
-    m.run(Command::DiscardDraft { id }).unwrap();
+    m.run(Command::DiscardDraft {
+        id,
+        keep_server_copy: false,
+    })
+    .unwrap();
     forged.attachments[0].path = "relative.pdf".into();
     let err = m
         .run(Command::RestoreDraft {

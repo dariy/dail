@@ -362,7 +362,12 @@ fn discard_draft_is_undone_by_restoring_it_exactly() {
         .unwrap();
     let id = draft_id(&outcome.receipt.data);
     let before = draft(&m, id).clone();
-    let discard = m.run(Command::DiscardDraft { id }).unwrap();
+    let discard = m
+        .run(Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        })
+        .unwrap();
     assert_eq!(discard.receipt.data["discarded"], json!(id));
     assert!(matches!(
         &discard.effects[..],
@@ -375,7 +380,12 @@ fn discard_draft_is_undone_by_restoring_it_exactly() {
     m.run(Command::Redo {}).unwrap();
     assert!(m.engine.state().drafts.is_empty());
 
-    let err = m.run(Command::DiscardDraft { id }).unwrap_err();
+    let err = m
+        .run(Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        })
+        .unwrap_err();
     assert!(matches!(err, CoreError::NotFound { ref entity, .. } if entity == "draft"));
 }
 
@@ -417,7 +427,11 @@ fn restore_draft_rejects_message_ids_that_would_break_a_line() {
     let mut m = inbox();
     let id = create(&mut m, "Lunch?");
     let existing = draft(&m, id).clone();
-    m.run(Command::DiscardDraft { id }).unwrap();
+    m.run(Command::DiscardDraft {
+        id,
+        keep_server_copy: false,
+    })
+    .unwrap();
     for (field, bad) in [
         (
             "message_id_hdr",
@@ -477,7 +491,11 @@ fn replies_leave_out_message_ids_that_would_break_a_line() {
     assert_eq!(reply.references, ["ok@example.org"]);
     // The draft therefore always comes back after a discard.
     let id = reply.id;
-    m.run(Command::DiscardDraft { id }).unwrap();
+    m.run(Command::DiscardDraft {
+        id,
+        keep_server_copy: false,
+    })
+    .unwrap();
     m.run(Command::Undo {}).unwrap();
     assert!(m.engine.state().drafts.contains_key(&id));
 }

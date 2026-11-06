@@ -140,9 +140,9 @@ impl Engine {
                 .threads
                 .get(id)
                 .ok_or_else(|| not_found("thread", id))?;
-            // Starring or pinning a thread marks its newest message.
+            // Starring or pinning a thread marks its newest message that is not a draft.
             if matches!(change.flag, FlagKind::Flagged | FlagKind::Pinned) && change.value {
-                picked.extend(thread.messages.last());
+                picked.extend(self.state.newest_message(*id));
             } else {
                 picked.extend(&thread.messages);
             }

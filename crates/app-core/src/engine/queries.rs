@@ -251,6 +251,8 @@ impl Engine {
             "has_attachments": envelope.has_attachments,
             "body": body,
             "downloading": self.state.status.bodies_in_flight.contains(&envelope.id),
+            "is_draft": self.state.is_draft(envelope),
+            "draft": self.state.local_draft_of(envelope),
             "untrusted_content": {
                 "subject": envelope.subject,
                 "from": envelope.from,

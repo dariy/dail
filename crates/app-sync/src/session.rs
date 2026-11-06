@@ -479,6 +479,7 @@ fn lane(effect: &Effect) -> Lane {
         Effect::PersistState { .. }
         | Effect::ScheduleTick { .. }
         | Effect::InspectAttachment { .. }
+        | Effect::ReadDraft { .. }
         | Effect::SaveAttachments { .. }
         | Effect::CompactStore { .. }
         | Effect::SearchIndex { .. } => Lane::Local,

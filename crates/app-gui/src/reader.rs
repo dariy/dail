@@ -213,7 +213,8 @@ fn toolbar(
 ) -> Option<app_front::palette::Ask> {
     let ids = vec![tool.thread];
     let messages = tool.messages;
-    let last = messages.last().map(|m| m.id);
+    // The thread's answers skip drafts (MISC-44).
+    let last = tool.state.newest_message(tool.thread);
     let mut ask = None;
     ui::toolbar(ui, t, |ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));

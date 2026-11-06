@@ -94,7 +94,13 @@ fn leaving_a_field_or_acting_writes_back_first() {
         .action;
     let sent = phone.tap(discard);
     assert!(matches!(&sent[0], Command::UpdateDraft { body: Some(b), .. } if b == "Text"));
-    assert_eq!(sent[1], Command::DiscardDraft { id });
+    assert_eq!(
+        sent[1],
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false
+        }
+    );
     assert!(!phone.state().drafts.contains_key(&id));
 }
 

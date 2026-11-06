@@ -126,4 +126,16 @@ fn audit_records_hide_secrets_and_message_text() {
         "{:?}",
         reparsed.input
     );
+
+    // The text of a server draft read for `edit_draft` is message text too (MISC-44).
+    let read = ReplayRecord::new(
+        &ctx,
+        ReplayInput::Event(app_core::Event::DraftRead {
+            draft: app_core::DraftId::from_uuid(uuid::Uuid::from_u128(2)),
+            message: app_core::MessageId::from_uuid(uuid::Uuid::from_u128(1)),
+            body: "my private draft".into(),
+            bcc: Vec::new(),
+        }),
+    );
+    assert!(!read.redacted_line().contains("private"));
 }

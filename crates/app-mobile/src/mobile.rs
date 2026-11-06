@@ -1581,7 +1581,10 @@ impl Mobile {
             actions.push(self.button(
                 "delete",
                 i18n::s(Text::Discard),
-                Act::Run(Command::DiscardDraft { id: draft.id }),
+                Act::Run(Command::DiscardDraft {
+                    id: draft.id,
+                    keep_server_copy: false,
+                }),
             ));
         }
         Some(Composer {

@@ -104,8 +104,8 @@ impl ReplayRecord {
     }
 
     /// The record as an audit-log line (JSON, no newline): passwords are already `<redacted>`
-    /// (`Secret` never serializes its value), and the message text a command carries (`body`,
-    /// `body_text`) is replaced too. Replaying it rebuilds the same state except for that text.
+    /// (`Secret` never serializes its value), and the message text a command or event carries
+    /// (`body`, `body_text`) is replaced too. Replaying it rebuilds the same state except for that text.
     pub fn redacted_line(&self) -> String {
         // `serde_json::Value` can't hold a `u128` seed: redact the rest, then put it in front.
         let rest = Self {
@@ -115,6 +115,10 @@ impl ReplayRecord {
         // reason: a record is plain data; serializing it cannot fail.
         let mut value = serde_json::to_value(&rest).unwrap_or_default();
         if let Some(args) = value.pointer_mut("/input/command/args") {
+            redact_text(args);
+        }
+        // A server draft's text read for `edit_draft` (`draft_read`) is message text too.
+        if let Some(args) = value.pointer_mut("/input/event/args") {
             redact_text(args);
         }
         let body = value.to_string();

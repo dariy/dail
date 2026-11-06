@@ -857,6 +857,31 @@ impl LiveBackend {
                     error: err.to_string(),
                 },
             }]),
+            Effect::ReadDraft {
+                draft,
+                message,
+                blob,
+            } => Ok(vec![match self.get_blob(&blob).await {
+                Ok(Some(raw)) => {
+                    let (body, bcc) = app_io::mime::draft_text(&raw);
+                    Event::DraftRead {
+                        draft,
+                        message,
+                        body,
+                        bcc,
+                    }
+                }
+                Ok(None) => Event::DraftReadFailed {
+                    draft,
+                    message,
+                    error: "the message is not in the local store any more".to_owned(),
+                },
+                Err(err) => Event::DraftReadFailed {
+                    draft,
+                    message,
+                    error: err.to_string(),
+                },
+            }]),
             Effect::InspectAttachment { draft, path } => {
                 Ok(vec![match inspect_file(&path).await {
                     Ok(size) => Event::AttachmentInspected {

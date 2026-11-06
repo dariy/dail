@@ -205,6 +205,7 @@ pub(super) fn draft(n: u128, created_ms: i64) -> Draft {
         send_at: None,
         sending: false,
         send_error: None,
+        loading_from: None,
         from: None,
     }
 }

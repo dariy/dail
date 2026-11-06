@@ -83,6 +83,7 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::Forward => "Transférer",
         CommandName::UpdateDraft => "Modifier le brouillon",
         CommandName::DiscardDraft => "Abandonner le brouillon",
+        CommandName::EditDraft => "Modifier un brouillon de la conversation",
         CommandName::RestoreDraft => "Restaurer le brouillon",
         CommandName::AttachFile => "Joindre un fichier",
         CommandName::RemoveAttachment => "Supprimer la pièce jointe",
@@ -256,6 +257,9 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         CommandName::Forward => "Commencer le transfert d’un message.",
         CommandName::UpdateDraft => "Modifier les champs d’un brouillon.",
         CommandName::DiscardDraft => "Supprimer un brouillon.",
+        CommandName::EditDraft => {
+            "Modifier un brouillon affiché dans une conversation, même écrit sur un autre appareil."
+        }
         CommandName::AttachFile => "Joindre un fichier local à un brouillon.",
         CommandName::RemoveAttachment => {
             "Retirer une pièce jointe d’un brouillon (le fichier n’est pas touché)."

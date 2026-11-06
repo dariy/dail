@@ -56,6 +56,39 @@ pub struct AppState {
     pub revision: Revision,
 }
 
+impl AppState {
+    /// Whether a cached message is an unsent draft: flagged `\Draft`, or held in its account's
+    /// Drafts mailbox (MISC-44).
+    pub fn is_draft(&self, envelope: &Envelope) -> bool {
+        envelope.flags.draft
+            || self
+                .mailboxes
+                .get(&envelope.location())
+                .is_some_and(|m| m.role == Some(crate::mailbox::MailboxRole::Drafts))
+    }
+
+    /// The local draft that is saved as `envelope` (same account and `Message-ID`), if any.
+    pub fn local_draft_of(&self, envelope: &Envelope) -> Option<DraftId> {
+        let header = envelope.message_id_hdr.as_deref()?;
+        self.drafts
+            .values()
+            .find(|d| d.account == envelope.account && d.message_id_hdr == header)
+            .map(|d| d.id)
+    }
+
+    /// The newest message of a thread that is not a draft (the newest message if every one is),
+    /// the one a thread's Reply answers and a thread's Star marks (MISC-44).
+    pub fn newest_message(&self, thread: ThreadId) -> Option<MessageId> {
+        let messages = &self.threads.get(&thread)?.messages;
+        messages
+            .iter()
+            .rev()
+            .find(|id| self.messages.get(*id).is_some_and(|m| !self.is_draft(m)))
+            .or_else(|| messages.last())
+            .copied()
+    }
+}
+
 /// The number of inputs the engine had applied when a state was taken (see
 /// [`AppState::revision`]). Two revisions always compare equal, so that states compare by
 /// their contents.

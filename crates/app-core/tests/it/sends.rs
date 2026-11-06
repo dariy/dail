@@ -116,7 +116,14 @@ fn send_draft_schedules_the_send_after_the_undo_window() {
         "cancel_send first",
     );
     not_sendable(
-        dispatch(&mut m, Command::DiscardDraft { id }, T0 + 2_000),
+        dispatch(
+            &mut m,
+            Command::DiscardDraft {
+                id,
+                keep_server_copy: false,
+            },
+            T0 + 2_000,
+        ),
         "cancel_send first",
     );
     not_sendable(

@@ -327,6 +327,8 @@ impl Engine {
             | Event::FolderFailed { .. }
             | Event::AttachmentInspected { .. }
             | Event::AttachmentFailed { .. }
+            | Event::DraftRead { .. }
+            | Event::DraftReadFailed { .. }
             | Event::AttachmentsSaved { .. }
             | Event::MailboxWatched { .. }
             | Event::OlderFetched { .. }
