@@ -531,10 +531,43 @@ pub struct SyncedState {
     /// A push is in flight.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub pushing: bool,
+    /// The document has local changes (`save_rule`, `delete_rule`, `enable_rule`) that no push
+    /// has taken yet. A push clears it when it starts; a failed push sets it again.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub dirty: bool,
     /// The last failed pull or push, or the reason a server copy was ignored (too large,
     /// malformed or invalid), until a pull or push succeeds.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<SyncIssue>,
+}
+
+/// The part of [`SyncedState`] kept across restarts in the profile (`state.redb`, table
+/// `synced`): the merged document and whether it has local changes no push has taken. A profile
+/// without the row starts with an empty document.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct LocalSettings {
+    /// The merged document.
+    pub settings: SyncedSettings,
+    /// Local changes no push has taken yet.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub dirty: bool,
+}
+
+impl LocalSettings {
+    /// What `state` keeps of the synced settings.
+    pub fn of(state: &SyncedState) -> Self {
+        Self {
+            settings: state.settings.clone(),
+            dirty: state.dirty,
+        }
+    }
+
+    /// Restores the document and the flag into `state`.
+    pub fn apply_to(&self, state: &mut crate::state::AppState) {
+        state.synced.settings = self.settings.clone();
+        state.synced.dirty = self.dirty;
+    }
 }
 
 impl SyncedState {

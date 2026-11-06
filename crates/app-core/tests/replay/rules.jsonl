@@ -1,0 +1,21 @@
+# Sorting rules (SET-4). An agent saves a rule (line 8: rule ..0008-..0); new INBOX mail from
+# news@ is marked read and moved to Reading with origin `rule`; undo puts it back; apply_rules
+# sorts again in one undo step. Account: line 5. Mailboxes: line 6 (INBOX ..0006-..0,
+# Archive ..0006-..1, Reading ..0006-..2).
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}, {"path": "Reading", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000000", "uid_validity": 3, "uid_next": 1, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000003000, "origin": "mcp", "input": {"command": {"cmd": "save_rule", "args": {"rule": {"name": "Newsletters to Reading", "when": {"test": "any", "of": [{"test": "list_id", "contains": "NEWS.example.org"}, {"test": "from", "contains": "news@"}]}, "then": [{"action": "mark_read"}, {"action": "move", "to": "Reading"}, {"action": "add_label", "label": "Later"}]}}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "list_rules", "args": {}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000002", "uid_validity": 4, "uid_next": 1, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000006000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0005-0000-000000000000", "mailbox": "00000000-0000-0006-0000-000000000000", "uid_validity": 3, "uid_next": 3, "total": 2, "unread": 2, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "from": [{"email": "friend@example.org"}], "subject": "Lunch", "date_ms": 1699000000000, "size": 120, "list_id": "<news.example.org>"}, {"uid": 2, "message_id_hdr": "two@x", "from": [{"email": "bob@example.org"}], "subject": "Plans", "date_ms": 1699000001000, "size": 120}]}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000008000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000009000, "origin": "mcp", "input": {"command": {"cmd": "enable_rule", "args": {"id": "00000000-0000-0008-0000-000000000000", "enabled": false}}}}
+{"t": 1700000010000, "origin": "mcp", "input": {"command": {"cmd": "apply_rules", "args": {"mailbox": "00000000-0000-0006-0000-000000000000"}}}}
+{"t": 1700000011000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000012000, "origin": "mcp", "input": {"command": {"cmd": "apply_rules", "args": {"mailbox": "00000000-0000-0006-0000-000000000000"}}}}
+{"t": 1700000013000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000014000, "origin": "cli", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000015000, "origin": "mcp", "input": {"command": {"cmd": "delete_rule", "args": {"id": "00000000-0000-0008-0000-000000000000"}}}}
+{"t": 1700000016000, "origin": "cli", "input": {"command": {"cmd": "undo", "args": {}}}}

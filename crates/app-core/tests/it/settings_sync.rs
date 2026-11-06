@@ -263,7 +263,7 @@ fn push_writes_the_merged_document_and_reads_it_back() {
     let out = m.feed(Event::SettingsWritten { account });
     assert!(!m.engine.state().synced.pushing);
     assert!(m.engine.state().synced.pushed_ms.is_some());
-    assert_eq!(names(&out.effects), ["read_settings_blob"]);
+    assert_eq!(names(&out.effects), ["persist_state", "read_settings_blob"]);
 }
 
 #[test]

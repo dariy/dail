@@ -1067,6 +1067,9 @@ pub enum PersistDelta {
     Mail(MailDelta),
     /// The saved view preferences (`[view]` in `config.toml`, UX-1).
     View(ViewPrefs),
+    /// The synced settings document as this device knows it, with its unpushed-changes flag
+    /// (the `synced` table of `state.redb`, SET-4).
+    Synced(crate::synced::LocalSettings),
 }
 
 /// Upserts and removals in the local mail cache. Removals are applied before upserts.
@@ -1181,6 +1184,7 @@ impl PersistDelta {
             }
             Self::Mail(delta) => delta.apply_to(state),
             Self::View(prefs) => state.view.apply_prefs(prefs),
+            Self::Synced(local) => local.apply_to(state),
         }
     }
 }

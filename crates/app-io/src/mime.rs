@@ -36,6 +36,8 @@ pub struct HeaderSummary {
     pub date_ms: i64,
     /// `multipart/mixed` or a single non-text part: probably has attachments.
     pub has_attachments: bool,
+    /// `List-Id`, trimmed, if present.
+    pub list_id: Option<String>,
 }
 
 /// Parses a header block (or a whole message; the body is ignored).
@@ -64,6 +66,10 @@ pub fn summarize_headers(raw: &[u8]) -> HeaderSummary {
             .date()
             .map_or(0, |date| date.to_timestamp().saturating_mul(1000)),
         has_attachments,
+        list_id: message
+            .header_raw("List-Id")
+            .map(|raw| raw.trim().to_owned())
+            .filter(|id| !id.is_empty()),
     }
 }
 
@@ -88,6 +94,7 @@ pub fn remote_envelope<'a>(
         flags: parse_flags(flags),
         size,
         has_attachments: summary.has_attachments,
+        list_id: summary.list_id,
     }
 }
 

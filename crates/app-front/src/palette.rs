@@ -13,7 +13,7 @@ use std::fmt;
 
 use app_core::{
     AccountId, AppState, ApprovalId, Category, Command, CommandName, DraftId, MailboxId, MessageId,
-    OpId, Pane, SettingKey, ThreadId, ThreadSummary, listing,
+    OpId, Pane, RuleId, SettingKey, ThreadId, ThreadSummary, listing,
 };
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
@@ -56,6 +56,8 @@ pub enum Choice {
     Language(u64),
     /// A position in a list (e.g. an attachment).
     Index(u32),
+    /// A sorting rule.
+    Rule(RuleId),
     /// Typed text.
     Text(String),
     /// Confirmation of a destructive step.
@@ -88,6 +90,8 @@ pub enum AskKind {
     Panes,
     /// A draft's attachments.
     Attachments(DraftId),
+    /// The sorting rules.
+    Rules,
     /// Free text; the hint is shown in the input.
     Text(String),
     /// Yes / no.
@@ -611,6 +615,53 @@ fn text(
     )
 }
 
+/// A rule made in the palette: mail whose sender contains `sender` moves to `to`.
+fn sender_rule(sender: String, to: String) -> app_core::Rule {
+    app_core::Rule {
+        name: crate::i18n::f(Key::RuleFromTo, &[("sender", &sender), ("to", &to)]),
+        enabled: true,
+        when: app_core::Condition::From { contains: sender },
+        then: vec![app_core::RuleAction::Move { to }],
+    }
+}
+
+fn pick_rule(
+    prompt: &str,
+    make: impl Fn(&AppState, RuleId) -> Command + Send + Sync + 'static,
+) -> Flow {
+    ask(prompt, AskKind::Rules, move |state, choice| match choice {
+        Choice::Rule(id) => Flow::Run(make(state, id)),
+        _ => Flow::Hidden,
+    })
+}
+
+/// The palette's `save_rule`: the sender text, then the target folder.
+fn save_rule() -> Flow {
+    ask(
+        crate::i18n::s(Key::RuleSenderContains),
+        AskKind::Text(crate::i18n::s(Key::RuleSenderHint).into()),
+        |_, choice| match choice {
+            Choice::Text(text) if !text.trim().is_empty() => {
+                let sender = text.trim().to_owned();
+                ask(
+                    crate::i18n::s(Key::RuleMoveToWhichFolder),
+                    AskKind::Mailboxes(None),
+                    move |state, choice| match choice {
+                        Choice::Mailbox(id) => state.mailboxes.get(&id).map_or(Flow::Hidden, |m| {
+                            Flow::Run(Command::SaveRule {
+                                id: None,
+                                rule: sender_rule(sender.clone(), m.path.clone()),
+                            })
+                        }),
+                        _ => Flow::Hidden,
+                    },
+                )
+            }
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 /// How the palette builds `name` in `state`.
 pub fn flow(name: CommandName, state: &AppState) -> Flow {
     match name {
@@ -709,6 +760,32 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 _ => Flow::Hidden,
             },
         ),
+        CommandName::ListRules => Flow::Run(Command::ListRules {}),
+        CommandName::SaveRule => save_rule(),
+        CommandName::DeleteRule => pick_rule(crate::i18n::s(Key::DeleteWhichRule), |_, id| {
+            Command::DeleteRule { id }
+        }),
+        CommandName::EnableRule => pick_rule(crate::i18n::s(Key::ToggleWhichRule), |state, id| {
+            let enabled = state
+                .synced
+                .settings
+                .rules
+                .get(&id)
+                .and_then(|entry| entry.rule.as_ref())
+                .is_some_and(|rule| rule.enabled);
+            Command::EnableRule {
+                id,
+                enabled: !enabled,
+            }
+        }),
+        CommandName::ApplyRules => match state.view.mailbox.filter(|_| !state.view.unified) {
+            Some(mailbox) => Flow::Run(Command::ApplyRules { mailbox }),
+            None => pick_mailbox(
+                crate::i18n::s(Key::ApplyRulesWhichMailbox),
+                None,
+                |mailbox| Command::ApplyRules { mailbox },
+            ),
+        },
         CommandName::ListMailboxes => Flow::Run(Command::ListMailboxes { account: None }),
         CommandName::ListThreads => {
             pick_mailbox(crate::i18n::s(Key::WhichMailbox), None, |mailbox| {
@@ -1581,6 +1658,23 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
             .iter()
             .filter(|pane| **pane == Pane::Sidebar || state.view.can_focus(**pane))
             .map(|pane| row(Choice::Pane(*pane), pane.as_str().to_owned(), String::new()))
+            .collect(),
+        AskKind::Rules => state
+            .synced
+            .settings
+            .live_rules()
+            .map(|(id, rule)| {
+                row(
+                    Choice::Rule(id),
+                    rule.name.clone(),
+                    crate::i18n::s(if rule.enabled {
+                        Key::RuleOn
+                    } else {
+                        Key::RuleOff
+                    })
+                    .to_owned(),
+                )
+            })
             .collect(),
         AskKind::Attachments(draft) => state
             .drafts

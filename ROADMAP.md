@@ -1008,7 +1008,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
   surface in state with ERR codes
 
 ### B — Rules
-- [ ] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
+- [x] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
   `EnvelopesFetched`; `save_rule`, `delete_rule`, `enable_rule`, `apply_rules { mailbox }`; undo and replay fixtures
 - [ ] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
   message* in the palette

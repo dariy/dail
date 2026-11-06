@@ -118,8 +118,8 @@ impl Config {
             }
             PersistDelta::AccountRemoved(id) => self.accounts.retain(|a| a.id != *id),
             PersistDelta::View(prefs) => self.view = prefs.clone(),
-            // The mail cache lives in `state.redb`, not in the config file.
-            PersistDelta::Mail(_) => {}
+            // The mail cache and the synced settings live in `state.redb`, not in the config file.
+            PersistDelta::Mail(_) | PersistDelta::Synced(_) => {}
         }
     }
 
@@ -242,7 +242,7 @@ impl Store for ConfigStore {
     }
 
     fn apply(&self, delta: &PersistDelta) -> Result<(), IoError> {
-        if matches!(delta, PersistDelta::Mail(_)) {
+        if matches!(delta, PersistDelta::Mail(_) | PersistDelta::Synced(_)) {
             return Ok(());
         }
         let mut guard = self.config.lock();

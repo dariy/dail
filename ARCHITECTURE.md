@@ -222,7 +222,7 @@ pub struct SyncStatus { pending: u32 /* sync effects in flight */, last_sync_ms:
 //               saves: Vec<AttachmentSave { message, dir, state: saving|saved{files}|failed{files, error}, updated_ms }> }
 pub enum  MailboxRole { Inbox, Sent, Drafts, Trash, Archive, Junk, All, Flagged }
 pub struct ApprovalRequest { id, draft: DraftId, account, origin: Origin, requested_ms }  // an agent's send, §4.6
-pub enum  Origin { Gui, Tui /* dail tui, ADR 0004 */, Cli, Batch, Mcp, McpAllowSend /* dail mcp --allow-send */, Runtime }
+pub enum  Origin { Gui, Tui /* dail tui, ADR 0004 */, Cli, Batch, Mcp, McpAllowSend /* dail mcp --allow-send */, Runtime, Rule /* sorting rules, ADR 0015 */ }
 pub struct RemoteEnvelope { uid, message_id_hdr, in_reply_to, references, from, to, cc, subject, date_ms, flags, size,
                       has_attachments }  // as fetched; into_envelope() adds id/account/mailbox/thread
 pub struct Envelope { id, account, mailbox, uid: u32, message_id_hdr: Option<String>, in_reply_to, references,
@@ -322,7 +322,7 @@ go to the larger canonical JSON, so merging is commutative, associative and idem
 (`ERR022`: 500 rules, 16 actions, conditions 8 deep, texts of 512 characters); unknown fields are ignored. The golden
 documents are under `crates/app-io/testdata/golden/settings/` and are never edited.
 
-`AppState.synced` (`SyncedState`, not persisted: the first pull of a session fills it) holds the merged document, the
+`AppState.synced` (`SyncedState`; its document and `dirty` flag are persisted as `LocalSettings` in the `synced` table of `state.redb` through `PersistDelta::Synced`, so unpushed edits survive a restart and the first pull merges into them; an older profile without the table starts empty) holds the merged document, the
 account the last pull read from (`source`), the server copy read last (`copy: {uid_validity, uid}`), `pulled_ms`,
 `pushed_ms`, `pulling`/`pushing` and `error` (a `SyncIssue`). The settings account is chosen per profile with
 `set_settings_account` (user only, undoable), stored as the optional `Settings.settings_account` in `config.toml` (absent:
@@ -345,6 +345,26 @@ finished pull, so a newer server copy is never overwritten unread; `WriteSetting
 `ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
 (`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
 (GUI: *General → Settings on the server*; TUI: two rows of the general section).
+
+Sorting rules run in the engine (SET-4). `app_core::rules` is the pure evaluator: text tests are case-insensitive
+substring tests (Unicode lower case) over the envelope (`from`/`to`/`cc` match an address's name or email; `list_id` is
+the `List-Id` header, which the envelope fetch now asks for and `Envelope.list_id` keeps; a missing header matches
+nothing), `mailbox{path}` compares the full path exactly, `all []` holds and `any []` does not. Header and rule text are
+compared, never interpreted. Rules run in `RuleId` order; flags add up and a message gets at most one place (the first
+`move` or `archive`). On fetch a rule with no `mailbox` test anywhere in its condition applies to Inbox mail only; one
+with a `mailbox` test applies wherever it holds. `engine/rules.rs` turns the plans into `mark_read`, `star`,
+`move_threads` (target found by path in the message's account) and `archive_threads` over `messages`, leaving out what is
+done already (read, starred, in the target, in an Archive or All Mail folder), so actions are state-based and two devices
+converge. `add_label` and a `move` to an unknown path are reported in the receipt's `skipped` and not run (no copy command
+yet). The commands run with `Origin::Rule`, which `check_origin` limits to those four, so a rule can never send, forward,
+reply or touch accounts; no front end can claim it (IPC, MCP). `EnvelopesFetched` runs the enabled rules on the messages
+the fetch *added* (not located placeholders, and nothing on a first fetch or a UIDVALIDITY reset), each resulting command
+its own undo step labelled `Rule: …` (pushed onto the undo stack without clearing redo, so a background fetch never takes the user's redo away), and reports `rules{matched, commands, skipped, errors}` in its receipt. A message a
+rule moved reaches its target as that move's placeholder, which the target's fetch locates, so it is never sorted twice
+and two rules cannot move mail back and forth. `apply_rules{mailbox}` runs every enabled rule (no Inbox scope) over the
+messages shown in a mailbox as one undo step; redo plans again over the restored state, which gives the same commands.
+`save_rule`, `delete_rule` (tombstone) and `enable_rule` stamp the entry with `max(now, previous + 1)` and set
+`synced.dirty` (cleared when a push starts, set again when it fails); pushing stays explicit and user only.
 
 ### 4.3 Command / Event / Effect
 
@@ -846,10 +866,10 @@ steps + final state with `insta` and checks that replaying twice is identical.
   never replaced (the user edits it): opening fails with the parse error and `dail doctor` names the backups.
 - `Store` trait: `load_snapshot`, `apply(PersistDelta)` (deltas a store does not hold are ignored), `put_blob(bytes) → id`,
   `get_blob(id)`. Implementations: `ConfigStore` (settings + accounts in `config.toml`; no blobs), `ProfileStore` (production:
-  routes `Mail` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
+  routes `Mail` and `Synced` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
   (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
@@ -859,7 +879,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
   `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
-  undo history; `ConfigStore` writes it, `RedbStore` never sees it) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,
@@ -1866,6 +1886,11 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
 | `pull_settings` | Mutation (no history) | `account?` (none: the settings account, `set_settings_account`, else the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
 | `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
+| `list_rules` | Query | — → `{rules: [{id, enabled, updated_ms, untrusted_content: {name, when, then}}], dirty}`; agents allowed | SET-4 |
+| `save_rule` | Mutation | `id?`, `rule` → `{id, created, changed}`; no `id`: a new ID from `id_seed` (a tombstone's may be reused); unknown `id` `ERR004`; a rule past the limits `ERR002` on its field (`rule.name`, `rule.then`, `rule.when`); stamps the entry and sets `synced.dirty`; undo deletes a new rule or restores the old one; agents allowed (ADR 0015) | SET-4 |
+| `delete_rule` | Mutation | `id` → `{id}`; unknown or deleted `ERR004`; leaves a tombstone; undo saves it again; agents allowed | SET-4 |
+| `enable_rule` | Mutation | `id`, `enabled` → `{id, enabled, changed}`; unknown `ERR004`; undo sets it back; agents allowed | SET-4 |
+| `apply_rules` | Mutation | `mailbox` → `{mailbox, matched, commands, skipped}`; unknown mailbox `ERR004`; runs the enabled rules over the messages shown there as `Origin::Rule` commands, one undo step; agents allowed | SET-4 |
 | `set_settings_account` | Mutation (user only, ADR 0015) | `account` → `{account}`; unknown account `ERR004`; stores `settings.settings_account` (`PersistState{Settings}`); another account than the current one resets the synced copy state and emits `ReadSettingsBlob`; undo restores the previous account | SET-3 |
 | `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |

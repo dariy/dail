@@ -89,6 +89,21 @@ pub(crate) fn rich_state() -> AppState {
     );
     dispatch(&mut engine, 508, Command::OpenComposer { id: open });
     dispatch(&mut engine, 509, Command::FocusPane { pane: Pane::List });
+    dispatch(
+        &mut engine,
+        512,
+        Command::SaveRule {
+            id: None,
+            rule: app_core::Rule {
+                name: "News".into(),
+                enabled: true,
+                when: app_core::Condition::From {
+                    contains: "news@".into(),
+                },
+                then: vec![app_core::RuleAction::Star],
+            },
+        },
+    );
     engine.state().clone()
 }
 

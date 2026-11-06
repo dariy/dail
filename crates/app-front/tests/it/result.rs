@@ -47,6 +47,7 @@ fn queries(state: &AppState) -> Vec<(CommandName, Value)> {
         json!({"cmd": "list_approvals", "args": {}}),
         json!({"cmd": "get_settings", "args": {}}),
         json!({"cmd": "get_view", "args": {}}),
+        json!({"cmd": "list_rules", "args": {}}),
         json!({"cmd": "test_account", "args": {"id": account}}),
         json!({"cmd": "discover_servers", "args": {"email": "me@example.org"}}),
     ];

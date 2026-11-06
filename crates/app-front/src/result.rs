@@ -122,7 +122,7 @@ fn view_of(name: CommandName) -> Option<View> {
         CommandName::ListContacts => View::Contacts,
         CommandName::ListPendingOps => View::PendingOps,
         CommandName::ListApprovals => View::Approvals,
-        CommandName::GetSettings | CommandName::GetView => View::Fields,
+        CommandName::GetSettings | CommandName::GetView | CommandName::ListRules => View::Fields,
         CommandName::TestAccount => View::TestAccount,
         CommandName::DiscoverServers => View::Discovery,
         // reason: the kind check above leaves only queries; a new one lands here and the test

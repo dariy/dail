@@ -488,17 +488,17 @@ impl Engine {
         fetched: FetchedEnvelopes,
         ctx: &Ctx,
         receipt: CommandReceipt,
-    ) -> Outcome {
+    ) -> (Outcome, Vec<MessageId>) {
         self.end_sync_effect(fetched.account, ctx.now_ms);
         self.state.status.fetching.remove(&fetched.mailbox);
         if let Some(status) = self.state.status.sync.get_mut(&fetched.account) {
             status.failures = 0;
         }
         let Some(mut mailbox) = self.state.mailboxes.get(&fetched.mailbox).cloned() else {
-            return Outcome::new(receipt);
+            return (Outcome::new(receipt), Vec::new());
         };
         if mailbox.account != fetched.account {
-            return Outcome::new(receipt);
+            return (Outcome::new(receipt), Vec::new());
         }
         let account = fetched.account;
         let mut changes = CacheChanges::default();
@@ -543,14 +543,23 @@ impl Engine {
         let mut located = 0_usize;
         let mut max_uid: Option<u32> = None;
         let mut min_uid: Option<u32> = None;
+        // New mail for the sorting rules: not on a first fetch or a UIDVALIDITY reset, which
+        // add the whole mailbox (SET-4).
+        let sortable = mailbox.uid_validity.is_some() && !reset;
+        let mut new_mail: Vec<MessageId> = Vec::new();
         for remote in fetched.envelopes {
             max_uid = max_uid.max(Some(remote.uid));
             min_uid = Some(min_uid.map_or(remote.uid, |min| min.min(remote.uid)));
-            match self.merge_remote(remote, &mut target, ctx, &mut changes).1 {
-                Merged::Known { updated: true } => updated += 1,
-                Merged::Known { updated: false } => {}
-                Merged::Located => located += 1,
-                Merged::Added => added += 1,
+            match self.merge_remote(remote, &mut target, ctx, &mut changes) {
+                (_, Merged::Known { updated: true }) => updated += 1,
+                (_, Merged::Known { updated: false }) => {}
+                (_, Merged::Located) => located += 1,
+                (id, Merged::Added) => {
+                    added += 1;
+                    if sortable {
+                        new_mail.push(id);
+                    }
+                }
             }
         }
         self.keep_threader(account, std::mem::take(&mut target.threader));
@@ -631,7 +640,7 @@ impl Engine {
             outcome = outcome.with_effect(older);
         }
         outcome.effects.extend(op_effects);
-        outcome
+        (outcome, new_mail)
     }
 
     /// Merges one fetched envelope into `target.mailbox`: a known UID gets its flags updated, a

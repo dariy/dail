@@ -46,6 +46,7 @@ fn a_frame_with_100k_messages() {
             flags: Flags::default(),
             size: 1000,
             has_attachments: false,
+            list_id: None,
         })
         .collect();
     ingest(

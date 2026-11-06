@@ -2234,4 +2234,31 @@ strings! {
     SettingsSyncState:
         "Settings sync",
         "Synchronisation des paramètres";
+    RuleSenderContains:
+        "Sort mail whose sender contains…",
+        "Trier le courrier dont l’expéditeur contient…";
+    RuleSenderHint:
+        "e.g. newsletter@example.org",
+        "par ex. newsletter@example.org";
+    RuleMoveToWhichFolder:
+        "Move it to which folder?",
+        "Le déplacer dans quel dossier ?";
+    RuleFromTo:
+        "From {sender} to {to}",
+        "De {sender} vers {to}";
+    DeleteWhichRule:
+        "Delete which rule?",
+        "Supprimer quelle règle ?";
+    ToggleWhichRule:
+        "Turn which rule on or off?",
+        "Activer ou désactiver quelle règle ?";
+    ApplyRulesWhichMailbox:
+        "Run the rules on which mailbox?",
+        "Appliquer les règles à quel dossier ?";
+    RuleOn:
+        "on",
+        "active";
+    RuleOff:
+        "off",
+        "inactive";
 }

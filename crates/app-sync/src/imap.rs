@@ -249,7 +249,7 @@ fn special_use(attribute: &NameAttribute<'_>) -> Option<MailboxRole> {
 
 /// Header fields fetched for envelopes.
 const ENVELOPE_QUERY: &str = "(UID FLAGS RFC822.SIZE BODY.PEEK[HEADER.FIELDS (MESSAGE-ID \
-                              IN-REPLY-TO REFERENCES FROM TO CC SUBJECT DATE CONTENT-TYPE)])";
+                              IN-REPLY-TO REFERENCES FROM TO CC SUBJECT DATE CONTENT-TYPE LIST-ID)])";
 
 /// What `fetch_envelopes` found in a mailbox.
 #[derive(Debug, Clone, PartialEq, Eq)]

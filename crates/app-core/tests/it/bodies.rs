@@ -35,6 +35,7 @@ fn remote(uid: u32, seen: bool) -> RemoteEnvelope {
         },
         size: 1,
         has_attachments: false,
+        list_id: None,
     }
 }
 

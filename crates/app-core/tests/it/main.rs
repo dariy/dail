@@ -36,6 +36,7 @@ mod pins;
 mod preview;
 mod registry;
 mod replay;
+mod rules;
 mod saves;
 mod scale;
 mod search;

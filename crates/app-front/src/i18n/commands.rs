@@ -36,6 +36,11 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::PullSettings => "Récupérer les paramètres du serveur",
         CommandName::PushSettings => "Envoyer les paramètres au serveur",
         CommandName::SetSettingsAccount => "Choisir le compte des paramètres",
+        CommandName::ListRules => "Lister les règles de tri",
+        CommandName::SaveRule => "Créer une règle de tri",
+        CommandName::DeleteRule => "Supprimer une règle de tri",
+        CommandName::EnableRule => "Activer ou désactiver une règle de tri",
+        CommandName::ApplyRules => "Appliquer les règles de tri à un dossier",
         CommandName::ListMailboxes => "Lister les dossiers",
         CommandName::SetSyncWindow => "Régler le courrier gardé hors ligne",
         CommandName::ListThreads => "Lister les discussions",
@@ -166,6 +171,15 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         }
         CommandName::SetSettingsAccount => {
             "Choisir le compte dont le serveur garde les paramètres partagés entre appareils."
+        }
+        CommandName::ListRules => "Lister les règles qui trient le nouveau courrier.",
+        CommandName::SaveRule => {
+            "Créer ou remplacer une règle qui trie le nouveau courrier ; elle ne peut ni transférer ni répondre."
+        }
+        CommandName::DeleteRule => "Supprimer une règle de tri, sur tous les appareils.",
+        CommandName::EnableRule => "Activer ou désactiver une règle de tri sans la supprimer.",
+        CommandName::ApplyRules => {
+            "Appliquer maintenant les règles de tri au courrier en cache d’un dossier."
         }
         CommandName::SyncNow => {
             "Synchroniser maintenant : lister les dossiers et récupérer le nouveau courrier."

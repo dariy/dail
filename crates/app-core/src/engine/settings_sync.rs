@@ -12,7 +12,8 @@ use crate::ids::AccountId;
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::SyncIssue;
 use crate::synced::{
-    SettingsCopy, SettingsError, SyncedSettings, SyncedState, has_error_code, settings_folder,
+    LocalSettings, SettingsCopy, SettingsError, SyncedSettings, SyncedState, has_error_code,
+    settings_folder,
 };
 
 use super::{Applied, Engine, invalid, not_found};
@@ -63,6 +64,13 @@ impl Engine {
             )
         });
         Ok(Applied { outcome, undo })
+    }
+
+    /// `PersistState` of the synced document and its `dirty` flag (SET-4).
+    pub(super) fn persist_synced(&self) -> Effect {
+        Effect::PersistState {
+            delta: PersistDelta::Synced(LocalSettings::of(&self.state.synced)),
+        }
     }
 
     /// Forgets what was read from or written to the settings account (not the merged
@@ -166,6 +174,8 @@ impl Engine {
             .map_err(|err| invalid("settings", format!("not UTF-8: {err}")))?;
         self.state.synced.settings = doc;
         self.state.synced.pushing = true;
+        // The push takes every local change so far; one made meanwhile sets it again.
+        self.state.synced.dirty = false;
         let path = self.settings_path(account);
         let receipt = receipt
             .affecting(EntityRef::Account(account))
@@ -175,6 +185,7 @@ impl Engine {
                 "path": path,
                 "bytes": document.len(),
             }));
+        // Persisted when the push ends: a restart while it runs keeps the edits unpushed.
         Ok(
             Outcome::new(receipt).with_effect(Effect::WriteSettingsBlob {
                 account,
@@ -216,6 +227,8 @@ impl Engine {
                     let mut merged = synced.settings.merge(&remote);
                     merged.prune(ctx.now_ms);
                     synced.settings = merged;
+                    let persist = self.persist_synced();
+                    return Outcome::new(receipt).with_effect(persist);
                 }
                 Err(err) => {
                     synced.error = Some(SyncIssue {
@@ -244,6 +257,8 @@ impl Engine {
                 .affecting(EntityRef::Account(account))
                 .affecting(EntityRef::Settings),
         );
+        // The pushed edits are on the server now (`dirty` stays set for one made meanwhile).
+        outcome.effects.push(self.persist_synced());
         if self.state.accounts.contains_key(&account) {
             outcome.effects.extend(self.start_settings_pull(account));
         }
@@ -270,6 +285,8 @@ impl Engine {
         let synced = &mut self.state.synced;
         if write {
             synced.pushing = false;
+            // The changes the push took did not reach the server.
+            synced.dirty = true;
         } else {
             synced.pulling = false;
             synced.pulling_from = None;
@@ -286,11 +303,16 @@ impl Engine {
             mailbox: None,
             at_ms: ctx.now_ms,
         });
-        Outcome::new(
+        let outcome = Outcome::new(
             receipt
                 .affecting(EntityRef::Account(account))
                 .affecting(EntityRef::Settings),
-        )
+        );
+        if write {
+            outcome.with_effect(self.persist_synced())
+        } else {
+            outcome
+        }
     }
 
     /// After the settings account's folders were listed (on connect and every full round):

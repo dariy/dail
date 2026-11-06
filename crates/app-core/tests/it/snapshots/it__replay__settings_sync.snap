@@ -310,7 +310,28 @@ expression: first
       "line": 5,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "settings": {
+                      "prefs": {
+                        "list_density": {
+                          "updated_ms": 50,
+                          "value": 2
+                        }
+                      },
+                      "schema": 1,
+                      "updated_ms": 50
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -470,6 +491,26 @@ expression: first
       "result": {
         "ok": {
           "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "settings": {
+                      "prefs": {
+                        "list_density": {
+                          "updated_ms": 50,
+                          "value": 2
+                        }
+                      },
+                      "schema": 1,
+                      "updated_ms": 50
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
             {
               "args": {
                 "account": "00000000-0000-0001-0000-000000000000",

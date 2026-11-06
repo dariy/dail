@@ -23,6 +23,7 @@ pub mod ops;
 pub mod receipt;
 pub mod registry;
 pub mod replay;
+pub mod rules;
 pub mod search;
 pub mod state;
 pub mod synced;
@@ -56,6 +57,7 @@ pub use ops::{CopyRef, FlagKind, OpState, PendingOp, RemoteOp, RemoteStep};
 pub use receipt::{CommandReceipt, EntityRef, Outcome};
 pub use registry::{AgentAccess, Category, CommandName, CommandSpec};
 pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
+pub use rules::{Placement, RulePlan, Scope};
 pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
@@ -63,8 +65,9 @@ pub use state::{
     SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
 };
 pub use synced::{
-    Condition, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA, SettingsCopy,
-    SettingsError, Stamped, SyncedSettings, SyncedState, SyncedTheme, settings_folder,
+    Condition, LocalSettings, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA,
+    SettingsCopy, SettingsError, Stamped, SyncedSettings, SyncedState, SyncedTheme,
+    settings_folder,
 };
 pub use update::{
     InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,

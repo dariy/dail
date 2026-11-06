@@ -15,6 +15,7 @@ mod outbox;
 mod pending;
 mod preview;
 mod queries;
+mod rules;
 mod saves;
 mod search;
 mod sends;
@@ -32,7 +33,7 @@ pub use watch::WATCH_RETRY_MS;
 use std::collections::BTreeMap;
 
 use crate::command::{Command, SettingKey, ThemeMode};
-use crate::ctx::Ctx;
+use crate::ctx::{Ctx, Origin};
 use crate::error::CoreError;
 use crate::event::{Effect, Event, PersistDelta};
 use crate::history::{History, HistoryEntry};
@@ -250,19 +251,23 @@ impl Engine {
                 total,
                 unread,
                 envelopes,
-            } => Ok(self.ingest_envelopes_fetched(
-                sync::FetchedEnvelopes {
-                    account,
-                    mailbox,
-                    uid_validity,
-                    uid_next,
-                    total,
-                    unread,
-                    envelopes,
-                },
-                ctx,
-                receipt,
-            )),
+            } => {
+                let (mut outcome, added) = self.ingest_envelopes_fetched(
+                    sync::FetchedEnvelopes {
+                        account,
+                        mailbox,
+                        uid_validity,
+                        uid_next,
+                        total,
+                        unread,
+                        envelopes,
+                    },
+                    ctx,
+                    receipt,
+                );
+                self.run_rules_on_fetch(mailbox, &added, ctx, &mut outcome);
+                Ok(outcome)
+            }
             Event::FlagsChanged {
                 account,
                 mailbox,
@@ -692,6 +697,11 @@ impl Engine {
             }
             Command::PushSettings {} => self.push_settings(ctx, receipt).map(Applied::plain),
             Command::SetSettingsAccount { account } => self.set_settings_account(account, receipt),
+            Command::ListRules {} => Ok(Applied::plain(self.list_rules(receipt))),
+            Command::SaveRule { id, rule } => self.save_rule(id, rule, ctx, receipt),
+            Command::DeleteRule { id } => self.delete_rule(id, ctx, receipt),
+            Command::EnableRule { id, enabled } => self.enable_rule(id, enabled, ctx, receipt),
+            Command::ApplyRules { mailbox } => self.apply_rules(mailbox, ctx, receipt),
             Command::ListMailboxes { account } => {
                 self.list_mailboxes(account, receipt).map(Applied::plain)
             }
@@ -1066,9 +1076,24 @@ impl Engine {
 /// The agent policy (`CommandSpec::agents`): a user-only command is refused from every origin but
 /// the user's. Only commands from front-ends get here; `undo`/`redo` apply commands from history,
 /// which the engine built itself or which passed this check when they were first dispatched.
+///
+/// `Origin::Rule` is the engine's own sorting-rule run (ADR 0015): it may run only the rule
+/// actions, so a rule can never send, forward, reply or change accounts, whatever its document
+/// says.
 fn check_origin(cmd: &Command, ctx: &Ctx) -> Result<(), CoreError> {
     let name = cmd.command_name();
-    if name.agent_access() == AgentAccess::UserOnly && !ctx.origin.is_user() {
+    let rule_action = matches!(
+        cmd,
+        Command::MarkRead { .. }
+            | Command::Star { .. }
+            | Command::MoveThreads { .. }
+            | Command::ArchiveThreads { .. }
+    );
+    let refused = match ctx.origin {
+        Origin::Rule => !rule_action,
+        _ => name.agent_access() == AgentAccess::UserOnly && !ctx.origin.is_user(),
+    };
+    if refused {
         return Err(CoreError::OriginNotAllowed {
             command: name.as_str().to_owned(),
             origin: ctx.origin.as_str().to_owned(),

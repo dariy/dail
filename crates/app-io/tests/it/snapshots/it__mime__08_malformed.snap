@@ -12,7 +12,8 @@ expression: parsed
     "cc": [],
     "subject": "Unterminated multipart",
     "date_ms": 0,
-    "has_attachments": true
+    "has_attachments": true,
+    "list_id": null
   },
   "text": "Text before the missing end boundary.",
   "text_source": "plain",

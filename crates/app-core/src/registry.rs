@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, RuleId, ThreadId};
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
+use crate::synced::{Condition, Rule, RuleAction};
 
 /// Groups commands in the palette and in CLI help.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -141,6 +142,16 @@ pub enum CommandName {
     PushSettings,
     /// See [`Command::SetSettingsAccount`].
     SetSettingsAccount,
+    /// See [`Command::ListRules`].
+    ListRules,
+    /// See [`Command::SaveRule`].
+    SaveRule,
+    /// See [`Command::DeleteRule`].
+    DeleteRule,
+    /// See [`Command::EnableRule`].
+    EnableRule,
+    /// See [`Command::ApplyRules`].
+    ApplyRules,
     /// See [`Command::ListMailboxes`].
     ListMailboxes,
     /// See [`Command::SetSyncWindow`].
@@ -369,6 +380,38 @@ const EXAMPLE_OP: OpId = OpId::from_uuid(uuid::Uuid::from_u128(5));
 const EXAMPLE_DRAFT: DraftId = DraftId::from_uuid(uuid::Uuid::from_u128(6));
 const EXAMPLE_APPROVAL: ApprovalId = ApprovalId::from_uuid(uuid::Uuid::from_u128(7));
 
+/// The sorting-rule ID used by examples.
+const EXAMPLE_RULE: RuleId = RuleId::from_uuid(uuid::Uuid::from_u128(8));
+
+/// A rule used by examples: newsletters are marked read and moved to `Reading`.
+fn example_rule() -> Rule {
+    Rule {
+        name: "Newsletters to Reading".to_owned(),
+        enabled: true,
+        when: Condition::Any {
+            of: vec![
+                Condition::ListId {
+                    contains: "news.example.org".to_owned(),
+                },
+                Condition::From {
+                    contains: "newsletter@".to_owned(),
+                },
+            ],
+        },
+        then: vec![
+            RuleAction::MarkRead,
+            RuleAction::Move {
+                to: "Reading".to_owned(),
+            },
+        ],
+    }
+}
+
+/// Whether a live sorting rule exists.
+fn has_rules(state: &AppState) -> bool {
+    state.synced.settings.live_rules().next().is_some()
+}
+
 fn example_addr() -> Addr {
     Addr {
         name: Some("Bob".to_owned()),
@@ -411,6 +454,11 @@ impl CommandName {
         Self::PullSettings,
         Self::PushSettings,
         Self::SetSettingsAccount,
+        Self::ListRules,
+        Self::SaveRule,
+        Self::DeleteRule,
+        Self::EnableRule,
+        Self::ApplyRules,
         Self::ListMailboxes,
         Self::SetSyncWindow,
         Self::ListThreads,
@@ -516,6 +564,11 @@ impl CommandName {
             Self::PullSettings => "pull_settings",
             Self::PushSettings => "push_settings",
             Self::SetSettingsAccount => "set_settings_account",
+            Self::ListRules => "list_rules",
+            Self::SaveRule => "save_rule",
+            Self::DeleteRule => "delete_rule",
+            Self::EnableRule => "enable_rule",
+            Self::ApplyRules => "apply_rules",
             Self::ListMailboxes => "list_mailboxes",
             Self::SetSyncWindow => "set_sync_window",
             Self::ListThreads => "list_threads",
@@ -608,7 +661,8 @@ impl CommandName {
             | Self::ListPendingOps
             | Self::ListApprovals
             | Self::Search
-            | Self::ListContacts => CommandKind::Query,
+            | Self::ListContacts
+            | Self::ListRules => CommandKind::Query,
             // `undo`/`redo`, `sync_now` and the pending-op commands change data but are never
             // recorded in history.
             Self::SetSetting
@@ -616,6 +670,10 @@ impl CommandName {
             | Self::SetKeyPreset
             | Self::SetTheme
             | Self::SetSettingsAccount
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
             | Self::Undo
             | Self::Redo
             | Self::AddAccount
@@ -743,6 +801,11 @@ impl CommandName {
             | Self::SetDraftFrom
             | Self::SyncNow
             | Self::PullSettings
+            | Self::ListRules
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
             | Self::ListMailboxes
             | Self::SetSyncWindow
             | Self::ListThreads
@@ -925,6 +988,23 @@ impl CommandName {
             Self::SetSettingsAccount => CommandSpec {
                 available: has_accounts,
                 ..base("Choose the settings account", Category::App, &[])
+            },
+            Self::ListRules => base("List sorting rules", Category::Mail, &[]),
+            Self::SaveRule => CommandSpec {
+                available: has_mailboxes,
+                ..base("Make a sorting rule", Category::Mail, &[])
+            },
+            Self::DeleteRule => CommandSpec {
+                available: has_rules,
+                ..base("Delete a sorting rule", Category::Mail, &[])
+            },
+            Self::EnableRule => CommandSpec {
+                available: has_rules,
+                ..base("Turn a sorting rule on or off", Category::Mail, &[])
+            },
+            Self::ApplyRules => CommandSpec {
+                available: has_rules,
+                ..base("Run sorting rules on a mailbox", Category::Mail, &[])
             },
             Self::ListMailboxes => CommandSpec {
                 available: has_accounts,
@@ -1332,6 +1412,19 @@ impl CommandName {
             Self::PushSettings => Command::PushSettings {},
             Self::SetSettingsAccount => Command::SetSettingsAccount {
                 account: EXAMPLE_ACCOUNT,
+            },
+            Self::ListRules => Command::ListRules {},
+            Self::SaveRule => Command::SaveRule {
+                id: None,
+                rule: example_rule(),
+            },
+            Self::DeleteRule => Command::DeleteRule { id: EXAMPLE_RULE },
+            Self::EnableRule => Command::EnableRule {
+                id: EXAMPLE_RULE,
+                enabled: false,
+            },
+            Self::ApplyRules => Command::ApplyRules {
+                mailbox: EXAMPLE_MAILBOX,
             },
             Self::ListMailboxes => Command::ListMailboxes { account: None },
             Self::SetSyncWindow => Command::SetSyncWindow {
