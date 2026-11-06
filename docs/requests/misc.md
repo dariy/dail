@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5, MISC-44 to MISC-47 in Wave 13. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -50,6 +50,10 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-41 | "Empty Trash" button in the Trash folder | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
 | MISC-42 | "Junk" / "Not junk" buttons: move messages between the inbox and Junk | M | app-core, app-sync, app-testkit, app-front, app-gui, app-tui | 2026-11-04 |
 | MISC-43 | "Empty Junk" button in the Junk folder | S | app-core, app-front, app-gui | 2026-11-04 |
+| MISC-44 | Per-message actions in the reader; delete a draft without its thread | L | app-core, app-front, app-gui, app-tui, app-mobile, android/, ios/ | 2026-11-05 |
+| MISC-45 | Android: notification buttons Delete, Mark read, Archive; a tap opens the message | M | app-front, app-mobile, app-host, android/ | 2026-11-05 |
+| MISC-46 | Dates in local time, not UTC | M | app-front, app-gui, app-tui, app-mobile | 2026-11-05 |
+| MISC-47 | Mobile: mark the open message read after a delay | S | app-mobile | 2026-11-05 |
 
 ## Details
 
@@ -851,3 +855,39 @@ a confirmation dialog that gives the number of messages.
 - **Touches:** `app-core` (command, spec, engine, replay fixture), `app-front` (the confirmation prompt), `app-gui`
   (button in the Junk toolbar; text in English and French). The TUI gets it through the palette.
 - **Open questions:** none.
+
+### MISC-44 — Per-message actions in the reader; delete a draft without its thread
+
+The user reported that a draft in a conversation cannot be deleted on its own: Delete removes the whole thread. Every
+reader's delete button sends `trash_threads { ids: [thread] }`, and for Trash a thread takes its Inbox, Sent and
+Drafts copies. Message cards have no actions, though the core takes `messages:` on every move and flag command.
+
+- **Commands:** new `edit_draft { message }` (Mutation, agents allowed): the local draft saved as that message, or a
+  new local draft made from a server-only draft (written on another device; its body must be downloaded). Undo
+  discards a draft it created. `get_thread` gives each message `draft` (the local draft's ID) and `is_draft`.
+- **Behaviour:** each message card has its own actions from `app_front::message_actions`: Reply, Reply all, Forward,
+  Read/Unread, Star/Unstar, Move to Trash (`trash_threads { messages: [id] }`). A draft's card has Edit and Discard
+  (`discard_draft`, or a trash of the server copy without a local draft). The thread's Reply and Star skip drafts.
+  `discard_draft` also drops the cached server copy at once.
+- **Touches:** app-core, app-front, app-gui, app-tui (message cursor), app-mobile, android/, ios/ (decode only).
+
+### MISC-45 — Android: notification buttons Delete, Mark read, Archive; a tap opens the message
+
+New-mail notifications had *Archive* and *Mark read* for all new threads together, and a tap opened the app on the
+thread only when there was one. Now each new conversation gets its own notification (grouped, with a summary) with
+*Delete* (move to Trash), *Mark read* and *Archive*, acting on its new messages only. A tap opens the message's
+mailbox, the thread and the message. The lock screen still shows only *New mail*.
+
+- **Commands:** none new (`trash_threads`, `mark_read`, `archive_threads` with `messages`; `open_mailbox`,
+  `open_thread`, `expand_messages`).
+- **Touches:** app-front (`alerts`), app-mobile (`notify`), app-host, android/ (`Notifier.kt`).
+
+### MISC-46 — Dates in local time, not UTC
+
+Dates and the Today/Yesterday groups are drawn in UTC (`app-front/src/format.rs`). The front ends pass the local UTC
+offset in.
+
+### MISC-47 — Mobile: mark the open message read after a delay
+
+The phone never marks an opened message read (`mark_read_after_ms` is desktop-only). The presenter runs
+`app_front::autoread` on its tick.

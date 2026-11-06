@@ -1027,6 +1027,26 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 
 ---
 
+## Wave 13 — Refinement: "every message has its own buttons"
+
+The requests of 2026-11-05. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-44 to MISC-47).
+Following Wave 11's iOS decision, `ios/` only takes the shared presenter changes and stays green. All new text ships in
+English and French.
+
+**Exit criteria**
+- A draft in a conversation can be edited or discarded from its own card, and the conversation stays.
+- Every message card in the reader has its own actions (reply, forward, read, star, trash), on every front end.
+- An Android new-mail notification has *Delete*, *Mark read* and *Archive*, and a tap opens that message.
+
+- [ ] MISC-44 [core][front][gui][tui][mobile][kt][ios]: per-message actions in the reader; `edit_draft`, drafts in a
+  thread edited or discarded on their own
+- [ ] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
+  *Archive* on its new messages; a tap opens the mailbox, the thread and the message
+- [ ] MISC-46 [front][gui][tui][mobile]: dates in local time, not UTC
+- [ ] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Accounts & protocols**
