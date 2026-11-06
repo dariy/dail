@@ -484,6 +484,14 @@ impl Tui {
             .collect()
     }
 
+    /// The message under the reader's cursor, when its keys act on it (MISC-44): the reader is
+    /// the only pane or has the focus, and no threads are checked (keys then act on those).
+    fn cursor_target(&self, state: &AppState) -> Option<app_core::MessageId> {
+        (self.reader_active(state) && state.view.checked.is_empty())
+            .then(|| self.reader.cursor(state))
+            .flatten()
+    }
+
     /// Whether the reader is the only pane or has the focus (↑/↓ scroll it then).
     fn reader_active(&self, state: &AppState) -> bool {
         self.slots.contains(&Slot::Reader)
@@ -705,6 +713,22 @@ impl Tui {
                 self.reader.scroll_by(-1);
                 return Vec::new();
             }
+            // The message cursor (MISC-44): `n`/`p` pick a message of the open thread.
+            KeyCode::Char(c @ ('n' | 'p'))
+                if plain && !self.keys.is_pending() && state.view.thread.is_some() =>
+            {
+                self.reader
+                    .move_cursor(state, if c == 'n' { 1 } else { -1 });
+                return Vec::new();
+            }
+            // Enter on a draft under the cursor edits it.
+            KeyCode::Enter if plain && !self.keys.is_pending() => {
+                if let Some(cmd) = self.cursor_target(state).and_then(|m| {
+                    app_front::message_actions::for_key(state, m, CommandName::EditDraft)
+                }) {
+                    return vec![Request::user(cmd)];
+                }
+            }
             KeyCode::Char('q') if plain && !self.keys.is_pending() => {
                 return self.back(state, true);
             }
@@ -736,6 +760,14 @@ impl Tui {
         };
         let now = self.now_ms();
         match self.keys.press(chord, false, state, now) {
+            Press::Done(Action::Run(cmd)) => {
+                // With a message under the cursor, its own action answers the key (MISC-44).
+                let cmd = self
+                    .cursor_target(state)
+                    .and_then(|m| app_front::message_actions::for_key(state, m, cmd.command_name()))
+                    .unwrap_or(cmd);
+                self.act(state, Action::Run(cmd))
+            }
             Press::Done(action) => self.act(state, action),
             Press::Pending | Press::Unbound => Vec::new(),
         }
@@ -968,6 +1000,8 @@ fn help(state: &AppState, lang: app_front::i18n::Lang) -> String {
          Ctrl+C         quit\n\
          Ctrl+K :       the palette: every command, also those without a key\n",
     );
+    out.push_str(s(Text::MessageCursorHelp));
+    out.push('\n');
     out
 }
 

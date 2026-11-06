@@ -18,6 +18,7 @@ pub mod i18n;
 pub mod keymap;
 pub mod mailbox;
 pub mod mailto;
+pub mod message_actions;
 pub mod notice;
 pub mod palette;
 pub mod panes;

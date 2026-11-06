@@ -1050,7 +1050,7 @@ English and French.
   - [x] MISC-44a [core][sync][tk]: `edit_draft { message }` (Mutation, agents allowed; undo discards a draft it
     created; a server-only draft becomes local once its body is fetched); `get_thread` gives each message `draft` and
     `is_draft`; `discard_draft` drops the cached server copy at once; the thread's Reply and Star skip drafts
-  - [ ] MISC-44b [front][gui][tui]: `app_front::message_actions` (Reply, Reply all, Forward, Read/Unread, Star/Unstar,
+  - [x] MISC-44b [front][gui][tui]: `app_front::message_actions` (Reply, Reply all, Forward, Read/Unread, Star/Unstar,
     Move to Trash with `messages`; Edit and Discard on a draft) on every GUI message card, and a TUI message cursor
   - [ ] MISC-44c [mobile][kt][ios]: the presenter's message cards carry those actions; contract frames, Kotlin card
     actions, iOS decoding

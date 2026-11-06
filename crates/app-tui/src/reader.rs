@@ -3,9 +3,13 @@
 //! body tracking (`app_front::body`). Everything is email content: cleaned, wrapped, never
 //! interpreted. There is no browser and no "open original": over SSH they would open on the host.
 //! A collapsed message (`collapse_messages`; by default the read ones but the newest) is one line.
+//!
+//! The message cursor (MISC-44, `n`/`p`) picks one message: it is marked `▶` with its actions
+//! (`app_front::message_actions`) and their keys under it, and those keys act on it alone. Like
+//! scrolling it is presentation, kept per open thread; before the first message it goes away.
 
 use crate::text::{f, s};
-use app_core::{AppState, BodyState, Envelope, MailboxRole, ThreadId, listing};
+use app_core::{AppState, BodyState, Envelope, MailboxRole, MessageId, ThreadId, listing};
 use app_front::body::{Bodies, Body, links};
 use app_front::i18n::Key;
 use app_front::{fold, format, mailbox::mailbox_name};
@@ -23,6 +27,9 @@ pub struct Reader {
     /// Rows of the last frame (for paging) and the wrapped length.
     height: usize,
     len: usize,
+    /// The message cursor, and whether the next frame scrolls to it.
+    cursor: Option<MessageId>,
+    follow: bool,
 }
 
 impl Reader {
@@ -39,6 +46,48 @@ impl Reader {
         isize::try_from(self.height.saturating_sub(1).max(1)).unwrap_or(1)
     }
 
+    /// Forgets the scroll position and the cursor when another thread opened.
+    fn sync(&mut self, state: &AppState) {
+        if self.thread != state.view.thread {
+            self.thread = state.view.thread;
+            self.scroll = 0;
+            self.cursor = None;
+            self.follow = false;
+        }
+    }
+
+    /// The message under the cursor, if it is still in the open thread.
+    pub fn cursor(&self, state: &AppState) -> Option<MessageId> {
+        let thread = state.threads.get(&state.view.thread?)?;
+        self.cursor
+            .filter(|_| self.thread == Some(thread.id))
+            .filter(|m| thread.messages.contains(m))
+    }
+
+    /// Moves the cursor `step` messages (`n`: 1, `p`: -1); without a cursor `n` starts at the
+    /// first message and `p` at the last. Before the first message the cursor goes away. Returns
+    /// whether a thread is open.
+    pub fn move_cursor(&mut self, state: &AppState, step: isize) -> bool {
+        self.sync(state);
+        let Some(thread) = state.view.thread.and_then(|id| state.threads.get(&id)) else {
+            return false;
+        };
+        let messages = &thread.messages;
+        let at = self
+            .cursor(state)
+            .and_then(|c| messages.iter().position(|m| *m == c));
+        let next = match at {
+            None if step > 0 => Some(0),
+            None => messages.len().checked_sub(1),
+            Some(at) => at
+                .checked_add_signed(step)
+                .map(|n| n.min(messages.len().saturating_sub(1))),
+        };
+        self.cursor = next.and_then(|n| messages.get(n).copied());
+        self.follow = self.cursor.is_some();
+        true
+    }
+
     /// The visible lines of the open thread for a pane of `width`×`height`.
     pub fn lines(
         &mut self,
@@ -48,13 +97,16 @@ impl Reader {
         width: u16,
         height: u16,
     ) -> Vec<Line<'static>> {
-        if self.thread != state.view.thread {
-            self.thread = state.view.thread;
-            self.scroll = 0;
-        }
-        let all = wrapped(state, bodies, now_ms, usize::from(width));
+        self.sync(state);
+        let cursor = self.cursor(state);
+        let (all, row) = wrapped(state, bodies, now_ms, usize::from(width), cursor);
         self.height = usize::from(height);
         self.len = all.len();
+        if std::mem::take(&mut self.follow)
+            && let Some(row) = row
+        {
+            self.scroll = row;
+        }
         self.scroll = self.scroll.min(self.len.saturating_sub(self.height));
         all.into_iter()
             .skip(self.scroll)
@@ -63,11 +115,22 @@ impl Reader {
     }
 }
 
-/// Every line of the open thread, wrapped to `width`.
-fn wrapped(state: &AppState, bodies: &Bodies, now_ms: i64, width: usize) -> Vec<Line<'static>> {
+/// Every line of the open thread, wrapped to `width`, and the row where the cursor's message
+/// starts.
+fn wrapped(
+    state: &AppState,
+    bodies: &Bodies,
+    now_ms: i64,
+    width: usize,
+    cursor: Option<MessageId>,
+) -> (Vec<Line<'static>>, Option<usize>) {
     let Some(thread) = state.view.thread.and_then(|id| state.threads.get(&id)) else {
-        return vec![Line::from(Span::styled(s(Key::NoConversationTui), dim()))];
+        return (
+            vec![Line::from(Span::styled(s(Key::NoConversationTui), dim()))],
+            None,
+        );
     };
+    let mut marked = None;
     let mut out: Vec<(String, Style)> = Vec::new();
     let subject = match thread.subject.trim() {
         "" => s(Key::NoSubject).to_owned(),
@@ -80,6 +143,7 @@ fn wrapped(state: &AppState, bodies: &Bodies, now_ms: i64, width: usize) -> Vec<
         .filter_map(|id| state.messages.get(id))
     {
         out.push((String::new(), Style::default()));
+        let start = out.len();
         if listing::is_expanded(state, thread, message) {
             message_lines(state, message, bodies.get(message.id), now_ms, &mut out);
         } else {
@@ -88,14 +152,49 @@ fn wrapped(state: &AppState, bodies: &Bodies, now_ms: i64, width: usize) -> Vec<
                 dim(),
             ));
         }
+        if cursor == Some(message.id) {
+            marked = Some(start);
+            if let Some((text, style)) = out.get_mut(start) {
+                *text = format!("▶ {}", text.trim_start_matches("▸ "));
+                *style = bold();
+            }
+            out.insert(start + 1, (actions_line(state, message.id), bold()));
+        }
     }
-    out.into_iter()
-        .flat_map(|(text, style)| {
+    let mut row = None;
+    let mut lines = Vec::new();
+    for (index, (text, style)) in out.into_iter().enumerate() {
+        if marked == Some(index) {
+            row = Some(lines.len());
+        }
+        lines.extend(
             wrap(&text, width)
                 .into_iter()
-                .map(move |piece| Line::from(Span::styled(piece, style)))
+                .map(|piece| Line::from(Span::styled(piece, style))),
+        );
+    }
+    (lines, row)
+}
+
+/// `  r Reply · a Reply all · …`: the cursor message's actions with the keys that run them.
+fn actions_line(state: &AppState, message: MessageId) -> String {
+    use app_front::message_actions::{MessageAction, message_actions};
+    let items: Vec<String> = message_actions(state, message)
+        .into_iter()
+        .map(|item| {
+            let key = match item.action {
+                MessageAction::Edit => Some("Enter".to_owned()),
+                // Unstar has no key of its own: the star key toggles.
+                MessageAction::Unstar => {
+                    crate::keys::hint(&state.settings, app_core::CommandName::Star)
+                }
+                action => crate::keys::hint(&state.settings, action.key_command()),
+            };
+            let label = s(item.action.label());
+            key.map_or_else(|| label.to_owned(), |key| format!("{key} {label}"))
         })
-        .collect()
+        .collect();
+    format!("  {}", items.join(" · "))
 }
 
 /// `▸ From · age · the start of the text` (at most 60 characters of it).

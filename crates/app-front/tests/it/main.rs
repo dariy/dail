@@ -8,6 +8,7 @@ mod autoread;
 mod body;
 mod i18n_engine;
 mod keys;
+mod message_actions;
 mod palette;
 mod result;
 mod rules;

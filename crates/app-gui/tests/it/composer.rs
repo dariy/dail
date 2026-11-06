@@ -365,7 +365,7 @@ fn a_reply_docks_under_the_conversation() {
     apply(&mut h, Command::OpenComposer { id });
     // The reader stays: its toolbar is above the composer.
     let forward = h
-        .get(By::new().role(Role::Button).label_contains("Forward"))
+        .get(By::new().role(Role::Button).label_contains("Forward ("))
         .rect();
     let send = h
         .get(By::new().role(Role::Button).label_contains("Send"))

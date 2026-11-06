@@ -106,7 +106,10 @@ GUI and the TUI share these rules and neither re-derives the other's. `app-gui` 
 other. Modules: `format` (dates in UTC, addresses, sizes), `body` (the reader's body tracking: which
 `get_thread {include_body: true}` to submit — `Bodies::rich()` adds `rich_body` for the GUI —, the bodies taken from its
 receipt with their `document`, `links`), `status` (sync text, problems,
-pending ops), `approvals` (the cards of agents' send requests), `compose` (`parse_addr`, recipient fields, the draft's
+pending ops), `approvals` (the cards of agents' send requests), `message_actions` (MISC-44: one message's
+actions and the command each submits — Reply, Reply all, Forward, Read/Unread, Star/Unstar and Trash with
+`messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
+server copy); `for_key` maps a registry key onto them), `compose` (`parse_addr`, recipient fields, the draft's
 status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signature and trailing quoted part —
 `>` lines with their attribution, or an Outlook header block on), `mailbox` (labels), `notice` (the latest undo label, the send countdown, rejection texts),
 `keymap` (chords, bindings, `resolve`, the sequence state) and `palette` (the flows, rows, `nucleo-matcher` ranking
@@ -1174,7 +1177,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   unread counts; collapsed
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
-  reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
+  reader (toolbar acting on the open thread, one card per message with its own icon buttons from
+  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card —, body text). The list has a 48 px header (title, the
   unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
   `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
   palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
@@ -1332,14 +1336,18 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   (`text::wrap`, by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
   the background `get_thread {include_body: true}` (`Purpose::Bodies`) when the open thread or a body state changed.
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
-  focus; `j`/`k` still move between threads. A new thread starts at the top. No browser and no "open original": over
+  focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local
+  `n`/`p`, per open thread, like scrolling) marks one message `▶` with its `app_front::message_actions` and their keys
+  under it; the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
+  draft; `p` before the first message drops it. No browser and no "open original": over
   SSH they would open on the host.
 - **Keys** go through the shared keymap (`app_front::keymap`): `app_tui::keys::chord_of` maps crossterm's key events
   onto chords (a typed symbol is a `Text` chord, Ctrl+Shift+letter arrives as Ctrl+letter, BackTab is Shift+Tab), so
   `j k Enter o e # s u v z / Tab Escape c r a f`, the `g` sequences and the arguments from the view work as in the
   GUI; a command that still needs an argument opens the palette at that step. With the mailboxes focused, `j`/`k` open
   the next or previous mailbox and Enter goes back to the list (shared, so the GUI does the same). A new draft opens in
-  the composer. TUI-local keys only scroll (Space, `b`, PageUp/PageDown, ↑/↓ in a lone or focused reader), stand in for
+  the composer. TUI-local keys only scroll (Space, `b`, PageUp/PageDown, ↑/↓ in a lone or focused reader), move the message
+  cursor (`n`/`p`, Enter on a draft under it), stand in for
   Escape outside text fields (`q` and Backspace; from the mailboxes they go back to the list; on the top level `q`
   quits), show help (`?`) or quit (Ctrl+C); besides those, `m` turns mouse capture off and on, Ctrl+O in the
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
