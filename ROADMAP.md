@@ -1012,7 +1012,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
   `EnvelopesFetched`; `save_rule`, `delete_rule`, `enable_rule`, `apply_rules { mailbox }`; undo and replay fixtures
 - [x] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
   message* in the palette
-- [ ] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
+- [x] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
 
 ### C — Theme and preferences
 - [ ] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only

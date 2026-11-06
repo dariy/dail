@@ -49,7 +49,7 @@ expression: "schemars::schema_for!(SyncedSettings)"
   },
   "$defs": {
     "Condition": {
-      "description": "A condition over a message's envelope. Text tests are case-insensitive substring matches.",
+      "description": "A condition over a message's envelope, tagged by `test`. Combine conditions with `all`,\n`any` and `not`. Text tests (`from`, `to`, `cc`, `subject`, `list_id`) are\ncase-insensitive substring matches. The `mailbox` test compares a folder path exactly.",
       "oneOf": [
         {
           "description": "Every one of `of` matches (an empty list always matches).",
@@ -235,7 +235,7 @@ expression: "schemars::schema_for!(SyncedSettings)"
       ]
     },
     "Rule": {
-      "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot forward or reply (ADR 0015).",
+      "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot send, forward or reply (ADR 0015).",
       "type": "object",
       "properties": {
         "enabled": {
@@ -248,14 +248,14 @@ expression: "schemars::schema_for!(SyncedSettings)"
           "type": "string"
         },
         "then": {
-          "description": "What to do with a matching message, in order.",
+          "description": "What to do with a matching message, in order. At least one action.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/RuleAction"
           }
         },
         "when": {
-          "description": "The condition over a message's envelope.",
+          "description": "The condition over a message's envelope. On fetch, a rule without a `mailbox` test\napplies to Inbox mail only.",
           "$ref": "#/$defs/Condition"
         }
       },
@@ -266,7 +266,7 @@ expression: "schemars::schema_for!(SyncedSettings)"
       ]
     },
     "RuleAction": {
-      "description": "What a rule does with a matching message. There is deliberately no forward or reply.",
+      "description": "What a rule does with a matching message, tagged by `action`. There is deliberately no\naction that sends, forwards, replies or redirects mail.",
       "oneOf": [
         {
           "description": "Move the message to the folder with this full path.",
@@ -287,7 +287,7 @@ expression: "schemars::schema_for!(SyncedSettings)"
           ]
         },
         {
-          "description": "Copy the message into the folder with this path (a Gmail label).",
+          "description": "Copy the message into the folder with this path (a Gmail label). This version skips\nthis action when the rule runs.",
           "type": "object",
           "properties": {
             "action": {

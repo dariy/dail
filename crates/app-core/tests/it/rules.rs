@@ -592,6 +592,40 @@ fn rules_run_only_the_rule_actions() {
 }
 
 #[test]
+fn the_rule_action_schema_has_no_way_to_send() {
+    let schema = serde_json::to_value(schemars::schema_for!(RuleAction)).unwrap();
+    let mut actions: Vec<String> = schema["oneOf"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|variant| {
+            let tag = &variant["properties"]["action"];
+            tag["const"]
+                .as_str()
+                .or_else(|| tag["enum"][0].as_str())
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    actions.sort();
+    assert_eq!(
+        actions,
+        ["add_label", "archive", "mark_read", "move", "star"],
+        "a new rule action needs a review against ADR 0015 (no forwarding)"
+    );
+    let text = schema.to_string().to_lowercase();
+    for word in ["forward", "reply", "send", "redirect"] {
+        assert!(!text.contains(&format!("\"{word}\"")), "{word}");
+    }
+    for action in [
+        r#"{"action":"send","to":"x@example.org"}"#,
+        r#"{"action":"redirect","to":"x@example.org"}"#,
+    ] {
+        assert!(serde_json::from_str::<RuleAction>(action).is_err());
+    }
+}
+
+#[test]
 fn agents_may_list_save_and_apply_rules() {
     for name in [
         CommandName::ListRules,

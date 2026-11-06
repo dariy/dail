@@ -120,7 +120,7 @@ expression: command_schema()
       ]
     },
     "Condition": {
-      "description": "A condition over a message's envelope. Text tests are case-insensitive substring matches.",
+      "description": "A condition over a message's envelope, tagged by `test`. Combine conditions with `all`,\n`any` and `not`. Text tests (`from`, `to`, `cc`, `subject`, `list_id`) are\ncase-insensitive substring matches. The `mailbox` test compares a folder path exactly.",
       "oneOf": [
         {
           "description": "Every one of `of` matches (an empty list always matches).",
@@ -625,7 +625,7 @@ expression: command_schema()
       ]
     },
     "Rule": {
-      "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot forward or reply (ADR 0015).",
+      "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot send, forward or reply (ADR 0015).",
       "properties": {
         "enabled": {
           "default": true,
@@ -637,7 +637,7 @@ expression: command_schema()
           "type": "string"
         },
         "then": {
-          "description": "What to do with a matching message, in order.",
+          "description": "What to do with a matching message, in order. At least one action.",
           "items": {
             "$ref": "#/$defs/RuleAction"
           },
@@ -645,7 +645,7 @@ expression: command_schema()
         },
         "when": {
           "$ref": "#/$defs/Condition",
-          "description": "The condition over a message's envelope."
+          "description": "The condition over a message's envelope. On fetch, a rule without a `mailbox` test\napplies to Inbox mail only."
         }
       },
       "required": [
@@ -656,7 +656,7 @@ expression: command_schema()
       "type": "object"
     },
     "RuleAction": {
-      "description": "What a rule does with a matching message. There is deliberately no forward or reply.",
+      "description": "What a rule does with a matching message, tagged by `action`. There is deliberately no\naction that sends, forwards, replies or redirects mail.",
       "oneOf": [
         {
           "description": "Move the message to the folder with this full path.",
@@ -677,7 +677,7 @@ expression: command_schema()
           "type": "object"
         },
         {
-          "description": "Copy the message into the folder with this path (a Gmail label).",
+          "description": "Copy the message into the folder with this path (a Gmail label). This version skips\nthis action when the rule runs.",
           "properties": {
             "action": {
               "const": "add_label",
@@ -1814,7 +1814,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Create or replace a sorting rule (ADR 0015). Omit `id` to create a new rule (its ID is in\nthe receipt); give the `id` of an existing (or deleted) rule to replace it. A rule runs\non new mail when it is fetched, as ordinary commands: when `when` matches, `then` marks\nread, stars, moves (`move` to a folder path), archives or adds a label. Rules can never\nforward, reply or send. Text tests (`from`, `to`, `cc`, `subject`, `list_id`) are\ncase-insensitive substring tests; `mailbox` compares a folder path exactly. A rule\nwithout a `mailbox` test applies to Inbox mail only. Stored in the shared settings\ndocument; `push_settings` (user only) shares it with other devices. Undoable.",
+      "description": "Create or replace a sorting rule (ADR 0015). Omit `id` to create a new rule (its ID is in\nthe receipt); give the `id` of an existing (or deleted) rule to replace it. A rule runs\non new mail when it is fetched, as ordinary commands: when `when` matches, `then` marks\nread, stars, moves (`move` to a folder path), archives or adds a label. This version\nskips `add_label` when the rule runs. Rules can never forward, reply or send. Conditions\ncombine with `all`, `any` and `not`. Text tests (`from`, `to`, `cc`, `subject`,\n`list_id`) are case-insensitive substring tests; `mailbox` compares a folder path\nexactly. On fetch, a rule without a `mailbox` test applies to Inbox mail only. The rule\nis saved on this device only: it reaches other devices only after the user runs\n`push_settings` (user only). Undoable.",
       "properties": {
         "args": {
           "properties": {
@@ -1831,7 +1831,7 @@ expression: command_schema()
             },
             "rule": {
               "$ref": "#/$defs/Rule",
-              "description": "The rule: `{\"name\", \"enabled\", \"when\", \"then\"}`."
+              "description": "The rule: `{\"name\", \"enabled\", \"when\", \"then\"}`, e.g. `{\"name\": \"News\", \"when\":\n{\"test\": \"from\", \"contains\": \"news@\"}, \"then\": [{\"action\": \"mark_read\"}]}`."
             }
           },
           "required": [

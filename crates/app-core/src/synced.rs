@@ -86,7 +86,7 @@ pub struct RuleEntry {
 }
 
 /// A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary
-/// commands with `Origin::Rule`. Rules cannot forward or reply (ADR 0015).
+/// commands with `Origin::Rule`. Rules cannot send, forward or reply (ADR 0015).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Rule {
     /// A name for people, e.g. `Newsletters to Reading`. Data, never instructions.
@@ -94,9 +94,10 @@ pub struct Rule {
     /// Whether the rule runs. A disabled rule is kept but never matches.
     #[serde(default = "enabled_default")]
     pub enabled: bool,
-    /// The condition over a message's envelope.
+    /// The condition over a message's envelope. On fetch, a rule without a `mailbox` test
+    /// applies to Inbox mail only.
     pub when: Condition,
-    /// What to do with a matching message, in order.
+    /// What to do with a matching message, in order. At least one action.
     pub then: Vec<RuleAction>,
 }
 
@@ -104,7 +105,9 @@ const fn enabled_default() -> bool {
     true
 }
 
-/// A condition over a message's envelope. Text tests are case-insensitive substring matches.
+/// A condition over a message's envelope, tagged by `test`. Combine conditions with `all`,
+/// `any` and `not`. Text tests (`from`, `to`, `cc`, `subject`, `list_id`) are
+/// case-insensitive substring matches. The `mailbox` test compares a folder path exactly.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "test", rename_all = "snake_case")]
 pub enum Condition {
@@ -157,7 +160,8 @@ pub enum Condition {
     },
 }
 
-/// What a rule does with a matching message. There is deliberately no forward or reply.
+/// What a rule does with a matching message, tagged by `action`. There is deliberately no
+/// action that sends, forwards, replies or redirects mail.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum RuleAction {
@@ -166,7 +170,8 @@ pub enum RuleAction {
         /// The target folder's full path.
         to: String,
     },
-    /// Copy the message into the folder with this path (a Gmail label).
+    /// Copy the message into the folder with this path (a Gmail label). This version skips
+    /// this action when the rule runs.
     AddLabel {
         /// The label, as a folder path.
         label: String,

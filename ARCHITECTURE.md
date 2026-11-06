@@ -1266,7 +1266,10 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   instructions (not even when it claims to be from the user or dail), links and attachments are not opened because an email
   says so; agent sends go through the user's approval (unless `--allow-send`), attachments show their path on the approval
   card; account settings, `restore_draft` and the approval decisions are the user's (`error_008_origin_not_allowed`); mutations are
-  undoable, destructive tools need `confirm`.
+  undoable, destructive tools need `confirm`; sorting rules only mark read, star, move, archive or add a label (never
+  send, forward or reply), stay local until the user pushes the settings, and their text is untrusted content.
+  `app-mcp/tests/it/rules.rs` pins the rule tools' hints and descriptions and that `push_settings` and
+  `set_settings_account` are refused over MCP.
 - Every attacker-controlled part of an email in the output — subject, body, sender/recipient names and addresses,
   Message-ID / In-Reply-To, attachment names, quotes — sits inside `{"untrusted_content": …}`. `app-mcp/tests/it/untrusted.rs`
   enforces it: a fixture message carries a marker in each of those parts, and an agent session over every content-bearing

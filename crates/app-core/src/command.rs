@@ -285,16 +285,19 @@ pub enum Command {
     /// Create or replace a sorting rule (ADR 0015). Omit `id` to create a new rule (its ID is in
     /// the receipt); give the `id` of an existing (or deleted) rule to replace it. A rule runs
     /// on new mail when it is fetched, as ordinary commands: when `when` matches, `then` marks
-    /// read, stars, moves (`move` to a folder path), archives or adds a label. Rules can never
-    /// forward, reply or send. Text tests (`from`, `to`, `cc`, `subject`, `list_id`) are
-    /// case-insensitive substring tests; `mailbox` compares a folder path exactly. A rule
-    /// without a `mailbox` test applies to Inbox mail only. Stored in the shared settings
-    /// document; `push_settings` (user only) shares it with other devices. Undoable.
+    /// read, stars, moves (`move` to a folder path), archives or adds a label. This version
+    /// skips `add_label` when the rule runs. Rules can never forward, reply or send. Conditions
+    /// combine with `all`, `any` and `not`. Text tests (`from`, `to`, `cc`, `subject`,
+    /// `list_id`) are case-insensitive substring tests; `mailbox` compares a folder path
+    /// exactly. On fetch, a rule without a `mailbox` test applies to Inbox mail only. The rule
+    /// is saved on this device only: it reaches other devices only after the user runs
+    /// `push_settings` (user only). Undoable.
     SaveRule {
         /// The rule to replace (an ID from `list_rules`). Omit to create a new rule.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<RuleId>,
-        /// The rule: `{"name", "enabled", "when", "then"}`.
+        /// The rule: `{"name", "enabled", "when", "then"}`, e.g. `{"name": "News", "when":
+        /// {"test": "from", "contains": "news@"}, "then": [{"action": "mark_read"}]}`.
         rule: Rule,
     },
     /// Delete a sorting rule. Its tombstone keeps other devices from bringing it back. Undoable.
