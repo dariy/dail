@@ -1054,7 +1054,7 @@ English and French.
     Move to Trash with `messages`; Edit and Discard on a draft) on every GUI message card, and a TUI message cursor
   - [x] MISC-44c [mobile][kt][ios]: the presenter's message cards carry those actions; contract frames, Kotlin card
     actions, iOS decoding
-- [ ] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
+- [x] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
   *Archive* on its new messages; a tap opens the mailbox, the thread and the message
 - [ ] MISC-46 [front][gui][tui][mobile]: dates in local time, not UTC
 - [ ] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`

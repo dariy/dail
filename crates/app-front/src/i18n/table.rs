@@ -2441,4 +2441,10 @@ strings! {
     MessageCursorHelp:
         "n p            the message cursor: the next / previous message of the conversation; its keys (r a f u s #) then act on that message alone, Enter edits a draft",
         "n p            le curseur de message : le message suivant / précédent de la discussion ; ses touches (r a f u s #) agissent alors sur ce seul message, Entrée modifie un brouillon";
+    NoteDelete:
+        "Delete",
+        "Supprimer";
+    NewConversations:
+        "{n} new conversations",
+        "{n} nouvelles discussions";
 }

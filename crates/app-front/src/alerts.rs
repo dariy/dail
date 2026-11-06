@@ -7,7 +7,9 @@
 //! and the delivery must still escape them for its format (markup, XML).
 
 use crate::i18n::Key;
-use app_core::{AppState, DraftId, FocusTarget, MailboxRole, ThreadId};
+use app_core::{
+    AppState, DraftId, Envelope, FocusTarget, MailboxId, MailboxRole, MessageId, ThreadId,
+};
 
 use crate::format;
 
@@ -41,6 +43,10 @@ pub struct Alert {
     pub threads: Vec<ThreadId>,
     /// The draft it is about (a failed send, an approval request): the first one.
     pub draft: Option<DraftId>,
+    /// The new messages it is about (new mail), oldest first.
+    pub messages: Vec<MessageId>,
+    /// The mailbox of its newest message (new mail): a tap opens it there.
+    pub mailbox: Option<MailboxId>,
 }
 
 /// The notifications for going from `before` to `after`, at most one of each kind. None when
@@ -59,13 +65,49 @@ pub fn alerts(before: &AppState, after: &AppState) -> Vec<Alert> {
     .collect()
 }
 
+/// The new-mail notifications for going from `before` to `after`, one per conversation (oldest
+/// first): each names its new messages only, and the mailbox of its newest one. None when the
+/// user turned notifications off.
+pub fn new_mail_by_conversation(before: &AppState, after: &AppState) -> Vec<Alert> {
+    if after.settings.notifications == 0 {
+        return Vec::new();
+    }
+    let fresh = fresh_mail(before, after);
+    let mut threads: Vec<ThreadId> = Vec::new();
+    for m in &fresh {
+        if !threads.contains(&m.thread) {
+            threads.push(m.thread);
+        }
+    }
+    threads
+        .into_iter()
+        .filter_map(|thread| {
+            let mine: Vec<&Envelope> = fresh
+                .iter()
+                .copied()
+                .filter(|m| m.thread == thread)
+                .collect();
+            let newest = mine.last()?;
+            Some(Alert {
+                kind: AlertKind::NewMail,
+                title: clean(&senders(&mine)),
+                body: clean(subject(newest)),
+                threads: vec![thread],
+                draft: None,
+                messages: mine.iter().map(|m| m.id).collect(),
+                mailbox: Some(newest.mailbox),
+            })
+        })
+        .collect()
+}
+
 /// Unread messages that arrived in an INBOX (in focus mode: the focused mailbox, or the
 /// focused account's inbox) already fetched before (a first sync or a history
 /// backfill is not news): new to the state and above the INBOX's `uid_next` of `before`.
-fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
+fn fresh_mail<'a>(before: &AppState, after: &'a AppState) -> Vec<&'a Envelope> {
     let is_inbox =
         |id| after.mailboxes.get(&id).map(|mb| mb.role) == Some(Some(MailboxRole::Inbox));
-    let fresh: Vec<_> = after
+    after
         .messages
         .values()
         .filter(|m| !m.flags.seen && !before.messages.contains_key(&m.id))
@@ -83,54 +125,73 @@ fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
                     .and_then(|mb| mb.uid_next)
                     .is_some_and(|next| m.uid >= next)
         })
-        .collect();
-    if fresh.is_empty() {
-        return None;
+        .collect()
+}
+
+fn sender(m: &Envelope) -> String {
+    m.from.first().map_or_else(
+        || crate::i18n::s(Key::UnknownSender).to_owned(),
+        |a| format::name(a).to_owned(),
+    )
+}
+
+fn subject(m: &Envelope) -> &str {
+    if m.subject.trim().is_empty() {
+        crate::i18n::s(Key::NoSubject)
+    } else {
+        &m.subject
     }
+}
+
+/// The distinct senders, at most [`MAX_SENDERS`] and *and N more*.
+fn senders(messages: &[&Envelope]) -> String {
+    let mut senders: Vec<String> = Vec::new();
+    for m in messages {
+        let name = sender(m);
+        if !senders.contains(&name) {
+            senders.push(name);
+        }
+    }
+    let more = senders.len().saturating_sub(MAX_SENDERS);
+    senders.truncate(MAX_SENDERS);
+    let mut text = senders.join(", ");
+    if more > 0 {
+        text.push_str(&crate::i18n::f(Key::AndMore, &[("n", &more.to_string())]));
+    }
+    text
+}
+
+/// One alert for all new mail (the desktop's).
+fn new_mail(before: &AppState, after: &AppState) -> Option<Alert> {
+    let fresh = fresh_mail(before, after);
+    let newest = fresh.last()?;
     let mut threads: Vec<ThreadId> = Vec::new();
     for m in &fresh {
         if !threads.contains(&m.thread) {
             threads.push(m.thread);
         }
     }
-    let sender = |m: &app_core::Envelope| {
-        m.from.first().map_or_else(
-            || crate::i18n::s(Key::UnknownSender).to_owned(),
-            |a| format::name(a).to_owned(),
-        )
-    };
+    let messages = fresh.iter().map(|m| m.id).collect();
+    let mailbox = Some(newest.mailbox);
     Some(if let [only] = fresh[..] {
         Alert {
             kind: AlertKind::NewMail,
             title: clean(&sender(only)),
-            body: clean(if only.subject.trim().is_empty() {
-                crate::i18n::s(Key::NoSubject)
-            } else {
-                &only.subject
-            }),
+            body: clean(subject(only)),
             threads,
             draft: None,
+            messages,
+            mailbox,
         }
     } else {
-        let mut senders: Vec<String> = Vec::new();
-        for m in &fresh {
-            let name = sender(m);
-            if !senders.contains(&name) {
-                senders.push(name);
-            }
-        }
-        let more = senders.len().saturating_sub(MAX_SENDERS);
-        senders.truncate(MAX_SENDERS);
-        let mut body = senders.join(", ");
-        if more > 0 {
-            body.push_str(&crate::i18n::f(Key::AndMore, &[("n", &more.to_string())]));
-        }
         Alert {
             kind: AlertKind::NewMail,
             title: crate::i18n::f(Key::NewMessages, &[("n", &fresh.len().to_string())]),
-            body: clean(&body),
+            body: clean(&senders(&fresh)),
             threads,
             draft: None,
+            messages,
+            mailbox,
         }
     })
 }
@@ -165,6 +226,8 @@ fn send_failed(before: &AppState, after: &AppState) -> Option<Alert> {
         body: clean(&format!("{subject}: {}", crate::i18n::message(error))),
         threads: Vec::new(),
         draft: Some(first.id),
+        messages: Vec::new(),
+        mailbox: None,
     })
 }
 
@@ -199,6 +262,8 @@ fn approvals(before: &AppState, after: &AppState) -> Option<Alert> {
         body: clean(&body),
         threads: Vec::new(),
         draft: Some(first.draft),
+        messages: Vec::new(),
+        mailbox: None,
     })
 }
 

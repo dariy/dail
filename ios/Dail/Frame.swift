@@ -700,9 +700,11 @@ struct Note: Codable {
     let publicTitle: String
     let open: JSON?
     let actions: [NoteAction]?
+    let group: String?
+    let summary: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case tag, channel, title, body, open, actions
+        case tag, channel, title, body, open, actions, group, summary
         case publicTitle = "public_title"
     }
 }

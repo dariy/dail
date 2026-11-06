@@ -2,30 +2,51 @@
   "actions": [
     {
       "act": {
-        "act": "archive",
+        "act": "trash",
+        "messages": [
+          "00000000-0000-0000-0000-0000000000a1"
+        ],
         "threads": [
           "00000000-0000-0007-0000-000000000000"
         ]
       },
-      "label": "Archive"
+      "label": "Delete"
     },
     {
       "act": {
         "act": "mark_read",
+        "messages": [
+          "00000000-0000-0000-0000-0000000000a1"
+        ],
         "threads": [
           "00000000-0000-0007-0000-000000000000"
         ]
       },
       "label": "Mark read"
+    },
+    {
+      "act": {
+        "act": "archive",
+        "messages": [
+          "00000000-0000-0000-0000-0000000000a1"
+        ],
+        "threads": [
+          "00000000-0000-0007-0000-000000000000"
+        ]
+      },
+      "label": "Archive"
     }
   ],
   "body": "Lunch today?",
   "channel": "new_mail",
+  "group": "new_mail",
   "open": {
-    "act": "open_thread",
+    "act": "open_message",
+    "mailbox": "00000000-0000-0005-0000-000000000000",
+    "message": "00000000-0000-0000-0000-0000000000a1",
     "thread": "00000000-0000-0007-0000-000000000000"
   },
   "public_title": "New mail",
-  "tag": "new_mail",
+  "tag": "new_mail:00000000-0000-0007-0000-000000000000",
   "title": "Bob"
 }

@@ -25,15 +25,32 @@
       "format": "uuid",
       "type": "string"
     },
+    "MailboxId": {
+      "description": "A mailbox (IMAP folder) of one account.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "MessageId": {
+      "description": "One message copy, i.e. one `(mailbox, uid)` pair.",
+      "format": "uuid",
+      "type": "string"
+    },
     "NoteAct": {
       "description": "What a tap or a button of a notification does.",
       "oneOf": [
         {
-          "description": "Archive these threads.",
+          "description": "Archive these threads, or only these messages when `messages` is not empty.",
           "properties": {
             "act": {
               "const": "archive",
               "type": "string"
+            },
+            "messages": {
+              "description": "The messages (a conversation's new ones).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
             },
             "threads": {
               "description": "The threads.",
@@ -50,11 +67,18 @@
           "type": "object"
         },
         {
-          "description": "Mark these threads read.",
+          "description": "Mark these threads read, or only these messages when `messages` is not empty.",
           "properties": {
             "act": {
               "const": "mark_read",
               "type": "string"
+            },
+            "messages": {
+              "description": "The messages (a conversation's new ones).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
             },
             "threads": {
               "description": "The threads.",
@@ -67,6 +91,62 @@
           "required": [
             "act",
             "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Move these threads to Trash, or only these messages when `messages` is not empty.",
+          "properties": {
+            "act": {
+              "const": "trash",
+              "type": "string"
+            },
+            "messages": {
+              "description": "The messages (a conversation's new ones).",
+              "items": {
+                "$ref": "#/$defs/MessageId"
+              },
+              "type": "array"
+            },
+            "threads": {
+              "description": "The threads.",
+              "items": {
+                "$ref": "#/$defs/ThreadId"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "act",
+            "threads"
+          ],
+          "type": "object"
+        },
+        {
+          "description": "Open this message: its mailbox, its thread in the reader, the message expanded.",
+          "properties": {
+            "act": {
+              "const": "open_message",
+              "type": "string"
+            },
+            "mailbox": {
+              "$ref": "#/$defs/MailboxId",
+              "description": "The mailbox."
+            },
+            "message": {
+              "$ref": "#/$defs/MessageId",
+              "description": "The message."
+            },
+            "thread": {
+              "$ref": "#/$defs/ThreadId",
+              "description": "The thread."
+            }
+          },
+          "required": [
+            "act",
+            "mailbox",
+            "thread",
+            "message"
           ],
           "type": "object"
         },
@@ -176,6 +256,13 @@
       "$ref": "#/$defs/Channel",
       "description": "The channel."
     },
+    "group": {
+      "description": "The group it shows in (new mail: `new_mail`, one notification per conversation).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "open": {
       "anyOf": [
         {
@@ -190,6 +277,10 @@
     "public_title": {
       "description": "The lock screen's headline: no sender, no subject.",
       "type": "string"
+    },
+    "summary": {
+      "description": "Whether it is its group's summary (Android shows it in place of the group when it folds).",
+      "type": "boolean"
     },
     "tag": {
       "description": "Posting again with the same tag replaces it.",

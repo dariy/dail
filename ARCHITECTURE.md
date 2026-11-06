@@ -1559,8 +1559,13 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   no activity is visible (the last `visible` event) and hands every `app_mobile::Notification` as JSON to
   `Listener.alert` from that attached runtime thread: `tag`, `channel` (`new_mail`, `not_sent`; `background` is the
   push service's), `title`, `body`, a lock-screen `public_title` without sender or subject, `open` (a `NoteAct`:
-  `open_thread`, `open_draft`) and `actions` (*Archive*, *Mark read* over the new threads). Approval requests are left
-  out (the phone has none). Kotlin's `Notifier` posts them (`VISIBILITY_PRIVATE` with the public version); a tap opens
+  `open_message`, `open_thread`, `open_draft`), `actions`, and `group`/`summary`. New mail (MISC-45,
+  `app_front::alerts::new_mail_by_conversation`) is one notification per new conversation (tag `new_mail:<thread>`,
+  group `new_mail`): *Delete*, *Mark read* and *Archive* (`NoteAct::Trash`/`MarkRead`/`Archive` with `messages`)
+  act on that conversation's new messages only (never the rest of the thread; gone messages submit nothing), and a tap
+  (`open_message`) submits `open_mailbox`, `open_thread` and `expand_messages` for its newest message. A summary
+  (tag `new_mail`, `summary: true`, *N new conversations*) folds the group; every lock-screen title is *New mail*.
+  Approval requests are left out (the phone has none). Kotlin's `Notifier` posts them (`VISIBILITY_PRIVATE` with the public version); a tap opens
   `MainActivity`, which sends `UiEvent::Notification{act}`; a button's `NoteReceiver` calls `background` with
   `{"notification": act}`, and the host submits `NoteAct::commands` as the user and flushes. Threads or drafts that are
   gone submit nothing. `POST_NOTIFICATIONS` is asked once, on the first frame with an account. The `notifications`
