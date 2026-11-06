@@ -10,6 +10,7 @@ use app_core::document::{Block, FoldKind, Span};
 use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
 use app_front::i18n::{self, Key};
+use app_front::message_actions::{self, MessageAction};
 use app_front::text::{clean, clean_lines};
 use app_front::{fold, format, highlight, palette};
 
@@ -525,6 +526,7 @@ impl Mobile {
                 save_all,
                 images,
                 links,
+                actions: self.message_actions(state, message.id),
             });
         }
         let close = self.button(
@@ -546,6 +548,26 @@ impl Mobile {
             position,
             messages: out,
         })
+    }
+
+    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons.
+    fn message_actions(&mut self, state: &AppState, message: MessageId) -> Vec<Button> {
+        message_actions::message_actions(state, message)
+            .into_iter()
+            .map(|item| {
+                let icon = match item.action {
+                    MessageAction::Reply => "reply",
+                    MessageAction::ReplyAll => "reply_all",
+                    MessageAction::Forward => "forward",
+                    MessageAction::MarkRead => "mark_email_read",
+                    MessageAction::MarkUnread => "mark_email_unread",
+                    MessageAction::Star | MessageAction::Unstar => "star",
+                    MessageAction::Trash | MessageAction::Discard => "delete",
+                    MessageAction::Edit => "edit",
+                };
+                self.button(icon, i18n::s(item.action.label()), Act::Run(item.command))
+            })
+            .collect()
     }
 
     /// The conversations above and below the open one in the list, and where it is.

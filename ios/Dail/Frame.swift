@@ -278,9 +278,11 @@ struct ReaderMessage: Codable {
     let saveAll: ActionButton?
     let images: ImagesBar?
     let links: [ActionButton]
+    /// MISC-44: this message's own actions (decoded; the iOS reader does not draw them yet).
+    let actions: [ActionButton]
 
     enum CodingKeys: String, CodingKey {
-        case message, from, to, date, expanded, toggle, snippet, body, status, attachments, images, links
+        case message, from, to, date, expanded, toggle, snippet, body, status, attachments, images, links, actions
         case saveAll = "save_all"
     }
 }

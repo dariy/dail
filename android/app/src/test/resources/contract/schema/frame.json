@@ -1621,6 +1621,14 @@
     "ReaderMessage": {
       "description": "A message of the open thread.",
       "properties": {
+        "actions": {
+          "default": [],
+          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays. A tap is a `tap` of the button's action.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "attachments": {
           "description": "Its attachments.",
           "items": {

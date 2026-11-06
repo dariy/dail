@@ -440,6 +440,11 @@ pub struct ReaderMessage {
     pub images: Option<ImagesBar>,
     /// *Links (N)*: every link target in the body, in full; a tap shows it before it opens.
     pub links: Vec<Button>,
+    /// What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,
+    /// reply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,
+    /// and the conversation stays. A tap is a `tap` of the button's action.
+    #[serde(default)]
+    pub actions: Vec<Button>,
 }
 
 /// A block of a message body (`app_core::document::Block`, cleaned, with action IDs).

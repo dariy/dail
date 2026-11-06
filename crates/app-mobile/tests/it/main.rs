@@ -11,6 +11,7 @@ mod events;
 mod frames;
 mod keys;
 mod list;
+mod message_actions;
 mod palette;
 mod reader;
 mod settings;

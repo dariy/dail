@@ -87,12 +87,44 @@
       }
     ],
     "close": {
-      "action": 23,
+      "action": 29,
       "icon": "close",
       "label": "Close message"
     },
     "messages": [
       {
+        "actions": [
+          {
+            "action": 23,
+            "icon": "reply",
+            "label": "Reply"
+          },
+          {
+            "action": 24,
+            "icon": "reply_all",
+            "label": "Reply all"
+          },
+          {
+            "action": 25,
+            "icon": "forward",
+            "label": "Forward"
+          },
+          {
+            "action": 26,
+            "icon": "mark_email_read",
+            "label": "Mark read"
+          },
+          {
+            "action": 27,
+            "icon": "star",
+            "label": "Star"
+          },
+          {
+            "action": 28,
+            "icon": "delete",
+            "label": "Trash"
+          }
+        ],
         "attachments": [],
         "body": [
           {

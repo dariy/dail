@@ -1594,6 +1594,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
   palette at `move_threads`' step) and reply.
+  - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
+    `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
+    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. Android draws
+    them under each card's header; iOS decodes them but does not draw them yet (Wave 11's iOS decision).
   - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
     `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
     as they are.

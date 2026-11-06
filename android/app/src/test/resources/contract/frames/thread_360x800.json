@@ -87,12 +87,44 @@
       }
     ],
     "close": {
-      "action": 30,
+      "action": 36,
       "icon": "close",
       "label": "Close message"
     },
     "messages": [
       {
+        "actions": [
+          {
+            "action": 30,
+            "icon": "reply",
+            "label": "Reply"
+          },
+          {
+            "action": 31,
+            "icon": "reply_all",
+            "label": "Reply all"
+          },
+          {
+            "action": 32,
+            "icon": "forward",
+            "label": "Forward"
+          },
+          {
+            "action": 33,
+            "icon": "mark_email_read",
+            "label": "Mark read"
+          },
+          {
+            "action": 34,
+            "icon": "star",
+            "label": "Star"
+          },
+          {
+            "action": 35,
+            "icon": "delete",
+            "label": "Trash"
+          }
+        ],
         "attachments": [],
         "date": "Nov 14",
         "expanded": true,

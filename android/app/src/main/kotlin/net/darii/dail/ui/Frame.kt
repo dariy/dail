@@ -251,6 +251,8 @@ data class ReaderMessage(
     @SerialName("save_all") val saveAll: Button? = null,
     val images: ImagesBar? = null,
     val links: List<Button>,
+    // MISC-44: this message's own actions (reply, forward, read, star, trash; a draft's edit, discard).
+    val actions: List<Button> = emptyList(),
 )
 
 @Serializable

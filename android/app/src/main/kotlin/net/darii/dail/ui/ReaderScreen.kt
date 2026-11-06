@@ -291,6 +291,7 @@ private fun Toolbar(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MessageCard(
     message: ReaderMessage,
@@ -304,6 +305,12 @@ private fun MessageCard(
             }
             Text(message.date, style = MaterialTheme.typography.labelSmall)
             if (!message.expanded) Text(message.snippet, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        // MISC-44: the message's own actions; each button's label is its accessible name.
+        if (message.actions.isNotEmpty()) {
+            FlowRow(verticalArrangement = Arrangement.Center) {
+                message.actions.forEach { ActionButton(it, send) }
+            }
         }
         if (!message.expanded) return@Column
         message.status?.let { Text(it, Modifier.padding(vertical = 8.dp)) }

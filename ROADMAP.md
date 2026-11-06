@@ -1052,7 +1052,7 @@ English and French.
     `is_draft`; `discard_draft` drops the cached server copy at once; the thread's Reply and Star skip drafts
   - [x] MISC-44b [front][gui][tui]: `app_front::message_actions` (Reply, Reply all, Forward, Read/Unread, Star/Unstar,
     Move to Trash with `messages`; Edit and Discard on a draft) on every GUI message card, and a TUI message cursor
-  - [ ] MISC-44c [mobile][kt][ios]: the presenter's message cards carry those actions; contract frames, Kotlin card
+  - [x] MISC-44c [mobile][kt][ios]: the presenter's message cards carry those actions; contract frames, Kotlin card
     actions, iOS decoding
 - [ ] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
   *Archive* on its new messages; a tap opens the mailbox, the thread and the message

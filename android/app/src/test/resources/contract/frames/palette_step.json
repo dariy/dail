@@ -15,37 +15,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 108,
+        "action": 114,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 109,
+        "long_press": 115,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 111,
-        "swipe_start": 110,
+        "swipe_end": 117,
+        "swipe_start": 116,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 112,
+        "action": 118,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 113,
+        "long_press": 119,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 115,
-        "swipe_start": 114,
+        "swipe_end": 121,
+        "swipe_start": 120,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -55,7 +55,7 @@
   },
   "palette": {
     "close": {
-      "action": 129,
+      "action": 141,
       "icon": "close",
       "label": "Close"
     },
@@ -69,22 +69,22 @@
       {
         "rows": [
           {
-            "action": 125,
+            "action": 137,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 126,
+            "action": 138,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 127,
+            "action": 139,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 128,
+            "action": 140,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -96,43 +96,75 @@
   "reader": {
     "actions": [
       {
-        "action": 116,
+        "action": 122,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 117,
+        "action": 123,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 118,
+        "action": 124,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 119,
+        "action": 125,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 120,
+        "action": 126,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 121,
+        "action": 127,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 124,
+      "action": 136,
       "icon": "close",
       "label": "Close message"
     },
     "messages": [
       {
+        "actions": [
+          {
+            "action": 130,
+            "icon": "reply",
+            "label": "Reply"
+          },
+          {
+            "action": 131,
+            "icon": "reply_all",
+            "label": "Reply all"
+          },
+          {
+            "action": 132,
+            "icon": "forward",
+            "label": "Forward"
+          },
+          {
+            "action": 133,
+            "icon": "mark_email_read",
+            "label": "Mark read"
+          },
+          {
+            "action": 134,
+            "icon": "star",
+            "label": "Star"
+          },
+          {
+            "action": 135,
+            "icon": "delete",
+            "label": "Trash"
+          }
+        ],
         "attachments": [],
         "date": "Nov 14",
         "expanded": true,
@@ -142,13 +174,13 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 123
+        "toggle": 129
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 122,
+        "action": 128,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -163,13 +195,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 107,
+        "action": 113,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 106,
+      "action": 112,
       "icon": "menu",
       "label": "Mailboxes"
     },
