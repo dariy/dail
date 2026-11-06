@@ -73,6 +73,11 @@ typed_id!(
     ApprovalId
 );
 
+typed_id!(
+    /// A sorting rule of the synced settings (ADR 0015).
+    RuleId
+);
+
 /// Deterministic ID generator seeded from [`Ctx::id_seed`](crate::Ctx).
 ///
 /// The n-th ID of a dispatch is `seed + n`, so one seed yields a stream of distinct IDs.

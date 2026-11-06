@@ -25,6 +25,7 @@ pub mod registry;
 pub mod replay;
 pub mod search;
 pub mod state;
+pub mod synced;
 pub mod threading;
 pub mod update;
 
@@ -42,7 +43,9 @@ pub use engine::{Change, Diff, Engine, PREFETCH_MAX_BYTES, Preview};
 pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
-pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
+pub use ids::{
+    AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, RuleId, ThreadId,
+};
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{
@@ -58,6 +61,10 @@ pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
     KeyPreset, ListFilter, Pane, QuarantinedRow, Revision, SaveState, ServerSearch, Settings,
     SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
+};
+pub use synced::{
+    Condition, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA, SettingsError,
+    Stamped, SyncedSettings, SyncedTheme,
 };
 pub use update::{
     InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,

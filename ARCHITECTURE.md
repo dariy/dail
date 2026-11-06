@@ -310,6 +310,18 @@ ancestor named in its `In-Reply-To`/`References`, of a cached reply naming it, o
 these are several threads they merge. Without links, a subject with a reply/forward prefix (`Re:`, `Fwd:`, `AW:`, `SV:`, …,
 `Re[2]:`) joins the latest thread with the same normalized subject if it was active within 30 days. Threads never split.
 
+Settings that follow the user across devices (ADR 0015) are one `synced::SyncedSettings` document `{schema, updated_ms,
+theme, prefs, rules}`: `theme` and each entry of `prefs` (by `set_setting` key) are `Stamped{updated_ms, value}`, and
+`rules` maps a `RuleId` to a `RuleEntry{updated_ms, rule}` whose `rule: None` is a tombstone, kept 90 days
+(`prune`). `merge` is pure and field by field: the newer `updated_ms` wins, a tombstone wins a tie with a rule, other ties
+go to the larger canonical JSON, so merging is commutative, associative and idempotent (property tests in
+`tests/it/synced.rs`). A `Rule{name, enabled, when, then}` has a `Condition` (`all`/`any`/`not` over `from`, `to`, `cc`,
+`subject`, `list_id` substring tests, `has_attachment`, `mailbox{path}`) and `RuleAction`s (`move{to}`, `add_label{label}`,
+`mark_read`, `star`, `archive`; never forward or reply). Folders are named by path, because IDs differ between devices.
+`from_json` refuses a copy over 256 KiB (`ERR020`), malformed JSON (`ERR021`) or one past the limits of `validate`
+(`ERR022`: 500 rules, 16 actions, conditions 8 deep, texts of 512 characters); unknown fields are ignored. The golden
+documents are under `crates/app-io/testdata/golden/settings/` and are never edited.
+
 ### 4.3 Command / Event / Effect
 
 - **`Command`** — intent from a front-end (§8 catalogue). `#[serde(tag = "cmd", content = "args", rename_all = "snake_case")]`.

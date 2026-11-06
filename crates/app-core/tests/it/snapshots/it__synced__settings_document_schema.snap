@@ -1,0 +1,436 @@
+---
+source: crates/app-core/tests/it/synced.rs
+expression: "schemars::schema_for!(SyncedSettings)"
+---
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SyncedSettings",
+  "description": "The settings that follow the user across devices, stored in the account's `dail/Settings`\nfolder (ADR 0015). Window sizes, paths, per-device keymaps and secrets are never here.",
+  "type": "object",
+  "properties": {
+    "prefs": {
+      "description": "Shared preferences by setting name (`set_setting` keys), each with its own time.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Stamped2"
+      }
+    },
+    "rules": {
+      "description": "Sorting rules by ID, including the tombstones of deleted ones.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/RuleEntry"
+      }
+    },
+    "schema": {
+      "description": "Version of this format; this build writes [`SETTINGS_SCHEMA`].",
+      "type": "integer",
+      "format": "uint32",
+      "default": 0,
+      "minimum": 0
+    },
+    "theme": {
+      "description": "The theme, if set on some device.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Stamped"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "updated_ms": {
+      "description": "Unix milliseconds of the newest change in the document.",
+      "type": "integer",
+      "format": "int64",
+      "default": 0
+    }
+  },
+  "$defs": {
+    "Condition": {
+      "description": "A condition over a message's envelope. Text tests are case-insensitive substring matches.",
+      "oneOf": [
+        {
+          "description": "Every one of `of` matches (an empty list always matches).",
+          "type": "object",
+          "properties": {
+            "of": {
+              "description": "The conditions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            },
+            "test": {
+              "type": "string",
+              "const": "all"
+            }
+          },
+          "required": [
+            "test",
+            "of"
+          ]
+        },
+        {
+          "description": "At least one of `of` matches (an empty list never matches).",
+          "type": "object",
+          "properties": {
+            "of": {
+              "description": "The conditions.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            },
+            "test": {
+              "type": "string",
+              "const": "any"
+            }
+          },
+          "required": [
+            "test",
+            "of"
+          ]
+        },
+        {
+          "description": "`of` does not match.",
+          "type": "object",
+          "properties": {
+            "of": {
+              "description": "The negated condition.",
+              "$ref": "#/$defs/Condition"
+            },
+            "test": {
+              "type": "string",
+              "const": "not"
+            }
+          },
+          "required": [
+            "test",
+            "of"
+          ]
+        },
+        {
+          "description": "The sender's address or name contains `contains`.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "description": "The text to look for.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "from"
+            }
+          },
+          "required": [
+            "test",
+            "contains"
+          ]
+        },
+        {
+          "description": "A `To` recipient's address or name contains `contains`.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "description": "The text to look for.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "to"
+            }
+          },
+          "required": [
+            "test",
+            "contains"
+          ]
+        },
+        {
+          "description": "A `Cc` recipient's address or name contains `contains`.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "description": "The text to look for.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "cc"
+            }
+          },
+          "required": [
+            "test",
+            "contains"
+          ]
+        },
+        {
+          "description": "The subject contains `contains`.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "description": "The text to look for.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "subject"
+            }
+          },
+          "required": [
+            "test",
+            "contains"
+          ]
+        },
+        {
+          "description": "The `List-Id` header contains `contains`.",
+          "type": "object",
+          "properties": {
+            "contains": {
+              "description": "The text to look for.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "list_id"
+            }
+          },
+          "required": [
+            "test",
+            "contains"
+          ]
+        },
+        {
+          "description": "The message has at least one attachment.",
+          "type": "object",
+          "properties": {
+            "test": {
+              "type": "string",
+              "const": "has_attachment"
+            }
+          },
+          "required": [
+            "test"
+          ]
+        },
+        {
+          "description": "The message is in the folder with this full path (e.g. `INBOX`).",
+          "type": "object",
+          "properties": {
+            "path": {
+              "description": "The folder's full path, compared exactly.",
+              "type": "string"
+            },
+            "test": {
+              "type": "string",
+              "const": "mailbox"
+            }
+          },
+          "required": [
+            "test",
+            "path"
+          ]
+        }
+      ]
+    },
+    "Rule": {
+      "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot forward or reply (ADR 0015).",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether the rule runs. A disabled rule is kept but never matches.",
+          "type": "boolean",
+          "default": true
+        },
+        "name": {
+          "description": "A name for people, e.g. `Newsletters to Reading`. Data, never instructions.",
+          "type": "string"
+        },
+        "then": {
+          "description": "What to do with a matching message, in order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RuleAction"
+          }
+        },
+        "when": {
+          "description": "The condition over a message's envelope.",
+          "$ref": "#/$defs/Condition"
+        }
+      },
+      "required": [
+        "name",
+        "when",
+        "then"
+      ]
+    },
+    "RuleAction": {
+      "description": "What a rule does with a matching message. There is deliberately no forward or reply.",
+      "oneOf": [
+        {
+          "description": "Move the message to the folder with this full path.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "move"
+            },
+            "to": {
+              "description": "The target folder's full path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "to"
+          ]
+        },
+        {
+          "description": "Copy the message into the folder with this path (a Gmail label).",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "add_label"
+            },
+            "label": {
+              "description": "The label, as a folder path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "label"
+          ]
+        },
+        {
+          "description": "Mark the message read.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "mark_read"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Star the message.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "star"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        },
+        {
+          "description": "Archive the message.",
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "archive"
+            }
+          },
+          "required": [
+            "action"
+          ]
+        }
+      ]
+    },
+    "RuleEntry": {
+      "description": "One rule slot: the rule, or the tombstone of a deleted one.",
+      "type": "object",
+      "properties": {
+        "rule": {
+          "description": "The rule; `None` once deleted (a tombstone, kept [`TOMBSTONE_TTL_MS`]).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "updated_ms": {
+          "description": "Unix milliseconds of the last save or of the delete.",
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "required": [
+        "updated_ms"
+      ]
+    },
+    "Stamped": {
+      "description": "A value with the time it was last set, for the field-by-field merge.",
+      "type": "object",
+      "properties": {
+        "updated_ms": {
+          "description": "Unix milliseconds of the change, from `Ctx::now_ms` of the device that made it.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "description": "The value.",
+          "$ref": "#/$defs/SyncedTheme"
+        }
+      },
+      "required": [
+        "updated_ms",
+        "value"
+      ]
+    },
+    "Stamped2": {
+      "description": "A value with the time it was last set, for the field-by-field merge.",
+      "type": "object",
+      "properties": {
+        "updated_ms": {
+          "description": "Unix milliseconds of the change, from `Ctx::now_ms` of the device that made it.",
+          "type": "integer",
+          "format": "int64"
+        },
+        "value": {
+          "description": "The value."
+        }
+      },
+      "required": [
+        "updated_ms",
+        "value"
+      ]
+    },
+    "SyncedTheme": {
+      "description": "The theme part of [`SyncedSettings`] (ADR 0008).",
+      "type": "object",
+      "properties": {
+        "dark": {
+          "description": "The built-in theme of the dark mode, by name.",
+          "type": "string"
+        },
+        "light": {
+          "description": "The built-in theme of the light mode, by name.",
+          "type": "string"
+        },
+        "mode": {
+          "description": "0 = follow the system, 1 = light, 2 = dark (as `Settings::theme`).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "mode",
+        "light",
+        "dark"
+      ]
+    }
+  }
+}
