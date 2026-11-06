@@ -21,6 +21,7 @@ pub mod saves;
 pub mod search;
 pub mod secrets;
 pub mod session;
+pub mod settings;
 pub mod smtp;
 pub mod tls;
 pub mod verify;

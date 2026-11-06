@@ -15,37 +15,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 103,
+        "action": 105,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 104,
+        "long_press": 106,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 106,
-        "swipe_start": 105,
+        "swipe_end": 108,
+        "swipe_start": 107,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 107,
+        "action": 109,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 108,
+        "long_press": 110,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 110,
-        "swipe_start": 109,
+        "swipe_end": 112,
+        "swipe_start": 111,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -55,7 +55,7 @@
   },
   "palette": {
     "close": {
-      "action": 124,
+      "action": 126,
       "icon": "close",
       "label": "Close"
     },
@@ -69,22 +69,22 @@
       {
         "rows": [
           {
-            "action": 120,
+            "action": 122,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 121,
+            "action": 123,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 122,
+            "action": 124,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 123,
+            "action": 125,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -96,38 +96,38 @@
   "reader": {
     "actions": [
       {
-        "action": 111,
+        "action": 113,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 112,
+        "action": 114,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 113,
+        "action": 115,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 114,
+        "action": 116,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 115,
+        "action": 117,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 116,
+        "action": 118,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 119,
+      "action": 121,
       "icon": "close",
       "label": "Close message"
     },
@@ -142,13 +142,13 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 118
+        "toggle": 120
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 117,
+        "action": 119,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -163,13 +163,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 102,
+        "action": 104,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 101,
+      "action": 103,
       "icon": "menu",
       "label": "Mailboxes"
     },

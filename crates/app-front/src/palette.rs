@@ -699,6 +699,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
         }),
         CommandName::RemoveAccount => pick_account(remove_account),
         CommandName::SyncNow => Flow::Run(Command::SyncNow { account: None }),
+        CommandName::PullSettings => Flow::Run(Command::PullSettings { account: None }),
+        CommandName::PushSettings => Flow::Run(Command::PushSettings {}),
         CommandName::ListMailboxes => Flow::Run(Command::ListMailboxes { account: None }),
         CommandName::ListThreads => {
             pick_mailbox(crate::i18n::s(Key::WhichMailbox), None, |mailbox| {

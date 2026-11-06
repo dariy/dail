@@ -471,6 +471,8 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::SaveDraft { account, .. }
         | Effect::DeleteDraft { account, .. }
         | Effect::ManageFolder { account, .. }
+        | Effect::ReadSettingsBlob { account, .. }
+        | Effect::WriteSettingsBlob { account, .. }
         | Effect::SearchMailbox { account, .. }
         | Effect::SmtpSend { account, .. }
         | Effect::WatchMailbox { account, .. } => Lane::Account(*account),

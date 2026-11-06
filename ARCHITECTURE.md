@@ -322,6 +322,22 @@ go to the larger canonical JSON, so merging is commutative, associative and idem
 (`ERR022`: 500 rules, 16 actions, conditions 8 deep, texts of 512 characters); unknown fields are ignored. The golden
 documents are under `crates/app-io/testdata/golden/settings/` and are never edited.
 
+`AppState.synced` (`SyncedState`, not persisted: the first pull of a session fills it) holds the merged document, the
+account the last pull read from (`source`), the server copy read last (`copy: {uid_validity, uid}`), `pulled_ms`,
+`pushed_ms`, `pulling`/`pushing` and `error` (a `SyncIssue`). The settings account is the first account (SET-3 makes it
+choosable). Its folder is `dail<delimiter>Settings` (`synced::settings_folder`); `ingest_mailboxes_listed` never makes it
+(nor a `dail` parent without other subfolders) a mailbox, so no front end lists it. Each listing of the settings account
+(connect, `sync_now`, full rounds) pulls if the folder is listed, and otherwise counts as a finished pull with no copy;
+a change seen by the account's IDLE watch pulls again once a copy is known. `ReadSettingsBlob` (`app_sync::settings::read`)
+`EXAMINE`s the folder, takes the highest UID (`UID FETCH * (UID RFC822.SIZE)`), skips the download if it is `known`,
+refuses a message over `app_io::settings_blob::MAX_RAW_BYTES` before downloading it (`ERR020`), and returns the decoded
+`application/json` part as `SettingsRead{account, copy?, document?}`; the engine runs `SyncedSettings::from_json`
+(256 KiB cap, `ERR020`–`ERR022`), merges and prunes. An ignored copy is still remembered as read. `push_settings` needs a
+finished pull, so a newer server copy is never overwritten unread; `WriteSettingsBlob` (`app_sync::settings::write`)
+`APPEND`s `app_io::settings_blob::render` (one `application/json` part, `\Seen`), creating the folder if the first
+`APPEND` fails, then stores `\Deleted` on and expunges every older UID of that folder only. Failures are
+`SettingsFailed{account, write, error}`. The fake server (`app-testkit`) implements both.
+
 ### 4.3 Command / Event / Effect
 
 - **`Command`** — intent from a front-end (§8 catalogue). `#[serde(tag = "cmd", content = "args", rename_all = "snake_case")]`.
@@ -339,7 +355,7 @@ documents are under `crates/app-io/testdata/golden/settings/` and are never edit
   `IndexSearchFailed{search, error}`, `ServersDiscovered{email, imap, smtp, source}`, `DiscoveryFailed{email, error}`, `Closing`,
   `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
   `SearchResults{account, mailbox, uid_validity, search, started_ms, mailboxes, envelopes}`, `SearchFailed{account, mailbox, search, started_ms, mailboxes, error}`,
-  `KeywordsRefused{account, path}` (MISC-4), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
+  `KeywordsRefused{account, path}` (MISC-4), `SettingsRead{account, copy?, document?}`, `SettingsWritten{account}`, `SettingsFailed{account, write, error}` (SET-2), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
   failure stays in `SyncStatus.folder_error` until a folder change succeeds — listings don't clear it), `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
 - **`Effect`** — a request to the world: `VerifyAccount{account, login, imap, smtp, secret}`, `ListMailboxes{account, imap: ImapLogin}`, `FetchEnvelopes{account, mailbox, path, imap, uid_validity?, since_uid?, limit}`,
   `ResyncFlags{account, mailbox, path, imap, uid_validity, from_uid, to_uid, changed_since?}`,
@@ -348,7 +364,7 @@ documents are under `crates/app-io/testdata/golden/settings/` and are never edit
   `SmtpSend{draft, account, smtp: SmtpLogin, message: OutgoingMessage,
   sent_copy?: SentCopy{imap, path}}`, `StoreSecret{account, secret, value: Secret}`,
   `DeleteSecret{account, secret}`, `PersistState{delta}`, `ScheduleTick{at_ms}`, `WatchMailbox{account, mailbox, path, imap}`,
-  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`. JSON form: `{"effect": "<name>", "args": {…}}`.
+  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`, `ReadSettingsBlob{account, imap, path, known?}`, `WriteSettingsBlob{account, imap, path, document, date_ms}`. JSON form: `{"effect": "<name>", "args": {…}}`.
   `Effect::failure_event` maps a failed effect to the `Event` that records the failure in state.
 - **`CommandReceipt`** — `{ ok, name, kind: Option<CommandKind>, affected: Vec<EntityRef>, data: serde_json::Value, undo_label: Option<String> }`.
   Query results travel in `data`. `kind` is `null` for receipts of ingested events. Rejected inputs return a
@@ -1840,6 +1856,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
+| `pull_settings` | Mutation (no history) | `account?` (none: the settings account, the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
+| `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
 | `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
 | `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |

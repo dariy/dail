@@ -41,6 +41,7 @@ mod scale;
 mod search;
 mod searching;
 mod sends;
+mod settings_sync;
 mod sync;
 mod synced;
 mod theme;

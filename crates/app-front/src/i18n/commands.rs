@@ -33,6 +33,8 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::SetDraftFrom => "Envoyer ce brouillon depuis…",
         CommandName::RemoveAccount => "Supprimer le compte",
         CommandName::SyncNow => "Synchroniser",
+        CommandName::PullSettings => "Récupérer les paramètres du serveur",
+        CommandName::PushSettings => "Envoyer les paramètres au serveur",
         CommandName::ListMailboxes => "Lister les dossiers",
         CommandName::SetSyncWindow => "Régler le courrier gardé hors ligne",
         CommandName::ListThreads => "Lister les discussions",
@@ -155,6 +157,12 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         }
         CommandName::SetDraftFrom => "Choisir l’adresse d’envoi d’un brouillon.",
         CommandName::RemoveAccount => "Retirer un compte et effacer son mot de passe du trousseau.",
+        CommandName::PullSettings => {
+            "Récupérer du serveur de courrier les paramètres partagés entre appareils et les fusionner."
+        }
+        CommandName::PushSettings => {
+            "Enregistrer les paramètres partagés sur le serveur de courrier pour les autres appareils."
+        }
         CommandName::SyncNow => {
             "Synchroniser maintenant : lister les dossiers et récupérer le nouveau courrier."
         }

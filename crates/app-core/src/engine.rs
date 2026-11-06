@@ -18,6 +18,7 @@ mod queries;
 mod saves;
 mod search;
 mod sends;
+mod settings_sync;
 mod sync;
 pub use sync::PREFETCH_MAX_BYTES;
 mod triage;
@@ -327,6 +328,19 @@ impl Engine {
             Event::KeywordsRefused { account, path } => {
                 Ok(self.ingest_keywords_refused(account, &path, receipt))
             }
+            Event::SettingsRead {
+                account,
+                copy,
+                document,
+            } => Ok(self.ingest_settings_read(account, copy, document.as_deref(), ctx, receipt)),
+            Event::SettingsWritten { account } => {
+                Ok(self.ingest_settings_written(account, ctx, receipt))
+            }
+            Event::SettingsFailed {
+                account,
+                write,
+                error,
+            } => Ok(self.ingest_settings_failed(account, write, error, ctx, receipt)),
             Event::FolderManaged { account, .. } => {
                 Ok(self.ingest_folder(account, None, ctx, receipt))
             }
@@ -673,6 +687,10 @@ impl Engine {
             Command::SyncNow { account } => {
                 self.sync_now(account, ctx, receipt).map(Applied::plain)
             }
+            Command::PullSettings { account } => {
+                self.pull_settings(account, receipt).map(Applied::plain)
+            }
+            Command::PushSettings {} => self.push_settings(ctx, receipt).map(Applied::plain),
             Command::ListMailboxes { account } => {
                 self.list_mailboxes(account, receipt).map(Applied::plain)
             }

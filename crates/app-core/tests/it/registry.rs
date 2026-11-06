@@ -79,6 +79,7 @@ fn the_agent_policy_is_pinned() {
             "set_password",
             "set_identity",
             "remove_identity",
+            "push_settings",
             "save_attachments",
             "restore_draft",
             "install_update",

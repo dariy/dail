@@ -45,6 +45,9 @@ pub struct AppState {
     /// Updates of dail itself (Wave 7): the running build and where an update stands.
     #[serde(default)]
     pub update: crate::update::UpdateState,
+    /// The settings that follow the user across devices, stored on the mail server (ADR 0015).
+    #[serde(default, skip_serializing_if = "crate::synced::SyncedState::is_empty")]
+    pub synced: crate::synced::SyncedState,
     /// Counts the engine's inputs, so that a front-end can keep what it derived from a state
     /// until the next one (`listing` projections are O(n) per call). Not part of the state's
     /// value: never serialized, and equal in every comparison.

@@ -248,6 +248,22 @@ pub enum Command {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         account: Option<AccountId>,
     },
+    /// Pull the settings that follow the user across devices (theme, shared preferences,
+    /// sorting rules; ADR 0015) from the mail server's hidden `dail/Settings` folder and merge
+    /// them into the local copy, newest change per field and per rule winning. Runs in the
+    /// background; the result is in `synced` (`pulled_ms`, `error`). A server copy that is too
+    /// large or invalid is ignored and its error shown. Also runs on connect. Not undoable.
+    PullSettings {
+        /// The account to read from. Omit for the settings account (the first account).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        account: Option<AccountId>,
+    },
+    /// Store the merged settings document in the settings account's hidden `dail/Settings`
+    /// folder (created on first use), replacing the older copies there, so that other devices
+    /// pull it. Needs a finished `pull_settings` first, so that no newer server copy is
+    /// overwritten unread. Only the user can do this (GUI or CLI); agents (MCP)
+    /// get `error_008_origin_not_allowed`. Not undoable.
+    PushSettings {},
     /// List cached mailboxes with their role (`inbox`, `sent`, …) and unread/total counts,
     /// grouped by account with the inbox first. Read-only.
     ListMailboxes {
@@ -1157,6 +1173,8 @@ impl Command {
             | Self::EmptyJunk { .. }
             | Self::RemoveAccount { .. }
             | Self::SyncNow { .. }
+            | Self::PullSettings { .. }
+            | Self::PushSettings {}
             | Self::ListMailboxes { .. }
             | Self::SetSyncWindow { .. }
             | Self::ListThreads { .. }
@@ -1252,6 +1270,8 @@ impl Command {
             Self::SetDraftFrom { .. } => CommandName::SetDraftFrom,
             Self::RemoveAccount { .. } => CommandName::RemoveAccount,
             Self::SyncNow { .. } => CommandName::SyncNow,
+            Self::PullSettings { .. } => CommandName::PullSettings,
+            Self::PushSettings {} => CommandName::PushSettings,
             Self::ListMailboxes { .. } => CommandName::ListMailboxes,
             Self::SetSyncWindow { .. } => CommandName::SetSyncWindow,
             Self::ListThreads { .. } => CommandName::ListThreads,

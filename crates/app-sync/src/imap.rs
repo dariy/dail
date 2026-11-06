@@ -1076,7 +1076,11 @@ async fn select_by_message_id(
 }
 
 /// `UID STORE +FLAGS.SILENT (\Deleted)` and [`expunge`] `uids` of the selected mailbox `path`.
-async fn delete_uids(session: &mut ImapSession, path: &str, uids: &[u32]) -> Result<(), String> {
+pub(crate) async fn delete_uids(
+    session: &mut ImapSession,
+    path: &str,
+    uids: &[u32],
+) -> Result<(), String> {
     if uids.is_empty() {
         return Ok(());
     }

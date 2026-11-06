@@ -12,6 +12,7 @@ pub mod original;
 pub mod pdf;
 pub mod plain;
 pub mod profile;
+pub mod settings_blob;
 pub mod store;
 pub mod update;
 

@@ -47,6 +47,14 @@ expression: first
       "persist_error": null,
       "sync": {}
     },
+    "synced": {
+      "pulled_ms": 1700000003000,
+      "settings": {
+        "schema": 0,
+        "updated_ms": 0
+      },
+      "source": "00000000-0000-0004-0000-000000000000"
+    },
     "threads": {},
     "update": {
       "status": {

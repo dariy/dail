@@ -135,6 +135,10 @@ pub enum CommandName {
     RemoveAccount,
     /// See [`Command::SyncNow`].
     SyncNow,
+    /// See [`Command::PullSettings`].
+    PullSettings,
+    /// See [`Command::PushSettings`].
+    PushSettings,
     /// See [`Command::ListMailboxes`].
     ListMailboxes,
     /// See [`Command::SetSyncWindow`].
@@ -402,6 +406,8 @@ impl CommandName {
         Self::SetDraftFrom,
         Self::RemoveAccount,
         Self::SyncNow,
+        Self::PullSettings,
+        Self::PushSettings,
         Self::ListMailboxes,
         Self::SetSyncWindow,
         Self::ListThreads,
@@ -504,6 +510,8 @@ impl CommandName {
             Self::SetDraftFrom => "set_draft_from",
             Self::RemoveAccount => "remove_account",
             Self::SyncNow => "sync_now",
+            Self::PullSettings => "pull_settings",
+            Self::PushSettings => "push_settings",
             Self::ListMailboxes => "list_mailboxes",
             Self::SetSyncWindow => "set_sync_window",
             Self::ListThreads => "list_threads",
@@ -615,6 +623,8 @@ impl CommandName {
             | Self::RenameFolder
             | Self::SetDraftFrom
             | Self::SyncNow
+            | Self::PullSettings
+            | Self::PushSettings
             | Self::CheckForUpdates
             | Self::DownloadUpdate
             | Self::SkipUpdateVersion
@@ -703,6 +713,7 @@ impl CommandName {
             | Self::SaveAttachments
             | Self::ApproveRequest
             | Self::RejectRequest
+            | Self::PushSettings
             | Self::InstallUpdate => AgentAccess::UserOnly,
             Self::SendDraft => AgentAccess::Approval,
             Self::GetSettings
@@ -725,6 +736,7 @@ impl CommandName {
             | Self::EmptyJunk
             | Self::SetDraftFrom
             | Self::SyncNow
+            | Self::PullSettings
             | Self::ListMailboxes
             | Self::SetSyncWindow
             | Self::ListThreads
@@ -895,6 +907,14 @@ impl CommandName {
             Self::SyncNow => CommandSpec {
                 available: has_accounts,
                 ..base("Sync now", Category::Mail, &["F5", "Ctrl+R"])
+            },
+            Self::PullSettings => CommandSpec {
+                available: has_accounts,
+                ..base("Pull settings from the server", Category::App, &[])
+            },
+            Self::PushSettings => CommandSpec {
+                available: |state| state.synced.pulled_ms.is_some(),
+                ..base("Push settings to the server", Category::App, &[])
             },
             Self::ListMailboxes => CommandSpec {
                 available: has_accounts,
@@ -1298,6 +1318,8 @@ impl CommandName {
                 confirm: true,
             },
             Self::SyncNow => Command::SyncNow { account: None },
+            Self::PullSettings => Command::PullSettings { account: None },
+            Self::PushSettings => Command::PushSettings {},
             Self::ListMailboxes => Command::ListMailboxes { account: None },
             Self::SetSyncWindow => Command::SetSyncWindow {
                 mailbox: EXAMPLE_MAILBOX,

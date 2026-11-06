@@ -1416,6 +1416,53 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Pull the settings that follow the user across devices (theme, shared preferences,\nsorting rules; ADR 0015) from the mail server's hidden `dail/Settings` folder and merge\nthem into the local copy, newest change per field and per rule winning. Runs in the\nbackground; the result is in `synced` (`pulled_ms`, `error`). A server copy that is too\nlarge or invalid is ignored and its error shown. Also runs on connect. Not undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AccountId"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The account to read from. Omit for the settings account (the first account)."
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "pull_settings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Store the merged settings document in the settings account's hidden `dail/Settings`\nfolder (created on first use), replacing the older copies there, so that other devices\npull it. Needs a finished `pull_settings` first, so that no newer server copy is\noverwritten unread. Only the user can do this (GUI or CLI); agents (MCP)\nget `error_008_origin_not_allowed`. Not undoable.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "push_settings",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "List cached mailboxes with their role (`inbox`, `sent`, …) and unread/total counts,\ngrouped by account with the inbox first. Read-only.",
       "properties": {
         "args": {

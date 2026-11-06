@@ -63,8 +63,8 @@ pub use state::{
     SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
 };
 pub use synced::{
-    Condition, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA, SettingsError,
-    Stamped, SyncedSettings, SyncedTheme,
+    Condition, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA, SettingsCopy,
+    SettingsError, Stamped, SyncedSettings, SyncedState, SyncedTheme, settings_folder,
 };
 pub use update::{
     InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,

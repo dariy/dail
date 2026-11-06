@@ -35,7 +35,8 @@ Some tools are for the user only and answer `error_008_origin_not_allowed`: addi
 their passwords and sending addresses (`add_account`, `update_account`, `set_password`, \
 `set_identity`, `remove_identity`), saving attachments to disk (`save_attachments`), \
 `restore_draft` (use `undo` to bring back a discarded draft), installing an update of dail \
-(`install_update`; you may check for and download one) and deciding approval requests \
+(`install_update`; you may check for and download one), pushing the settings to the mail server \
+(`push_settings`; you may `pull_settings`) and deciding approval requests \
 (`approve_request`, `reject_request`). Ask the user to do these in \
 the dail GUI or CLI.\n\n\
 Mutations (read/star/archive/move/trash, drafts, settings) apply locally at once and can be \

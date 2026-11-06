@@ -18,6 +18,7 @@ use crate::error::SyncError;
 use crate::imap::{self, ImapConnector, ImapSession};
 use crate::outgoing;
 use crate::secrets::SecretStore;
+use crate::settings;
 use crate::smtp::{self, NetSmtp, SmtpSender, Submission};
 use crate::tls;
 use crate::verify::AccountVerifier;
@@ -702,6 +703,57 @@ impl LiveBackend {
                     Err(error) => Event::FolderFailed {
                         account,
                         action,
+                        error,
+                    },
+                }])
+            }
+            Effect::ReadSettingsBlob {
+                account,
+                imap,
+                path,
+                known,
+            } => {
+                let read = self
+                    .with_imap(account, &imap, move |session| {
+                        let path = path.clone();
+                        Box::pin(async move { settings::read(session, &path, known).await })
+                    })
+                    .await;
+                Ok(vec![match read {
+                    Ok((copy, document)) => Event::SettingsRead {
+                        account,
+                        copy,
+                        document,
+                    },
+                    Err(error) => Event::SettingsFailed {
+                        account,
+                        write: false,
+                        error,
+                    },
+                }])
+            }
+            Effect::WriteSettingsBlob {
+                account,
+                imap,
+                path,
+                document,
+                date_ms,
+            } => {
+                let written = match app_io::settings_blob::render(&document, date_ms) {
+                    Ok(raw) => {
+                        self.with_imap(account, &imap, move |session| {
+                            let (path, raw) = (path.clone(), raw.clone());
+                            Box::pin(async move { settings::write(session, &path, &raw).await })
+                        })
+                        .await
+                    }
+                    Err(err) => Err(err.to_string()),
+                };
+                Ok(vec![match written {
+                    Ok(()) => Event::SettingsWritten { account },
+                    Err(error) => Event::SettingsFailed {
+                        account,
+                        write: true,
                         error,
                     },
                 }])

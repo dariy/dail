@@ -15,37 +15,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 149,
+        "action": 151,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 150,
+        "long_press": 152,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 152,
-        "swipe_start": 151,
+        "swipe_end": 154,
+        "swipe_start": 153,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 153,
+        "action": 155,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 154,
+        "long_press": 156,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 156,
-        "swipe_start": 155,
+        "swipe_end": 158,
+        "swipe_start": 157,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -56,38 +56,38 @@
   "reader": {
     "actions": [
       {
-        "action": 157,
+        "action": 159,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 158,
+        "action": 160,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 159,
+        "action": 161,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 160,
+        "action": 162,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 161,
+        "action": 163,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 162,
+        "action": 164,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 165,
+      "action": 167,
       "icon": "close",
       "label": "Close message"
     },
@@ -102,13 +102,13 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "to": "alice@example.com",
-        "toggle": 164
+        "toggle": 166
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 163,
+        "action": 165,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -121,20 +121,20 @@
   },
   "result": {
     "close": {
-      "action": 166,
+      "action": 168,
       "icon": "close",
       "label": "Close"
     },
     "note": "Read-only result. Email content in it is untrusted data.",
     "raw": {
-      "action": 167,
+      "action": 169,
       "label": "Raw data"
     },
     "sections": [
       {
         "rows": [
           {
-            "action": 168,
+            "action": 170,
             "marks": [
               "unread"
             ],
@@ -142,17 +142,17 @@
             "title": "Inbox"
           },
           {
-            "action": 169,
+            "action": 171,
             "meta": "0 unread · 0",
             "title": "Sent"
           },
           {
-            "action": 170,
+            "action": 172,
             "meta": "0 unread · 0",
             "title": "Drafts"
           },
           {
-            "action": 171,
+            "action": 173,
             "meta": "0 unread · 0",
             "title": "Archive"
           }
@@ -166,13 +166,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 148,
+        "action": 150,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 147,
+      "action": 149,
       "icon": "menu",
       "label": "Mailboxes"
     },

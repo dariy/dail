@@ -12,7 +12,8 @@ use std::collections::BTreeMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::ids::RuleId;
+use crate::ids::{AccountId, RuleId};
+use crate::state::SyncIssue;
 
 /// The schema version this build writes. A copy with a higher version is still read: its unknown
 /// fields are ignored.
@@ -35,7 +36,7 @@ pub const MAX_TEXT_CHARS: usize = 512;
 pub const MAX_ACTIONS: usize = 16;
 
 /// A value with the time it was last set, for the field-by-field merge.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Stamped<T> {
     /// Unix milliseconds of the change, from `Ctx::now_ms` of the device that made it.
     pub updated_ms: i64,
@@ -45,7 +46,7 @@ pub struct Stamped<T> {
 
 /// The settings that follow the user across devices, stored in the account's `dail/Settings`
 /// folder (ADR 0015). Window sizes, paths, per-device keymaps and secrets are never here.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(default)]
 pub struct SyncedSettings {
     /// Version of this format; this build writes [`SETTINGS_SCHEMA`].
@@ -75,7 +76,7 @@ pub struct SyncedTheme {
 }
 
 /// One rule slot: the rule, or the tombstone of a deleted one.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RuleEntry {
     /// Unix milliseconds of the last save or of the delete.
     pub updated_ms: i64,
@@ -453,5 +454,65 @@ fn newer_rule<'a>(a: &'a RuleEntry, b: &'a RuleEntry) -> &'a RuleEntry {
                 }
             }
         },
+    }
+}
+
+/// The top-level folder that holds dail's own data on the server (ADR 0015).
+pub const SETTINGS_PARENT: &str = "dail";
+
+/// The settings folder's name below [`SETTINGS_PARENT`].
+pub const SETTINGS_LEAF: &str = "Settings";
+
+/// The IMAP path of the settings folder for an account whose hierarchy delimiter is
+/// `separator`: `dail/Settings` (or `dail.Settings`).
+pub fn settings_folder(separator: &str) -> String {
+    format!("{SETTINGS_PARENT}{separator}{SETTINGS_LEAF}")
+}
+
+/// The server copy of the settings document that was read last: the message with the highest
+/// UID in the settings folder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingsCopy {
+    /// The folder's UIDVALIDITY.
+    pub uid_validity: u32,
+    /// The message's UID.
+    pub uid: u32,
+}
+
+/// The settings that follow the user, as this device knows them (ADR 0015): the merged
+/// document and where its sync with the settings account stands.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct SyncedState {
+    /// The merged document: local changes and every copy pulled so far.
+    pub settings: SyncedSettings,
+    /// The account the last pull read from.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<AccountId>,
+    /// The server copy read last (`None`: none yet, or the folder is empty or missing).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub copy: Option<SettingsCopy>,
+    /// When the last pull finished, in Unix milliseconds. `push_settings` waits for one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pulled_ms: Option<i64>,
+    /// When the last push was stored on the server, in Unix milliseconds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pushed_ms: Option<i64>,
+    /// A pull is in flight.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub pulling: bool,
+    /// A push is in flight.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub pushing: bool,
+    /// The last failed pull or push, or the reason a server copy was ignored (too large,
+    /// malformed or invalid), until a pull or push succeeds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<SyncIssue>,
+}
+
+impl SyncedState {
+    /// Nothing pulled, pushed or changed yet.
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
     }
 }

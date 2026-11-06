@@ -7,7 +7,7 @@ use app_core::search::{Condition, Query};
 use app_core::{
     AppState, Effect, Endpoint, Event, FolderAction, IdGen, ImapLogin, MailboxRole,
     OutgoingMessage, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security,
-    SmtpLogin, UidFlags,
+    SettingsCopy, SmtpLogin, UidFlags,
 };
 use app_io::Store;
 use app_io::compose::Bcc;
@@ -369,6 +369,39 @@ impl MemoryBackend {
                     error,
                 },
             }]),
+            Effect::ReadSettingsBlob {
+                account,
+                imap,
+                path,
+                known,
+            } => Ok(vec![match self.read_settings(&imap, &path, known) {
+                Ok((copy, document)) => Event::SettingsRead {
+                    account,
+                    copy,
+                    document,
+                },
+                Err(error) => Event::SettingsFailed {
+                    account,
+                    write: false,
+                    error,
+                },
+            }]),
+            Effect::WriteSettingsBlob {
+                account,
+                imap,
+                path,
+                document,
+                date_ms,
+            } => Ok(vec![
+                match self.write_settings(&imap, &path, &document, date_ms) {
+                    Ok(()) => Event::SettingsWritten { account },
+                    Err(error) => Event::SettingsFailed {
+                        account,
+                        write: true,
+                        error,
+                    },
+                },
+            ]),
             Effect::DeleteDraft {
                 draft,
                 account,
@@ -847,6 +880,68 @@ impl MemoryBackend {
             }
         }
         Ok(())
+    }
+
+    /// Fake read of the settings folder, like `app_sync::settings::read`: the message with the
+    /// highest UID, not downloaded if `known` or too large.
+    fn read_settings(
+        &self,
+        imap: &ImapLogin,
+        path: &str,
+        known: Option<SettingsCopy>,
+    ) -> Result<app_sync::settings::ReadResult, String> {
+        self.verify(&imap.login, &imap.secret)?;
+        let server = self.server.lock();
+        let Some(mailbox) = server.mailbox(&imap.login, path) else {
+            return Ok((None, None));
+        };
+        let Some(newest) = mailbox.messages.iter().max_by_key(|m| m.uid) else {
+            return Ok((None, None));
+        };
+        let copy = SettingsCopy {
+            uid_validity: mailbox.uid_validity,
+            uid: newest.uid,
+        };
+        if known == Some(copy) {
+            return Ok((Some(copy), None));
+        }
+        if newest.raw.len() > app_io::settings_blob::MAX_RAW_BYTES {
+            return Err(app_sync::settings::too_large(newest.raw.len()));
+        }
+        let document = app_sync::settings::document_of(newest.raw.as_bytes())?;
+        Ok((Some(copy), Some(document)))
+    }
+
+    /// Fake write of the settings folder, like `app_sync::settings::write`: create the folder
+    /// if missing, `APPEND`, then expunge every older message there.
+    fn write_settings(
+        &self,
+        imap: &ImapLogin,
+        path: &str,
+        document: &str,
+        date_ms: i64,
+    ) -> Result<(), String> {
+        let raw = app_io::settings_blob::render(document, date_ms).map_err(|e| e.to_string())?;
+        self.verify(&imap.login, &imap.secret)?;
+        {
+            let mut server = self.server.lock();
+            let account = server
+                .accounts
+                .iter_mut()
+                .find(|account| account.email.eq_ignore_ascii_case(&imap.login))
+                .ok_or_else(|| "IMAP LOGIN failed: unknown user".to_owned())?;
+            if !account.mailboxes.iter().any(|m| m.path == path) {
+                account.mailboxes.push(FakeMailbox::new(path));
+            }
+        }
+        self.with_mailbox(imap, path, |mailbox| {
+            let uid = mailbox.append(
+                vec!["\\Seen".to_owned()],
+                String::from_utf8_lossy(&raw).into_owned(),
+            );
+            mailbox.messages.retain(|m| m.uid == uid);
+            Ok(())
+        })
     }
 
     /// Runs `change` on the mailbox at `path` of the account `imap` logs in to.

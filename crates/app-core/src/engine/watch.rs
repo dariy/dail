@@ -93,6 +93,10 @@ impl Engine {
         if changed && let Some(fetch) = self.start_fetch(mailbox) {
             outcome = outcome.with_effect(fetch);
         }
+        // Another device may have pushed settings: a pull costs one `EXAMINE` when nothing changed.
+        if changed && let Some(pull) = self.settings_pull_after_change(account) {
+            outcome = outcome.with_effect(pull);
+        }
         // Watch again at once, so that nothing that happens during the fetch is missed.
         if let Some(watch) = self.watch_effect(account) {
             outcome = outcome.with_effect(watch);

@@ -304,6 +304,9 @@ impl Engine {
             | Event::RemoteOpFailed { .. }
             | Event::SyncFailed { .. }
             | Event::FolderManaged { .. }
+            | Event::SettingsRead { .. }
+            | Event::SettingsWritten { .. }
+            | Event::SettingsFailed { .. }
             | Event::KeywordsRefused { .. }
             | Event::FolderFailed { .. }
             | Event::AttachmentInspected { .. }

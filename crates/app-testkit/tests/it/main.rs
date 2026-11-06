@@ -9,6 +9,7 @@ mod offline;
 mod original;
 mod pins;
 mod search;
+mod settings_sync;
 mod testkit;
 mod triage;
 mod undo_send;

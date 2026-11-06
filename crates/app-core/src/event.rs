@@ -184,6 +184,35 @@ pub enum Event {
         /// The mailbox's IMAP path.
         path: String,
     },
+    /// An [`Effect::ReadSettingsBlob`] looked at the settings folder. `document` is the newest
+    /// copy's JSON, or `None` if the folder is missing or empty, or its newest copy is `known`.
+    /// Untrusted: anyone with the password can write the folder.
+    SettingsRead {
+        /// The account.
+        account: AccountId,
+        /// The newest copy, if the folder has one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        copy: Option<crate::synced::SettingsCopy>,
+        /// The copy's JSON, if it was downloaded.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        document: Option<String>,
+    },
+    /// An [`Effect::WriteSettingsBlob`] stored the document; older copies are expunged.
+    SettingsWritten {
+        /// The account.
+        account: AccountId,
+    },
+    /// An [`Effect::ReadSettingsBlob`] or [`Effect::WriteSettingsBlob`] failed. The error lands
+    /// in `synced.error`.
+    SettingsFailed {
+        /// The account.
+        account: AccountId,
+        /// `true`: the write failed; otherwise the read.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        write: bool,
+        /// Diagnostic.
+        error: String,
+    },
     /// An [`Effect::ManageFolder`] succeeded: the account's folders are listed again.
     FolderManaged {
         /// The account.
@@ -458,6 +487,9 @@ impl Event {
             Self::DraftDeleted { .. } => "draft_deleted",
             Self::DraftDeleteFailed { .. } => "draft_delete_failed",
             Self::FolderManaged { .. } => "folder_managed",
+            Self::SettingsRead { .. } => "settings_read",
+            Self::SettingsWritten { .. } => "settings_written",
+            Self::SettingsFailed { .. } => "settings_failed",
             Self::KeywordsRefused { .. } => "keywords_refused",
             Self::FolderFailed { .. } => "folder_failed",
             Self::MessageSent { .. } => "message_sent",
@@ -657,6 +689,37 @@ pub enum Effect {
         /// What to do.
         action: FolderAction,
     },
+    /// Read the newest copy of the settings document (ADR 0015): the message with the highest
+    /// UID in the settings folder, its single `application/json` part decoded. A copy larger
+    /// than [`crate::SETTINGS_MAX_BYTES`] is refused before it is downloaded. Reports
+    /// `SettingsRead` or `SettingsFailed`.
+    ReadSettingsBlob {
+        /// The account.
+        account: AccountId,
+        /// How to reach the IMAP server.
+        imap: ImapLogin,
+        /// IMAP path of the settings folder.
+        path: String,
+        /// The copy read last: if it is still the newest, it is not downloaded again.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        known: Option<crate::synced::SettingsCopy>,
+    },
+    /// Store the settings document (ADR 0015): `APPEND` a message whose single part is
+    /// `application/json` to the settings folder (created if missing), then mark the older
+    /// copies `\Deleted` and expunge them, in that folder only. Reports `SettingsWritten` or
+    /// `SettingsFailed`.
+    WriteSettingsBlob {
+        /// The account.
+        account: AccountId,
+        /// How to reach the IMAP server.
+        imap: ImapLogin,
+        /// IMAP path of the settings folder.
+        path: String,
+        /// The document's JSON.
+        document: String,
+        /// The message's `Date`, in Unix milliseconds.
+        date_ms: i64,
+    },
     /// Check a local file attached to a draft: that it is a readable regular file, its size and
     /// MIME type. Reports `AttachmentInspected` or `AttachmentFailed`.
     InspectAttachment {
@@ -823,6 +886,8 @@ impl Effect {
             Self::SmtpSend { .. } => "smtp_send",
             Self::DeleteDraft { .. } => "delete_draft",
             Self::ManageFolder { .. } => "manage_folder",
+            Self::ReadSettingsBlob { .. } => "read_settings_blob",
+            Self::WriteSettingsBlob { .. } => "write_settings_blob",
             Self::SearchMailbox { .. } => "search_mailbox",
             Self::CheckForUpdates { .. } => "check_for_updates",
             Self::DownloadUpdate { .. } => "download_update",
@@ -925,6 +990,16 @@ impl Effect {
             } => Event::FolderFailed {
                 account: *account,
                 action: action.clone(),
+                error,
+            },
+            Self::ReadSettingsBlob { account, .. } => Event::SettingsFailed {
+                account: *account,
+                write: false,
+                error,
+            },
+            Self::WriteSettingsBlob { account, .. } => Event::SettingsFailed {
+                account: *account,
+                write: true,
                 error,
             },
             Self::SearchMailbox {

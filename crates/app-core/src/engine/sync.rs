@@ -12,6 +12,7 @@ use crate::mailbox::{Mailbox, MailboxRole, RemoteMailbox, assign_roles};
 use crate::message::{BodyState, Flags, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::state::{AppState, SyncIssue};
+use crate::synced::{SETTINGS_PARENT, settings_folder};
 use crate::threading::{Placement, ThreadKey, Threader};
 
 use super::{Engine, not_found};
@@ -127,8 +128,29 @@ impl Engine {
         let mut kept: Vec<MailboxId> = Vec::new();
         let mut receipt = receipt.affecting(EntityRef::Account(account));
 
-        for (remote, role) in listed.into_iter().zip(roles) {
-            if !remote.selectable {
+        // dail's own folder (ADR 0015) is hidden: it never becomes a mailbox. Its parent is
+        // hidden too unless it holds other folders.
+        let settings_paths: Vec<String> = listed
+            .iter()
+            .filter(|remote| is_settings_folder(remote))
+            .map(|remote| remote.path.clone())
+            .collect();
+        let has_settings = !settings_paths.is_empty();
+        let hidden_parent = |remote: &RemoteMailbox| {
+            let sep = remote.delimiter.as_deref().unwrap_or("/");
+            remote.path == SETTINGS_PARENT
+                && !listed.iter().any(|other| {
+                    other.path.starts_with(&format!("{SETTINGS_PARENT}{sep}"))
+                        && !settings_paths.contains(&other.path)
+                })
+        };
+        let hidden: Vec<bool> = listed
+            .iter()
+            .map(|remote| is_settings_folder(remote) || hidden_parent(remote))
+            .collect();
+
+        for ((remote, role), hide) in listed.into_iter().zip(roles).zip(hidden) {
+            if !remote.selectable || hide {
                 continue;
             }
             let existing = self
@@ -226,6 +248,9 @@ impl Engine {
             }
         }
         outcome.effects.extend(op_effects);
+        outcome
+            .effects
+            .extend(self.pull_on_listing(account, has_settings, ctx.now_ms));
         // After the fetches are counted, so the round does not look finished in between.
         self.end_sync_effect(account, ctx.now_ms);
         outcome
@@ -1211,4 +1236,9 @@ fn backing_off(status: &crate::state::SyncStatus, poll_ms: i64, now_ms: i64) -> 
     let factor = 1_i64 << (status.failures - 1).min(16);
     let wait = poll_ms.saturating_mul(factor).min(MAX_BACKOFF_MS);
     now_ms < issue.at_ms.saturating_add(wait)
+}
+
+/// Whether a listed folder is dail's settings folder (`dail/Settings` with its delimiter).
+fn is_settings_folder(remote: &RemoteMailbox) -> bool {
+    remote.path == settings_folder(remote.delimiter.as_deref().unwrap_or("/"))
 }
