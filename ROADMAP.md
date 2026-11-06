@@ -1010,7 +1010,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 ### B — Rules
 - [x] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
   `EnvelopesFetched`; `save_rule`, `delete_rule`, `enable_rule`, `apply_rules { mailbox }`; undo and replay fixtures
-- [ ] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
+- [x] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
   message* in the palette
 - [ ] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
 

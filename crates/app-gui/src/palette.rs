@@ -238,6 +238,7 @@ fn row_icon(state: &AppState, row: &Row) -> Icon {
         }
         Target::Thread(_) => Icon::Mail,
         Target::Search(_) => Icon::Search,
+        Target::RuleFromMessage => Icon::DriveFileMove,
         Target::Choice(_) => Icon::ChevronRight,
     }
 }

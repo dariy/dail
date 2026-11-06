@@ -23,6 +23,7 @@ pub mod palette;
 pub mod panes;
 pub mod providers;
 pub mod result;
+pub mod rules;
 pub mod status;
 pub mod synced;
 pub mod text;

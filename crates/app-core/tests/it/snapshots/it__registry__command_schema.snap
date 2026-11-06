@@ -1,5 +1,6 @@
 ---
 source: crates/app-core/tests/it/registry.rs
+assertion_line: 123
 expression: command_schema()
 ---
 {
@@ -875,6 +876,11 @@ expression: command_schema()
         {
           "const": "accounts",
           "description": "The accounts.",
+          "type": "string"
+        },
+        {
+          "const": "rules",
+          "description": "The sorting rules stored on the mail server (ADR 0015, SET-5).",
           "type": "string"
         },
         {
@@ -3573,7 +3579,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Show the settings page (in place of the list and the reader), at a section: `appearance`\n(default), `keys`, `general` or `accounts`. Settings change through `set_setting`,\n`set_theme` and the other commands; the page only shows them.",
+      "description": "Show the settings page (in place of the list and the reader), at a section: `appearance`\n(default), `keys`, `general`, `accounts`, `rules` (the sorting rules) or `about`.\nSettings change through `set_setting`, `set_theme` and the other commands; the page only\nshows them.",
       "properties": {
         "args": {
           "properties": {

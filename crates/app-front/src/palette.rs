@@ -10,6 +10,7 @@
 
 use crate::i18n::Key;
 use std::fmt;
+use std::sync::Arc;
 
 use app_core::{
     AccountId, AppState, ApprovalId, Category, Command, CommandName, DraftId, MailboxId, MessageId,
@@ -92,6 +93,8 @@ pub enum AskKind {
     Attachments(DraftId),
     /// The sorting rules.
     Rules,
+    /// Fixed options, each a title and a detail; the answer is [`Choice::Index`].
+    Options(Vec<(String, String)>),
     /// Free text; the hint is shown in the input.
     Text(String),
     /// Yes / no.
@@ -658,6 +661,333 @@ fn save_rule() -> Flow {
                 )
             }
             _ => Flow::Hidden,
+        },
+    )
+}
+
+/// A step that offers fixed `(title, detail)` options; the answer is the option's index.
+fn options(
+    prompt: &str,
+    items: Vec<(String, String)>,
+    next: impl Fn(&AppState, usize) -> Flow + Send + Sync + 'static,
+) -> Flow {
+    let count = items.len();
+    ask(
+        prompt,
+        AskKind::Options(items),
+        move |state, choice| match choice {
+            Choice::Index(i) if (i as usize) < count => next(state, i as usize),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+type Then<T> = Arc<dyn Fn(&AppState, T) -> Flow + Send + Sync>;
+
+/// A test of the condition step: its title, and how its text becomes the condition (`None`:
+/// a test without text).
+type Test = (Key, Option<fn(String) -> app_core::Condition>);
+
+/// Asks for a rule's condition: which test, then the text it looks for.
+fn pick_condition(next: Then<app_core::Condition>) -> Flow {
+    use app_core::Condition;
+    let tests: [Test; 6] = [
+        (
+            Key::RuleTestFrom,
+            Some(|contains| Condition::From { contains }),
+        ),
+        (Key::RuleTestTo, Some(|contains| Condition::To { contains })),
+        (Key::RuleTestCc, Some(|contains| Condition::Cc { contains })),
+        (
+            Key::RuleTestSubject,
+            Some(|contains| Condition::Subject { contains }),
+        ),
+        (
+            Key::RuleTestList,
+            Some(|contains| Condition::ListId { contains }),
+        ),
+        (Key::RuleTestAttachment, None),
+    ];
+    let items = tests
+        .iter()
+        .map(|(key, _)| (crate::i18n::s(*key).to_owned(), String::new()))
+        .collect();
+    options(
+        crate::i18n::s(Key::RuleWhichTest),
+        items,
+        move |state, i| match tests.get(i).map(|(_, make)| *make) {
+            Some(Some(make)) => {
+                let next = next.clone();
+                ask(
+                    crate::i18n::s(Key::RuleContainsWhat),
+                    AskKind::Text(crate::i18n::s(Key::RuleContainsHint).into()),
+                    move |state, choice| match choice {
+                        Choice::Text(text) if !text.trim().is_empty() => {
+                            next(state, make(text.trim().to_owned()))
+                        }
+                        _ => Flow::Hidden,
+                    },
+                )
+            }
+            Some(None) => next(state, Condition::HasAttachment),
+            None => Flow::Hidden,
+        },
+    )
+}
+
+/// Asks for a rule's action: move (then the folder), archive, mark read or star.
+fn pick_action(next: Then<app_core::RuleAction>) -> Flow {
+    use app_core::RuleAction;
+    let items = [
+        Key::RuleActionMove,
+        Key::RuleActionArchive,
+        Key::RuleActionRead,
+        Key::RuleActionStar,
+    ]
+    .iter()
+    .map(|key| (crate::i18n::s(*key).to_owned(), String::new()))
+    .collect();
+    options(
+        crate::i18n::s(Key::RuleWhichAction),
+        items,
+        move |state, i| {
+            let action = match i {
+                0 => {
+                    let next = next.clone();
+                    return ask(
+                        crate::i18n::s(Key::RuleMoveToWhichFolder),
+                        AskKind::Mailboxes(None),
+                        move |state, choice| match choice {
+                            Choice::Mailbox(id) => {
+                                state.mailboxes.get(&id).map_or(Flow::Hidden, |m| {
+                                    next(state, RuleAction::Move { to: m.path.clone() })
+                                })
+                            }
+                            _ => Flow::Hidden,
+                        },
+                    );
+                }
+                1 => RuleAction::Archive,
+                2 => RuleAction::MarkRead,
+                _ => RuleAction::Star,
+            };
+            next(state, action)
+        },
+    )
+}
+
+/// A new rule's name: its summary, cut to the longest name the format allows.
+fn rule_name(rule: &app_core::Rule) -> String {
+    crate::rules::summary(rule)
+        .chars()
+        .take(app_core::synced::MAX_TEXT_CHARS)
+        .collect()
+}
+
+/// Saves a new enabled rule `when → then` under its summary as the name.
+fn new_rule_command(when: app_core::Condition, then: app_core::RuleAction) -> Command {
+    let mut rule = app_core::Rule {
+        name: String::new(),
+        enabled: true,
+        when,
+        then: vec![then],
+    };
+    rule.name = rule_name(&rule);
+    Command::SaveRule { id: None, rule }
+}
+
+/// *Add a rule…* of the Rules screen: the condition, then the action; ends in `save_rule`.
+pub fn new_rule() -> Flow {
+    pick_condition(Arc::new(|_, when| {
+        let when = Arc::new(when);
+        pick_action(Arc::new(move |_, then| {
+            Flow::Run(new_rule_command((*when).clone(), then))
+        }))
+    }))
+}
+
+/// *Edit…* of a rule on the Rules screen: its name, its condition or its action (the new
+/// condition or action replaces the old ones), or deleting it; ends in `save_rule` or
+/// `delete_rule`.
+pub fn edit_rule(state: &AppState, id: RuleId) -> Flow {
+    let Some(rule) = state
+        .synced
+        .settings
+        .rules
+        .get(&id)
+        .and_then(|e| e.rule.clone())
+    else {
+        return Flow::Hidden;
+    };
+    let simple = editable_here(&rule);
+    let rule = Arc::new(rule);
+    let mut ops = vec![EditOp::Name, EditOp::Toggle];
+    if simple {
+        ops.extend([EditOp::Condition, EditOp::Action]);
+    }
+    ops.push(EditOp::Delete);
+    let items = ops
+        .iter()
+        .map(|op| match op {
+            EditOp::Name => (
+                crate::i18n::s(Key::RuleEditName).to_owned(),
+                crate::text::clean(&rule.name),
+            ),
+            EditOp::Toggle => (
+                crate::i18n::s(if rule.enabled {
+                    Key::RuleDisable
+                } else {
+                    Key::RuleEnable
+                })
+                .to_owned(),
+                String::new(),
+            ),
+            EditOp::Condition => (
+                crate::i18n::s(Key::RuleEditCondition).to_owned(),
+                crate::rules::when(&rule.when),
+            ),
+            EditOp::Action => (
+                crate::i18n::s(Key::RuleEditAction).to_owned(),
+                crate::rules::then(&rule.then),
+            ),
+            EditOp::Delete => (crate::i18n::s(Key::RuleDelete).to_owned(), String::new()),
+        })
+        .collect();
+    let prompt = if simple {
+        crate::i18n::s(Key::RuleEditWhat)
+    } else {
+        crate::i18n::s(Key::RuleEditComplex)
+    };
+    options(prompt, items, move |_, i| {
+        let rule = rule.clone();
+        let save = move |rule: app_core::Rule| Flow::Run(Command::SaveRule { id: Some(id), rule });
+        match ops.get(i) {
+            Some(EditOp::Name) => ask(
+                crate::i18n::s(Key::RuleNewName),
+                AskKind::Text(crate::text::clean(&rule.name)),
+                move |_, choice| match choice {
+                    Choice::Text(text) if !text.trim().is_empty() => save(app_core::Rule {
+                        name: text.trim().to_owned(),
+                        ..(*rule).clone()
+                    }),
+                    _ => Flow::Hidden,
+                },
+            ),
+            Some(EditOp::Toggle) => Flow::Run(Command::EnableRule {
+                id,
+                enabled: !rule.enabled,
+            }),
+            Some(EditOp::Condition) => pick_condition(Arc::new(move |_, when| {
+                save(app_core::Rule {
+                    when,
+                    ..(*rule).clone()
+                })
+            })),
+            Some(EditOp::Action) => pick_action(Arc::new(move |_, then| {
+                save(app_core::Rule {
+                    then: vec![then],
+                    ..(*rule).clone()
+                })
+            })),
+            Some(EditOp::Delete) => Flow::Run(Command::DeleteRule { id }),
+            None => Flow::Hidden,
+        }
+    })
+}
+
+/// A step of *Edit…* on a rule.
+#[derive(Debug, Clone, Copy)]
+enum EditOp {
+    Name,
+    Toggle,
+    Condition,
+    Action,
+    Delete,
+}
+
+/// Whether the palette's steps can rebuild `rule`'s condition and actions without losing any:
+/// one test the condition step offers and one action the action step offers. Other rules are
+/// edited from the CLI or by an agent (`save_rule`); here only renamed, toggled or deleted.
+pub fn editable_here(rule: &app_core::Rule) -> bool {
+    use app_core::{Condition, RuleAction};
+    let leaf = matches!(
+        rule.when,
+        Condition::From { .. }
+            | Condition::To { .. }
+            | Condition::Cc { .. }
+            | Condition::Subject { .. }
+            | Condition::ListId { .. }
+            | Condition::HasAttachment
+    );
+    let action = matches!(
+        rule.then.as_slice(),
+        [RuleAction::Move { .. } | RuleAction::Archive | RuleAction::MarkRead | RuleAction::Star]
+    );
+    leaf && action
+}
+
+/// The message *Make a rule from this message* starts from: the newest message of the first
+/// target thread (checked, selected or open).
+pub fn rule_source(state: &AppState) -> Option<MessageId> {
+    targets(state)
+        .first()
+        .and_then(|thread| newest_message(state, *thread))
+}
+
+/// *Make a rule from this message*: a test pre-filled from the message's envelope (its sender,
+/// its mailing list, its subject), then the action; ends in `save_rule`.
+pub fn rule_from_message(state: &AppState) -> Flow {
+    use app_core::Condition;
+    let Some(envelope) = rule_source(state).and_then(|m| state.messages.get(&m)) else {
+        return Flow::Hidden;
+    };
+    let mut tests: Vec<(Key, Condition)> = Vec::new();
+    if let Some(from) = envelope.from.first().filter(|a| !a.email.trim().is_empty()) {
+        tests.push((
+            Key::RuleTestFrom,
+            Condition::From {
+                contains: from.email.trim().to_owned(),
+            },
+        ));
+    }
+    if let Some(list) = envelope.list_id.as_deref().filter(|l| !l.trim().is_empty()) {
+        tests.push((
+            Key::RuleTestList,
+            Condition::ListId {
+                contains: list.trim().to_owned(),
+            },
+        ));
+    }
+    if !envelope.subject.trim().is_empty() {
+        tests.push((
+            Key::RuleTestSubject,
+            Condition::Subject {
+                contains: envelope.subject.trim().to_owned(),
+            },
+        ));
+    }
+    if tests.is_empty() {
+        return Flow::Hidden;
+    }
+    let items = tests
+        .iter()
+        .map(|(key, condition)| {
+            (
+                crate::i18n::s(*key).to_owned(),
+                crate::rules::when(condition),
+            )
+        })
+        .collect();
+    options(
+        crate::i18n::s(Key::RuleFromMessageWhich),
+        items,
+        move |_, i| {
+            let Some(when) = tests.get(i).map(|(_, c)| c.clone()) else {
+                return Flow::Hidden;
+            };
+            pick_action(Arc::new(move |_, then| {
+                Flow::Run(new_rule_command(when.clone(), then))
+            }))
         },
     )
 }
@@ -1380,6 +1710,9 @@ pub enum Target {
     Thread(ThreadId),
     /// Search for the typed text.
     Search(String),
+    /// *Make a rule from this message* (SET-5): a flow of the front-ends, not a registry
+    /// command; it ends in `save_rule`.
+    RuleFromMessage,
     /// An answer to the current second step.
     Choice(Choice),
 }
@@ -1410,6 +1743,24 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
                     .next(),
             });
         }
+    }
+    if rule_source(state).is_some() {
+        // At the end of the Mail commands, so that it shows in their section.
+        let at = rows
+            .iter()
+            .position(
+                |r| matches!(r.target, Target::Command(n) if n.spec().category != Category::Mail),
+            )
+            .unwrap_or(rows.len());
+        rows.insert(
+            at,
+            Row {
+                target: Target::RuleFromMessage,
+                title: crate::i18n::s(Key::MakeRuleFromMessage).to_owned(),
+                detail: format!("{:?}", Category::Mail),
+                keys: None,
+            },
+        );
     }
     for mailbox in listing::mailboxes(state, None) {
         let account = state
@@ -1675,6 +2026,11 @@ pub fn ask_rows(state: &AppState, kind: &AskKind, query: &str) -> Vec<Row> {
                     .to_owned(),
                 )
             })
+            .collect(),
+        AskKind::Options(items) => items
+            .iter()
+            .zip(0_u32..)
+            .map(|((title, detail), i)| row(Choice::Index(i), title.clone(), detail.clone()))
             .collect(),
         AskKind::Attachments(draft) => state
             .drafts
@@ -1968,6 +2324,9 @@ impl Palette {
                         crate::i18n::s(crate::i18n::category_key(name.spec().category))
                     }
                 }
+                Target::RuleFromMessage => {
+                    crate::i18n::s(crate::i18n::category_key(Category::Mail))
+                }
                 Target::Mailbox(_) => crate::i18n::s(Key::Mailboxes),
                 Target::Thread(_) => crate::i18n::s(Key::Threads),
                 Target::Search(_) | Target::Choice(_) => "",
@@ -2045,6 +2404,7 @@ impl Palette {
             Target::Mailbox(id) => Flow::Run(Command::OpenMailbox { id }),
             Target::Thread(id) => Flow::Run(Command::OpenThread { id }),
             Target::Search(query) => Flow::Run(Command::SetSearch { query }),
+            Target::RuleFromMessage => rule_from_message(state),
             Target::Choice(choice) => match &self.step {
                 Some(step) => step.answer(state, choice),
                 None => Flow::Hidden,

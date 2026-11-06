@@ -133,6 +133,13 @@ fn frames() -> Vec<(String, Frame)> {
         });
         out.push((name.to_owned(), phone.frame()));
     }
+    // The Rules section (SET-5), with one rule not stored on the server yet.
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(crate::settings::news_rule());
+    phone.dispatch(Command::OpenSettings {
+        section: Some(app_core::SettingsSection::Rules),
+    });
+    out.push(("settings_rules".to_owned(), phone.frame()));
     out
 }
 

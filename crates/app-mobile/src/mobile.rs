@@ -99,6 +99,10 @@ enum Act {
     RawResult,
     /// A row of a query's result: close the result and run its command.
     FromResult(Command),
+    /// *Add a rule…* of the Rules settings: the palette's steps (SET-5).
+    AddRule,
+    /// *Edit…* of a sorting rule: the palette's steps (SET-5).
+    EditRule(app_core::RuleId),
 }
 
 /// The window, as the host last configured it.
@@ -632,6 +636,8 @@ impl Mobile {
                 Vec::new()
             }
             Act::RemoveAccount(account) => self.ask(palette::remove_account(state, account), state),
+            Act::AddRule => self.ask(palette::new_rule(), state),
+            Act::EditRule(id) => self.ask(palette::edit_rule(state, id), state),
             Act::System(screen) => {
                 self.system(screen);
                 Vec::new()

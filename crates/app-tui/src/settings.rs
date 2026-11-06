@@ -4,9 +4,11 @@
 //! the terminal's colours (ADR 0004), so `appearance` shows the general settings.
 
 use crate::text::{f, s};
-use app_core::{AccountStatus, AppState, Command, CommandName, SettingKey, SettingsSection};
+use app_core::{
+    AccountStatus, AppState, Command, CommandName, RuleId, SettingKey, SettingsSection,
+};
 use app_front::i18n::Key;
-use app_front::palette::{Flow, flow, set_setting};
+use app_front::palette::{Flow, edit_rule, flow, new_rule, set_setting};
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::Rect;
@@ -18,10 +20,11 @@ use crate::text::clean;
 use crate::view::{bold, dim, reverse};
 
 /// The sections the TUI shows, in `Tab` order.
-const SECTIONS: [(SettingsSection, Key); 3] = [
+const SECTIONS: [(SettingsSection, Key); 4] = [
     (SettingsSection::General, Key::General),
     (SettingsSection::Keys, Key::Keys),
     (SettingsSection::Accounts, Key::Accounts),
+    (SettingsSection::Rules, Key::RulesTab),
 ];
 
 /// One row: a key, its value, and the command that changes it.
@@ -29,6 +32,32 @@ struct Row {
     key: String,
     value: String,
     change: Option<CommandName>,
+    /// What `Enter` does on a row of the Rules section.
+    rule: Option<RuleRow>,
+}
+
+/// A row of the Rules section (SET-5).
+#[derive(Debug, Clone, Copy)]
+enum RuleRow {
+    /// A rule: `Enter` edits it, `Space` turns it on or off, `d` deletes it.
+    Rule(RuleId, bool),
+    /// *Add a rule…*
+    Add,
+    /// *Apply to this mailbox*.
+    Apply,
+    /// *Store on the server*.
+    Push,
+}
+
+impl Row {
+    const fn plain(key: String, value: String, change: Option<CommandName>) -> Self {
+        Self {
+            key,
+            value,
+            change,
+            rule: None,
+        }
+    }
 }
 
 /// The section the TUI shows for `section` (appearance and about have none of their own).
@@ -47,6 +76,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 key: "preset".to_owned(),
                 value: format!("{:?}", settings.key_preset).to_lowercase(),
                 change: Some(CommandName::SetKeyPreset),
+                rule: None,
             }];
             for &name in CommandName::ALL {
                 let keys = crate::keys::deliverable(settings, name);
@@ -55,11 +85,13 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                         key: app_front::i18n::title(name).to_owned(),
                         value: keys.join(", "),
                         change: Some(CommandName::SetKeybinding),
+                        rule: None,
                     });
                 }
             }
             out
         }
+        SettingsSection::Rules => rule_rows(state),
         SettingsSection::Accounts => {
             let mut out: Vec<Row> = state
                 .accounts
@@ -74,12 +106,14 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                         }
                     },
                     change: Some(CommandName::TestAccount),
+                    rule: None,
                 })
                 .collect();
             out.push(Row {
                 key: s(Key::AddAnAccount).to_owned(),
                 value: String::new(),
                 change: Some(CommandName::AddAccount),
+                rule: None,
             });
             out
         }
@@ -98,6 +132,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                             _ => key.get(settings).to_string(),
                         },
                         change: Some(CommandName::SetSetting),
+                        rule: None,
                     }
                 }))
                 .chain([
@@ -105,17 +140,111 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                         key: "theme_light".to_owned(),
                         value: clean(&settings.theme_light),
                         change: Some(CommandName::SetTheme),
+                        rule: None,
                     },
                     Row {
                         key: "theme_dark".to_owned(),
                         value: clean(&settings.theme_dark),
                         change: Some(CommandName::SetTheme),
+                        rule: None,
                     },
                 ])
                 .chain(synced_rows(state))
                 .collect()
         }
     }
+}
+
+/// The Rules section (ADR 0015, SET-5): a row per sorting rule, then *Add a rule…*, *Apply to
+/// this mailbox* and *Store on the server*. Names and summaries are cleaned (untrusted).
+fn rule_rows(state: &AppState) -> Vec<Row> {
+    let panel = app_front::rules::panel(state);
+    let mut out: Vec<Row> = panel
+        .rows
+        .iter()
+        .map(|rule| Row {
+            key: rule.name.clone(),
+            value: format!(
+                "[{}] {}",
+                if rule.enabled { "x" } else { " " },
+                rule.summary
+            ),
+            change: None,
+            rule: Some(RuleRow::Rule(rule.id, rule.enabled)),
+        })
+        .collect();
+    if out.is_empty() {
+        out.push(Row::plain(
+            s(Key::RulesEmpty).to_owned(),
+            String::new(),
+            None,
+        ));
+    }
+    out.push(Row {
+        key: s(Key::AddRule).to_owned(),
+        value: String::new(),
+        change: None,
+        rule: Some(RuleRow::Add),
+    });
+    out.push(Row {
+        key: s(Key::RulesApplyHere).to_owned(),
+        value: if panel.mailbox.is_some() {
+            String::new()
+        } else {
+            s(Key::RulesApplyHint).to_owned()
+        },
+        change: None,
+        rule: Some(RuleRow::Apply),
+    });
+    out.push(Row {
+        key: s(Key::RulesStore).to_owned(),
+        value: s(if panel.dirty {
+            Key::RulesNotStored
+        } else {
+            Key::RulesStored
+        })
+        .to_owned(),
+        change: None,
+        rule: Some(RuleRow::Push),
+    });
+    out
+}
+
+/// What a key does on the Rules section's row `row`; `None` when the key is not the section's.
+fn rule_key(code: KeyCode, row: Option<RuleRow>, state: &AppState) -> Option<Outcome> {
+    let mut outcome = Outcome::default();
+    let mut run = |cmd: Command| outcome.requests.push(Request::user(cmd));
+    let mut flow = None;
+    match (code, row) {
+        (KeyCode::Enter, Some(RuleRow::Rule(id, _))) => flow = Some(edit_rule(state, id)),
+        (KeyCode::Char(' '), Some(RuleRow::Rule(id, on))) => {
+            run(Command::EnableRule { id, enabled: !on });
+        }
+        (KeyCode::Char('d') | KeyCode::Delete, Some(RuleRow::Rule(id, _))) => {
+            run(Command::DeleteRule { id });
+        }
+        (KeyCode::Enter, Some(RuleRow::Add)) | (KeyCode::Char('a'), _) => {
+            flow = Some(new_rule());
+        }
+        (KeyCode::Enter, Some(RuleRow::Apply)) | (KeyCode::Char('x'), _) => {
+            if let Some(mailbox) = app_front::rules::panel(state).mailbox {
+                run(Command::ApplyRules { mailbox });
+            }
+        }
+        (KeyCode::Enter, Some(RuleRow::Push)) | (KeyCode::Char('p'), _) => {
+            if app_front::rules::panel(state).can_push {
+                run(Command::PushSettings {});
+            }
+        }
+        (KeyCode::Enter, _) => {}
+        _ => return None,
+    }
+    match flow {
+        Some(Flow::Ask(step)) => outcome.ask = Some(step),
+        Some(Flow::Run(cmd)) => outcome.requests.push(Request::user(cmd)),
+        _ => {}
+    }
+    Some(outcome)
 }
 
 /// The settings on the mail server (ADR 0015, SET-3): the account that holds them and the
@@ -129,11 +258,13 @@ fn synced_rows(state: &AppState) -> Vec<Row> {
             key: s(Key::SettingsAccount).to_owned(),
             value: panel.account_label,
             change: Some(CommandName::SetSettingsAccount),
+            rule: None,
         },
         Row {
             key: s(Key::SettingsSyncState).to_owned(),
             value: panel.status,
             change: Some(CommandName::PullSettings),
+            rule: None,
         },
     ]
 }
@@ -151,6 +282,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
             key: panel.version,
             value: clean(&panel.status),
             change: None,
+            rule: None,
         });
         for action in &panel.actions {
             let (value, change) = match action {
@@ -164,6 +296,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                         key: s(Key::ReleaseNotes).to_owned(),
                         value: clean(url),
                         change: None,
+                        rule: None,
                     });
                     continue;
                 }
@@ -172,6 +305,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                 key: format!("  {}", action.label()),
                 value,
                 change: Some(change),
+                rule: None,
             });
         }
     }
@@ -187,6 +321,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
             interval_label(policy.interval_hours)
         ),
         change: Some(CommandName::SetUpdatePolicy),
+        rule: None,
     });
     out
 }
@@ -220,6 +355,12 @@ impl SettingsView {
             };
         };
         let rows = rows(state, section);
+        if shown(section) == SettingsSection::Rules
+            && let Some(outcome) =
+                rule_key(key.code, rows.get(self.cursor).and_then(|r| r.rule), state)
+        {
+            return outcome;
+        }
         let mut outcome = Outcome::default();
         match key.code {
             KeyCode::Char('j') | KeyCode::Down => {
@@ -337,7 +478,14 @@ impl SettingsView {
             ..inner
         };
         frame.render_widget(
-            Paragraph::new(Line::from(Span::styled(s(Key::SettingsFooter), dim()))),
+            Paragraph::new(Line::from(Span::styled(
+                s(if shown(section) == SettingsSection::Rules {
+                    Key::RulesFooter
+                } else {
+                    Key::SettingsFooter
+                }),
+                dim(),
+            ))),
             footer,
         );
     }

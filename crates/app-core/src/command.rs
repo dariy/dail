@@ -807,8 +807,9 @@ pub enum Command {
     /// Close the GUI composer. The draft is kept (and saved to the server's Drafts mailbox).
     CloseComposer {},
     /// Show the settings page (in place of the list and the reader), at a section: `appearance`
-    /// (default), `keys`, `general` or `accounts`. Settings change through `set_setting`,
-    /// `set_theme` and the other commands; the page only shows them.
+    /// (default), `keys`, `general`, `accounts`, `rules` (the sorting rules) or `about`.
+    /// Settings change through `set_setting`, `set_theme` and the other commands; the page only
+    /// shows them.
     OpenSettings {
         /// The section; the open one, else `appearance`.
         #[serde(default, skip_serializing_if = "Option::is_none")]

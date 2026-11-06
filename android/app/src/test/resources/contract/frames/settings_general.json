@@ -15,27 +15,27 @@
             "actions": [],
             "choices": [
               {
-                "action": 7,
+                "action": 8,
                 "label": "Off",
                 "selected": false
               },
               {
-                "action": 8,
+                "action": 9,
                 "label": "5 s",
                 "selected": false
               },
               {
-                "action": 9,
+                "action": 10,
                 "label": "10 s",
                 "selected": true
               },
               {
-                "action": 10,
+                "action": 11,
                 "label": "20 s",
                 "selected": false
               },
               {
-                "action": 11,
+                "action": 12,
                 "label": "30 s",
                 "selected": false
               }
@@ -48,27 +48,27 @@
             "actions": [],
             "choices": [
               {
-                "action": 12,
+                "action": 13,
                 "label": "1 min",
                 "selected": false
               },
               {
-                "action": 13,
+                "action": 14,
                 "label": "2 min",
                 "selected": true
               },
               {
-                "action": 14,
+                "action": 15,
                 "label": "5 min",
                 "selected": false
               },
               {
-                "action": 15,
+                "action": 16,
                 "label": "15 min",
                 "selected": false
               },
               {
-                "action": 16,
+                "action": 17,
                 "label": "1 h",
                 "selected": false
               }
@@ -81,22 +81,22 @@
             "actions": [],
             "choices": [
               {
-                "action": 17,
+                "action": 18,
                 "label": "200",
                 "selected": false
               },
               {
-                "action": 18,
+                "action": 19,
                 "label": "500",
                 "selected": true
               },
               {
-                "action": 19,
+                "action": 20,
                 "label": "1000",
                 "selected": false
               },
               {
-                "action": 20,
+                "action": 21,
                 "label": "5000",
                 "selected": false
               }
@@ -114,17 +114,17 @@
             "actions": [],
             "choices": [
               {
-                "action": 21,
+                "action": 22,
                 "label": "Only while open",
                 "selected": false
               },
               {
-                "action": 22,
+                "action": 23,
                 "label": "Periodic",
                 "selected": true
               },
               {
-                "action": 23,
+                "action": 24,
                 "label": "Push",
                 "selected": false
               }
@@ -137,32 +137,32 @@
             "actions": [],
             "choices": [
               {
-                "action": 24,
+                "action": 25,
                 "label": "15 min",
                 "selected": false
               },
               {
-                "action": 25,
+                "action": 26,
                 "label": "30 min",
                 "selected": true
               },
               {
-                "action": 26,
+                "action": 27,
                 "label": "1 h",
                 "selected": false
               },
               {
-                "action": 27,
+                "action": 28,
                 "label": "2 h",
                 "selected": false
               },
               {
-                "action": 28,
+                "action": 29,
                 "label": "6 h",
                 "selected": false
               },
               {
-                "action": 29,
+                "action": 30,
                 "label": "12 h",
                 "selected": false
               }
@@ -174,12 +174,12 @@
             "actions": [],
             "choices": [
               {
-                "action": 30,
+                "action": 31,
                 "label": "Off",
                 "selected": false
               },
               {
-                "action": 31,
+                "action": 32,
                 "label": "On",
                 "selected": true
               }
@@ -191,11 +191,11 @@
           {
             "actions": [
               {
-                "action": 32,
+                "action": 33,
                 "label": "Battery optimization"
               },
               {
-                "action": 33,
+                "action": 34,
                 "label": "Notification settings"
               }
             ],
@@ -228,6 +228,11 @@
       {
         "action": 6,
         "label": "Accounts",
+        "selected": false
+      },
+      {
+        "action": 7,
+        "label": "Rules",
         "selected": false
       }
     ]

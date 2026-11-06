@@ -110,3 +110,56 @@ fn the_title_opens_about() {
     h.run();
     h.get(By::new().role(Role::Button).label("Source code"));
 }
+
+/// SET-5: the Rules tab lists a rule with its switch and *Delete*, and stores the edits.
+#[test]
+fn the_rules_tab_sends_the_rule_commands() {
+    let mut h = gui(synced_state());
+    apply(
+        &mut h,
+        Command::SaveRule {
+            id: None,
+            rule: app_core::Rule {
+                name: "News".into(),
+                enabled: true,
+                when: app_core::Condition::From {
+                    contains: "news@".into(),
+                },
+                then: vec![app_core::RuleAction::Star],
+            },
+        },
+    );
+    let id = *h
+        .state()
+        .engine
+        .state()
+        .synced
+        .settings
+        .rules
+        .keys()
+        .next()
+        .unwrap();
+    apply(
+        &mut h,
+        Command::OpenSettings {
+            section: Some(SettingsSection::Rules),
+        },
+    );
+    h.run();
+    h.get_by_label("News");
+    h.get_by_label("sender contains “news@” → star");
+    h.get(By::new().role(Role::CheckBox).label("Enabled"))
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::EnableRule { id, enabled: false }]
+    );
+    h.get(By::new().role(Role::Button).label("Store on the server"))
+        .click();
+    h.run();
+    assert_eq!(h.state_mut().take(), [Command::PushSettings {}]);
+    h.get(By::new().role(Role::Button).label("Delete")).click();
+    h.run();
+    assert_eq!(h.state_mut().take(), [Command::DeleteRule { id }]);
+}

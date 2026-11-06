@@ -146,6 +146,8 @@ pub enum SettingsSection {
     General,
     /// The accounts.
     Accounts,
+    /// The sorting rules stored on the mail server (ADR 0015, SET-5).
+    Rules,
     /// The version, the licences and the links.
     About,
 }

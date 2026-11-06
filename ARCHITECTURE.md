@@ -1012,7 +1012,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
 - **About** (MISC-27): the desktop's title opens `open_settings {section: "about"}`, the page's last tab. The TUI and the
   phones, which have no such tab, show General (the phones have their own About screen).
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
-  the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts; a click
+  the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
   runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the
   light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
@@ -1020,6 +1020,20 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   (a switch), undo history (`set_setting`). Accounts: a card per account with *Test*, *Re-enter password* and
   *Remove…* (asks once more, then `remove_account {confirm: true}`), and *Add account*. Every control sends a
   command; the page holds only a filter and the pending removal.
+- **Rules** (SET-5, ADR 0015): `open_settings {section: "rules"}` on every front end, drawn from
+  `app_front::rules::panel`: a row per live rule in `RuleId` order with its name and a summary in words
+  (`sender contains “x” → move to Reading`), passed through `text::clean` and drawn as plain text, never markup or
+  links (rule text is untrusted). GUI: a switch (`enable_rule`), *Edit…* and *Delete* (`delete_rule`, undoable) per
+  rule, *Add a rule…*, *Apply to this mailbox* (`apply_rules` on the open mailbox; not the unified inbox) and
+  *Store on the server* (`push_settings`, enabled while `synced.dirty`). TUI: the fourth section; `Enter` edits,
+  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the fifth tab, one settings row per rule
+  with On/Off choices and *Edit…*/*Delete* buttons (the frame types are unchanged). *Add a rule…* and *Edit…* are
+  palette steps (`palette::new_rule`, `palette::edit_rule`: a test (sender, To, Cc, subject, mailing list,
+  attachment) and its text, then an action (move to a folder, archive, mark read, star); editing replaces the name,
+  the condition or the actions, or deletes) ending in `save_rule` or `delete_rule`. The palette's *Make a rule from
+  this message* (`Target::RuleFromMessage`, a front-end row in the Mail section while a thread is checked, selected or
+  open, not a registry command) offers the newest message's sender, `List-Id` and subject as the test, then the
+  action, and ends in `save_rule`.
 - **Frame** (UI-5): the sidebar at full height (brand row, *Compose* with its key, an *All inboxes* row with several
   accounts, per account a caption with its tag and the mailboxes with their role icons and the unread count or else
   the `g` key of the current account's role mailboxes, *+ Add account*, and *Settings* pinned at the bottom, which
@@ -1303,8 +1317,8 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   quits), show help (`?`) or quit (Ctrl+C); besides those, `m` turns mouse capture off and on, Ctrl+O in the
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
   field is dropped, never run as keys.
-- **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys and Accounts
-  as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
+- **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys, Accounts and Rules
+  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
   General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
   that changes the row (or tests the account), Esc runs `close_settings`.
 - **Palette** (`app_tui::palette`, Ctrl+K or `:`): the shared `app_front::palette::Palette` drawn over the panes — the
@@ -1423,8 +1437,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
-- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the four `open_settings` sections as
-  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*), then the open section's `groups` of rows. A row has a
+- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
+  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
   density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
@@ -1939,7 +1953,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `cancel_send` | Mutation | `id` (only while scheduled; undo schedules the send again) | M4 |
 | `search` | Query | `query: String, account?, offset = 0, limit = 50 (1–500), server = true` → `{query (canonical), total, threads: [list_threads entry without in_mailbox + matches: [MessageId]], server: [{account, state: started\|searching\|done, hits, error}]}`, newest first; matches the cached envelopes (subject and addresses for text; `in:` uses `location()`) plus the server's hits for the query (§5.2 step 10); errors `error_002_invalid_argument` on `query` (with column) or empty query | M5 |
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
-| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
+| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts | rules | about` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
 | `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `error_004_not_found` for an unknown account, `error_002_invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |

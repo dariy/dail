@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +54,8 @@ fun SettingsPane(
                         group.hint?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }
                 }
-                items(group.rows, key = { "${group.title}:${it.label}" }) { row ->
+                // By position: labels such as rule names are not unique (SET-5).
+                itemsIndexed(group.rows, key = { i, row -> "${group.title}:$i:${row.label}" }) { _, row ->
                     SettingRowView(row, send)
                     HorizontalDivider()
                 }

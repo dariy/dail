@@ -10,6 +10,7 @@ mod i18n_engine;
 mod keys;
 mod palette;
 mod result;
+mod rules;
 mod status;
 mod synced;
 mod tree;
