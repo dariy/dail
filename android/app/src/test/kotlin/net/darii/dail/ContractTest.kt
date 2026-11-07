@@ -36,6 +36,18 @@ class ContractTest {
     }
 
     @Test
+    fun messageCardsCarryTheirSwipes() {
+        // MISC-44e: a card swipes as a list row, its buttons drawn by the presenter.
+        val frame = strict.decodeFromString(Frame.serializer(), fixtures("frames").getValue("thread_360x800"))
+        val cards = checkNotNull(frame.reader).messages
+        assertTrue(cards.isNotEmpty())
+        cards.forEach { card ->
+            assertEquals("archive", card.swipeStart?.icon)
+            assertEquals("delete", card.swipeEnd?.icon)
+        }
+    }
+
+    @Test
     fun everyExternalDecodesStrictly() {
         fixtures("externals").forEach { (name, json) ->
             assertEquals(name, strict.decodeFromString(External.serializer(), json).external)

@@ -442,9 +442,17 @@ pub struct ReaderMessage {
     pub links: Vec<Button>,
     /// What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,
     /// reply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,
-    /// and the conversation stays. A tap is a `tap` of the button's action.
+    /// and the conversation stays. A tap is a `tap` of the button's action. Not drawn as a row:
+    /// a long press on the card lists them (MISC-44e).
     #[serde(default)]
     pub actions: Vec<Button>,
+    /// Swiped towards the start edge, as a list row (MISC-44e): archive this message; a draft,
+    /// edit. The icon is the one revealed under the card; send `swipe` with its action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swipe_start: Option<Button>,
+    /// Swiped towards the end edge (MISC-44e): trash this message; a draft, discard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub swipe_end: Option<Button>,
 }
 
 /// A block of a message body (`app_core::document::Block`, cleaned, with action IDs).

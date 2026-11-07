@@ -81,7 +81,7 @@
     }
   },
   "fab": {
-    "action": 54,
+    "action": 56,
     "icon": "edit",
     "label": "Compose"
   },
@@ -173,12 +173,12 @@
       }
     ],
     "close": {
-      "action": 52,
+      "action": 54,
       "icon": "close",
       "label": "Close message"
     },
     "maximize": {
-      "action": 53,
+      "action": 55,
       "icon": "open_in_full",
       "label": "Maximize message"
     },
@@ -186,32 +186,32 @@
       {
         "actions": [
           {
-            "action": 46,
+            "action": 47,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 47,
+            "action": 48,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 48,
+            "action": 49,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 49,
+            "action": 50,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 50,
+            "action": 51,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 51,
+            "action": 53,
             "icon": "delete",
             "label": "Trash"
           }
@@ -224,6 +224,16 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Lunch at noon?",
         "status": "Loading…",
+        "swipe_end": {
+          "action": 52,
+          "icon": "delete",
+          "label": "Trash"
+        },
+        "swipe_start": {
+          "action": 46,
+          "icon": "archive",
+          "label": "Archive"
+        },
         "to": "alice@example.com",
         "toggle": 45
       }

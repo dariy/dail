@@ -253,6 +253,9 @@ data class ReaderMessage(
     val links: List<Button>,
     // MISC-44: this message's own actions (reply, forward, read, star, trash; a draft's edit, discard).
     val actions: List<Button> = emptyList(),
+    // MISC-44e: the card's swipes, as a list row's (start: archive or edit; end: trash or discard).
+    @SerialName("swipe_start") val swipeStart: Button? = null,
+    @SerialName("swipe_end") val swipeEnd: Button? = null,
 )
 
 @Serializable

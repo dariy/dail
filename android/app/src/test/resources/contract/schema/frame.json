@@ -1623,7 +1623,7 @@
       "properties": {
         "actions": {
           "default": [],
-          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays. A tap is a `tap` of the button's action.",
+          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays. A tap is a `tap` of the button's action. Not drawn as a row:\na long press on the card lists them (MISC-44e).",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -1701,6 +1701,28 @@
             "string",
             "null"
           ]
+        },
+        "swipe_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Swiped towards the end edge (MISC-44e): trash this message; a draft, discard."
+        },
+        "swipe_start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Swiped towards the start edge, as a list row (MISC-44e): archive this message; a draft,\nedit. The icon is the one revealed under the card; send `swipe` with its action."
         },
         "to": {
           "description": "The recipients (`To` and `Cc`), in full.",

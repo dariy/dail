@@ -1056,7 +1056,7 @@ English and French.
     actions, iOS decoding
   - [x] MISC-44d [core][io][sync][tk]: `edit_draft` on a server-only draft also brings its attachments into the
     local draft (requested 2026-11-06)
-  - [ ] MISC-44e [mobile][kt][ios]: on mobile, the message cards' button row is replaced by swipes on the card, as in
+  - [x] MISC-44e [mobile][kt][ios]: on mobile, the message cards' button row is replaced by swipes on the card, as in
     the message list pane (requested 2026-11-06)
 - [x] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
   *Archive* on its new messages; a tap opens the mailbox, the thread and the message

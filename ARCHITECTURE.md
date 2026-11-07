@@ -1604,8 +1604,14 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   palette at `move_threads`' step) and reply.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
-    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. Android draws
-    them under each card's header; iOS decodes them but does not draw them yet (Wave 11's iOS decision).
+    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
+    button row (MISC-44e): a card swipes as a list row does, with `swipe_start` (archive the message,
+    `archive_threads{messages}`; a draft: edit) and `swipe_end` (trash it, `trash_threads{messages}`; a draft:
+    discard), `Button`s whose icon is revealed under the card, sent as `swipe` (a haptic follows). Android draws the
+    swipes with the list rows' `SwipeToDismissBox` (half-width threshold, colours of `SwipeRow`), and a long press
+    on the card's header opens a menu of `actions`; TalkBack gets `actions` and the start swipe as custom actions.
+    On the message page, a card swipes outside the page's left edge zone, where the swipe back starts. iOS decodes
+    them but does not draw them yet (Wave 11's iOS decision; the iOS reader is a `ScrollView`, not a `List` with `swipeActions`).
   - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
     `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
     as they are.
@@ -1672,8 +1678,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
     `layout.page = reader`. The top bar is the list's, there is no floating button, and Back closes the page.
   - **Drawing.** Hosts draw a page over the panes and the top bar, below the status bar (`ReaderPage.kt`, and
     `ReaderPage` in `ReaderPane.swift`). It slides in from the right in 250 ms.
-  - **The swipe back.** A horizontal drag anywhere on the page follows the finger. A block's own horizontal scroll
-    goes first, and the dominant axis decides against the body's scroll. Past a third of the width, or with a
+  - **The swipe back.** On Android a drag to the right that starts in the page's left edge zone follows the finger
+    (MISC-44e); on iOS, which draws no card swipes, a horizontal drag anywhere on the page does. On Android the zone is the system's back-gesture inset (`WindowInsets.systemGestures`), or 32 dp without one, and
+    the page takes such a drag before its content. Elsewhere a horizontal drag is the content's: a block's own
+    horizontal scroll, or a message card's swipes. The dominant axis decides against the body's scroll. Past a third of the width, or with a
     fling, the page sends the reader's close (`close_thread`); otherwise it springs back.
   - **Leaving.** A frame that drops the page over the list slides it out. One that puts something else there (the
     composer) removes it at once.

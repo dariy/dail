@@ -87,7 +87,7 @@
       }
     ],
     "close": {
-      "action": 36,
+      "action": 38,
       "icon": "close",
       "label": "Close message"
     },
@@ -95,32 +95,32 @@
       {
         "actions": [
           {
-            "action": 30,
+            "action": 31,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 31,
+            "action": 32,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 32,
+            "action": 33,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 33,
+            "action": 34,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 34,
+            "action": 35,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 35,
+            "action": 37,
             "icon": "delete",
             "label": "Trash"
           }
@@ -133,6 +133,16 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Lunch at noon?",
         "status": "Loading…",
+        "swipe_end": {
+          "action": 36,
+          "icon": "delete",
+          "label": "Trash"
+        },
+        "swipe_start": {
+          "action": 30,
+          "icon": "archive",
+          "label": "Archive"
+        },
         "to": "alice@example.com",
         "toggle": 29
       }
