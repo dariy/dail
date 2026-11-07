@@ -103,6 +103,20 @@ pub struct AttachmentRef {
     pub state: AttachmentState,
 }
 
+/// A file that `edit_draft` carried from a server draft into the local one (MISC-44d): the
+/// runtime wrote the attachment's bytes to `path` (under a safe name) and reports only this.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CarriedAttachment {
+    /// Absolute path of the written copy.
+    pub path: String,
+    /// File name shown to recipients (made safe; email content).
+    pub name: String,
+    /// Size in bytes.
+    pub size: u64,
+    /// MIME type, guessed from the file name.
+    pub content_type: String,
+}
+
 /// The check of an attached file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "state", rename_all = "snake_case")]

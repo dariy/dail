@@ -2,6 +2,7 @@
 //! instead of one per file.
 
 mod compose;
+mod edit_draft;
 mod error_codes;
 mod folders;
 mod media;

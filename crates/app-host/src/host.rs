@@ -119,6 +119,10 @@ impl Host {
         if removed > 0 {
             tracing::info!(removed, "removed outgoing copies no draft names");
         }
+        if matches!(config.backend, BackendChoice::Live) {
+            let dir = ProfileDirs::at(&config.profile_dir).draft_files_dir();
+            app_sync::draft_files::sweep(&dir, &session.state());
+        }
         Ok(Self::start(runtime, session, lock, wake, alert, outgoing))
     }
 
@@ -588,7 +592,8 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
     )
-    .with_breaker(Arc::new(app_io::breaker::Breaker::open(dirs.breaker_dir())));
+    .with_breaker(Arc::new(app_io::breaker::Breaker::open(dirs.breaker_dir())))
+    .with_draft_files_dir(dirs.draft_files_dir());
     // Without an index, search still matches headers and asks the servers.
     let backend: Arc<dyn Backend> =
         match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {

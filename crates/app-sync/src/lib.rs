@@ -7,6 +7,7 @@ pub mod bodies;
 pub mod bridge;
 pub mod clock;
 pub mod connection;
+pub mod draft_files;
 pub mod error;
 pub mod executor;
 pub mod fulltext;

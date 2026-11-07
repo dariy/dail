@@ -9,9 +9,9 @@ use serde_json::{Value, json};
 use crate::command::Command;
 use crate::ctx::Ctx;
 use crate::draft::{
-    AttachmentRef, AttachmentState, Draft, MAX_ATTACHMENT_BYTES, Quote, QuoteStyle, ReplyTo,
-    file_name, forward_header, is_absolute_path, is_message_id, prefixed_subject, reply_header,
-    reply_recipients, reply_references,
+    AttachmentRef, AttachmentState, CarriedAttachment, Draft, MAX_ATTACHMENT_BYTES, Quote,
+    QuoteStyle, ReplyTo, file_name, forward_header, is_absolute_path, is_message_id,
+    prefixed_subject, reply_header, reply_recipients, reply_references,
 };
 use crate::error::CoreError;
 use crate::event::{Effect, PersistDelta};
@@ -540,7 +540,7 @@ impl Engine {
         &mut self,
         id: DraftId,
         message: MessageId,
-        read: Result<(String, Vec<Addr>), String>,
+        read: Result<(String, Vec<Addr>, Vec<CarriedAttachment>), String>,
         receipt: CommandReceipt,
     ) -> Outcome {
         let receipt = receipt.affecting(EntityRef::Draft(id));
@@ -552,7 +552,7 @@ impl Engine {
         if !waiting {
             return Outcome::new(receipt);
         }
-        let (body, bcc) = match read {
+        let (body, bcc, carried) = match read {
             Ok(read) => read,
             Err(error) => {
                 return self.abandon_draft_load(
@@ -566,6 +566,7 @@ impl Engine {
         };
         draft.body_text = body.replace('\0', "");
         draft.bcc = valid_addrs(&bcc);
+        draft.attachments = carried_attachments(carried);
         draft.loading_from = None;
         let json = draft_json(draft);
         let mut changes = CacheChanges::default();
@@ -963,14 +964,62 @@ fn strip_controls(text: &str) -> String {
     text.chars().filter(|c| !c.is_control()).collect()
 }
 
+/// The attachments of a draft read from the server (MISC-44d), checked already: each is ready,
+/// unless it would take the draft past [`MAX_ATTACHMENT_BYTES`] (then it is failed, as a file
+/// attached by hand would be, and the draft can't be sent until it is removed).
+fn carried_attachments(carried: Vec<CarriedAttachment>) -> Vec<AttachmentRef> {
+    let mut total: u64 = 0;
+    carried
+        .into_iter()
+        .map(|file| {
+            let fits = total.saturating_add(file.size) <= MAX_ATTACHMENT_BYTES;
+            let state = if fits {
+                total = total.saturating_add(file.size);
+                AttachmentState::Ready {
+                    size: file.size,
+                    content_type: file.content_type,
+                }
+            } else {
+                AttachmentState::Failed {
+                    error: format!(
+                        "{} is {}; all attachments together may have at most {}",
+                        file.name,
+                        megabytes(file.size),
+                        megabytes(MAX_ATTACHMENT_BYTES)
+                    ),
+                }
+            };
+            AttachmentRef {
+                path: file.path,
+                name: strip_controls(&file.name),
+                state,
+            }
+        })
+        .collect()
+}
+
+/// An attachment outside `untrusted_content`: `{state: {state, size?, content_type?}}`, without
+/// its name, path or error, which may come from email.
+fn attachment_state_json(attachment: &AttachmentRef) -> Value {
+    let state = match &attachment.state {
+        AttachmentState::Checking => json!({ "state": "checking" }),
+        AttachmentState::Ready { size, content_type } => {
+            json!({ "state": "ready", "size": size, "content_type": content_type })
+        }
+        AttachmentState::Failed { .. } => json!({ "state": "failed" }),
+    };
+    json!({ "state": state })
+}
+
 /// `12.5 MB` (MiB, one decimal).
 fn megabytes(bytes: u64) -> String {
     let tenths = bytes.saturating_mul(10) / (1024 * 1024);
     format!("{}.{} MB", tenths / 10, tenths % 10)
 }
 
-/// A draft in receipts. Recipients, subject, body, quote and the `In-Reply-To` of an answer may
-/// come from email, so they sit inside `untrusted_content`.
+/// A draft in receipts. Recipients, subject, body, quote, the `In-Reply-To` of an answer and the
+/// attachments' names, paths and errors may come from email (MISC-44d), so they sit inside
+/// `untrusted_content`; the top-level `attachments` keeps only each one's state, size and type.
 pub(super) fn draft_json(draft: &Draft) -> Value {
     json!({
         "id": draft.id,
@@ -984,8 +1033,9 @@ pub(super) fn draft_json(draft: &Draft) -> Value {
         "send_at": draft.send_at,
         "sending": draft.sending,
         "send_error": draft.send_error,
-        "attachments": draft.attachments,
+        "attachments": draft.attachments.iter().map(attachment_state_json).collect::<Vec<_>>(),
         "untrusted_content": {
+            "attachments": draft.attachments,
             "in_reply_to": draft.in_reply_to,
             "to": draft.to,
             "cc": draft.cc,

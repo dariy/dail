@@ -161,6 +161,14 @@ pub fn draft_text(raw: &[u8]) -> (String, Vec<Addr>) {
     (parse_message(raw).text, bcc)
 }
 
+/// The attachments `edit_draft` carries from a stored draft into the local one (MISC-44d):
+/// `(safe file name, decoded bytes)` for every attachment, as [`attachment_files`] gives them
+/// (inline parts such as `cid:` images included, since the local draft is plain text and would
+/// lose them otherwise). Never fails: an unparsable message yields none.
+pub fn draft_attachments(raw: &[u8]) -> Vec<(String, Vec<u8>)> {
+    attachment_files(raw, &[]).unwrap_or_default()
+}
+
 /// [`parse_message`], plus the body as a [`Document`] for display: the HTML's, or the plain text read as
 /// paragraphs, headings and Markdown (`app_io::plain`), with its links numbered (MISC-28).
 pub fn parse_message_with_document(raw: &[u8]) -> (ParsedMessage, Option<Document>) {

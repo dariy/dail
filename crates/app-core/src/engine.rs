@@ -319,7 +319,8 @@ impl Engine {
                 message,
                 body,
                 bcc,
-            } => Ok(self.ingest_draft_read(draft, message, Ok((body, bcc)), receipt)),
+                attachments,
+            } => Ok(self.ingest_draft_read(draft, message, Ok((body, bcc, attachments)), receipt)),
             Event::DraftReadFailed {
                 draft,
                 message,

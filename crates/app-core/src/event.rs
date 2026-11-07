@@ -286,6 +286,9 @@ pub enum Event {
         /// `Bcc` recipients (only the stored draft knows them).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         bcc: Vec<Addr>,
+        /// Its attachments, written to files by the runtime (MISC-44d), in order.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        attachments: Vec<crate::draft::CarriedAttachment>,
     },
     /// An [`Effect::ReadDraft`] failed: the stored message is missing or unreadable.
     DraftReadFailed {
@@ -751,8 +754,9 @@ pub enum Effect {
         /// Absolute path of the file.
         path: String,
     },
-    /// Read the text and `Bcc` of a stored server draft (blob `blob`) into local draft `draft`
-    /// (`edit_draft`, MISC-44). Reports `DraftRead` or `DraftReadFailed`.
+    /// Read the text, `Bcc` and attachments of a stored server draft (blob `blob`) into local
+    /// draft `draft` (`edit_draft`, MISC-44). The runtime writes each attachment to a file and
+    /// reports only its path, name, size and type. Reports `DraftRead` or `DraftReadFailed`.
     ReadDraft {
         /// The local draft.
         draft: DraftId,

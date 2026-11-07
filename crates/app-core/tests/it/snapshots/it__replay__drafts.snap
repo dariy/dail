@@ -584,6 +584,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Thanks!",
                 "cc": [],
@@ -686,6 +687,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Thanks, looks good.",
                 "cc": [
@@ -928,6 +930,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "FYI",
                 "cc": [],
@@ -991,6 +994,7 @@ expression: first
                 "send_error": null,
                 "sending": false,
                 "untrusted_content": {
+                  "attachments": [],
                   "bcc": [],
                   "body": "FYI",
                   "cc": [],

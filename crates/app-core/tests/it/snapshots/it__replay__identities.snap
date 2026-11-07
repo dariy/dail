@@ -310,6 +310,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Hello",
                 "cc": [],
@@ -388,6 +389,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Hello",
                 "cc": [],

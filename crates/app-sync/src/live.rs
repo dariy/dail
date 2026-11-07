@@ -56,6 +56,9 @@ pub struct LiveBackend {
     updates_dir: Option<std::path::PathBuf>,
     /// The crash-loop breaker around body parsing (STORE-7), if the profile has one.
     breaker: Option<Arc<app_io::breaker::Breaker>>,
+    /// Where `edit_draft` writes the attachments of server drafts (MISC-44d); none: a server
+    /// draft with attachments can't be edited.
+    draft_files_dir: Option<std::path::PathBuf>,
 }
 
 impl LiveBackend {
@@ -80,6 +83,7 @@ impl LiveBackend {
             fulltext: None,
             breaker: None,
             updates_dir: None,
+            draft_files_dir: None,
         }
     }
 
@@ -87,6 +91,14 @@ impl LiveBackend {
     #[must_use]
     pub fn with_updates_dir(mut self, dir: std::path::PathBuf) -> Self {
         self.updates_dir = Some(dir);
+        self
+    }
+
+    /// Writes the attachments of server drafts opened with `edit_draft` into `dir`
+    /// (`ProfileDirs::draft_files_dir`, MISC-44d).
+    #[must_use]
+    pub fn with_draft_files_dir(mut self, dir: std::path::PathBuf) -> Self {
+        self.draft_files_dir = Some(dir);
         self
     }
 
@@ -246,6 +258,21 @@ impl LiveBackend {
         })
         .await
         .map_err(|err| format!("blob store task failed: {err}"))?
+    }
+
+    /// Writes the attachments of server draft `raw` for local draft `draft` (MISC-44d).
+    async fn carry_attachments(
+        &self,
+        draft: app_core::DraftId,
+        raw: &[u8],
+    ) -> Result<Vec<app_core::draft::CarriedAttachment>, String> {
+        match &self.draft_files_dir {
+            Some(dir) => crate::draft_files::write(dir, draft, raw)
+                .await
+                .map_err(|err| err.to_string()),
+            None if app_io::mime::draft_attachments(raw).is_empty() => Ok(Vec::new()),
+            None => Err(crate::draft_files::DraftFilesError::NoFolder.to_string()),
+        }
     }
 
     /// Renders an outgoing message with the quoted original from the blob store and the
@@ -862,15 +889,23 @@ impl LiveBackend {
                 message,
                 blob,
             } => Ok(vec![match self.get_blob(&blob).await {
-                Ok(Some(raw)) => {
-                    let (body, bcc) = app_io::mime::draft_text(&raw);
-                    Event::DraftRead {
+                Ok(Some(raw)) => match self.carry_attachments(draft, &raw).await {
+                    Ok(attachments) => {
+                        let (body, bcc) = app_io::mime::draft_text(&raw);
+                        Event::DraftRead {
+                            draft,
+                            message,
+                            body,
+                            bcc,
+                            attachments,
+                        }
+                    }
+                    Err(error) => Event::DraftReadFailed {
                         draft,
                         message,
-                        body,
-                        bcc,
-                    }
-                }
+                        error,
+                    },
+                },
                 Ok(None) => Event::DraftReadFailed {
                     draft,
                     message,

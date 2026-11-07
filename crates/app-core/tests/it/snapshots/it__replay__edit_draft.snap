@@ -680,6 +680,7 @@ expression: first
                 "send_error": null,
                 "sending": false,
                 "untrusted_content": {
+                  "attachments": [],
                   "bcc": [],
                   "body": "",
                   "cc": [],
@@ -810,6 +811,17 @@ expression: first
                     "drafts": [
                       {
                         "account": "00000000-0000-0004-0000-000000000000",
+                        "attachments": [
+                          {
+                            "name": "q3.pdf",
+                            "path": "/p/draft-files/00000000-0000-0008-0000-000000000000/q3.pdf",
+                            "state": {
+                              "content_type": "application/pdf",
+                              "size": 1024,
+                              "state": "ready"
+                            }
+                          }
+                        ],
                         "bcc": [
                           {
                             "email": "boss@example.org"
@@ -849,7 +861,15 @@ expression: first
             ],
             "data": {
               "account": "00000000-0000-0004-0000-000000000000",
-              "attachments": [],
+              "attachments": [
+                {
+                  "state": {
+                    "content_type": "application/pdf",
+                    "size": 1024,
+                    "state": "ready"
+                  }
+                }
+              ],
               "created_ms": 1700000004000,
               "id": "00000000-0000-0008-0000-000000000000",
               "message_id": "d1@example.org",
@@ -860,6 +880,17 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/p/draft-files/00000000-0000-0008-0000-000000000000/q3.pdf",
+                    "state": {
+                      "content_type": "application/pdf",
+                      "size": 1024,
+                      "state": "ready"
+                    }
+                  }
+                ],
                 "bcc": [
                   {
                     "email": "boss@example.org"
@@ -1052,6 +1083,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Numbers attached.",
                 "cc": [],
@@ -1154,6 +1186,7 @@ expression: first
                 "send_error": null,
                 "sending": false,
                 "untrusted_content": {
+                  "attachments": [],
                   "bcc": [],
                   "body": "Numbers attached.",
                   "cc": [],

@@ -3,6 +3,8 @@
 
 use std::collections::{BTreeMap, VecDeque};
 
+use app_core::DraftId;
+use app_core::draft::CarriedAttachment;
 use app_core::search::{Condition, Query};
 use app_core::{
     AppState, Effect, Endpoint, Event, FolderAction, IdGen, ImapLogin, MailboxRole,
@@ -19,6 +21,9 @@ type Fetched = (u32, Option<u32>, u32, u32, Vec<RemoteEnvelope>);
 
 use crate::fixture::{FakeMailbox, FakeMessage, Fixture};
 use crate::store::MemoryStore;
+
+/// Where the fake writes the attachments `edit_draft` carries from server drafts (MISC-44d).
+pub const DRAFT_FILES_DIR: &str = "/draft-files";
 
 /// A message accepted by the fake SMTP server.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -544,6 +549,7 @@ impl MemoryBackend {
                         message,
                         body,
                         bcc,
+                        attachments: self.carry_attachments(draft, &raw),
                     }
                 }
                 Ok(None) => Event::DraftReadFailed {
@@ -733,6 +739,31 @@ impl MemoryBackend {
             }
         }
         Ok(refused)
+    }
+
+    /// Writes the attachments of a server draft into the fake file system under
+    /// `/draft-files/<draft>/`, like `app_sync::draft_files` does on disk (MISC-44d).
+    fn carry_attachments(&self, draft: DraftId, raw: &[u8]) -> Vec<CarriedAttachment> {
+        let dir = format!("{DRAFT_FILES_DIR}/{}", draft.as_uuid());
+        let mut files = self.files.lock();
+        let mut carried = Vec::new();
+        for (name, bytes) in app_io::mime::draft_attachments(raw) {
+            let mut unique = name.clone();
+            let mut n = 1;
+            while files.contains_key(&format!("{dir}/{unique}")) {
+                unique = app_io::mime::numbered_file_name(&name, n);
+                n += 1;
+            }
+            let path = format!("{dir}/{unique}");
+            carried.push(CarriedAttachment {
+                content_type: app_io::mime::content_type_for(&unique).to_owned(),
+                size: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+                name: unique,
+                path: path.clone(),
+            });
+            files.insert(path, bytes);
+        }
+        carried
     }
 
     /// Writes attachments of a stored body into the fake file system, like

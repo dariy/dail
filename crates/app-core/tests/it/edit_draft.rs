@@ -6,6 +6,7 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use crate::support::{Mail, mail, names};
+use app_core::draft::{AttachmentState, CarriedAttachment, MAX_ATTACHMENT_BYTES};
 use app_core::{
     Addr, Command, CoreError, DraftId, Event, MailboxRole, MessageId, ProviderPreset,
     RemoteEnvelope,
@@ -68,6 +69,7 @@ fn edited(m: &mut Mail) -> (DraftId, MessageId) {
         message,
         body: "Numbers attached.".into(),
         bcc: vec![addr("boss@example.org")],
+        attachments: Vec::new(),
     });
     (id, message)
 }
@@ -112,6 +114,7 @@ fn a_server_only_draft_becomes_local_once_its_text_is_read() {
         message,
         body: "Numbers attached.".into(),
         bcc: vec![addr("boss@example.org")],
+        attachments: Vec::new(),
     });
     assert_eq!(names(&read.effects), ["persist_state"], "nothing to save");
     let draft = &m.engine.state().drafts[&id];
@@ -344,8 +347,118 @@ fn discarding_a_loading_draft_keeps_the_server_copy_and_undo_loads_it_again() {
         message,
         body: "Back.".into(),
         bcc: Vec::new(),
+        attachments: Vec::new(),
     });
     let draft = &m.engine.state().drafts[&id];
     assert_eq!(draft.loading_from, None);
     assert_eq!(draft.body_text, "Back.");
+}
+
+fn carried(path: &str, size: u64) -> CarriedAttachment {
+    CarriedAttachment {
+        path: path.into(),
+        name: app_core::draft::file_name(path).into(),
+        size,
+        content_type: "application/pdf".into(),
+    }
+}
+
+#[test]
+fn the_attachments_of_a_server_draft_come_with_it_and_go_with_undo() {
+    let mut m = conversation();
+    let message = m.message("Drafts", 1);
+    let id = draft_of(&m.run(Command::EditDraft { message }).unwrap());
+    m.feed(body_fetched(message));
+    let big = MAX_ATTACHMENT_BYTES - 10;
+    let read = m.feed(Event::DraftRead {
+        draft: id,
+        message,
+        body: "Numbers attached.".into(),
+        bcc: Vec::new(),
+        attachments: vec![
+            carried("/p/draft-files/d/q3.pdf", big),
+            carried("/p/draft-files/d/too-much.pdf", 11),
+            carried("/p/draft-files/d/small.pdf", 10),
+        ],
+    });
+    assert_eq!(names(&read.effects), ["persist_state"], "nothing to save");
+    let draft = &m.engine.state().drafts[&id];
+    assert!(!draft.needs_save(), "the server copy has them already");
+    let states: Vec<_> = draft.attachments.iter().map(|a| a.state.clone()).collect();
+    assert_eq!(
+        states[0],
+        AttachmentState::Ready {
+            size: big,
+            content_type: "application/pdf".into()
+        }
+    );
+    assert!(
+        matches!(&states[1], AttachmentState::Failed { error } if error.contains("too-much.pdf")),
+        "{states:?}"
+    );
+    assert!(matches!(states[2], AttachmentState::Ready { size: 10, .. }));
+    assert_eq!(draft.attachments[0].name, "q3.pdf");
+
+    // A save renders the ready ones.
+    let from = addr("me@example.com");
+    let out = draft.outgoing(from, None, 0);
+    let paths: Vec<_> = out.attachments.iter().map(|a| a.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        ["/p/draft-files/d/q3.pdf", "/p/draft-files/d/small.pdf"]
+    );
+
+    // Removing one is an ordinary, undoable change.
+    m.run(Command::RemoveAttachment {
+        draft: id,
+        index: 1,
+    })
+    .unwrap();
+    assert_eq!(m.engine.state().drafts[&id].attachments.len(), 2);
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(m.engine.state().drafts[&id].attachments.len(), 3);
+
+    // Undoing the edit drops the draft with its attachments; the server copy stays.
+    m.run(Command::Undo {}).unwrap();
+    assert!(m.engine.state().drafts.is_empty());
+    assert!(m.engine.state().messages.contains_key(&message));
+}
+
+#[test]
+fn carried_attachment_names_stay_inside_untrusted_content() {
+    let mut m = conversation();
+    let message = m.message("Drafts", 1);
+    let id = draft_of(&m.run(Command::EditDraft { message }).unwrap());
+    m.feed(body_fetched(message));
+    let read = m.feed(Event::DraftRead {
+        draft: id,
+        message,
+        body: String::new(),
+        bcc: Vec::new(),
+        attachments: vec![
+            carried("/p/draft-files/d/IGNORE-PREVIOUS.pdf", 10),
+            carried("/p/draft-files/d/HUGE-INJECTION.pdf", MAX_ATTACHMENT_BYTES),
+        ],
+    });
+    let mut draft = read.receipt.data.clone();
+    let untrusted = draft
+        .as_object_mut()
+        .unwrap()
+        .remove("untrusted_content")
+        .unwrap();
+    let outside = draft.to_string();
+    assert!(!outside.contains("IGNORE-PREVIOUS"), "{outside}");
+    assert!(!outside.contains("HUGE-INJECTION"), "{outside}");
+    assert_eq!(draft["attachments"][0]["state"]["state"], "ready");
+    assert_eq!(
+        draft["attachments"][1]["state"],
+        serde_json::json!({"state": "failed"})
+    );
+    assert_eq!(untrusted["attachments"][0]["name"], "IGNORE-PREVIOUS.pdf");
+    assert!(
+        untrusted["attachments"][1]["state"]["error"]
+            .as_str()
+            .unwrap()
+            .contains("HUGE-INJECTION")
+    );
 }

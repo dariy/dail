@@ -93,3 +93,21 @@ fn the_pinned_keyword_is_a_flag() {
     let flags = app_io::mime::parse_flags(["\\Seen", "$pinned", "$Junk"]);
     assert!(flags.seen && flags.pinned && !flags.flagged);
 }
+
+#[test]
+fn draft_attachments_are_carried_with_safe_names() {
+    let raw = "From: a@x\r\nTo: b@y\r\nSubject: d\r\nMIME-Version: 1.0\r\n\
+Content-Type: multipart/mixed; boundary=\"b\"\r\n\r\n\
+--b\r\nContent-Type: text/plain\r\n\r\nHello\r\n\
+--b\r\nContent-Type: application/pdf\r\nContent-Disposition: attachment; filename=\"../../evil\u{202e}fdp.pdf\"\r\n\
+Content-Transfer-Encoding: base64\r\n\r\nJVBERg==\r\n\
+--b\r\nContent-Type: image/png\r\nContent-ID: <img1>\r\nContent-Disposition: inline; filename=\"logo.png\"\r\n\r\nPNG\r\n\
+--b--\r\n"
+        .as_bytes();
+    let files = app_io::mime::draft_attachments(raw);
+    let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, ["evilfdp.pdf", "logo.png"]);
+    assert_eq!(files[0].1, b"%PDF");
+    assert_eq!(app_io::mime::draft_text(raw).0.trim(), "Hello");
+    assert!(app_io::mime::draft_attachments(b"not mail").is_empty());
+}

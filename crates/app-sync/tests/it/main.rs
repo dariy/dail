@@ -4,6 +4,7 @@
 mod support;
 
 mod audit;
+mod draft_files;
 mod ipc;
 mod live;
 mod live_it;

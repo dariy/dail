@@ -369,6 +369,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -452,6 +453,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -586,6 +588,7 @@ expression: first
                   "send_error": null,
                   "sending": false,
                   "untrusted_content": {
+                    "attachments": [],
                     "bcc": [],
                     "body": "Noon?",
                     "cc": [],
@@ -687,6 +690,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -869,6 +873,7 @@ expression: first
               "send_error": "SMTP smtp.hostinger.com:465: connect failed: network is unreachable",
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -952,6 +957,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],

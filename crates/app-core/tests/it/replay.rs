@@ -135,6 +135,7 @@ fn audit_records_hide_secrets_and_message_text() {
             message: app_core::MessageId::from_uuid(uuid::Uuid::from_u128(1)),
             body: "my private draft".into(),
             bcc: Vec::new(),
+            attachments: Vec::new(),
         }),
     );
     assert!(!read.redacted_line().contains("private"));
