@@ -78,8 +78,11 @@ fn about_shows_the_licences_and_back_closes_it() {
         about.title.contains(env!("CARGO_PKG_VERSION")),
         "MISC-13: the version is in the title"
     );
-    let licences = about.licences;
-    let names: Vec<&str> = licences.iter().map(|l| l.name.as_str()).collect();
+    assert!(
+        about.page.is_none(),
+        "the list first, as the desktop's About"
+    );
+    let names: Vec<&str> = about.pages.iter().map(|p| p.label.as_str()).collect();
     assert_eq!(
         names,
         [
@@ -93,6 +96,7 @@ fn about_shows_the_licences_and_back_closes_it() {
         ]
     );
     // ADR 0012: the data hayro embeds.
+    let licences = app_mobile::theme::licences();
     assert!(licences[5].text.contains("Foxit"));
     assert!(licences[5].text.contains("Adobe"));
     assert!(
@@ -117,7 +121,24 @@ fn about_shows_the_licences_and_back_closes_it() {
             .text
             .contains("androidx.compose.material3:material3 ")
     );
+    // A row opens its page; Back returns to the list, then closes About.
+    let geist = about.pages[0].action;
+    assert!(phone.tap(geist).is_empty());
+    let frame = phone.frame();
+    assert_eq!(frame.top_bar.title, "Geist");
+    assert_eq!(
+        frame.top_bar.navigation.unwrap().icon.as_deref(),
+        Some("arrow_back")
+    );
+    let about = frame.about.unwrap();
+    assert!(about.pages.is_empty());
+    assert!(about.page.unwrap().text.contains("SIL OPEN FONT LICENSE"));
     phone.take();
+    phone.event(UiEvent::Back);
+    assert!(phone.take().is_empty());
+    let about = phone.frame().about.unwrap();
+    assert!(about.page.is_none());
+    assert_eq!(about.pages.len(), 7);
     phone.event(UiEvent::Back);
     assert!(phone.take().is_empty());
     assert!(phone.frame().about.is_none());

@@ -50,7 +50,7 @@ pub struct FolderNode {
     pub children: Vec<FolderNode>,
     /// Unread messages in this folder.
     pub unread: u32,
-    /// Unread messages in every folder below (shown faintly when collapsed).
+    /// Unread messages in every folder below.
     pub unread_below: u32,
 }
 
@@ -66,6 +66,11 @@ impl FolderNode {
             unread: 0,
             unread_below: 0,
         }
+    }
+
+    /// Unread messages in this folder and every folder below it: what its row shows.
+    pub fn unread_total(&self) -> u32 {
+        self.unread.saturating_add(self.unread_below)
     }
 
     /// Whether the node has folders below it.

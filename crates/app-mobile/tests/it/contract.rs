@@ -112,7 +112,12 @@ fn frames() -> Vec<(String, Frame)> {
     let about = phone.frame().top_bar.actions;
     let about = about.iter().find(|b| b.label == "About").unwrap().action;
     phone.tap(about);
-    out.push(("about".to_owned(), phone.frame()));
+    let about = phone.frame();
+    let page = about.about.as_ref().unwrap().pages[0].action;
+    out.push(("about".to_owned(), about));
+    phone.tap(page);
+    out.push(("about_page".to_owned(), phone.frame()));
+    phone.event(UiEvent::Back);
     phone.event(UiEvent::Back);
     let custom = phone.frame().setup.unwrap().presets[2].action;
     phone.tap(custom);

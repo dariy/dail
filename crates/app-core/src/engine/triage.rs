@@ -77,6 +77,17 @@ impl Engine {
             let reverted = self.cancel_flag(*id, change.flag, change.value, &mut changes);
             if let Some(envelope) = self.state.messages.get_mut(id) {
                 change.flag.set(&mut envelope.flags, change.value);
+                if change.flag == FlagKind::Seen
+                    && let Some(mailbox) = self.state.mailboxes.get_mut(&envelope.location())
+                {
+                    // The local count follows at once; the server's comes with the next fetch.
+                    mailbox.unread = if change.value {
+                        mailbox.unread.saturating_sub(1)
+                    } else {
+                        mailbox.unread.saturating_add(1)
+                    };
+                    changes.mailboxes.insert(mailbox.id);
+                }
                 if reverted {
                     cancelled.push(*id);
                 } else {

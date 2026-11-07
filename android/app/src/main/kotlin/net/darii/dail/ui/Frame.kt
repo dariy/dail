@@ -597,8 +597,17 @@ data class TextStyleToken(
 data class About(
     val title: String,
     val text: String,
-    val licences: List<Licence>,
+    val pages: List<AboutPage>,
     val privacy: AboutLink,
+    /** The open page: drawn instead of the list. */
+    val page: Licence? = null,
+)
+
+/** A row of the About screen: tapping it opens the work's licence page. */
+@Serializable
+data class AboutPage(
+    val label: String,
+    val action: ActionId,
 )
 
 /** A link on the About screen (STORE-19): the privacy policy. */

@@ -925,6 +925,8 @@ fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
     licences.push(("Material Symbols", app_theme::icon::ICON_LICENSE));
     for (name, text) in licences {
         egui::CollapsingHeader::new(name).show(ui, |ui| {
+            // Hard-wrapped text, rewrapped to the panel's width.
+            let text = app_front::text::reflow(text);
             ui.label(ui::text(&t.type_scale.body_sm, text, t.text_secondary));
         });
     }

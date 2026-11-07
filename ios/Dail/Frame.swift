@@ -630,9 +630,16 @@ struct TextStyleToken: Codable {
 struct About: Codable {
     let title: String
     let text: String
-    let licences: [Licence]
-    /// The privacy policy (STORE-19); decoded, not yet shown on iOS.
+    let pages: [AboutPage]
+    /// The privacy policy (STORE-19).
     let privacy: AboutLink
+    /// The open page: drawn instead of the list.
+    let page: Licence?
+}
+
+struct AboutPage: Codable {
+    let label: String
+    let action: ActionId
 }
 
 struct AboutLink: Codable {

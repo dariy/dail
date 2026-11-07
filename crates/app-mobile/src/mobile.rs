@@ -61,6 +61,8 @@ enum Act {
     Compose,
     /// Open the About screen.
     About,
+    /// Open this page of the About screen (an index into `theme::licences`).
+    AboutPage(usize),
     /// Maximize the message pane, or restore the panes (MISC-14).
     Maximize,
     /// Add a suggested contact to a recipient field.
@@ -203,6 +205,8 @@ pub struct Mobile {
     theme_sent: Option<String>,
     /// Whether the About screen is open.
     about: bool,
+    /// The open page of the About screen, if one is.
+    about_page: Option<usize>,
     /// Panes a pinch took away from the reader (MISC-6): 0 none, 1 the sidebar, 2 the list too.
     /// Kept across threads.
     pane_step: u8,
@@ -310,6 +314,7 @@ impl Mobile {
             dark: false,
             theme_sent: None,
             about: false,
+            about_page: None,
             pane_step: 0,
             compose: Buffers::default(),
             told: Vec::new(),
@@ -638,6 +643,7 @@ impl Mobile {
         // from it, or the panes would change unseen beneath it (MISC-12).
         if matches!(act, Act::Run(_) | Act::Many(_)) {
             self.about = false;
+            self.about_page = None;
         }
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
@@ -660,6 +666,11 @@ impl Mobile {
             }
             Act::About => {
                 self.about = true;
+                self.about_page = None;
+                Vec::new()
+            }
+            Act::AboutPage(at) => {
+                self.about_page = Some(at);
                 Vec::new()
             }
             Act::Suggest(field, addr) => self.compose.suggest(field, addr, state),
@@ -801,7 +812,10 @@ impl Mobile {
     /// else uncheck the checked threads, else from the drawer of a one-pane window back to the list.
     fn back(&mut self, state: &AppState) -> Vec<Request> {
         if self.about {
-            self.about = false;
+            // From a page back to the list, from the list out of About.
+            if self.about_page.take().is_none() {
+                self.about = false;
+            }
             return Vec::new();
         }
         if let Some(setup) = self.setup.as_mut() {
@@ -1032,7 +1046,7 @@ impl Mobile {
             self.theme_sent = Some(chosen.id.to_string());
             crate::theme::frame_theme(&chosen)
         });
-        let about = self.about.then(crate::theme::about);
+        let about = self.about.then(|| self.about_screen());
         let setup = self.setup_sheet(state);
         let palette = self.palette_sheet(state);
         let result = self.result_view(state);
@@ -1086,7 +1100,40 @@ impl Mobile {
         }
     }
 
+    /// The About screen: a row per licence, or the open page's text.
+    fn about_screen(&mut self) -> crate::theme::About {
+        let licences = crate::theme::licences();
+        let page = self.about_page.and_then(|at| licences.get(at).cloned());
+        let pages = if page.is_some() {
+            Vec::new()
+        } else {
+            licences
+                .into_iter()
+                .enumerate()
+                .map(|(at, licence)| crate::theme::AboutPage {
+                    label: licence.name,
+                    action: self.add(Act::AboutPage(at)),
+                })
+                .collect()
+        };
+        crate::theme::about(pages, page)
+    }
+
     fn top_bar(&mut self, state: &AppState, kinds: &[PaneKind]) -> TopBar {
+        if let Some(page) = self.about_page.filter(|_| self.about) {
+            // A licence page: its name, and back to the list.
+            let title = crate::theme::licences()
+                .into_iter()
+                .nth(page)
+                .map(|l| l.name)
+                .unwrap_or_default();
+            return TopBar {
+                title,
+                subtitle: None,
+                navigation: Some(self.button("arrow_back", i18n::s(Text::Back), Act::Back)),
+                actions: Vec::new(),
+            };
+        }
         if self.about {
             // MISC-3: the About screen closes from its own top bar, not only with Back.
             return TopBar {
@@ -1244,12 +1291,12 @@ impl Mobile {
                     (None, None) => continue,
                 };
                 mailboxes.push(DrawerItem {
-                    a11y: a11y::nav_row(&label, node.unread),
+                    a11y: a11y::nav_row(&label, node.unread_total()),
                     label,
                     depth: node.depth,
                     fold,
                     icon: mailbox_icon(node.role).to_owned(),
-                    unread: node.unread,
+                    unread: node.unread_total(),
                     selected: !state.view.unified
                         && node.mailbox.is_some()
                         && state.view.mailbox == node.mailbox

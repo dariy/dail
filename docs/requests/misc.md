@@ -1,6 +1,6 @@
 # dail — Feature requests: miscellaneous
 
-Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5, MISC-44 to MISC-47 in Wave 13. When an item is picked, move it to `ROADMAP.md`
+Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROADMAP.md` Wave 6, MISC-8 to MISC-16 in Wave 8, MISC-17 to MISC-24 in Wave 9, MISC-36 in Wave 11, MISC-37 to MISC-43 in Wave 10.5, MISC-44 to MISC-49 in Wave 13. When an item is picked, move it to `ROADMAP.md`
 (keep its ID) and build it in the AGENTS.md §3 order. IDs are stable: never reuse or renumber them.
 
 ## Summary
@@ -54,6 +54,8 @@ Small requests recorded with `/new-task`. MISC-1 to MISC-7 are scheduled in `ROA
 | MISC-45 | Android: notification buttons Delete, Mark read, Archive; a tap opens the message | M | app-front, app-mobile, app-host, android/ | 2026-11-05 |
 | MISC-46 | Dates in local time, not UTC | M | app-front, app-gui, app-tui, app-mobile | 2026-11-05 |
 | MISC-47 | Mobile: mark the open message read after a delay | S | app-mobile | 2026-11-05 |
+| MISC-48 | Unread counts follow mark read/unread; parents sum their children | S | app-core, app-front, app-gui, app-tui, app-mobile | 2026-11-07 |
+| MISC-49 | Mobile: About as a list of licence pages, as the desktop | S | app-mobile, android/, ios/ | 2026-11-07 |
 
 ## Details
 
@@ -891,3 +893,16 @@ offset in.
 
 The phone never marks an opened message read (`mark_read_after_ms` is desktop-only). The presenter runs
 `app_front::autoread` on its tick.
+
+### MISC-48 — Unread counts follow mark read/unread; parents sum their children
+
+When a message is marked read or unread (and on undo), the unread count of its folder changes at once, without waiting
+for the next fetch; the server's count replaces it then. A parent folder's count is its own unread plus the unread of
+every folder below it, on every front end (it used to show only its own, plus a faint sum when folded).
+
+### MISC-49 — Mobile: About as a list of licence pages, as the desktop
+
+The mobile About screen showed every licence text inline. Like the desktop's About, it is now the app's text, then a
+list: one row per bundled work's licence, and the privacy policy. A row opens its page (title = the work, Back = to the
+list); Back from the list closes About. Licence prose, hard-wrapped at about 80 columns, is reflowed so that it wraps
+at the screen's width (`app_front::text::reflow`); the crate and library lists keep one entry per line.

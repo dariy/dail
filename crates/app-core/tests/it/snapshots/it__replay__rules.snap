@@ -42,7 +42,7 @@ expression: first
         "total": 2,
         "uid_next": 3,
         "uid_validity": 3,
-        "unread": 2
+        "unread": 1
       },
       "00000000-0000-0006-0000-000000000001": {
         "account": "00000000-0000-0005-0000-000000000000",
@@ -929,6 +929,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000006000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 3,
+                        "unread": 1
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0005-0000-000000000000",
@@ -1246,6 +1260,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000006000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 3,
+                        "unread": 2
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0005-0000-000000000000",
@@ -1512,6 +1540,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000006000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 3,
+                        "unread": 1
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0005-0000-000000000000",
@@ -1741,6 +1783,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000006000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 3,
+                        "unread": 2
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0005-0000-000000000000",
@@ -1837,6 +1893,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0005-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0006-0000-000000000000",
+                        "last_fetch_ms": 1700000006000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 2,
+                        "uid_next": 3,
+                        "uid_validity": 3,
+                        "unread": 1
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0005-0000-000000000000",

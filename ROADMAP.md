@@ -1036,7 +1036,7 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 
 ## Wave 13 — Refinement: "every message has its own buttons"
 
-The requests of 2026-11-05. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-44 to MISC-47).
+The requests of 2026-11-05. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-44 to MISC-49).
 Following Wave 11's iOS decision, `ios/` only takes the shared presenter changes and stays green. All new text ships in
 English and French.
 
@@ -1062,6 +1062,11 @@ English and French.
   *Archive* on its new messages; a tap opens the mailbox, the thread and the message
 - [x] MISC-46 [front][gui][tui][mobile]: dates in local time, not UTC
 - [x] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`
+- [x] MISC-48 [core][front][gui][tui][mobile]: mark read / unread changes the folders' unread counts at once (undo
+  too); a parent folder shows its own unread plus all below it (requested 2026-11-07)
+- [x] MISC-49 [mobile][kt][ios]: the mobile About is a list of pages, one per licence, plus the privacy policy, as the
+  desktop's About; Back returns from a page to the list; licence prose is reflowed to the screen width
+  (`app_front::text::reflow`, desktop too) (requested 2026-11-07)
 
 ---
 

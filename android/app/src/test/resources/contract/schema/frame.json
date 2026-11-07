@@ -1,12 +1,23 @@
 {
   "$defs": {
     "About": {
-      "description": "The About screen: the version and the licences of what the app bundles.",
+      "description": "The About screen: the version, then a list of pages, one per licence of what the app bundles\n(as the desktop's About). A tapped page replaces the list until Back.",
       "properties": {
-        "licences": {
-          "description": "One licence per bundled work.",
+        "page": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Licence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The open page: draw its text instead of the list. The top bar carries its name and Back."
+        },
+        "pages": {
+          "description": "One page per bundled work's licence, in this order.",
           "items": {
-            "$ref": "#/$defs/Licence"
+            "$ref": "#/$defs/AboutPage"
           },
           "type": "array"
         },
@@ -26,7 +37,7 @@
       "required": [
         "title",
         "text",
-        "licences",
+        "pages",
         "privacy"
       ],
       "type": "object"
@@ -46,6 +57,26 @@
       "required": [
         "label",
         "url"
+      ],
+      "type": "object"
+    },
+    "AboutPage": {
+      "description": "A row of the About screen's list: tapping it opens the page.",
+      "properties": {
+        "action": {
+          "description": "Opens its page.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "description": "The work (`Geist`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "action"
       ],
       "type": "object"
     },

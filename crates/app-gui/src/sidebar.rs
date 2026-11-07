@@ -311,7 +311,6 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                                 ui.add_space(gutter);
                             }
                         }
-                        let hidden = if folded { node.unread_below } else { 0 };
                         let mailbox = node.mailbox.and_then(|id| state.mailboxes.get(&id));
                         match mailbox {
                             Some(mailbox) => {
@@ -329,11 +328,11 @@ pub fn show(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
                                 let row = Row {
                                     icon: Icon::Folder,
                                     label: &node.label,
-                                    unread: 0,
+                                    unread: node.unread_total(),
                                     keys: None,
                                     open: false,
                                 };
-                                if row.show_with(ui, t, focused, hidden).clicked() {
+                                if row.show(ui, t, focused).clicked() {
                                     queue.push(Request::user(fold(node.key.clone(), !folded)));
                                 }
                             }
@@ -482,16 +481,11 @@ struct Row<'a> {
 
 impl Row<'_> {
     /// Screen readers hear the name, the unread count and whether it is the open one.
+    /// A parent folder counts the unread mail below it too.
     fn show(self, ui: &mut Ui, t: &Tokens, focused: bool) -> egui::Response {
-        self.show_with(ui, t, focused, 0)
-    }
-
-    /// `hidden`: the unread mail of the folders a collapsed row hides.
-    fn show_with(self, ui: &mut Ui, t: &Tokens, focused: bool, hidden: u32) -> egui::Response {
         let name = app_front::a11y::nav_row(self.label, self.unread);
         let trailing = match (self.unread, self.keys) {
             (n, _) if n > 0 => ui::Trailing::Count(n),
-            _ if hidden > 0 => ui::Trailing::Faint(hidden),
             (_, Some(keys)) => ui::Trailing::Keys(keys),
             _ => ui::Trailing::None,
         };
@@ -519,21 +513,16 @@ fn mailbox_row(
     keys: Option<String>,
     focused: bool,
 ) -> Option<RowOut> {
-    let hidden = if state.view.collapsed.contains(&node.key) {
-        node.unread_below
-    } else {
-        0
-    };
     let row = Row {
         icon: crate::theme::role_icon(mailbox.role),
         label: &node.label,
-        unread: mailbox.unread,
+        unread: node.unread_total(),
         keys,
         open: state.view.mailbox == Some(mailbox.id)
             && state.view.search.is_none()
             && !state.view.unified,
     };
-    let response = row.show_with(ui, t, focused, hidden);
+    let response = row.show(ui, t, focused);
     // UX-11: threads dragged from the list move here (same account only).
     if let Some(dragged) = response.dnd_hover_payload::<crate::list::Dragged>()
         && dragged.account == mailbox.account
