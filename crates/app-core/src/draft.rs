@@ -75,6 +75,11 @@ pub struct Draft {
     /// Why the last send failed, if it did (the draft is back to editable).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub send_error: Option<String>,
+    /// The server draft (a message in the Drafts mailbox) whose text is still being read into
+    /// this draft (`edit_draft`, MISC-44). Until it arrives the draft can't be edited, saved or
+    /// sent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loading_from: Option<MessageId>,
 }
 
 /// How long a draft must be left unchanged before it is saved to the server (milliseconds).
@@ -96,6 +101,20 @@ pub struct AttachmentRef {
     pub name: String,
     /// Whether the file was found and fits the size limit.
     pub state: AttachmentState,
+}
+
+/// A file that `edit_draft` carried from a server draft into the local one (MISC-44d): the
+/// runtime wrote the attachment's bytes to `path` (under a safe name) and reports only this.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CarriedAttachment {
+    /// Absolute path of the written copy.
+    pub path: String,
+    /// File name shown to recipients (made safe; email content).
+    pub name: String,
+    /// Size in bytes.
+    pub size: u64,
+    /// MIME type, guessed from the file name.
+    pub content_type: String,
 }
 
 /// The check of an attached file.
@@ -172,7 +191,7 @@ impl Draft {
 
     /// Whether the server copy is missing or older than the draft.
     pub fn needs_save(&self) -> bool {
-        self.saved_ms != Some(self.updated_ms)
+        self.loading_from.is_none() && self.saved_ms != Some(self.updated_ms)
     }
 
     /// The draft as it is rendered at `date_ms`, sent by `from`. `quote_blob` is the cached raw
@@ -473,6 +492,7 @@ mod tests {
             send_at: None,
             sending: false,
             send_error: None,
+            loading_from: None,
             from: None,
         };
         let me = Addr {

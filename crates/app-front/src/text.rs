@@ -60,6 +60,59 @@ pub fn clean_lines(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Licence text hard-wrapped at a fixed width, rewrapped for the screen. The lines of each
+/// paragraph are joined so that the screen's own soft wrap takes over. Blank lines, centred
+/// or upper-case headings, rules, `//` comments, list items (`1.`, `(a)`, `-`, `*`) and code fences
+/// keep their own lines.
+pub fn reflow(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut open = false;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            if open {
+                out.push('\n');
+            }
+            out.push('\n');
+            open = false;
+            continue;
+        }
+        let indent = line.len() - line.trim_start().len();
+        // A heading or rule (no lower-case letter) and a code comment stand alone too.
+        let alone = trimmed.starts_with("```")
+            || trimmed.starts_with("//")
+            || indent >= 8
+            || !trimmed.chars().any(char::is_lowercase);
+        if open && !alone && !starts_item(trimmed) {
+            out.push(' ');
+        } else if open {
+            out.push('\n');
+        }
+        out.push_str(trimmed);
+        open = !alone;
+        if alone {
+            out.push('\n');
+        }
+    }
+    out.trim().to_owned()
+}
+
+/// Whether a line starts a list item: `1.`, `1)`, `(a)`, `(iv)`, `-` or `*`.
+fn starts_item(line: &str) -> bool {
+    if line.starts_with("- ") || line.starts_with("* ") {
+        return true;
+    }
+    if let Some(rest) = line.strip_prefix('(') {
+        let label: String = rest
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric())
+            .collect();
+        return (1..=4).contains(&label.len()) && rest[label.len()..].starts_with(')');
+    }
+    let digits = line.chars().take_while(char::is_ascii_digit).count();
+    digits > 0 && (line[digits..].starts_with(". ") || line[digits..].starts_with(") "))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,5 +131,23 @@ mod tests {
             ["one", "two", "three", ""]
         );
         assert_eq!(clean("Grüße, 日本"), "Grüße, 日本");
+    }
+
+    #[test]
+    fn reflow_joins_hard_wrapped_lines_and_keeps_structure() {
+        let text = "                Apache License\n\n   1. Definitions.\n\n      \"License\" shall mean\n      the terms.\n\n   (a) You must give\n       a copy; and\n\n   (b) You must\nkeep notices.\n";
+        assert_eq!(
+            reflow(text),
+            "Apache License\n\n1. Definitions.\n\n\"License\" shall mean the terms.\n\n(a) You must give a copy; and\n\n(b) You must keep notices."
+        );
+        assert_eq!(reflow("a\nb\n- one\n- two"), "a b\n- one\n- two");
+        assert_eq!(
+            reflow("---\nPREAMBLE\nThe goals\nof it"),
+            "---\nPREAMBLE\nThe goals of it"
+        );
+        assert_eq!(
+            reflow("```\nCopyright x\n Use of this\n found in\n```"),
+            "```\nCopyright x Use of this found in\n```"
+        );
     }
 }

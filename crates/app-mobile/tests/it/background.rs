@@ -115,6 +115,7 @@ pub fn samples() -> Vec<(&'static str, Notification)> {
     let (before, after, _, _) = news();
     notifications(&before, &after)
         .into_iter()
+        .filter(|n| !n.summary)
         .map(|n| match n.channel {
             Channel::NewMail => ("new_mail", n),
             Channel::NotSent | Channel::Background => ("not_sent", n),
@@ -171,21 +172,43 @@ fn push_shows_what_it_watches_and_stops_as_the_user() {
     );
 }
 
+/// The message `news` adds.
+fn news_message() -> app_core::MessageId {
+    serde_json::from_str("\"00000000-0000-0000-0000-0000000000a1\"").unwrap()
+}
+
 #[test]
 fn news_becomes_notifications_without_names_on_the_lock_screen() {
     let (before, after, thread, draft) = news();
     let notes = notifications(&before, &after);
-    let [mail, failed] = &notes[..] else {
+    let [mail, summary, failed] = &notes[..] else {
         panic!("{notes:?}")
     };
     assert_eq!(mail.channel, Channel::NewMail);
+    assert_eq!(mail.tag, format!("new_mail:{thread}"));
+    assert_eq!(mail.group.as_deref(), Some("new_mail"));
+    assert!(!mail.summary);
     assert_eq!(mail.body, "Lunch today?", "cleaned");
     assert_eq!(mail.public_title, "New mail");
     assert!(!mail.public_title.contains("Lunch"));
-    assert_eq!(mail.open, Some(NoteAct::OpenThread { thread }));
+    let inbox = after.messages[&news_message()].mailbox;
+    assert_eq!(
+        mail.open,
+        Some(NoteAct::OpenMessage {
+            mailbox: inbox,
+            thread,
+            message: news_message()
+        })
+    );
     let labels: Vec<_> = mail.actions.iter().map(|a| a.label.as_str()).collect();
-    assert_eq!(labels, ["Archive", "Mark read"]);
+    assert_eq!(labels, ["Delete", "Mark read", "Archive"]);
+    assert_eq!(summary.tag, "new_mail");
+    assert!(summary.summary);
+    assert_eq!(summary.group.as_deref(), Some("new_mail"));
+    assert_eq!(summary.public_title, "New mail");
+    assert!(summary.actions.is_empty());
     assert_eq!(failed.channel, Channel::NotSent);
+    assert_eq!(failed.group, None);
     assert_eq!(failed.open, Some(NoteAct::OpenDraft { draft }));
     assert!(notifications(&after, &after).is_empty(), "only once");
     let mut quiet = after.clone();
@@ -193,12 +216,120 @@ fn news_becomes_notifications_without_names_on_the_lock_screen() {
     assert!(notifications(&before, &quiet).is_empty(), "turned off");
 }
 
+/// `news` plus a second new message in another conversation and a third in the first one.
+fn two_conversations() -> (app_core::AppState, app_core::AppState, ThreadId, ThreadId) {
+    let (before, mut after, first, _) = news();
+    let template = after.messages[&news_message()].clone();
+    let other = after.threads.keys().copied().find(|t| *t != first).unwrap();
+    let second: app_core::MessageId =
+        serde_json::from_str("\"00000000-0000-0000-0000-0000000000a2\"").unwrap();
+    let third: app_core::MessageId =
+        serde_json::from_str("\"00000000-0000-0000-0000-0000000000a3\"").unwrap();
+    after.messages.insert(
+        second,
+        app_core::Envelope {
+            id: second,
+            uid: template.uid + 1,
+            thread: other,
+            subject: "Report".into(),
+            ..template.clone()
+        },
+    );
+    after.messages.insert(
+        third,
+        app_core::Envelope {
+            id: third,
+            uid: template.uid + 2,
+            subject: "Re: Lunch".into(),
+            ..template
+        },
+    );
+    (before, after, first, other)
+}
+
+#[test]
+fn each_new_conversation_gets_its_own_notification_on_its_new_messages() {
+    let (before, after, first, other) = two_conversations();
+    let notes = notifications(&before, &after);
+    let mail: Vec<_> = notes
+        .iter()
+        .filter(|n| n.channel == Channel::NewMail)
+        .collect();
+    let [a, b, summary] = &mail[..] else {
+        panic!("{mail:?}")
+    };
+    assert_eq!(a.tag, format!("new_mail:{first}"));
+    assert_eq!(b.tag, format!("new_mail:{other}"));
+    assert_eq!(a.body, "Re: Lunch", "the newest subject");
+    assert_eq!(summary.title, "2 new conversations");
+    assert!(summary.summary);
+    let first_new: Vec<app_core::MessageId> = vec![
+        news_message(),
+        serde_json::from_str("\"00000000-0000-0000-0000-0000000000a3\"").unwrap(),
+    ];
+    assert_eq!(
+        a.actions[0].act.commands(&after),
+        [Command::TrashThreads {
+            ids: Vec::new(),
+            messages: first_new.clone()
+        }]
+    );
+    assert_eq!(
+        a.actions[1].act.commands(&after),
+        [Command::MarkRead {
+            ids: Vec::new(),
+            messages: first_new.clone()
+        }]
+    );
+    assert_eq!(
+        a.actions[2].act.commands(&after),
+        [Command::ArchiveThreads {
+            ids: Vec::new(),
+            messages: first_new
+        }]
+    );
+    let Some(NoteAct::OpenMessage { message, .. }) = &a.open else {
+        panic!("{:?}", a.open)
+    };
+    assert_eq!(message.to_string(), "00000000-0000-0000-0000-0000000000a3");
+    // The old messages of the thread are never named.
+    for note in [a, b] {
+        for action in &note.actions {
+            for cmd in action.act.commands(&after) {
+                let json = serde_json::to_value(&cmd).unwrap();
+                assert!(json["args"].get("ids").is_none(), "{json}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_tap_opens_the_mailbox_the_thread_and_the_message() {
+    let (before, after, thread, _) = news();
+    let note = notifications(&before, &after).remove(0);
+    let act = note.open.unwrap();
+    let inbox = after.messages[&news_message()].mailbox;
+    let mut phone = Phone::new(after, 360, 800);
+    phone.event(UiEvent::Notification { act });
+    assert_eq!(
+        requests_of(&phone.take()),
+        [
+            Command::OpenMailbox { id: inbox },
+            Command::OpenThread { id: thread },
+            Command::ExpandMessages {
+                ids: vec![news_message()]
+            },
+        ]
+    );
+}
+
 #[test]
 fn a_notification_acts_as_the_user_on_what_still_exists() {
     let (_, after, thread, draft) = news();
     assert_eq!(
         NoteAct::Archive {
-            threads: vec![thread]
+            threads: vec![thread],
+            messages: Vec::new()
         }
         .commands(&after),
         [Command::ArchiveThreads {
@@ -208,7 +339,8 @@ fn a_notification_acts_as_the_user_on_what_still_exists() {
     );
     assert_eq!(
         NoteAct::MarkRead {
-            threads: vec![thread]
+            threads: vec![thread],
+            messages: Vec::new()
         }
         .commands(&after),
         [Command::MarkRead {
@@ -217,17 +349,48 @@ fn a_notification_acts_as_the_user_on_what_still_exists() {
         }]
     );
     let gone: ThreadId = serde_json::from_str("\"00000000-0000-0000-0000-0000000000ff\"").unwrap();
+    let gone_message: app_core::MessageId =
+        serde_json::from_str("\"00000000-0000-0000-0000-0000000000fe\"").unwrap();
     assert!(
         NoteAct::Archive {
-            threads: vec![gone]
+            threads: vec![gone],
+            messages: Vec::new()
         }
         .commands(&after)
         .is_empty()
     );
     assert!(
+        NoteAct::Trash {
+            threads: vec![thread],
+            messages: vec![gone_message]
+        }
+        .commands(&after)
+        .is_empty(),
+        "never the whole thread when its new messages went"
+    );
+    assert!(
         NoteAct::OpenThread { thread: gone }
             .commands(&after)
             .is_empty()
+    );
+    assert!(
+        NoteAct::OpenMessage {
+            mailbox: after.messages[&news_message()].mailbox,
+            thread: gone,
+            message: news_message()
+        }
+        .commands(&after)
+        .is_empty()
+    );
+    // An act from before this change still decodes.
+    let old: NoteAct =
+        serde_json::from_value(serde_json::json!({"act": "archive", "threads": [thread]})).unwrap();
+    assert_eq!(
+        old,
+        NoteAct::Archive {
+            threads: vec![thread],
+            messages: Vec::new()
+        }
     );
     // A tap opens the draft through the presenter.
     let mut phone = Phone::new(after, 360, 800);

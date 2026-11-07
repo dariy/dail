@@ -68,7 +68,7 @@ pub fn show(
     state: &AppState,
     rows: &Rows,
     local: &mut ListState,
-    now_ms: i64,
+    (now_ms, zone): (i64, format::Zone),
     queue: &mut Vec<Request>,
 ) {
     header(ui, t, state, rows.unread, queue);
@@ -92,7 +92,7 @@ pub fn show(
     let cursor = state.view.selected.last().copied().or(state.view.thread);
     let focused = state.view.focus == Pane::List;
     // UX-13: date group headers, one row slot each, so the virtualized rows stay uniform.
-    let items = grouped(state, rows, now_ms);
+    let items = grouped(state, rows, now_ms, zone);
     let mut scroll = egui::ScrollArea::vertical()
         .id_salt("list")
         .auto_shrink([false, false]);
@@ -151,7 +151,7 @@ pub fn show(
                     checked_ids: &state.view.checked,
                     junk: app_front::mailbox::in_junk(state),
                 };
-                match row(ui, t, &summary, &look, density, now_ms) {
+                match row(ui, t, &summary, &look, density, (now_ms, zone)) {
                     Some(Click::Open) => {
                         queue.push(Request::user(Command::OpenThread { id: *id }));
                     }
@@ -618,12 +618,12 @@ enum Item {
 
 /// The rows with a header before each run of threads in the same date group
 /// (`app_front::format::date_group` of the thread's newest message).
-fn grouped(state: &AppState, rows: &[ThreadId], now_ms: i64) -> Vec<Item> {
+fn grouped(state: &AppState, rows: &[ThreadId], now_ms: i64, zone: format::Zone) -> Vec<Item> {
     let mut items = Vec::with_capacity(rows.len() + 8);
     let mut last: Option<String> = None;
     for id in rows {
         if let Some(thread) = state.threads.get(id) {
-            let group = format::date_group(thread.last_date_ms, now_ms);
+            let group = format::date_group(thread.last_date_ms, now_ms, zone);
             if last.as_ref() != Some(&group) {
                 items.push(Item::Group(group.clone()));
                 last = Some(group);
@@ -695,7 +695,7 @@ fn row(
     summary: &ThreadSummary<'_>,
     look: &RowLook<'_>,
     density: Density,
-    now_ms: i64,
+    (now_ms, zone): (i64, format::Zone),
 ) -> Option<Click> {
     let (selected, open, cursor) = (look.selected, look.open, look.cursor);
     let (rect, response) = ui.allocate_exact_size(
@@ -712,7 +712,7 @@ fn row(
             vec![summary.thread.id]
         },
     });
-    let name = a11y::thread_row(summary, look.checked, now_ms);
+    let name = a11y::thread_row(summary, look.checked, now_ms, zone);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
     });
@@ -767,7 +767,7 @@ fn row(
             ui.add(egui::Label::new(snippet).truncate().selectable(false));
         }
     };
-    let date = format::short_date(summary.thread.last_date_ms, now_ms);
+    let date = format::short_date(summary.thread.last_date_ms, now_ms, zone);
     let date_color = if unread { t.text } else { t.text_muted };
     let mut child = ui.new_child(
         egui::UiBuilder::new()

@@ -86,7 +86,11 @@ fn discarding_the_open_draft_closes_the_composer_and_undo_does_not_reopen_it() {
     let mut m = with_thread();
     let draft = new_draft(&mut m);
     m.run(Command::OpenComposer { id: draft }).unwrap();
-    m.run(Command::DiscardDraft { id: draft }).unwrap();
+    m.run(Command::DiscardDraft {
+        id: draft,
+        keep_server_copy: false,
+    })
+    .unwrap();
     let view = &m.engine.state().view;
     assert_eq!(view.composer, None);
     assert_eq!(view.focus, Pane::List);

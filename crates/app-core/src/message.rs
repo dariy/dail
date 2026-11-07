@@ -150,6 +150,9 @@ pub struct Envelope {
     pub size: u32,
     /// Whether the message probably has attachments.
     pub has_attachments: bool,
+    /// `List-Id` header (the mailing list), as sent. Untrusted. Sorting rules test it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub list_id: Option<String>,
     /// Whether the body is cached.
     pub body: BodyState,
     /// The start of the plain text (at most [`SNIPPET_CHARS`] characters, whitespace collapsed,
@@ -276,6 +279,9 @@ pub struct RemoteEnvelope {
     /// Whether the message probably has attachments.
     #[serde(default)]
     pub has_attachments: bool,
+    /// `List-Id` header, as sent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub list_id: Option<String>,
 }
 
 impl RemoteEnvelope {
@@ -304,6 +310,7 @@ impl RemoteEnvelope {
             flags: self.flags,
             size: self.size,
             has_attachments: self.has_attachments,
+            list_id: self.list_id,
             body: BodyState::NotFetched,
             snippet: None,
             moved_to: None,

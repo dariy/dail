@@ -233,8 +233,20 @@ impl Engine {
     }
 }
 
-/// A draft with a scheduled or running send can't be changed.
+/// A draft with a scheduled or running send, or whose text is still being read, can't be changed.
 pub(super) fn ensure_editable(draft: &Draft) -> Result<(), CoreError> {
+    if draft.loading_from.is_some() {
+        return Err(not_sendable(
+            draft.id,
+            "its text is still being read from the server; try again in a moment",
+        ));
+    }
+    ensure_not_sending(draft)
+}
+
+/// Checks that a draft is neither being sent nor scheduled (a draft whose text is still being
+/// read may be discarded).
+pub(super) fn ensure_not_sending(draft: &Draft) -> Result<(), CoreError> {
     if draft.sending {
         return Err(not_sendable(draft.id, "it is being sent"));
     }

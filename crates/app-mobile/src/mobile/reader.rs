@@ -10,6 +10,7 @@ use app_core::document::{Block, FoldKind, Span};
 use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
 use app_front::i18n::{self, Key};
+use app_front::message_actions::{self, MessageAction};
 use app_front::text::{clean, clean_lines};
 use app_front::{fold, format, highlight, palette};
 
@@ -508,6 +509,7 @@ impl Mobile {
                 .chain(&message.cc)
                 .map(|a| clean(&format::full(a)))
                 .collect();
+            let (actions, swipe_start, swipe_end) = self.message_actions(state, message.id);
             out.push(ReaderMessage {
                 message: message.id,
                 from: message.from.first().map_or_else(
@@ -515,7 +517,7 @@ impl Mobile {
                     |a| clean(&format::full(a)),
                 ),
                 to: to.join(", "),
-                date: format::short_date(message.date_ms, now),
+                date: format::short_date(message.date_ms, now, self.zone()),
                 expanded,
                 toggle,
                 snippet: clean(&snippet),
@@ -525,6 +527,9 @@ impl Mobile {
                 save_all,
                 images,
                 links,
+                actions,
+                swipe_start,
+                swipe_end,
             });
         }
         let close = self.button(
@@ -546,6 +551,54 @@ impl Mobile {
             position,
             messages: out,
         })
+    }
+
+    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons,
+    /// and its two swipes (MISC-44e), as a list row's: towards the start edge archives the
+    /// message (a draft: edits it), towards the end edge trashes it (a draft: discards it).
+    fn message_actions(
+        &mut self,
+        state: &AppState,
+        message: MessageId,
+    ) -> (Vec<Button>, Option<Button>, Option<Button>) {
+        let items = message_actions::message_actions(state, message);
+        let mut swipe_start = None;
+        let mut swipe_end = None;
+        if items.iter().any(|i| i.action == MessageAction::Trash) {
+            swipe_start = Some(self.button(
+                "archive",
+                i18n::s(Key::Archive),
+                Act::Run(Command::ArchiveThreads {
+                    ids: Vec::new(),
+                    messages: vec![message],
+                }),
+            ));
+        }
+        let mut actions = Vec::with_capacity(items.len());
+        for item in items {
+            let icon = match item.action {
+                MessageAction::Reply => "reply",
+                MessageAction::ReplyAll => "reply_all",
+                MessageAction::Forward => "forward",
+                MessageAction::MarkRead => "mark_email_read",
+                MessageAction::MarkUnread => "mark_email_unread",
+                MessageAction::Star | MessageAction::Unstar => "star",
+                MessageAction::Trash | MessageAction::Discard => "delete",
+                MessageAction::Edit => "edit",
+            };
+            let label = i18n::s(item.action.label());
+            match item.action {
+                MessageAction::Trash | MessageAction::Discard => {
+                    swipe_end = Some(self.button(icon, label, Act::Run(item.command.clone())));
+                }
+                MessageAction::Edit => {
+                    swipe_start = Some(self.button(icon, label, Act::Run(item.command.clone())));
+                }
+                _ => {}
+            }
+            actions.push(self.button(icon, label, Act::Run(item.command)));
+        }
+        (actions, swipe_start, swipe_end)
     }
 
     /// The conversations above and below the open one in the list, and where it is.
@@ -591,7 +644,12 @@ impl Mobile {
         label: &str,
     ) -> Option<Neighbour> {
         let thread = state.threads.get(&id)?;
-        let text = RowText::of(&ThreadSummary::of(state, thread), thread, self.now_ms());
+        let text = RowText::of(
+            &ThreadSummary::of(state, thread),
+            thread,
+            self.now_ms(),
+            self.zone(),
+        );
         Some(Neighbour {
             open: self.button(icon, label, Act::Run(Command::OpenThread { id })),
             sender: text.sender,

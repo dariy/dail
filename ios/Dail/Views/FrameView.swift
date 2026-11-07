@@ -57,7 +57,7 @@ struct FrameView: View {
     @ViewBuilder private var content: some View {
         if let about = frame.about {
             // Shown only while the frame has it; the top bar above carries its close (MISC-12).
-            AboutView(about: about)
+            AboutView(about: about, send: send)
         } else if let result = frame.result {
             ResultPane(result: result, send: send)
         } else if let sheet = frame.setup {
@@ -287,22 +287,35 @@ struct Placeholder: View {
     }
 }
 
-/// The About screen: what the app is, then every bundled work's licence. The title is in the top
-/// bar beside its close (MISC-13).
+/// The About screen: what the app is, then a row per bundled work's licence, as the desktop's
+/// About. A tapped row's page replaces the list; the top bar carries its name and Back (MISC-13).
 struct AboutView: View {
     let about: About
+    let send: (UiEvent) -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        List {
-            Section {
-                Text(verbatim: about.text)
+        if let page = about.page {
+            ScrollView {
+                Text(verbatim: page.text).font(.footnote.monospaced()).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding()
             }
-            ForEach(about.licences, id: \.name) { licence in
-                DisclosureGroup(licence.name) {
-                    Text(verbatim: licence.text).font(.footnote.monospaced()).textSelection(.enabled)
+            .accessibilityIdentifier("about-page")
+        } else {
+            List {
+                Section {
+                    Text(verbatim: about.text)
+                }
+                Section {
+                    ForEach(about.pages, id: \.label) { page in
+                        SwiftUI.Button(page.label) { send(.tap(page.action)) }
+                    }
+                    if let url = URL(string: about.privacy.url) {
+                        SwiftUI.Button(about.privacy.label) { openURL(url) }
+                    }
                 }
             }
+            .accessibilityIdentifier("about")
         }
-        .accessibilityIdentifier("about")
     }
 }

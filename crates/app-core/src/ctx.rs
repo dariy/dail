@@ -44,6 +44,10 @@ pub enum Origin {
     McpAllowSend,
     /// The runtime itself, e.g. effect results and timer ticks.
     Runtime,
+    /// A sorting rule (ADR 0015): the commands the engine runs for a rule's actions. The engine
+    /// alone uses it, and it may run only the rule actions (`mark_read`, `star`,
+    /// `archive_threads`, `move_threads`); everything else is refused.
+    Rule,
 }
 
 impl Origin {
@@ -68,6 +72,7 @@ impl Origin {
             Self::Mcp => "mcp",
             Self::McpAllowSend => "mcp_allow_send",
             Self::Runtime => "runtime",
+            Self::Rule => "rule",
         }
     }
 }

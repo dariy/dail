@@ -15,9 +15,11 @@ mod outbox;
 mod pending;
 mod preview;
 mod queries;
+mod rules;
 mod saves;
 mod search;
 mod sends;
+mod settings_sync;
 mod sync;
 pub use sync::PREFETCH_MAX_BYTES;
 mod triage;
@@ -31,7 +33,7 @@ pub use watch::WATCH_RETRY_MS;
 use std::collections::BTreeMap;
 
 use crate::command::{Command, SettingKey, ThemeMode};
-use crate::ctx::Ctx;
+use crate::ctx::{Ctx, Origin};
 use crate::error::CoreError;
 use crate::event::{Effect, Event, PersistDelta};
 use crate::history::{History, HistoryEntry};
@@ -249,19 +251,23 @@ impl Engine {
                 total,
                 unread,
                 envelopes,
-            } => Ok(self.ingest_envelopes_fetched(
-                sync::FetchedEnvelopes {
-                    account,
-                    mailbox,
-                    uid_validity,
-                    uid_next,
-                    total,
-                    unread,
-                    envelopes,
-                },
-                ctx,
-                receipt,
-            )),
+            } => {
+                let (mut outcome, added) = self.ingest_envelopes_fetched(
+                    sync::FetchedEnvelopes {
+                        account,
+                        mailbox,
+                        uid_validity,
+                        uid_next,
+                        total,
+                        unread,
+                        envelopes,
+                    },
+                    ctx,
+                    receipt,
+                );
+                self.run_rules_on_fetch(mailbox, &added, ctx, &mut outcome);
+                Ok(outcome)
+            }
             Event::FlagsChanged {
                 account,
                 mailbox,
@@ -292,15 +298,34 @@ impl Engine {
                 blob,
                 has_attachments,
                 snippet,
-            } => Ok(self.ingest_body(
-                message,
-                BodyState::Fetched { blob },
-                Some((has_attachments, snippet)),
-                receipt,
-            )),
-            Event::BodyFetchFailed { message, error } => {
-                Ok(self.ingest_body(message, BodyState::Failed { error }, None, receipt))
+            } => {
+                let mut outcome = self.ingest_body(
+                    message,
+                    BodyState::Fetched { blob },
+                    Some((has_attachments, snippet)),
+                    receipt,
+                );
+                self.drafts_after_body(message, &mut outcome);
+                Ok(outcome)
             }
+            Event::BodyFetchFailed { message, error } => {
+                let mut outcome =
+                    self.ingest_body(message, BodyState::Failed { error }, None, receipt);
+                self.drafts_after_body(message, &mut outcome);
+                Ok(outcome)
+            }
+            Event::DraftRead {
+                draft,
+                message,
+                body,
+                bcc,
+                attachments,
+            } => Ok(self.ingest_draft_read(draft, message, Ok((body, bcc, attachments)), receipt)),
+            Event::DraftReadFailed {
+                draft,
+                message,
+                error,
+            } => Ok(self.ingest_draft_read(draft, message, Err(error), receipt)),
             Event::SyncFailed {
                 account,
                 mailbox,
@@ -327,6 +352,19 @@ impl Engine {
             Event::KeywordsRefused { account, path } => {
                 Ok(self.ingest_keywords_refused(account, &path, receipt))
             }
+            Event::SettingsRead {
+                account,
+                copy,
+                document,
+            } => Ok(self.ingest_settings_read(account, copy, document.as_deref(), ctx, receipt)),
+            Event::SettingsWritten { account } => {
+                Ok(self.ingest_settings_written(account, ctx, receipt))
+            }
+            Event::SettingsFailed {
+                account,
+                write,
+                error,
+            } => Ok(self.ingest_settings_failed(account, write, error, ctx, receipt)),
             Event::FolderManaged { account, .. } => {
                 Ok(self.ingest_folder(account, None, ctx, receipt))
             }
@@ -546,7 +584,9 @@ impl Engine {
                 self.set_keybinding(&command, keys, receipt)
             }
             Command::SetKeyPreset { preset } => Ok(self.set_key_preset(preset, receipt)),
-            Command::SetTheme { mode, light, dark } => self.set_theme(mode, light, dark, receipt),
+            Command::SetTheme { mode, light, dark } => {
+                self.set_theme(mode, light, dark, ctx.now_ms, receipt)
+            }
             Command::SetSetting { key, value } => {
                 let new = validate_setting(key, &value)?;
                 // The legacy high-contrast values name a theme now (ADR 0008).
@@ -564,11 +604,20 @@ impl Engine {
                             None,
                         )
                     };
-                    return self.set_theme(Some(mode), light, dark, receipt);
+                    return self.set_theme(Some(mode), light, dark, ctx.now_ms, receipt);
                 }
                 let previous = key.get(&self.state.settings);
                 key.set(&mut self.state.settings, new);
-                let outcome = Outcome::new(receipt.affecting(EntityRef::Settings).with_data(
+                // A shared setting is stamped in the synced document too (SET-7); the theme
+                // mode as the document's `theme`.
+                let synced = if key == SettingKey::Theme {
+                    Some(self.stamp_theme(ctx.now_ms))
+                } else if key.is_shared() {
+                    Some(self.stamp_pref(key, new, ctx.now_ms))
+                } else {
+                    None
+                };
+                let mut outcome = Outcome::new(receipt.affecting(EntityRef::Settings).with_data(
                     serde_json::json!({
                         "key": key,
                         "value": new,
@@ -578,6 +627,7 @@ impl Engine {
                 .with_effect(Effect::PersistState {
                     delta: PersistDelta::Settings(self.state.settings.clone()),
                 });
+                outcome.effects.extend(synced);
                 let inverse = Command::SetSetting {
                     key,
                     value: serde_json::Value::from(previous),
@@ -673,6 +723,16 @@ impl Engine {
             Command::SyncNow { account } => {
                 self.sync_now(account, ctx, receipt).map(Applied::plain)
             }
+            Command::PullSettings { account } => {
+                self.pull_settings(account, receipt).map(Applied::plain)
+            }
+            Command::PushSettings {} => self.push_settings(ctx, receipt).map(Applied::plain),
+            Command::SetSettingsAccount { account } => self.set_settings_account(account, receipt),
+            Command::ListRules {} => Ok(Applied::plain(self.list_rules(receipt))),
+            Command::SaveRule { id, rule } => self.save_rule(id, rule, ctx, receipt),
+            Command::DeleteRule { id } => self.delete_rule(id, ctx, receipt),
+            Command::EnableRule { id, enabled } => self.enable_rule(id, enabled, ctx, receipt),
+            Command::ApplyRules { mailbox } => self.apply_rules(mailbox, ctx, receipt),
             Command::ListMailboxes { account } => {
                 self.list_mailboxes(account, receipt).map(Applied::plain)
             }
@@ -867,7 +927,11 @@ impl Engine {
                 ctx,
                 receipt,
             ),
-            Command::DiscardDraft { id } => self.discard_draft(id, receipt),
+            Command::DiscardDraft {
+                id,
+                keep_server_copy,
+            } => self.discard_draft(id, keep_server_copy, receipt),
+            Command::EditDraft { message } => self.edit_draft(message, ctx, receipt),
             Command::RestoreDraft { draft } => self.restore_draft(*draft, ctx, receipt),
             Command::AttachFile { draft, path, index } => {
                 self.attach_file(draft, path, index, ctx, receipt)
@@ -1047,9 +1111,24 @@ impl Engine {
 /// The agent policy (`CommandSpec::agents`): a user-only command is refused from every origin but
 /// the user's. Only commands from front-ends get here; `undo`/`redo` apply commands from history,
 /// which the engine built itself or which passed this check when they were first dispatched.
+///
+/// `Origin::Rule` is the engine's own sorting-rule run (ADR 0015): it may run only the rule
+/// actions, so a rule can never send, forward, reply or change accounts, whatever its document
+/// says.
 fn check_origin(cmd: &Command, ctx: &Ctx) -> Result<(), CoreError> {
     let name = cmd.command_name();
-    if name.agent_access() == AgentAccess::UserOnly && !ctx.origin.is_user() {
+    let rule_action = matches!(
+        cmd,
+        Command::MarkRead { .. }
+            | Command::Star { .. }
+            | Command::MoveThreads { .. }
+            | Command::ArchiveThreads { .. }
+    );
+    let refused = match ctx.origin {
+        Origin::Rule => !rule_action,
+        _ => name.agent_access() == AgentAccess::UserOnly && !ctx.origin.is_user(),
+    };
+    if refused {
         return Err(CoreError::OriginNotAllowed {
             command: name.as_str().to_owned(),
             origin: ctx.origin.as_str().to_owned(),

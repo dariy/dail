@@ -329,7 +329,10 @@ fn requests_go_with_their_draft() {
     let (id, _) = requested(&mut m);
     let outcome = run(
         &mut m,
-        Command::DiscardDraft { id },
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        },
         T0 + 2_000,
         Origin::Mcp,
     )

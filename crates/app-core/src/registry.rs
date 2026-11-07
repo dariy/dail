@@ -11,10 +11,11 @@ use serde::{Deserialize, Serialize};
 use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, RuleId, ThreadId};
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
+use crate::synced::{Condition, Rule, RuleAction};
 
 /// Groups commands in the palette and in CLI help.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -135,6 +136,22 @@ pub enum CommandName {
     RemoveAccount,
     /// See [`Command::SyncNow`].
     SyncNow,
+    /// See [`Command::PullSettings`].
+    PullSettings,
+    /// See [`Command::PushSettings`].
+    PushSettings,
+    /// See [`Command::SetSettingsAccount`].
+    SetSettingsAccount,
+    /// See [`Command::ListRules`].
+    ListRules,
+    /// See [`Command::SaveRule`].
+    SaveRule,
+    /// See [`Command::DeleteRule`].
+    DeleteRule,
+    /// See [`Command::EnableRule`].
+    EnableRule,
+    /// See [`Command::ApplyRules`].
+    ApplyRules,
     /// See [`Command::ListMailboxes`].
     ListMailboxes,
     /// See [`Command::SetSyncWindow`].
@@ -219,6 +236,8 @@ pub enum CommandName {
     UpdateDraft,
     /// See [`Command::DiscardDraft`].
     DiscardDraft,
+    /// See [`Command::EditDraft`].
+    EditDraft,
     /// See [`Command::RestoreDraft`].
     RestoreDraft,
     /// See [`Command::AttachFile`].
@@ -321,6 +340,19 @@ fn has_messages(state: &AppState) -> bool {
     !state.messages.is_empty()
 }
 
+/// The open conversation has a draft (`edit_draft`, MISC-44).
+fn open_thread_has_draft(state: &AppState) -> bool {
+    state
+        .view
+        .thread
+        .and_then(|t| state.threads.get(&t))
+        .is_some_and(|t| {
+            t.messages
+                .iter()
+                .any(|id| state.messages.get(id).is_some_and(|m| state.is_draft(m)))
+        })
+}
+
 fn has_ops(state: &AppState) -> bool {
     !state.outbox.is_empty()
 }
@@ -363,6 +395,38 @@ const EXAMPLE_OP: OpId = OpId::from_uuid(uuid::Uuid::from_u128(5));
 const EXAMPLE_DRAFT: DraftId = DraftId::from_uuid(uuid::Uuid::from_u128(6));
 const EXAMPLE_APPROVAL: ApprovalId = ApprovalId::from_uuid(uuid::Uuid::from_u128(7));
 
+/// The sorting-rule ID used by examples.
+const EXAMPLE_RULE: RuleId = RuleId::from_uuid(uuid::Uuid::from_u128(8));
+
+/// A rule used by examples: newsletters are marked read and moved to `Reading`.
+fn example_rule() -> Rule {
+    Rule {
+        name: "Newsletters to Reading".to_owned(),
+        enabled: true,
+        when: Condition::Any {
+            of: vec![
+                Condition::ListId {
+                    contains: "news.example.org".to_owned(),
+                },
+                Condition::From {
+                    contains: "newsletter@".to_owned(),
+                },
+            ],
+        },
+        then: vec![
+            RuleAction::MarkRead,
+            RuleAction::Move {
+                to: "Reading".to_owned(),
+            },
+        ],
+    }
+}
+
+/// Whether a live sorting rule exists.
+fn has_rules(state: &AppState) -> bool {
+    state.synced.settings.live_rules().next().is_some()
+}
+
 fn example_addr() -> Addr {
     Addr {
         name: Some("Bob".to_owned()),
@@ -402,6 +466,14 @@ impl CommandName {
         Self::SetDraftFrom,
         Self::RemoveAccount,
         Self::SyncNow,
+        Self::PullSettings,
+        Self::PushSettings,
+        Self::SetSettingsAccount,
+        Self::ListRules,
+        Self::SaveRule,
+        Self::DeleteRule,
+        Self::EnableRule,
+        Self::ApplyRules,
         Self::ListMailboxes,
         Self::SetSyncWindow,
         Self::ListThreads,
@@ -444,6 +516,7 @@ impl CommandName {
         Self::Forward,
         Self::UpdateDraft,
         Self::DiscardDraft,
+        Self::EditDraft,
         Self::RestoreDraft,
         Self::AttachFile,
         Self::RemoveAttachment,
@@ -504,6 +577,14 @@ impl CommandName {
             Self::SetDraftFrom => "set_draft_from",
             Self::RemoveAccount => "remove_account",
             Self::SyncNow => "sync_now",
+            Self::PullSettings => "pull_settings",
+            Self::PushSettings => "push_settings",
+            Self::SetSettingsAccount => "set_settings_account",
+            Self::ListRules => "list_rules",
+            Self::SaveRule => "save_rule",
+            Self::DeleteRule => "delete_rule",
+            Self::EnableRule => "enable_rule",
+            Self::ApplyRules => "apply_rules",
             Self::ListMailboxes => "list_mailboxes",
             Self::SetSyncWindow => "set_sync_window",
             Self::ListThreads => "list_threads",
@@ -546,6 +627,7 @@ impl CommandName {
             Self::Forward => "forward",
             Self::UpdateDraft => "update_draft",
             Self::DiscardDraft => "discard_draft",
+            Self::EditDraft => "edit_draft",
             Self::RestoreDraft => "restore_draft",
             Self::AttachFile => "attach_file",
             Self::RemoveAttachment => "remove_attachment",
@@ -596,13 +678,19 @@ impl CommandName {
             | Self::ListPendingOps
             | Self::ListApprovals
             | Self::Search
-            | Self::ListContacts => CommandKind::Query,
+            | Self::ListContacts
+            | Self::ListRules => CommandKind::Query,
             // `undo`/`redo`, `sync_now` and the pending-op commands change data but are never
             // recorded in history.
             Self::SetSetting
             | Self::SetKeybinding
             | Self::SetKeyPreset
             | Self::SetTheme
+            | Self::SetSettingsAccount
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
             | Self::Undo
             | Self::Redo
             | Self::AddAccount
@@ -615,6 +703,8 @@ impl CommandName {
             | Self::RenameFolder
             | Self::SetDraftFrom
             | Self::SyncNow
+            | Self::PullSettings
+            | Self::PushSettings
             | Self::CheckForUpdates
             | Self::DownloadUpdate
             | Self::SkipUpdateVersion
@@ -648,6 +738,7 @@ impl CommandName {
             | Self::Forward
             | Self::UpdateDraft
             | Self::DiscardDraft
+            | Self::EditDraft
             | Self::RestoreDraft
             | Self::AttachFile
             | Self::RemoveAttachment
@@ -703,6 +794,8 @@ impl CommandName {
             | Self::SaveAttachments
             | Self::ApproveRequest
             | Self::RejectRequest
+            | Self::PushSettings
+            | Self::SetSettingsAccount
             | Self::InstallUpdate => AgentAccess::UserOnly,
             Self::SendDraft => AgentAccess::Approval,
             Self::GetSettings
@@ -725,6 +818,12 @@ impl CommandName {
             | Self::EmptyJunk
             | Self::SetDraftFrom
             | Self::SyncNow
+            | Self::PullSettings
+            | Self::ListRules
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
             | Self::ListMailboxes
             | Self::SetSyncWindow
             | Self::ListThreads
@@ -766,6 +865,7 @@ impl CommandName {
             | Self::Forward
             | Self::UpdateDraft
             | Self::DiscardDraft
+            | Self::EditDraft
             | Self::AttachFile
             | Self::RemoveAttachment
             | Self::CancelSend
@@ -895,6 +995,35 @@ impl CommandName {
             Self::SyncNow => CommandSpec {
                 available: has_accounts,
                 ..base("Sync now", Category::Mail, &["F5", "Ctrl+R"])
+            },
+            Self::PullSettings => CommandSpec {
+                available: has_accounts,
+                ..base("Pull settings from the server", Category::App, &[])
+            },
+            Self::PushSettings => CommandSpec {
+                available: |state| state.synced.pulled_ms.is_some(),
+                ..base("Push settings to the server", Category::App, &[])
+            },
+            Self::SetSettingsAccount => CommandSpec {
+                available: has_accounts,
+                ..base("Choose the settings account", Category::App, &[])
+            },
+            Self::ListRules => base("List sorting rules", Category::Mail, &[]),
+            Self::SaveRule => CommandSpec {
+                available: has_mailboxes,
+                ..base("Make a sorting rule", Category::Mail, &[])
+            },
+            Self::DeleteRule => CommandSpec {
+                available: has_rules,
+                ..base("Delete a sorting rule", Category::Mail, &[])
+            },
+            Self::EnableRule => CommandSpec {
+                available: has_rules,
+                ..base("Turn a sorting rule on or off", Category::Mail, &[])
+            },
+            Self::ApplyRules => CommandSpec {
+                available: has_rules,
+                ..base("Run sorting rules on a mailbox", Category::Mail, &[])
             },
             Self::ListMailboxes => CommandSpec {
                 available: has_accounts,
@@ -1084,6 +1213,10 @@ impl CommandName {
             Self::DiscardDraft => CommandSpec {
                 available: has_drafts,
                 ..base("Discard draft", Category::Compose, &[])
+            },
+            Self::EditDraft => CommandSpec {
+                available: open_thread_has_draft,
+                ..base("Edit a draft from the conversation", Category::Compose, &[])
             },
             // Only undo needs it; it is not offered in the palette.
             Self::RestoreDraft => CommandSpec {
@@ -1298,6 +1431,24 @@ impl CommandName {
                 confirm: true,
             },
             Self::SyncNow => Command::SyncNow { account: None },
+            Self::PullSettings => Command::PullSettings { account: None },
+            Self::PushSettings => Command::PushSettings {},
+            Self::SetSettingsAccount => Command::SetSettingsAccount {
+                account: EXAMPLE_ACCOUNT,
+            },
+            Self::ListRules => Command::ListRules {},
+            Self::SaveRule => Command::SaveRule {
+                id: None,
+                rule: example_rule(),
+            },
+            Self::DeleteRule => Command::DeleteRule { id: EXAMPLE_RULE },
+            Self::EnableRule => Command::EnableRule {
+                id: EXAMPLE_RULE,
+                enabled: false,
+            },
+            Self::ApplyRules => Command::ApplyRules {
+                mailbox: EXAMPLE_MAILBOX,
+            },
             Self::ListMailboxes => Command::ListMailboxes { account: None },
             Self::SetSyncWindow => Command::SetSyncWindow {
                 mailbox: EXAMPLE_MAILBOX,
@@ -1434,7 +1585,13 @@ impl CommandName {
                 subject: None,
                 body: Some("Tomorrow at one?".to_owned()),
             },
-            Self::DiscardDraft => Command::DiscardDraft { id: EXAMPLE_DRAFT },
+            Self::DiscardDraft => Command::DiscardDraft {
+                id: EXAMPLE_DRAFT,
+                keep_server_copy: false,
+            },
+            Self::EditDraft => Command::EditDraft {
+                message: EXAMPLE_MESSAGE,
+            },
             Self::AttachFile => Command::AttachFile {
                 draft: EXAMPLE_DRAFT,
                 path: "/home/me/q3.pdf".to_owned(),
@@ -1528,6 +1685,7 @@ impl CommandName {
                     send_at: None,
                     sending: false,
                     send_error: None,
+                    loading_from: None,
                     from: None,
                 }),
             },

@@ -53,12 +53,14 @@ fn the_language_is_a_named_choice() {
     let row = screen.lines().find(|l| l.contains("language")).unwrap();
     assert!(row.contains("System"), "{screen}");
 
-    // The last rows are language, theme_light and theme_dark.
+    // The last rows are language, theme_light, theme_dark and the three settings-sync rows
+    // (account, state, which settings follow the account).
     for _ in 0..40 {
         t.key(KeyCode::Down);
     }
-    t.key(KeyCode::Up);
-    t.key(KeyCode::Up);
+    for _ in 0..5 {
+        t.key(KeyCode::Up);
+    }
     t.key(KeyCode::Enter);
     assert_eq!(t.pump(), [Command::OpenPalette {}]);
     let screen = t.screen();
@@ -143,4 +145,46 @@ fn enter_on_a_setting_asks_for_its_value() {
     let screen = t.screen();
     assert!(screen.contains("New value for"), "{screen}");
     assert!(!screen.contains("Which setting?"), "{screen}");
+}
+
+/// SET-5: the Rules section lists the rules; Space turns one off, `p` stores the edits and
+/// Enter on *Add a rule…* opens the palette's first step.
+#[test]
+fn the_rules_section_sends_the_rule_commands() {
+    let mut t = Term::new(synced_state(), 100, 24);
+    t.apply(Command::SaveRule {
+        id: None,
+        rule: app_core::Rule {
+            name: "News".into(),
+            enabled: true,
+            when: app_core::Condition::From {
+                contains: "news@".into(),
+            },
+            then: vec![app_core::RuleAction::Star],
+        },
+    });
+    t.apply(Command::OpenSettings {
+        section: Some(SettingsSection::Rules),
+    });
+    let screen = t.screen();
+    assert!(screen.contains("News"), "{screen}");
+    assert!(
+        screen.contains("[x] sender contains “news@” → star"),
+        "{screen}"
+    );
+    t.key(KeyCode::Char(' '));
+    let sent = t.pump();
+    assert!(
+        matches!(
+            sent.as_slice(),
+            [Command::EnableRule { enabled: false, .. }]
+        ),
+        "{sent:?}"
+    );
+    t.key(KeyCode::Char('p'));
+    assert_eq!(t.pump(), [Command::PushSettings {}]);
+    t.key(KeyCode::Down);
+    t.key(KeyCode::Enter);
+    assert_eq!(t.pump(), [Command::OpenPalette {}]);
+    assert!(t.screen().contains("Match mail by what?"), "{}", t.screen());
 }

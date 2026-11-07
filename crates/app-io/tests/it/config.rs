@@ -39,6 +39,7 @@ fn account(n: u128, email: &str) -> Account {
         secret: SecretRef::for_account(id),
         status: AccountStatus::Verified { at_ms: 5 },
         identities: Vec::new(),
+        managesieve: None,
     }
 }
 
@@ -310,5 +311,42 @@ fn legacy_high_contrast_themes_map_onto_names() {
             config.settings.list_density
         ),
         (0, "midnight", 1)
+    );
+}
+
+#[test]
+fn a_managesieve_server_round_trips_and_old_configs_have_none() {
+    let mut state = AppState::default();
+    let mut dovecot = account(7, "me@self.example");
+    let sieve = Endpoint {
+        host: "mail.self.example".into(),
+        port: 4190,
+        security: Security::StartTls,
+    };
+    dovecot.managesieve = Some(sieve.clone());
+    state.accounts.insert(dovecot.id, dovecot);
+    let text = Config::from_state(&state).to_toml().unwrap();
+    assert!(text.contains("[account.managesieve]"), "{text}");
+    let parsed = Config::parse(&text, "config.toml".as_ref()).unwrap();
+    let mut restored = AppState::default();
+    parsed.apply_to(&mut restored);
+    let account = restored.accounts.values().next().unwrap();
+    assert_eq!(account.managesieve, Some(sieve.clone()));
+    assert_eq!(account.managesieve(), Some(sieve));
+
+    // A config written before SET-8 has no `managesieve`: it loads, and none is configured.
+    let old = text
+        .split("[account.managesieve]")
+        .next()
+        .unwrap()
+        .to_owned();
+    let parsed = Config::parse(&old, "config.toml".as_ref()).unwrap();
+    assert_eq!(parsed.accounts[0].managesieve, None);
+    assert_eq!(parsed.accounts[0].to_account().managesieve(), None);
+    assert!(
+        !Config::from_state(&state_with_accounts())
+            .to_toml()
+            .unwrap()
+            .contains("managesieve")
     );
 }

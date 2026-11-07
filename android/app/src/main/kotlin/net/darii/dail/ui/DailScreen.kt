@@ -159,7 +159,7 @@ private fun FrameScaffold(
         bottomBar = { if (snackbar) frame.snackbar?.let { FrameSnackbar(it, send, Modifier.navigationBarsPadding()) } },
     ) { padding ->
         frame.about?.let { about ->
-            AboutScreen(about, Modifier.padding(padding))
+            AboutScreen(about, send, Modifier.padding(padding))
             return@Scaffold
         }
         frame.preview?.let { preview ->
@@ -284,26 +284,47 @@ private fun chromeBar(chrome: Chrome): TopAppBarColors {
     )
 }
 
-/** The version and the licences of the bundled fonts and icons; Back closes it. */
+/**
+ * The version, then a row per bundled work's licence, as the desktop's About. A tapped row's page replaces the
+ * list; the top bar carries its name and Back.
+ */
 @Composable
 private fun AboutScreen(
     about: About,
+    send: (UiEvent) -> Unit,
     modifier: Modifier,
 ) {
-    LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    about.page?.let { page ->
+        LazyColumn(modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            item { Text(page.text, Modifier.padding(vertical = 8.dp), style = MaterialTheme.typography.labelSmall) }
+        }
+        return
+    }
+    LazyColumn(modifier.fillMaxSize()) {
         // The title is in the top bar beside its close: `× About dail (<version>)` (MISC-13).
-        item { Text(about.text, Modifier.padding(vertical = 8.dp)) }
+        item { Text(about.text, Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+        items(about.pages, key = { it.label }) { page ->
+            Text(
+                page.label,
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { send(UiEvent.Tap(page.action)) }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            HorizontalDivider()
+        }
         item {
             // Our own page, in the browser (STORE-19).
             val uri = LocalUriHandler.current
-            TextButton(onClick = { runCatching { uri.openUri(about.privacy.url) } }) { Text(about.privacy.label) }
-        }
-        items(about.licences, key = { it.name }) { licence ->
-            Column(Modifier.padding(vertical = 8.dp)) {
-                Text(licence.name, style = MaterialTheme.typography.titleMedium)
-                Text(licence.text, style = MaterialTheme.typography.labelSmall)
-            }
-            HorizontalDivider()
+            Text(
+                about.privacy.label,
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { runCatching { uri.openUri(about.privacy.url) } }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                style = MaterialTheme.typography.bodyLarge,
+            )
         }
     }
 }

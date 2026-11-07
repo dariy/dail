@@ -252,7 +252,13 @@ fn discard_and_close() {
     let (mut h, id) = composing();
     h.get(By::new().role(Role::Button).label("Discard")).click();
     h.run();
-    assert_eq!(h.state_mut().pump(), [Command::DiscardDraft { id }]);
+    assert_eq!(
+        h.state_mut().pump(),
+        [Command::DiscardDraft {
+            id,
+            keep_server_copy: false
+        }]
+    );
     h.run();
     assert!(
         h.query_by_label("New message").is_none(),
@@ -359,7 +365,7 @@ fn a_reply_docks_under_the_conversation() {
     apply(&mut h, Command::OpenComposer { id });
     // The reader stays: its toolbar is above the composer.
     let forward = h
-        .get(By::new().role(Role::Button).label_contains("Forward"))
+        .get(By::new().role(Role::Button).label_contains("Forward ("))
         .rect();
     let send = h
         .get(By::new().role(Role::Button).label_contains("Send"))
@@ -374,7 +380,7 @@ fn a_reply_docks_under_the_conversation() {
     h.run();
     let sent = h.state_mut().pump();
     assert!(
-        matches!(&sent[..], [Command::UpdateDraft { subject: Some(s), .. }, Command::DiscardDraft { id: d }] if s.ends_with(" now") && *d == id),
+        matches!(&sent[..], [Command::UpdateDraft { subject: Some(s), .. }, Command::DiscardDraft { id: d, keep_server_copy: false }] if s.ends_with(" now") && *d == id),
         "{sent:?}"
     );
 }

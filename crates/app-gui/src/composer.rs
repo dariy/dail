@@ -298,7 +298,10 @@ impl ComposerState {
                 }
                 let discard = ui::text(&t.type_scale.body_md, t.s(Key::Discard), t.text_secondary);
                 if ui::ghost(ui, t, discard).clicked() {
-                    queue.push(Request::user(Command::DiscardDraft { id: draft.id }));
+                    queue.push(Request::user(Command::DiscardDraft {
+                        id: draft.id,
+                        keep_server_copy: false,
+                    }));
                 }
             });
         });

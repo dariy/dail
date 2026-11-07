@@ -159,7 +159,15 @@ fn agents_still_undo_and_redo_through_user_only_inverses() {
     )
     .unwrap();
     let id: DraftId = serde_json::from_value(created.receipt.data["id"].clone()).unwrap();
-    run(&mut m, Command::DiscardDraft { id }, Origin::Gui).unwrap();
+    run(
+        &mut m,
+        Command::DiscardDraft {
+            id,
+            keep_server_copy: false,
+        },
+        Origin::Gui,
+    )
+    .unwrap();
     run(&mut m, Command::Undo {}, Origin::Mcp).unwrap();
     assert!(m.engine.state().drafts.contains_key(&id));
 

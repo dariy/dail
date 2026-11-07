@@ -104,6 +104,8 @@ fn every_golden_profile_opens_intact() {
     let mut names: Vec<_> = std::fs::read_dir(golden_root())
         .unwrap()
         .map(|entry| entry.unwrap().path())
+        // `settings/` holds the golden settings documents (ADR 0015), not a profile.
+        .filter(|path| path.join("state.redb").exists())
         .collect();
     names.sort();
     assert!(!names.is_empty(), "no golden profile");

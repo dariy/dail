@@ -33,6 +33,7 @@ fn remote(uid: u32, id: &str, parents: &[&str], subject: &str, day: i64) -> Remo
         flags: Flags::default(),
         size: 100,
         has_attachments: false,
+        list_id: None,
     }
 }
 

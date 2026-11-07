@@ -4,13 +4,16 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,20 +26,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
  * The open message on a compact window: a page over the list and the top bar, below the status
- * bar (MISC-18). It slides in from the right. A horizontal drag anywhere on it follows the finger
- * (a block's own horizontal scroll goes first; a vertical drag is the body's scroll). Released past
+ * bar (MISC-18). It slides in from the right. A drag to the right that starts in its left edge
+ * zone (the system's back-gesture inset, or [EDGE]) follows the finger; elsewhere a horizontal
+ * drag is the content's: a block's own horizontal scroll, a message card's swipes (MISC-44e), and
+ * a vertical drag is the body's scroll. Released past
  * a third of the width, or flung right, it slides away and sends the reader's close
  * (`close_thread`); otherwise it springs back. A frame that drops it over the list (the ×, Back, a
  * thread that goes away) slides it out too; one that puts something else there removes it at once.
@@ -92,24 +101,48 @@ fun ReaderPage(
                 }
             }
         }
+        // The close drag starts only in the left edge zone (the system's back-gesture inset, or
+        // EDGE without one): elsewhere a card's own swipes take a horizontal drag (MISC-44e). In
+        // the zone the page sees the drag before its content (the initial pass) and, once it is
+        // a drag to the right, takes it.
+        val zone = edgeZone(LocalDensity.current)
         val swipe =
-            Modifier.pointerInput(width) {
-                val tracker = VelocityTracker()
-                var x = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = {
-                        tracker.resetTracking()
-                        x = 0f
-                    },
-                    onDragEnd = { release(tracker.calculateVelocity().x) },
-                    // A drag the system took (a second finger, the Back gesture) never closes.
-                    onDragCancel = { settle() },
-                ) { change, dx ->
-                    change.consume()
-                    // The page moves under the finger: track it where the screen is still.
-                    x += dx
-                    tracker.addPosition(change.uptimeMillis, Offset(x, 0f))
-                    scope.launch { slide.snapTo((slide.value + dx).coerceIn(0f, width)) }
+            Modifier.pointerInput(width, zone) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (down.position.x > zone) return@awaitEachGesture
+                    val tracker = VelocityTracker()
+                    var x = 0f
+                    var dragging = false
+                    var start = down.position
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id }
+                        if (change == null || event.changes.size > 1) {
+                            // A second finger, or the finger gone without a release we saw.
+                            if (dragging) settle()
+                            return@awaitEachGesture
+                        }
+                        if (!change.pressed) {
+                            if (dragging) release(tracker.calculateVelocity().x)
+                            return@awaitEachGesture
+                        }
+                        if (!dragging) {
+                            val moved = change.position - start
+                            if (moved.getDistance() < viewConfiguration.touchSlop) continue
+                            // A drag to the left or a vertical one is the content's.
+                            if (moved.x <= 0f || abs(moved.y) > abs(moved.x)) return@awaitEachGesture
+                            dragging = true
+                            tracker.resetTracking()
+                            start = change.position
+                        }
+                        val dx = change.position.x - change.previousPosition.x
+                        change.consume()
+                        // The page moves under the finger: track it where the screen is still.
+                        x += dx
+                        tracker.addPosition(change.uptimeMillis, Offset(x, 0f))
+                        scope.launch { slide.snapTo((slide.value + dx).coerceIn(0f, width)) }
+                    }
                 }
             }
         if (!covered) {
@@ -133,4 +166,15 @@ private const val OPEN_MS = 250
 private const val CLOSE_MS = 200
 private const val STUCK_MS = 1000L
 private val FLING = 1200.dp
+
+/** The close drag's start zone without a system back-gesture inset (three-button navigation). */
+private val EDGE = 32.dp
+
+/** The left edge zone, in px: the system gestures' left inset, or [EDGE] without one. */
+@Composable
+private fun edgeZone(density: Density): Float {
+    val inset = WindowInsets.systemGestures.getLeft(density, LocalLayoutDirection.current).toFloat()
+    return if (inset > 0f) inset else with(density) { EDGE.toPx() }
+}
+
 private val SCRIM = Color.Black.copy(alpha = 0.32f)

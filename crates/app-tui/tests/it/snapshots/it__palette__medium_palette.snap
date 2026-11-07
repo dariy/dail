@@ -10,6 +10,8 @@ dail · Inbox · alice@example.com
 │   │  Rename folder                                                   Mail│   │
 │   │  Delete folder                                                   Mail│   │
 │   │  Sync now                                                Mail  Ctrl+R│   │
+│   │  List sorting rules                                              Mail│   │
+│   │  Make a sorting rule                                             Mail│   │
 │   │  List mailboxes                                                  Mail│   │
 │   │  List threads                                                    Mail│   │
 │   │  Show thread                                                     Mail│   │
@@ -19,8 +21,6 @@ dail · Inbox · alice@example.com
 │   │  Mark as read                                                 Mail  u│   │
 │   │  Mark all as read                                                Mail│   │
 │   │  Mark as unread                                               Mail  u│   │
-│   │  Star                                                         Mail  s│   │
-│   │  Remove star                                                     Mail│   │
 │   │Create a folder on the server (IMAP `CREATE`), e.g.                   │   │
 │   │↑↓ move · Enter choose · Esc back                                     │   │
 │   └──────────────────────────────────────────────────────────────────────┘   │

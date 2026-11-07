@@ -3,11 +3,13 @@
 
 use std::collections::{BTreeMap, VecDeque};
 
+use app_core::DraftId;
+use app_core::draft::CarriedAttachment;
 use app_core::search::{Condition, Query};
 use app_core::{
     AppState, Effect, Endpoint, Event, FolderAction, IdGen, ImapLogin, MailboxRole,
     OutgoingMessage, RemoteEnvelope, RemoteMailbox, RemoteStep, Secret, SecretRef, Security,
-    SmtpLogin, UidFlags,
+    SettingsCopy, SmtpLogin, UidFlags,
 };
 use app_io::Store;
 use app_io::compose::Bcc;
@@ -19,6 +21,9 @@ type Fetched = (u32, Option<u32>, u32, u32, Vec<RemoteEnvelope>);
 
 use crate::fixture::{FakeMailbox, FakeMessage, Fixture};
 use crate::store::MemoryStore;
+
+/// Where the fake writes the attachments `edit_draft` carries from server drafts (MISC-44d).
+pub const DRAFT_FILES_DIR: &str = "/draft-files";
 
 /// A message accepted by the fake SMTP server.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -165,6 +170,7 @@ impl MemoryBackend {
                 | Effect::DeleteSecret { .. }
                 | Effect::ScheduleTick { .. }
                 | Effect::InspectAttachment { .. }
+                | Effect::ReadDraft { .. }
                 | Effect::SaveAttachments { .. }
                 | Effect::CompactStore { .. }
                 | Effect::SearchIndex { .. }
@@ -369,6 +375,39 @@ impl MemoryBackend {
                     error,
                 },
             }]),
+            Effect::ReadSettingsBlob {
+                account,
+                imap,
+                path,
+                known,
+            } => Ok(vec![match self.read_settings(&imap, &path, known) {
+                Ok((copy, document)) => Event::SettingsRead {
+                    account,
+                    copy,
+                    document,
+                },
+                Err(error) => Event::SettingsFailed {
+                    account,
+                    write: false,
+                    error,
+                },
+            }]),
+            Effect::WriteSettingsBlob {
+                account,
+                imap,
+                path,
+                document,
+                date_ms,
+            } => Ok(vec![
+                match self.write_settings(&imap, &path, &document, date_ms) {
+                    Ok(()) => Event::SettingsWritten { account },
+                    Err(error) => Event::SettingsFailed {
+                        account,
+                        write: true,
+                        error,
+                    },
+                },
+            ]),
             Effect::DeleteDraft {
                 draft,
                 account,
@@ -498,6 +537,32 @@ impl MemoryBackend {
                     },
                 ])
             }
+            Effect::ReadDraft {
+                draft,
+                message,
+                blob,
+            } => Ok(vec![match self.store.get_blob(&blob) {
+                Ok(Some(raw)) => {
+                    let (body, bcc) = app_io::mime::draft_text(&raw);
+                    Event::DraftRead {
+                        draft,
+                        message,
+                        body,
+                        bcc,
+                        attachments: self.carry_attachments(draft, &raw),
+                    }
+                }
+                Ok(None) => Event::DraftReadFailed {
+                    draft,
+                    message,
+                    error: "the message is not in the local store any more".to_owned(),
+                },
+                Err(err) => Event::DraftReadFailed {
+                    draft,
+                    message,
+                    error: err.to_string(),
+                },
+            }]),
             Effect::InspectAttachment { draft, path } => Ok(vec![match self.file(&path) {
                 Some(bytes) => Event::AttachmentInspected {
                     draft,
@@ -676,6 +741,31 @@ impl MemoryBackend {
         Ok(refused)
     }
 
+    /// Writes the attachments of a server draft into the fake file system under
+    /// `/draft-files/<draft>/`, like `app_sync::draft_files` does on disk (MISC-44d).
+    fn carry_attachments(&self, draft: DraftId, raw: &[u8]) -> Vec<CarriedAttachment> {
+        let dir = format!("{DRAFT_FILES_DIR}/{}", draft.as_uuid());
+        let mut files = self.files.lock();
+        let mut carried = Vec::new();
+        for (name, bytes) in app_io::mime::draft_attachments(raw) {
+            let mut unique = name.clone();
+            let mut n = 1;
+            while files.contains_key(&format!("{dir}/{unique}")) {
+                unique = app_io::mime::numbered_file_name(&name, n);
+                n += 1;
+            }
+            let path = format!("{dir}/{unique}");
+            carried.push(CarriedAttachment {
+                content_type: app_io::mime::content_type_for(&unique).to_owned(),
+                size: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
+                name: unique,
+                path: path.clone(),
+            });
+            files.insert(path, bytes);
+        }
+        carried
+    }
+
     /// Writes attachments of a stored body into the fake file system, like
     /// `app_sync::saves` does on disk (never over an existing file).
     fn save_attachments(
@@ -847,6 +937,68 @@ impl MemoryBackend {
             }
         }
         Ok(())
+    }
+
+    /// Fake read of the settings folder, like `app_sync::settings::read`: the message with the
+    /// highest UID, not downloaded if `known` or too large.
+    fn read_settings(
+        &self,
+        imap: &ImapLogin,
+        path: &str,
+        known: Option<SettingsCopy>,
+    ) -> Result<app_sync::settings::ReadResult, String> {
+        self.verify(&imap.login, &imap.secret)?;
+        let server = self.server.lock();
+        let Some(mailbox) = server.mailbox(&imap.login, path) else {
+            return Ok((None, None));
+        };
+        let Some(newest) = mailbox.messages.iter().max_by_key(|m| m.uid) else {
+            return Ok((None, None));
+        };
+        let copy = SettingsCopy {
+            uid_validity: mailbox.uid_validity,
+            uid: newest.uid,
+        };
+        if known == Some(copy) {
+            return Ok((Some(copy), None));
+        }
+        if newest.raw.len() > app_io::settings_blob::MAX_RAW_BYTES {
+            return Err(app_sync::settings::too_large(newest.raw.len()));
+        }
+        let document = app_sync::settings::document_of(newest.raw.as_bytes())?;
+        Ok((Some(copy), Some(document)))
+    }
+
+    /// Fake write of the settings folder, like `app_sync::settings::write`: create the folder
+    /// if missing, `APPEND`, then expunge every older message there.
+    fn write_settings(
+        &self,
+        imap: &ImapLogin,
+        path: &str,
+        document: &str,
+        date_ms: i64,
+    ) -> Result<(), String> {
+        let raw = app_io::settings_blob::render(document, date_ms).map_err(|e| e.to_string())?;
+        self.verify(&imap.login, &imap.secret)?;
+        {
+            let mut server = self.server.lock();
+            let account = server
+                .accounts
+                .iter_mut()
+                .find(|account| account.email.eq_ignore_ascii_case(&imap.login))
+                .ok_or_else(|| "IMAP LOGIN failed: unknown user".to_owned())?;
+            if !account.mailboxes.iter().any(|m| m.path == path) {
+                account.mailboxes.push(FakeMailbox::new(path));
+            }
+        }
+        self.with_mailbox(imap, path, |mailbox| {
+            let uid = mailbox.append(
+                vec!["\\Seen".to_owned()],
+                String::from_utf8_lossy(&raw).into_owned(),
+            );
+            mailbox.messages.retain(|m| m.uid == uid);
+            Ok(())
+        })
     }
 
     /// Runs `change` on the mailbox at `path` of the account `imap` logs in to.

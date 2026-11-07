@@ -103,6 +103,7 @@ fn large(count: u32) -> Phone {
             flags: Flags::default(),
             size: 1000,
             has_attachments: false,
+            list_id: None,
         })
         .collect();
     let ctx = Ctx {

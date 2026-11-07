@@ -23,6 +23,16 @@ impl Clock for SystemClock {
     }
 }
 
+/// The system's local UTC offset (ms) at the UTC instant `at_ms` (Unix ms), for the dates the
+/// front ends show (MISC-46, `app_front::format::Zone`). Asked per instant, so daylight saving
+/// time is right for past dates too; 0 when the instant is out of range.
+pub fn local_offset_ms(at_ms: i64) -> i64 {
+    use chrono::{Local, Offset, TimeZone};
+    Local.timestamp_millis_opt(at_ms).single().map_or(0, |at| {
+        i64::from(at.offset().fix().local_minus_utc()) * 1000
+    })
+}
+
 /// A clock that follows tokio's time source from a fixed start. Under a paused runtime
 /// (`#[tokio::test(start_paused = true)]`, `tokio::time::advance`) it is fully virtual, and timers
 /// scheduled by the executor fire in step with it.

@@ -5,7 +5,7 @@ expression: t.screen()
 dail · Conversations
 ┌ Conversations ─────────────────┐┌ Message ───────────────────────────────────┐
 ┌ Settings ────────────────────────────────────────────────────────────────────┐
-│ General   Keys   Accounts                                                    │
+│ General   Keys   Accounts   Rules                                            │
 │                                                                              │
 │update_checks             unset (Daily)                                       │
 │undo_send_ms              10000                                               │

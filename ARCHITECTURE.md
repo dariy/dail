@@ -103,10 +103,13 @@ dail account password --email me@gmail.com           # alias for exec set_passwo
 `app-front` (ADR 0004) is the toolkit-free half of the front-ends: palette flows and ranking, the keymap, formatting,
 the status and approval projections and the body tracking. It depends on `app-core` only (no toolkit, no tokio), so the
 GUI and the TUI share these rules and neither re-derives the other's. `app-gui` and `app-tui` don't depend on each
-other. Modules: `format` (dates in UTC, addresses, sizes), `body` (the reader's body tracking: which
+other. Modules: `format` (dates in local time: the front end passes a `Zone`, the UTC offset at each instant, MISC-46; addresses, sizes), `body` (the reader's body tracking: which
 `get_thread {include_body: true}` to submit — `Bodies::rich()` adds `rich_body` for the GUI —, the bodies taken from its
 receipt with their `document`, `links`), `status` (sync text, problems,
-pending ops), `approvals` (the cards of agents' send requests), `compose` (`parse_addr`, recipient fields, the draft's
+pending ops), `approvals` (the cards of agents' send requests), `message_actions` (MISC-44: one message's
+actions and the command each submits — Reply, Reply all, Forward, Read/Unread, Star/Unstar and Trash with
+`messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
+server copy); `for_key` maps a registry key onto them), `compose` (`parse_addr`, recipient fields, the draft's
 status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signature and trailing quoted part —
 `>` lines with their attribution, or an Outlook header block on), `mailbox` (labels), `notice` (the latest undo label, the send countdown, rejection texts),
 `keymap` (chords, bindings, `resolve`, the sequence state) and `palette` (the flows, rows, `nucleo-matcher` ranking
@@ -196,7 +199,8 @@ pub struct AppState {
 
 pub struct Account  { id, display_name, email, preset: ProviderPreset, imap: Endpoint, smtp: Endpoint,
                       secret: SecretRef, status: AccountStatus /* Unverified|Verified{at_ms}|Failed{error,at_ms} */,
-                      identities: Vec<Identity { email, name?, signature? }> /* aliases; the own address's name/signature */ }
+                      identities: Vec<Identity { email, name?, signature? }> /* aliases; the own address's name/signature */,
+                      managesieve: Option<Endpoint> /* own ManageSieve server; Account::managesieve() falls back to the preset's (§5.3) */ }
 pub struct Endpoint { host, port: u16, security: Security /* Tls|StartTls — no plaintext */ }
 pub struct SecretRef { service: "dail", user: "account/<id>" }   // keyring entry; the secret is never in state
 pub struct Secret(String) // write-only command/effect field: Debug and Serialize print "<redacted>"
@@ -222,7 +226,7 @@ pub struct SyncStatus { pending: u32 /* sync effects in flight */, last_sync_ms:
 //               saves: Vec<AttachmentSave { message, dir, state: saving|saved{files}|failed{files, error}, updated_ms }> }
 pub enum  MailboxRole { Inbox, Sent, Drafts, Trash, Archive, Junk, All, Flagged }
 pub struct ApprovalRequest { id, draft: DraftId, account, origin: Origin, requested_ms }  // an agent's send, §4.6
-pub enum  Origin { Gui, Tui /* dail tui, ADR 0004 */, Cli, Batch, Mcp, McpAllowSend /* dail mcp --allow-send */, Runtime }
+pub enum  Origin { Gui, Tui /* dail tui, ADR 0004 */, Cli, Batch, Mcp, McpAllowSend /* dail mcp --allow-send */, Runtime, Rule /* sorting rules, ADR 0015 */ }
 pub struct RemoteEnvelope { uid, message_id_hdr, in_reply_to, references, from, to, cc, subject, date_ms, flags, size,
                       has_attachments }  // as fetched; into_envelope() adds id/account/mailbox/thread
 pub struct Envelope { id, account, mailbox, uid: u32, message_id_hdr: Option<String>, in_reply_to, references,
@@ -290,7 +294,7 @@ message; reply-all adds `To`/`Cc`; the account's own address and duplicates are 
 `In-Reply-To` (replies) and `References` (original's references + its `Message-ID`). The core can't read bodies, so the
 draft keeps a `Quote` (the original message and its attribution line or forward header block, dates as
 `YYYY-MM-DD HH:MM UTC`); the runtime puts the original's text below the draft's own when it renders it, and replying
-starts the original's body download if it isn't cached. Undo of `discard_draft` is `restore_draft{draft}`, which puts the
+starts the original's body download if it isn't cached. A draft of a conversation that is only on the server becomes a local draft with `edit_draft` (same `Message-ID`, so saving it replaces the server copy; `Draft.loading_from` holds it read-only until `DraftRead`). Undo of `discard_draft` is `restore_draft{draft}`, which puts the
 same draft (same ID) back with every attachment `checking` again (`InspectAttachment`: a check is only taken from the
 runtime, and the file may have changed). A draft's `Message-ID`, `In-Reply-To` and `References` hold only IDs without
 whitespace or control characters (`draft::is_message_id`): a reply leaves out the original's IDs that aren't, and
@@ -310,6 +314,80 @@ ancestor named in its `In-Reply-To`/`References`, of a cached reply naming it, o
 these are several threads they merge. Without links, a subject with a reply/forward prefix (`Re:`, `Fwd:`, `AW:`, `SV:`, …,
 `Re[2]:`) joins the latest thread with the same normalized subject if it was active within 30 days. Threads never split.
 
+Settings that follow the user across devices (ADR 0015) are one `synced::SyncedSettings` document `{schema, updated_ms,
+theme, prefs, rules}`: `theme` and each entry of `prefs` (by `set_setting` key) are `Stamped{updated_ms, value}`, and
+`rules` maps a `RuleId` to a `RuleEntry{updated_ms, rule}` whose `rule: None` is a tombstone, kept 90 days
+(`prune`). `merge` is pure and field by field: the newer `updated_ms` wins, a tombstone wins a tie with a rule, other ties
+go to the larger canonical JSON, so merging is commutative, associative and idempotent (property tests in
+`tests/it/synced.rs`). A `Rule{name, enabled, when, then}` has a `Condition` (`all`/`any`/`not` over `from`, `to`, `cc`,
+`subject`, `list_id` substring tests, `has_attachment`, `mailbox{path}`) and `RuleAction`s (`move{to}`, `add_label{label}`,
+`mark_read`, `star`, `archive`; never forward or reply). Folders are named by path, because IDs differ between devices.
+`from_json` refuses a copy over 256 KiB (`ERR020`), malformed JSON (`ERR021`) or one past the limits of `validate`
+(`ERR022`: 500 rules, 16 actions, conditions 8 deep, texts of 512 characters); unknown fields are ignored. The golden
+documents are under `crates/app-io/testdata/golden/settings/` and are never edited.
+
+`AppState.synced` (`SyncedState`; its document and `dirty` flag are persisted as `LocalSettings` in the `synced` table of `state.redb` through `PersistDelta::Synced`, so unpushed edits survive a restart and the first pull merges into them; an older profile without the table starts empty) holds the merged document, the
+account the last pull read from (`source`), the server copy read last (`copy: {uid_validity, uid}`), `pulled_ms`,
+`pushed_ms`, `pulling`/`pushing` and `error` (a `SyncIssue`). The settings account is chosen per profile with
+`set_settings_account` (user only, undoable), stored as the optional `Settings.settings_account` in `config.toml` (absent:
+the first account). Choosing another account keeps the merged document, forgets `source`, `copy`, the times and the
+error, and pulls from the new account; `remove_account` of the settings account does the same reset and clears a
+`settings_account` naming it (removal has no undo), so the first account takes over. `push_settings` needs the last
+pull to have read from the current settings account (`source`). `pulling_from` names the account the pull in flight
+reads; a late `SettingsRead` or read `SettingsFailed` from another account is ignored. Its folder is `dail<delimiter>Settings` (`synced::settings_folder`); `ingest_mailboxes_listed` never makes it
+(nor a `dail` parent without other subfolders) a mailbox, so no front end lists it. Each listing of the settings account
+(connect, `sync_now`, full rounds) pulls if the folder is listed, and otherwise counts as a finished pull with no copy;
+a change seen by the account's IDLE watch pulls again once a copy is known. `ReadSettingsBlob` (`app_sync::settings::read`)
+`EXAMINE`s the folder, takes the highest UID (`UID FETCH * (UID RFC822.SIZE)`), skips the download if it is `known`,
+refuses a message over `app_io::settings_blob::MAX_RAW_BYTES` before downloading it (`ERR020`), and returns the decoded
+`application/json` part as `SettingsRead{account, copy?, document?}`; the engine runs `SyncedSettings::from_json`
+(256 KiB cap, `ERR020`–`ERR022`), merges and prunes. An ignored copy is still remembered as read. `push_settings` needs a
+finished pull, so a newer server copy is never overwritten unread; `WriteSettingsBlob` (`app_sync::settings::write`)
+`APPEND`s `app_io::settings_blob::render` (one `application/json` part, `\Seen`), creating the folder if the first
+`APPEND` fails, then stores `\Deleted` on and expunges every older UID of that folder only. Failures are
+`SettingsFailed{account, write, error}`; a diagnostic without an `ERR<code>: ` prefix is wrapped as `ERR023` (read) or
+`ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
+(`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
+(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the group under the Rules
+screen), with a short note of which settings follow the account and `Changes not stored on the server yet` while
+`synced.dirty`.
+
+Shared and local settings (SET-7). The local `Settings` (in `config.toml`) stay the effective values every front end
+reads; the document carries the shared ones. Shared: the theme (`set_theme`, and `set_setting theme`, as the
+document's `theme{mode, light, dark}` with built-in theme names, ADR 0008) and the `set_setting` keys for which
+`SettingKey::is_shared` holds: `undo_send_ms`, `list_density`, `mark_read_after_ms`, `after_triage`, `language` (in
+`prefs` by key). A change of one also stamps its field with `max(now, previous + 1)`, sets `synced.dirty` and emits
+`PersistDelta::Synced` next to `PersistDelta::Settings`; undo and redo run the same commands, so they set the old or
+new value again with a newer stamp. After a pull merges a valid copy, `follow_synced` writes the merged theme and
+shared prefs into `Settings` (persisted as `PersistDelta::Settings` when something changed); a field the document lacks,
+a key that is not shared and a value out of range or with an invalid theme name leave the local value alone. A pull
+never sets `dirty`, and pushing stays explicit.
+
+Local-only settings (never in the document): `text_scale` (screen), `tui_colors` (terminal), `notifications`,
+`poll_secs`, `stale_secs`, `full_sync_secs`, `initial_window`, `background_sync`, `background_interval_mins`,
+`history_cap`, the key preset and keybindings, the update policy and skipped version, `settings_account`, per-mailbox
+preferences (sync window, identity), window sizes and pane layout, paths, accounts and every secret.
+
+Sorting rules run in the engine (SET-4). `app_core::rules` is the pure evaluator: text tests are case-insensitive
+substring tests (Unicode lower case) over the envelope (`from`/`to`/`cc` match an address's name or email; `list_id` is
+the `List-Id` header, which the envelope fetch now asks for and `Envelope.list_id` keeps; a missing header matches
+nothing), `mailbox{path}` compares the full path exactly, `all []` holds and `any []` does not. Header and rule text are
+compared, never interpreted. Rules run in `RuleId` order; flags add up and a message gets at most one place (the first
+`move` or `archive`). On fetch a rule with no `mailbox` test anywhere in its condition applies to Inbox mail only; one
+with a `mailbox` test applies wherever it holds. `engine/rules.rs` turns the plans into `mark_read`, `star`,
+`move_threads` (target found by path in the message's account) and `archive_threads` over `messages`, leaving out what is
+done already (read, starred, in the target, in an Archive or All Mail folder), so actions are state-based and two devices
+converge. `add_label` and a `move` to an unknown path are reported in the receipt's `skipped` and not run (no copy command
+yet). The commands run with `Origin::Rule`, which `check_origin` limits to those four, so a rule can never send, forward,
+reply or touch accounts; no front end can claim it (IPC, MCP). `EnvelopesFetched` runs the enabled rules on the messages
+the fetch *added* (not located placeholders, and nothing on a first fetch or a UIDVALIDITY reset), each resulting command
+its own undo step labelled `Rule: …` (pushed onto the undo stack without clearing redo, so a background fetch never takes the user's redo away), and reports `rules{matched, commands, skipped, errors}` in its receipt. A message a
+rule moved reaches its target as that move's placeholder, which the target's fetch locates, so it is never sorted twice
+and two rules cannot move mail back and forth. `apply_rules{mailbox}` runs every enabled rule (no Inbox scope) over the
+messages shown in a mailbox as one undo step; redo plans again over the restored state, which gives the same commands.
+`save_rule`, `delete_rule` (tombstone) and `enable_rule` stamp the entry with `max(now, previous + 1)` and set
+`synced.dirty` (cleared when a push starts, set again when it fails); pushing stays explicit and user only.
+
 ### 4.3 Command / Event / Effect
 
 - **`Command`** — intent from a front-end (§8 catalogue). `#[serde(tag = "cmd", content = "args", rename_all = "snake_case")]`.
@@ -325,18 +403,18 @@ these are several threads they merge. Without links, a subject with a reply/forw
   `OlderFetched{account, mailbox, uid_validity, envelopes, complete}`, `BackfillFailed{account, mailbox, error}`,
   `StoreCompacted{removed_blobs, freed_bytes}`, `CompactFailed{error}`, `IndexSearched{search, hits}`,
   `IndexSearchFailed{search, error}`, `ServersDiscovered{email, imap, smtp, source}`, `DiscoveryFailed{email, error}`, `Closing`,
-  `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
+  `DraftSaved{draft, revision}`, `DraftSaveFailed{draft, error}`, `DraftRead{draft, message, body, bcc, attachments?: [CarriedAttachment{path, name, size, content_type}]}`, `DraftReadFailed{draft, message, error}` (MISC-44; `attachments` MISC-44d), `DraftDeleted{draft}`, `DraftDeleteFailed{account, draft, error}`, `MessageSent{draft, sent_copy_error?}`, `SendFailed{draft, error}`, `SyncFailed{account, mailbox?, error}`, `Tick{now_ms}`,
   `SearchResults{account, mailbox, uid_validity, search, started_ms, mailboxes, envelopes}`, `SearchFailed{account, mailbox, search, started_ms, mailboxes, error}`,
-  `KeywordsRefused{account, path}` (MISC-4), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
+  `KeywordsRefused{account, path}` (MISC-4), `SettingsRead{account, copy?, document?}`, `SettingsWritten{account}`, `SettingsFailed{account, write, error}` (SET-2), `FolderManaged{account, action}`, `FolderFailed{account, action, error}` (both list the account's folders again; a
   failure stays in `SyncStatus.folder_error` until a folder change succeeds — listings don't clear it), `Persisted`, `PersistFailed{error}`. JSON form: `{"event": "<name>", "args": {…}}`.
 - **`Effect`** — a request to the world: `VerifyAccount{account, login, imap, smtp, secret}`, `ListMailboxes{account, imap: ImapLogin}`, `FetchEnvelopes{account, mailbox, path, imap, uid_validity?, since_uid?, limit}`,
   `ResyncFlags{account, mailbox, path, imap, uid_validity, from_uid, to_uid, changed_since?}`,
-  `FetchBody{account, message, path, imap, uid_validity, uid}`, `RunRemoteOp{op, account, imap, steps: Vec<RemoteStep>}`, `InspectAttachment{draft, path}`, `SaveAttachments{message, blob, parts, dir}`, `SaveDraft{draft, account, imap, path, revision, message: OutgoingMessage}`,
+  `FetchBody{account, message, path, imap, uid_validity, uid}`, `RunRemoteOp{op, account, imap, steps: Vec<RemoteStep>}`, `InspectAttachment{draft, path}`, `ReadDraft{draft, message, blob}` (MISC-44: the stored draft's text and `Bcc`, `app_io::mime::draft_text`; MISC-44d: its attachments, inline `cid:` parts included, `app_io::mime::draft_attachments`, written with safe names under the profile's `draft-files/<draft>/` by `app_sync::draft_files` (the fake: `/draft-files/<draft>/` in its file system); only their paths, names, sizes and types reach the core; a write failure, or attachments without a `draft-files` folder, reports `DraftReadFailed`; folders no draft names are swept when `dail` or the mobile host opens a profile), `SaveAttachments{message, blob, parts, dir}`, `SaveDraft{draft, account, imap, path, revision, message: OutgoingMessage}`,
   `DeleteDraft{draft, account, imap, path, message_id}`, `SearchMailbox{account, mailbox, path, imap, search, started_ms, mailboxes, query: Query, gmail_raw, limit}`,
   `SmtpSend{draft, account, smtp: SmtpLogin, message: OutgoingMessage,
   sent_copy?: SentCopy{imap, path}}`, `StoreSecret{account, secret, value: Secret}`,
   `DeleteSecret{account, secret}`, `PersistState{delta}`, `ScheduleTick{at_ms}`, `WatchMailbox{account, mailbox, path, imap}`,
-  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`. JSON form: `{"effect": "<name>", "args": {…}}`.
+  `FetchOlder{account, mailbox, path, imap, uid_validity, before_uid, limit}`, `CompactStore{keep}`, `SearchIndex{search, words, limit}`, `DiscoverServers{email, domain}`, `ManageFolder{account, imap, action: create{path}|rename{from, to}|delete{path}}`, `ReadSettingsBlob{account, imap, path, known?}`, `WriteSettingsBlob{account, imap, path, document, date_ms}`. JSON form: `{"effect": "<name>", "args": {…}}`.
   `Effect::failure_event` maps a failed effect to the `Event` that records the failure in state.
 - **`CommandReceipt`** — `{ ok, name, kind: Option<CommandKind>, affected: Vec<EntityRef>, data: serde_json::Value, undo_label: Option<String> }`.
   Query results travel in `data`. `kind` is `null` for receipts of ingested events. Rejected inputs return a
@@ -658,6 +736,11 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 | `gmail` | imap.gmail.com:993 TLS | smtp.gmail.com:465 TLS | move INBOX → `[Gmail]/All Mail` (`archive_to_all`: the `all` role) | SMTP saves it automatically, so skip APPEND | App Password (2FA required); trash = `trash` role, else `[Gmail]/Trash`; server search via `X-GM-RAW` (`raw_search`) |
 | `custom` | user-supplied | user-supplied | SPECIAL-USE `\Archive` or `Archive` | APPEND | STARTTLS on 143/587 supported |
 
+ManageSieve (RFC 5804, SET-8): `PresetProfile::managesieve` is the preset's default server and is `None` for all three
+(probed 2026-11-04: Hostinger resets ports 4190 and 2000 after IMAP login; Gmail has none). An account sets its own in
+`config.toml` (`[account.managesieve]` with `host`, `port` (usually 4190), `security = "starttls"`), e.g. a self-hosted
+Dovecot; `Account::managesieve()` returns that, else the preset's. Absent from older configs and golden profiles: `None`.
+
 TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
 (`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
 lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
@@ -810,10 +893,10 @@ steps + final state with `insta` and checks that replaying twice is identical.
   never replaced (the user edits it): opening fails with the parse error and `dail doctor` names the backups.
 - `Store` trait: `load_snapshot`, `apply(PersistDelta)` (deltas a store does not hold are ignored), `put_blob(bytes) → id`,
   `get_blob(id)`. Implementations: `ConfigStore` (settings + accounts in `config.toml`; no blobs), `ProfileStore` (production:
-  routes `Mail` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
+  routes `Mail` and `Synced` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
   (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
@@ -823,7 +906,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
   `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
-  undo history; `ConfigStore` writes it, `RedbStore` never sees it) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,
@@ -956,7 +1039,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
 - **About** (MISC-27): the desktop's title opens `open_settings {section: "about"}`, the page's last tab. The TUI and the
   phones, which have no such tab, show General (the phones have their own About screen).
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
-  the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts; a click
+  the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
   runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the
   light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
@@ -964,6 +1047,20 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   (a switch), undo history (`set_setting`). Accounts: a card per account with *Test*, *Re-enter password* and
   *Remove…* (asks once more, then `remove_account {confirm: true}`), and *Add account*. Every control sends a
   command; the page holds only a filter and the pending removal.
+- **Rules** (SET-5, ADR 0015): `open_settings {section: "rules"}` on every front end, drawn from
+  `app_front::rules::panel`: a row per live rule in `RuleId` order with its name and a summary in words
+  (`sender contains “x” → move to Reading`), passed through `text::clean` and drawn as plain text, never markup or
+  links (rule text is untrusted). GUI: a switch (`enable_rule`), *Edit…* and *Delete* (`delete_rule`, undoable) per
+  rule, *Add a rule…*, *Apply to this mailbox* (`apply_rules` on the open mailbox; not the unified inbox) and
+  *Store on the server* (`push_settings`, enabled while `synced.dirty`). TUI: the fourth section; `Enter` edits,
+  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the fifth tab, one settings row per rule
+  with On/Off choices and *Edit…*/*Delete* buttons (the frame types are unchanged). *Add a rule…* and *Edit…* are
+  palette steps (`palette::new_rule`, `palette::edit_rule`: a test (sender, To, Cc, subject, mailing list,
+  attachment) and its text, then an action (move to a folder, archive, mark read, star); editing replaces the name,
+  the condition or the actions, or deletes) ending in `save_rule` or `delete_rule`. The palette's *Make a rule from
+  this message* (`Target::RuleFromMessage`, a front-end row in the Mail section while a thread is checked, selected or
+  open, not a registry command) offers the newest message's sender, `List-Id` and subject as the test, then the
+  action, and ends in `save_rule`.
 - **Frame** (UI-5): the sidebar at full height (brand row, *Compose* with its key, an *All inboxes* row with several
   accounts, per account a caption with its tag and the mailboxes with their role icons and the unread count or else
   the `g` key of the current account's role mailboxes, *+ Add account*, and *Settings* pinned at the bottom, which
@@ -1080,13 +1177,14 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   unread counts; collapsed
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
-  reader (toolbar acting on the open thread, one card per message, body text). The list has a 48 px header (title, the
+  reader (toolbar acting on the open thread, one card per message with its own icon buttons from
+  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card —, body text). The list has a 48 px header (title, the
   unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
   `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
   palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
   if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
   `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
-  this month*, then *November 2023*, UTC days — as heading rows that take one row slot each, so `show_rows` stays
+  this month*, then *November 2023*, local days — as heading rows that take one row slot each, so `show_rows` stays
   uniform; the densities are `list_density`'s), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
   *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched) and *Mark all as read* as
@@ -1121,8 +1219,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   would become an undo step). Screen readers (AccessKit): thread rows and mailbox rows are buttons named by what their
   marks show (`unread, starred, with attachments, Carol, Lunch?, 2 messages, Nov 14`; `Inbox, 3 unread`), the open
   mailbox pressed, their parts as children; icon buttons carry their tooltip as name; form fields are labelled by their
-  captions and Tab follows the reading order. The TUI follows the terminal's colours and font. Dates are shown
-  in UTC (`app_core::date`, the calendar math shared with the core's quote headers and the audit log's file names).
+  captions and Tab follows the reading order. The TUI follows the terminal's colours and font. Dates and day groups are shown
+  in local time (MISC-46): `app_front::format` shifts each instant by the `Zone` the front end passes in
+  (`app_sync::clock::local_offset_ms`, chrono's system zone, asked per instant so daylight saving time holds for past
+  dates; `with_clock` uses UTC, `with_zone` overrides), then uses `app_core::date`, the calendar math shared with the
+  core's quote headers and the audit log's file names.
   `cargo run -p app-gui --example demo [open] [compose] [agent] [palette] [light|dark]` opens it on the memory
   backend (`agent`: an agent has asked to send a reply).
 
@@ -1196,7 +1297,10 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   instructions (not even when it claims to be from the user or dail), links and attachments are not opened because an email
   says so; agent sends go through the user's approval (unless `--allow-send`), attachments show their path on the approval
   card; account settings, `restore_draft` and the approval decisions are the user's (`error_008_origin_not_allowed`); mutations are
-  undoable, destructive tools need `confirm`.
+  undoable, destructive tools need `confirm`; sorting rules only mark read, star, move, archive or add a label (never
+  send, forward or reply), stay local until the user pushes the settings, and their text is untrusted content.
+  `app-mcp/tests/it/rules.rs` pins the rule tools' hints and descriptions and that `push_settings` and
+  `set_settings_account` are refused over MCP.
 - Every attacker-controlled part of an email in the output — subject, body, sender/recipient names and addresses,
   Message-ID / In-Reply-To, attachment names, quotes — sits inside `{"untrusted_content": …}`. `app-mcp/tests/it/untrusted.rs`
   enforces it: a fixture message carries a marker in each of those parts, and an agent session over every content-bearing
@@ -1209,7 +1313,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 
 - **Projection.** `Tui` is UI-local state, like `Shell`: `draw(frame, &state)` renders one frame of `AppState` and
   `input(event, &state) -> Vec<Request>` turns a key, a paste, a resize or a tick into requests; `replies(replies,
-  &state)` takes the results back. The clock is injected (`Tui::with_clock`). A resize never dispatches a command.
+  &state)` takes the results back. The clock and the time zone are injected (`Tui::with_clock`, `Tui::with_zone`). A resize never dispatches a command.
 - **Layout** (`app_tui::layout::arrange`, a function of `ViewState` and the terminal size): ≥ 120 columns the
   mailboxes (unless `toggle_sidebar` collapsed them), the list and the reader or the composer; 80–119 the list and the
   reader (or composer), the mailboxes in the list's place while the sidebar has the focus; < 80 one pane: the mailboxes
@@ -1235,20 +1339,24 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   (`text::wrap`, by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
   the background `get_thread {include_body: true}` (`Purpose::Bodies`) when the open thread or a body state changed.
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
-  focus; `j`/`k` still move between threads. A new thread starts at the top. No browser and no "open original": over
+  focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local
+  `n`/`p`, per open thread, like scrolling) marks one message `▶` with its `app_front::message_actions` and their keys
+  under it; the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
+  draft; `p` before the first message drops it. No browser and no "open original": over
   SSH they would open on the host.
 - **Keys** go through the shared keymap (`app_front::keymap`): `app_tui::keys::chord_of` maps crossterm's key events
   onto chords (a typed symbol is a `Text` chord, Ctrl+Shift+letter arrives as Ctrl+letter, BackTab is Shift+Tab), so
   `j k Enter o e # s u v z / Tab Escape c r a f`, the `g` sequences and the arguments from the view work as in the
   GUI; a command that still needs an argument opens the palette at that step. With the mailboxes focused, `j`/`k` open
   the next or previous mailbox and Enter goes back to the list (shared, so the GUI does the same). A new draft opens in
-  the composer. TUI-local keys only scroll (Space, `b`, PageUp/PageDown, ↑/↓ in a lone or focused reader), stand in for
+  the composer. TUI-local keys only scroll (Space, `b`, PageUp/PageDown, ↑/↓ in a lone or focused reader), move the message
+  cursor (`n`/`p`, Enter on a draft under it), stand in for
   Escape outside text fields (`q` and Backspace; from the mailboxes they go back to the list; on the top level `q`
   quits), show help (`?`) or quit (Ctrl+C); besides those, `m` turns mouse capture off and on, Ctrl+O in the
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
   field is dropped, never run as keys.
-- **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys and Accounts
-  as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
+- **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys, Accounts and Rules
+  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
   General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
   that changes the row (or tests the account), Esc runs `close_settings`.
 - **Palette** (`app_tui::palette`, Ctrl+K or `:`): the shared `app_front::palette::Palette` drawn over the panes — the
@@ -1356,7 +1464,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
   does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`, `schedule {sync, interval_mins}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
-  app-sync. The clock is injected (`Mobile::with_clock`).
+  app-sync. The clock is injected (`Mobile::with_clock`); so is the time zone (`Mobile::with_zone`: `app-host` passes `app_sync::clock::local_offset_ms`, else UTC, MISC-46).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
@@ -1367,12 +1475,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
-- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the four `open_settings` sections as
-  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*), then the open section's `groups` of rows. A row has a
+- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
+  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
   density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
-  delivers. General: the undo window, the poll interval and the first fetch, and the phone's *Background &
+  delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47), and the phone's *Background &
   notifications* group (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and
   *Notification settings*: `External::SystemSettings`). It is a group under General and not a fifth section, so the
   desktop's tabs stay as they are. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
@@ -1454,8 +1562,13 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   no activity is visible (the last `visible` event) and hands every `app_mobile::Notification` as JSON to
   `Listener.alert` from that attached runtime thread: `tag`, `channel` (`new_mail`, `not_sent`; `background` is the
   push service's), `title`, `body`, a lock-screen `public_title` without sender or subject, `open` (a `NoteAct`:
-  `open_thread`, `open_draft`) and `actions` (*Archive*, *Mark read* over the new threads). Approval requests are left
-  out (the phone has none). Kotlin's `Notifier` posts them (`VISIBILITY_PRIVATE` with the public version); a tap opens
+  `open_message`, `open_thread`, `open_draft`), `actions`, and `group`/`summary`. New mail (MISC-45,
+  `app_front::alerts::new_mail_by_conversation`) is one notification per new conversation (tag `new_mail:<thread>`,
+  group `new_mail`): *Delete*, *Mark read* and *Archive* (`NoteAct::Trash`/`MarkRead`/`Archive` with `messages`)
+  act on that conversation's new messages only (never the rest of the thread; gone messages submit nothing), and a tap
+  (`open_message`) submits `open_mailbox`, `open_thread` and `expand_messages` for its newest message. A summary
+  (tag `new_mail`, `summary: true`, *N new conversations*) folds the group; every lock-screen title is *New mail*.
+  Approval requests are left out (the phone has none). Kotlin's `Notifier` posts them (`VISIBILITY_PRIVATE` with the public version); a tap opens
   `MainActivity`, which sends `UiEvent::Notification{act}`; a button's `NoteReceiver` calls `background` with
   `{"notification": act}`, and the host submits `NoteAct::commands` as the user and flushes. Threads or drafts that are
   gone submit nothing. `POST_NOTIFICATIONS` is asked once, on the first frame with an account. The `notifications`
@@ -1489,6 +1602,16 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
   palette at `move_threads`' step) and reply.
+  - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
+    `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
+    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
+    button row (MISC-44e): a card swipes as a list row does, with `swipe_start` (archive the message,
+    `archive_threads{messages}`; a draft: edit) and `swipe_end` (trash it, `trash_threads{messages}`; a draft:
+    discard), `Button`s whose icon is revealed under the card, sent as `swipe` (a haptic follows). Android draws the
+    swipes with the list rows' `SwipeToDismissBox` (half-width threshold, colours of `SwipeRow`), and a long press
+    on the card's header opens a menu of `actions`; TalkBack gets `actions` and the start swipe as custom actions.
+    On the message page, a card swipes outside the page's left edge zone, where the swipe back starts. iOS decodes
+    them but does not draw them yet (Wave 11's iOS decision; the iOS reader is a `ScrollView`, not a `List` with `swipeActions`).
   - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
     `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
     as they are.
@@ -1555,8 +1678,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
     `layout.page = reader`. The top bar is the list's, there is no floating button, and Back closes the page.
   - **Drawing.** Hosts draw a page over the panes and the top bar, below the status bar (`ReaderPage.kt`, and
     `ReaderPage` in `ReaderPane.swift`). It slides in from the right in 250 ms.
-  - **The swipe back.** A horizontal drag anywhere on the page follows the finger. A block's own horizontal scroll
-    goes first, and the dominant axis decides against the body's scroll. Past a third of the width, or with a
+  - **The swipe back.** On Android a drag to the right that starts in the page's left edge zone follows the finger
+    (MISC-44e); on iOS, which draws no card swipes, a horizontal drag anywhere on the page does. On Android the zone is the system's back-gesture inset (`WindowInsets.systemGestures`), or 32 dp without one, and
+    the page takes such a drag before its content. Elsewhere a horizontal drag is the content's: a block's own
+    horizontal scroll, or a message card's swipes. The dominant axis decides against the body's scroll. Past a third of the width, or with a
     fling, the page sends the reader's close (`close_thread`); otherwise it springs back.
   - **Leaving.** A frame that drops the page over the list slides it out. One that puts something else there (the
     composer) removes it at once.
@@ -1817,7 +1942,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 |---|---|---|---|
 | `get_settings` | Query | — | M0 |
 | `set_keybinding` / `set_key_preset` | Mutation | `command, keys?` (none: back to the preset's; `[]`: unbound) / `preset: gmail | vim`; in `settings` (`config.toml`), undoable | Wave 2 |
-| `set_setting` | Mutation | `key: SettingKey, value` (`language`, `undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone does not run it yet) | M0 |
+| `set_setting` | Mutation | `key: SettingKey, value` (`language`, `undo_send_ms`, `poll_secs`, `initial_window`, `history_cap`, `theme`: 0 system / 1 light / 2 dark (3 and 4 still accepted: they set dark mode with `dail-dark-hc` or light mode with `dail-light-hc`), `text_scale`: 50–300 %, `notifications`: 0 off / 1 on, `list_density`: 0 cozy / 1 compact / 2 preview, `tui_colors`: 0 terminal / 1 theme truecolor, `background_sync` (Android only): 0 while open / 1 periodic (default) / 2 push, `background_interval_mins` (Android only): 15–720, default 30, `stale_secs`: 0–86400, default 60 — `open_mailbox` fetches a mailbox whose `last_fetch_ms` is older (UX-6), `full_sync_secs`: 0 off or 60–86400, default 900 — the poll's full rounds, `after_triage`: 0 next (default) / 1 previous / 2 list — after the open thread is archived, trashed or moved, the GUI and the TUI submit `app_front::advance::after`'s `open_thread` of the neighbour (rows triaged with it skipped; the other side at the ends) or `close_thread` right after it (UX-12), `mark_read_after_ms`: 0 never or 250–60000, default 2000 — the GUI and the TUI run the timer (`app_front::autoread::AutoRead`, UX-5): once the open thread has been open that long (counted only while the GUI window has the focus) its unread expanded messages get one ordinary, undoable `mark_read` from the user; leaving the thread cancels it, the user's `mark_unread` disarms it until another thread opens; agents' `open_thread` never marks anything read; the TUI checks once a second; the phone's presenter (`Mobile`) polls it before each frame and on each `tick`, counting only while the app is `visible` and the message on screen (its pane or page shown, no modal drawer, About, setup, palette, result or preview over it; `visible` brings the timer up to date first, so background time never counts), and keeps `wants_tick` on while a thread is open and the setting is not 0, MISC-47) | M0 |
 | `set_theme` | Mutation | `mode?: system | light | dark, light?, dark?` (theme names, slugs; at least one field); sets `theme`, `theme_light`, `theme_dark` in one undo step; agents allowed (only the look changes); an unknown name falls back to the mode's default in the GUI with a notice | UI-11 |
 | `undo` / `redo` | Mutation (not recorded) | — | M0 |
 | `open_palette` / `close_palette` | View | — | M0 |
@@ -1828,9 +1953,17 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
 | `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
+| `pull_settings` | Mutation (no history) | `account?` (none: the settings account, `set_settings_account`, else the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
+| `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
+| `list_rules` | Query | — → `{rules: [{id, enabled, updated_ms, untrusted_content: {name, when, then}}], dirty}`; agents allowed | SET-4 |
+| `save_rule` | Mutation | `id?`, `rule` → `{id, created, changed}`; no `id`: a new ID from `id_seed` (a tombstone's may be reused); unknown `id` `ERR004`; a rule past the limits `ERR002` on its field (`rule.name`, `rule.then`, `rule.when`); stamps the entry and sets `synced.dirty`; undo deletes a new rule or restores the old one; agents allowed (ADR 0015) | SET-4 |
+| `delete_rule` | Mutation | `id` → `{id}`; unknown or deleted `ERR004`; leaves a tombstone; undo saves it again; agents allowed | SET-4 |
+| `enable_rule` | Mutation | `id`, `enabled` → `{id, enabled, changed}`; unknown `ERR004`; undo sets it back; agents allowed | SET-4 |
+| `apply_rules` | Mutation | `mailbox` → `{mailbox, matched, commands, skipped}`; unknown mailbox `ERR004`; runs the enabled rules over the messages shown there as `Origin::Rule` commands, one undo step; agents allowed | SET-4 |
+| `set_settings_account` | Mutation (user only, ADR 0015) | `account` → `{account}`; unknown account `ERR004`; stores `settings.settings_account` (`PersistState{Settings}`); another account than the current one resets the synced copy state and emits `ReadSettingsBlob`; undo restores the previous account | SET-3 |
 | `list_mailboxes` | Query | `account?` → `{mailboxes: [{id, account, path, parent (path above, or null), depth, role, unread, total, cached, window, backfilling}]}` (inbox first) | M2 |
 | `list_threads` | Query | `mailbox, offset = 0, limit = 50 (1–500)` → `{total, threads: [{id, messages, in_mailbox, unread, flagged, has_attachments, last_date_ms, untrusted_content: {subject, from, snippet}}]}` (the newest message's snippet, or null), newest first | M2 |
-| `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies | M3 |
+| `get_thread` / `get_message` | Query | `id, include_body = false` (+ `rich_body = false` on `get_thread`: also `body.document` for HTML bodies) → thread `{id, account, last_date_ms, untrusted_content: {subject}, messages: [msg]}` / `{message: msg}`; msg = `{id, account, mailbox, thread, date_ms, flags, size, has_attachments, body: {state}, downloading, is_draft, draft, untrusted_content: {subject, from, to, cc, message_id, snippet, body?: {text, text_source, attachments}}}`; `include_body` starts downloads of missing bodies; `is_draft` (flag `\Draft` or in the Drafts mailbox) and `draft` (the local draft saved as that message, by account and `Message-ID`, or null) since MISC-44 | M3 |
 | `save_attachments` | Mutation (no history; user only, §9) | `message, parts? (MIME part numbers; none: all), dir` (absolute; the body must be downloaded) → emits `SaveAttachments`; progress in `status.saves` (one per message, at most 16) | Wave 2 |
 | `create_folder` | Mutation (no history) | `account, path` (trimmed; no control characters, `*`, `%` or empty segments; not an existing path, compared without case) → `{mailbox, path, undoable: false}`; the mailbox is cached at once (the account's delimiter, never fetched) and `ManageFolder{account, imap, action: create{path}}` runs IMAP `CREATE`; agents allowed | UX-14 |
 | `rename_folder` | Mutation | `id, path` (the new full path; not the inbox, not into itself, not an existing path) → `{mailbox, from, to}`; the folder and its subfolders get their new paths in the cache, and pins, hidden folders and collapsed parents follow; `ManageFolder{rename{from, to}}` (IMAP `RENAME`); undo renames it back; agents allowed | UX-14 |
@@ -1858,7 +1991,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `mark_mailbox_read` | Mutation | `id` → the `mark_read` receipt for the cached unread messages located in the mailbox plus `mailbox`, `uncached_affected`; when the server counts more unread than are cached, a second op `flag_mailbox{mailbox, flag, value}` runs `RemoteStep::StoreAll` (`UID STORE 1:* +FLAGS.SILENT (\\Seen)`); the mailbox's `unread` drops to 0 until the next fetch; undo (*Mark all read (n messages)*) restores only the cached ones; no default key; the palette and the GUI toolbar ask first above 50 unread (`palette::MARK_ALL_CONFIRM_ABOVE`); agents allowed | UX-7 |
 | `set_list_filter` | View | `unread?, starred?, attachments?: bool` (given ones replace) → `{filter, threads}`; `view.filter`, saved in `[view]` as `list_filter`; `listing::visible_threads` keeps the threads passing every filter that is on (`list_threads`/`search` are not filtered); checked threads it hides are unchecked; the palette asks for words (`unread starred attachments`) | UX-7 |
 | `mark_read` / `mark_unread` | Mutation | `ids?: [ThreadId], messages?: [MessageId]` (at least one; a thread means all its messages, a message includes its copies in other folders) → `{changed, ops, cancelled}`; undo restores exactly `changed` | M3 |
-| `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message | M3 |
+| `star` / `unstar` | Mutation | same as `mark_read`; `star` on a thread stars its newest message that is not a draft (`AppState::newest_message`, which a thread's Reply also answers; MISC-44) | M3 |
 | `pin_threads` / `unpin_threads` | Mutation | same as `star` / `unstar` (pinning a thread marks its newest message, unpinning all) → `{changed, ops, cancelled}`; `Flags.pinned`, the IMAP keyword `$Pinned` (`FlagKind::Pinned`, a `set_flag` op), so the pin syncs like a star; pinned threads come first in every list (`listing::sort_newest_first`: pinned, then newest; `list_threads` has `pinned`); `Shift+P` toggles; agents allowed. Where the server keeps no keywords (a `SELECT` whose `PERMANENTFLAGS` has neither `\\*` nor `$Pinned`) the runtime skips the keyword `STORE` and reports `KeywordsRefused{account, path}` before the op's success: the mailbox gets `custom_keywords: false`, its pins stay on the device (server flag merges keep them, no store is queued) | MISC-4 |
 | `archive_threads` / `trash_threads` | Mutation | `ids?, messages?` → `{moved, copied, cancelled, ops, to}`; error `error_007_no_mailbox_for_role` if the account has no archive/trash (§5.3) | M3 |
 | `mark_junk` / `mark_not_junk` | Mutation | `ids?, messages?` → the move receipt `{moved, copied, cancelled, ops, to}`; `mark_junk` moves to the account's Junk (role `junk`, else the preset's `junk_mailbox`, Gmail `[Gmail]/Spam`; error `error_007_no_mailbox_for_role` without one, no folder is created) and takes what `move_threads` takes; `mark_not_junk` moves only copies shown in Junk (and named `messages`) to the inbox; the op is a `move` with `junk: true/false`, which stores `$Junk` / `$NotJunk` (and removes the other) on the source UIDs before the move (`RemoteStep::Junk`, skipped where the mailbox keeps no keywords); undo (*Mark as junk (n messages)*, *Not junk (n messages)*) moves them back, the keyword stays; key `!` for both, each available only where it applies (`mark_not_junk` in a Junk folder); the GUI's rows, bulk bar and reader show *Junk* or *Not junk* by folder (`app_front::mailbox::in_junk`); agents allowed | MISC-42 |
@@ -1869,13 +2002,14 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `reply` / `reply_all` / `forward` | Mutation | `message, body?` (creates a draft with recipients, `Re:`/`Fwd:`, threading headers and a quote; starts the original's body download) | M4 |
 | `update_draft` | Mutation | `id, to?, cc?, bcc?, subject?, body?` (at least one; given fields replace the old values) | M4 |
 | `attach_file` / `remove_attachment` | Mutation | `draft, path (absolute), index?` / `draft, index` (attach emits `InspectAttachment`; the attachment's `state` becomes `ready{size, content_type}` or `failed{error}`, 25 MiB total) | M4 |
-| `discard_draft` | Mutation | `id` → `{discarded, draft}`; undo is `restore_draft` | M4 |
+| `discard_draft` | Mutation | `id, keep_server_copy = false` → `{discarded, draft}`; deletes the server copy (`DeleteDraft`) and drops its cached envelope at once (MISC-44); with `keep_server_copy`, or while the draft's text is still loading (`loading_from`), only the local draft goes (the undo of `edit_draft`); undo is `restore_draft` | M4 |
+| `edit_draft` | Mutation | `message` (a draft message of a conversation, `is_draft` in `get_thread`) → `{draft, created}`: the local draft saved as it (`created: false`, nothing recorded), or a new local draft from a server-only draft (headers from the envelope, `saved_ms` = now, `loading_from: message`): its body is read with `ReadDraft` (after `FetchBody` if not cached) and `DraftRead` fills the text, `Bcc` and attachments (MISC-44d: ready file attachments under `draft-files/`, so a save or send includes them; one that takes the draft past 25 MiB is `failed`, as when attached by hand); until then the draft can't be changed, saved or sent (`error_009_not_sendable`); a failed download or read drops the draft (the server copy stays, the body's failure shows on the message); errors: `error_004_not_found`, `error_002_invalid_argument` (not a draft, no usable `Message-ID`, being moved, body not downloadable); undo is `discard_draft{keep_server_copy: true}`; agents allowed | MISC-44 |
 | `restore_draft` | Mutation | `draft: Draft` (puts a discarded draft back with its ID and checks its attachments again; not in the palette; user only when dispatched directly, §9) | M4 |
 | `send_draft` | Outbound | `id` → the draft with `send_at`; error `error_009_not_sendable` (no recipients, attachment checking/failed, already scheduled). From `Origin::Mcp`: `{state: "awaiting_approval", approval}` instead (§4.6) | M4 |
 | `cancel_send` | Mutation | `id` (only while scheduled; undo schedules the send again) | M4 |
 | `search` | Query | `query: String, account?, offset = 0, limit = 50 (1–500), server = true` → `{query (canonical), total, threads: [list_threads entry without in_mailbox + matches: [MessageId]], server: [{account, state: started\|searching\|done, hits, error}]}`, newest first; matches the cached envelopes (subject and addresses for text; `in:` uses `location()`) plus the server's hits for the query (§5.2 step 10); errors `error_002_invalid_argument` on `query` (with column) or empty query | M5 |
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
-| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
+| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts | rules | about` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
 | `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `error_004_not_found` for an unknown account, `error_002_invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |

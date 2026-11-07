@@ -164,6 +164,7 @@ async fn open_owned(
                 Arc::new(NetImap::new()?),
             )
             .with_updates_dir(dirs.updates_dir())
+            .with_draft_files_dir(dirs.draft_files_dir())
             .with_breaker(Arc::new(app_io::breaker::Breaker::open(dirs.breaker_dir())));
             // Without an index, search still matches headers and asks the servers.
             match app_io::fulltext::FullText::open_or_rebuild(&dirs.index_dir()) {
@@ -179,6 +180,14 @@ async fn open_owned(
     let audit = root.map(|root| AuditLog::new(ProfileDirs::at(root).logs_dir()));
     let session =
         Session::open_audited(backend, Arc::new(SystemClock), Arc::new(RandomSeeds), audit).await?;
+    // Attachments carried from server drafts that no draft names any more (MISC-44d).
+    if let Some(root) = root.filter(|_| matches!(global.backend, BackendKind::Live)) {
+        let dir = ProfileDirs::at(root).draft_files_dir();
+        let removed = app_sync::draft_files::sweep(&dir, &session.state());
+        if removed > 0 {
+            tracing::info!(removed, "removed draft attachment folders no draft names");
+        }
+    }
     // The running build, for update checks (ADR 0011); a due periodic check starts now.
     let host = match global.backend {
         BackendKind::Live => app_sync::install::desktop_host(),

@@ -6,7 +6,7 @@
 use app_core::{
     Addr, AppState, Command, Ctx, DraftId, Engine, Envelope, Event, MessageId, Origin, SettingKey,
 };
-use app_front::alerts::{AlertKind, alerts};
+use app_front::alerts::{AlertKind, alerts, new_mail_by_conversation};
 
 use crate::support::{self, inbox_of, synced_state};
 
@@ -78,6 +78,52 @@ fn new_unread_inbox_mail_is_news() {
     assert_eq!(alert.title, "3 new messages");
     assert_eq!(alert.body, "Dana <b>, Eve");
     assert_eq!(alert.threads, [thread], "each thread once");
+}
+
+#[test]
+fn new_mail_by_conversation_names_each_conversations_new_messages() {
+    let before = synced_state();
+    let next = uid_next(&before);
+    let mut after = before.clone();
+    arrived(&mut after, 1, next, "Dana", "Lunch");
+    arrived(&mut after, 2, next + 1, "Eve", "Report");
+    arrived(&mut after, 3, next + 2, "Fay", "Re: Lunch");
+    let ids: Vec<MessageId> = (1..=3u128)
+        .map(|n| {
+            serde_json::from_value(serde_json::json!(format!(
+                "00000000-0000-0000-0000-{n:012}"
+            )))
+            .unwrap()
+        })
+        .collect();
+    let first = after.messages[&ids[0]].thread;
+    let other = *after.threads.keys().find(|t| **t != first).unwrap();
+    after.messages[&ids[1]].thread = other;
+    let alerts = new_mail_by_conversation(&before, &after);
+    let [a, b] = &alerts[..] else {
+        panic!("{alerts:?}")
+    };
+    assert_eq!(a.threads, [first]);
+    assert_eq!(
+        a.messages,
+        [ids[0], ids[2]],
+        "its new messages, oldest first"
+    );
+    assert_eq!(a.title, "Dana, Fay");
+    assert_eq!(a.body, "Re: Lunch", "the newest subject");
+    assert_eq!(a.mailbox, Some(after.messages[&ids[2]].mailbox));
+    assert_eq!(b.threads, [other]);
+    assert_eq!(b.messages, [ids[1]]);
+    assert_eq!(b.title, "Eve");
+    assert!(
+        new_mail_by_conversation(&after, &after).is_empty(),
+        "only once"
+    );
+    SettingKey::Notifications.set(&mut after.settings, 0);
+    assert!(
+        new_mail_by_conversation(&before, &after).is_empty(),
+        "turned off"
+    );
 }
 
 #[test]

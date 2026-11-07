@@ -245,6 +245,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "",
                 "cc": [],
@@ -334,8 +335,6 @@ expression: first
               "account": "00000000-0000-0001-0000-000000000000",
               "attachments": [
                 {
-                  "name": "q3.pdf",
-                  "path": "/home/me/q3.pdf",
                   "state": {
                     "state": "checking"
                   }
@@ -351,6 +350,15 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/home/me/q3.pdf",
+                    "state": {
+                      "state": "checking"
+                    }
+                  }
+                ],
                 "bcc": [],
                 "body": "",
                 "cc": [],
@@ -447,15 +455,11 @@ expression: first
               "account": "00000000-0000-0001-0000-000000000000",
               "attachments": [
                 {
-                  "name": "q3.pdf",
-                  "path": "/home/me/q3.pdf",
                   "state": {
                     "state": "checking"
                   }
                 },
                 {
-                  "name": "missing.txt",
-                  "path": "/home/me/missing.txt",
                   "state": {
                     "state": "checking"
                   }
@@ -471,6 +475,22 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/home/me/q3.pdf",
+                    "state": {
+                      "state": "checking"
+                    }
+                  },
+                  {
+                    "name": "missing.txt",
+                    "path": "/home/me/missing.txt",
+                    "state": {
+                      "state": "checking"
+                    }
+                  }
+                ],
                 "bcc": [],
                 "body": "",
                 "cc": [],
@@ -556,8 +576,6 @@ expression: first
               "account": "00000000-0000-0001-0000-000000000000",
               "attachments": [
                 {
-                  "name": "q3.pdf",
-                  "path": "/home/me/q3.pdf",
                   "state": {
                     "content_type": "application/pdf",
                     "size": 48213,
@@ -565,8 +583,6 @@ expression: first
                   }
                 },
                 {
-                  "name": "missing.txt",
-                  "path": "/home/me/missing.txt",
                   "state": {
                     "state": "checking"
                   }
@@ -582,6 +598,24 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/home/me/q3.pdf",
+                    "state": {
+                      "content_type": "application/pdf",
+                      "size": 48213,
+                      "state": "ready"
+                    }
+                  },
+                  {
+                    "name": "missing.txt",
+                    "path": "/home/me/missing.txt",
+                    "state": {
+                      "state": "checking"
+                    }
+                  }
+                ],
                 "bcc": [],
                 "body": "",
                 "cc": [],
@@ -668,8 +702,6 @@ expression: first
               "account": "00000000-0000-0001-0000-000000000000",
               "attachments": [
                 {
-                  "name": "q3.pdf",
-                  "path": "/home/me/q3.pdf",
                   "state": {
                     "content_type": "application/pdf",
                     "size": 48213,
@@ -677,10 +709,7 @@ expression: first
                   }
                 },
                 {
-                  "name": "missing.txt",
-                  "path": "/home/me/missing.txt",
                   "state": {
-                    "error": "cannot read /home/me/missing.txt: No such file or directory",
                     "state": "failed"
                   }
                 }
@@ -695,6 +724,25 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/home/me/q3.pdf",
+                    "state": {
+                      "content_type": "application/pdf",
+                      "size": 48213,
+                      "state": "ready"
+                    }
+                  },
+                  {
+                    "name": "missing.txt",
+                    "path": "/home/me/missing.txt",
+                    "state": {
+                      "error": "cannot read /home/me/missing.txt: No such file or directory",
+                      "state": "failed"
+                    }
+                  }
+                ],
                 "bcc": [],
                 "body": "",
                 "cc": [],
@@ -779,8 +827,6 @@ expression: first
               "account": "00000000-0000-0001-0000-000000000000",
               "attachments": [
                 {
-                  "name": "q3.pdf",
-                  "path": "/home/me/q3.pdf",
                   "state": {
                     "content_type": "application/pdf",
                     "size": 48213,
@@ -798,6 +844,17 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [
+                  {
+                    "name": "q3.pdf",
+                    "path": "/home/me/q3.pdf",
+                    "state": {
+                      "content_type": "application/pdf",
+                      "size": 48213,
+                      "state": "ready"
+                    }
+                  }
+                ],
                 "bcc": [],
                 "body": "",
                 "cc": [],

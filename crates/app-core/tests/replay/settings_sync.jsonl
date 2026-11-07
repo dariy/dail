@@ -1,0 +1,11 @@
+# Settings on the server (ADR 0015, SET-2): the hidden folder, pull, merge, an ignored copy, push.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.com", "imap": {"host": "imap.example.com", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.com", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "origin": "mcp", "input": {"command": {"cmd": "push_settings", "args": {}}}}
+{"t": 1700000002000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "dail", "delimiter": "/", "selectable": true}, {"path": "dail/Settings", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "settings_read", "args": {"account": "00000000-0000-0001-0000-000000000000", "copy": {"uid_validity": 9, "uid": 4}, "document": "{\"schema\":1,\"updated_ms\":50,\"prefs\":{\"list_density\":{\"updated_ms\":50,\"value\":2}}}"}}}}
+{"t": 1700000004000, "origin": "mcp", "input": {"command": {"cmd": "pull_settings", "args": {}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "settings_read", "args": {"account": "00000000-0000-0001-0000-000000000000", "copy": {"uid_validity": 9, "uid": 5}, "document": "{not json"}}}}
+{"t": 1700000006000, "origin": "mcp", "input": {"command": {"cmd": "push_settings", "args": {}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "push_settings", "args": {}}}}
+{"t": 1700000008000, "origin": "runtime", "input": {"event": {"event": "settings_written", "args": {"account": "00000000-0000-0001-0000-000000000000"}}}}
+{"t": 1700000009000, "origin": "runtime", "input": {"event": {"event": "settings_failed", "args": {"account": "00000000-0000-0001-0000-000000000000", "error": "IMAP EXAMINE dail/Settings failed: connection reset"}}}}

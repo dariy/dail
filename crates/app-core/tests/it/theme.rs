@@ -27,7 +27,10 @@ fn set_theme_changes_mode_and_names_in_one_undo_step() {
             &ctx(1),
         )
         .unwrap();
-    assert!(matches!(outcome.effects[..], [Effect::PersistState { .. }]));
+    assert!(matches!(
+        outcome.effects[..],
+        [Effect::PersistState { .. }, Effect::PersistState { .. }]
+    ));
     assert_eq!(outcome.receipt.undo_label.as_deref(), Some("Theme"));
     let after = names(&engine);
     assert_eq!(after, (2, "dail-light".into(), "dail-dark-hc".into()));

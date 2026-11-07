@@ -82,6 +82,7 @@ impl Engine {
         mode: Option<ThemeMode>,
         light: Option<String>,
         dark: Option<String>,
+        now_ms: i64,
         receipt: CommandReceipt,
     ) -> Result<Applied, CoreError> {
         if mode.is_none() && light.is_none() && dark.is_none() {
@@ -120,7 +121,11 @@ impl Engine {
             "light": settings.theme_light,
             "dark": settings.theme_dark,
         });
-        Ok(self.settings_changed(receipt, data, "Theme".to_owned(), previous))
+        let mut applied = self.settings_changed(receipt, data, "Theme".to_owned(), previous);
+        // The theme follows the account (SET-7).
+        let synced = self.stamp_theme(now_ms);
+        applied.outcome.effects.push(synced);
+        Ok(applied)
     }
 
     fn settings_changed(
@@ -142,7 +147,7 @@ impl Engine {
 }
 
 /// A theme name: 1 to 64 of `a-z`, `0-9` and `-`.
-fn is_slug(name: &str) -> bool {
+pub(super) fn is_slug(name: &str) -> bool {
     (1..=64).contains(&name.len())
         && name
             .bytes()

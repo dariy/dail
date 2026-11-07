@@ -999,31 +999,74 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
 - Agents can list, propose and save rules over MCP; pushing settings and choosing the settings account stay user-only.
 
 ### A — The document
-- [ ] SET-1 (M) [core][io]: `SyncedSettings` and `Rule` types, the pure field/rule merge with tombstones (proptest),
+- [x] SET-1 (M) [core][io]: `SyncedSettings` and `Rule` types, the pure field/rule merge with tombstones (proptest),
   JSON schema and a golden document
-- [ ] SET-2 (M) [core][sync][tk]: `pull_settings` / `push_settings` commands and the `ReadSettingsBlob` /
+- [x] SET-2 (M) [core][sync][tk]: `pull_settings` / `push_settings` commands and the `ReadSettingsBlob` /
   `WriteSettingsBlob` effects over the `dail/Settings` folder (APPEND, newest UID wins, old copies expunged); pull on
   connect and on IDLE change; the fake IMAP implements the folder; the folder is hidden from mailbox lists
-- [ ] SET-3 (S) [core][front]: choose the settings account per profile (`UserOnly`); validation errors and the 256 KiB cap
+- [x] SET-3 (S) [core][front]: choose the settings account per profile (`UserOnly`); validation errors and the 256 KiB cap
   surface in state with ERR codes
 
 ### B — Rules
-- [ ] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
+- [x] SET-4 (L) [core]: the rule evaluator (conditions over envelopes, actions as commands with `Origin::Rule`), run on
   `EnvelopesFetched`; `save_rule`, `delete_rule`, `enable_rule`, `apply_rules { mailbox }`; undo and replay fixtures
-- [ ] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
+- [x] SET-5 (M) [gui][tui][mobile][kt]: a Rules screen in Settings on every front end, plus *Make a rule from this
   message* in the palette
-- [ ] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
+- [x] SET-6 (S) [mcp]: rule tools described for agents; a test that rules cannot forward or reply
 
 ### C — Theme and preferences
-- [ ] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only
+- [x] SET-7 (M) [front][mobile]: theme and the shared preferences read from and written to `SyncedSettings`; local-only
   settings listed in ARCHITECTURE
 
 ### D — Server-side execution
-- [ ] SET-8 (S) [sync]: a `ProviderPreset` field for ManageSieve (Hostinger and Gmail: none, probed 2026-11-04), so
+- [x] SET-8 (S) [sync]: a `ProviderPreset` field for ManageSieve (Hostinger and Gmail: none, probed 2026-11-04), so
   that self-hosted Dovecot servers can turn it on
-- [ ] SET-9 (M) [io][sync]: compile rules to Sieve and upload over ManageSieve where the preset says it exists; rules
-  Sieve cannot express are marked client-only
+- SET-9 (split 2026-11-06, too large for one change): compile rules to Sieve and upload over ManageSieve where the
+  preset says it exists; rules Sieve cannot express are marked client-only
+  - [ ] SET-9a (S) [core][io]: a pure classifier in `app-core` (`Server` or `ClientOnly(reason)`: mailbox tests,
+    has attachment, add_label, and archive without a known special-use folder are client-only) and a deterministic
+    script `dail` in `app-io` (`fileinto`, `imap4flags`), strings escaped per RFC 5228; hostile-pattern and snapshot tests
+  - [ ] SET-9b (M) [core][sync][tk]: `UploadSieve` effect carrying the rules (app-sync compiles through app-io),
+    `SieveUploaded` / `SieveFailed` with status and ERR codes in state, fired after a successful `push_settings` when
+    `managesieve()` is set; a ManageSieve client (STARTTLS, PLAIN, PUTSCRIPT, SETACTIVE) and a fake in app-testkit
+  - [ ] SET-9c (S) [front][gui][tui][mobile][kt]: rule rows say *client-only (reason)* or *also on the server*
 - Gmail filter export waits for Gmail OAuth2 (Wave 11, *After launch*, item 6)
+
+---
+
+## Wave 13 — Refinement: "every message has its own buttons"
+
+The requests of 2026-11-05. Details are in [`docs/requests/misc.md`](docs/requests/misc.md) (MISC-44 to MISC-49).
+Following Wave 11's iOS decision, `ios/` only takes the shared presenter changes and stays green. All new text ships in
+English and French.
+
+**Exit criteria**
+- A draft in a conversation can be edited or discarded from its own card, and the conversation stays.
+- Every message card in the reader has its own actions (reply, forward, read, star, trash), on every front end.
+- An Android new-mail notification has *Delete*, *Mark read* and *Archive*, and a tap opens that message.
+
+- MISC-44 (split 2026-11-06, too large for one change): per-message actions in the reader; `edit_draft`, drafts in a
+  thread edited or discarded on their own
+  - [x] MISC-44a [core][sync][tk]: `edit_draft { message }` (Mutation, agents allowed; undo discards a draft it
+    created; a server-only draft becomes local once its body is fetched); `get_thread` gives each message `draft` and
+    `is_draft`; `discard_draft` drops the cached server copy at once; the thread's Reply and Star skip drafts
+  - [x] MISC-44b [front][gui][tui]: `app_front::message_actions` (Reply, Reply all, Forward, Read/Unread, Star/Unstar,
+    Move to Trash with `messages`; Edit and Discard on a draft) on every GUI message card, and a TUI message cursor
+  - [x] MISC-44c [mobile][kt][ios]: the presenter's message cards carry those actions; contract frames, Kotlin card
+    actions, iOS decoding
+  - [x] MISC-44d [core][io][sync][tk]: `edit_draft` on a server-only draft also brings its attachments into the
+    local draft (requested 2026-11-06)
+  - [x] MISC-44e [mobile][kt][ios]: on mobile, the message cards' button row is replaced by swipes on the card, as in
+    the message list pane (requested 2026-11-06)
+- [x] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
+  *Archive* on its new messages; a tap opens the mailbox, the thread and the message
+- [x] MISC-46 [front][gui][tui][mobile]: dates in local time, not UTC
+- [x] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`
+- [x] MISC-48 [core][front][gui][tui][mobile]: mark read / unread changes the folders' unread counts at once (undo
+  too); a parent folder shows its own unread plus all below it (requested 2026-11-07)
+- [x] MISC-49 [mobile][kt][ios]: the mobile About is a list of pages, one per licence, plus the privacy policy, as the
+  desktop's About; Back returns from a page to the list; licence prose is reflowed to the screen width
+  (`app_front::text::reflow`, desktop too) (requested 2026-11-07)
 
 ---
 

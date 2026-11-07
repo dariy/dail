@@ -177,6 +177,7 @@ pub fn mail(uid: u32, id: &str, parent: Option<&str>, subject: &str, seen: bool)
         },
         size: 100,
         has_attachments: false,
+        list_id: None,
     }
 }
 

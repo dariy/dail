@@ -9,9 +9,9 @@ use serde_json::{Value, json};
 use crate::command::Command;
 use crate::ctx::Ctx;
 use crate::draft::{
-    AttachmentRef, AttachmentState, Draft, MAX_ATTACHMENT_BYTES, Quote, QuoteStyle, ReplyTo,
-    file_name, forward_header, is_absolute_path, is_message_id, prefixed_subject, reply_header,
-    reply_recipients, reply_references,
+    AttachmentRef, AttachmentState, CarriedAttachment, Draft, MAX_ATTACHMENT_BYTES, Quote,
+    QuoteStyle, ReplyTo, file_name, forward_header, is_absolute_path, is_message_id,
+    prefixed_subject, reply_header, reply_recipients, reply_references,
 };
 use crate::error::CoreError;
 use crate::event::{Effect, PersistDelta};
@@ -21,7 +21,7 @@ use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 
 use super::accounts::validate_email;
 use super::draft_saves::save_timer;
-use super::sends::ensure_editable;
+use super::sends::{ensure_editable, ensure_not_sending};
 use super::sync::CacheChanges;
 use super::{Applied, Engine, invalid, not_found};
 
@@ -100,6 +100,7 @@ impl Engine {
             send_at: None,
             sending: false,
             send_error: None,
+            loading_from: None,
             from: None,
         };
         apply_fields(&mut draft, fields)?;
@@ -183,6 +184,7 @@ impl Engine {
             send_at: None,
             sending: false,
             send_error: None,
+            loading_from: None,
             from: None,
         };
         apply_fields(
@@ -256,9 +258,10 @@ impl Engine {
     pub(super) fn discard_draft(
         &mut self,
         id: DraftId,
+        keep_server_copy: bool,
         receipt: CommandReceipt,
     ) -> Result<Applied, CoreError> {
-        ensure_editable(
+        ensure_not_sending(
             self.state
                 .drafts
                 .get(&id)
@@ -272,10 +275,26 @@ impl Engine {
         let mut changes = CacheChanges::default();
         changes.removed_drafts.insert(id);
         changes.removed_approvals = self.withdraw_approvals(id).into_iter().collect();
+        // A draft whose text is still loading has no changes of its own: its server copy stays,
+        // so an undo can load it again.
+        let keep_server_copy = keep_server_copy || draft.loading_from.is_some();
+        let mut dropped = Vec::new();
+        if !keep_server_copy {
+            // The cached server copy goes at once, not at the next sync (MISC-44).
+            dropped = self.server_copies(&draft);
+            for message in &dropped {
+                self.remove_message(*message, &mut changes);
+            }
+        }
         let data = json!({ "discarded": id, "draft": draft_json(&draft) });
-        let mut outcome =
-            self.draft_outcome(receipt.affecting(EntityRef::Draft(id)), data, changes);
-        outcome.effects.extend(self.delete_server_copy(&draft));
+        let mut receipt = receipt.affecting(EntityRef::Draft(id));
+        for message in dropped {
+            receipt = receipt.affecting(EntityRef::Message(message));
+        }
+        let mut outcome = self.draft_outcome(receipt, data, changes);
+        if !keep_server_copy {
+            outcome.effects.extend(self.delete_server_copy(&draft));
+        }
         Ok(Applied {
             outcome,
             undo: Some((
@@ -346,7 +365,247 @@ impl Engine {
                 body: Some(draft.body_text),
             },
         )?;
-        Ok(self.insert_draft(restored, "Restore draft", ctx.now_ms, inspect, receipt))
+        let mut effects = inspect;
+        if let Some(message) = restored.loading_from {
+            effects.extend(self.draft_load_effect(restored.id, message));
+        }
+        Ok(self.insert_draft(restored, "Restore draft", ctx.now_ms, effects, receipt))
+    }
+
+    /// `edit_draft`: the local draft saved as `message`, or a new local draft made from a draft
+    /// that is only on the server, whose text is read in the background (MISC-44).
+    pub(super) fn edit_draft(
+        &mut self,
+        message: MessageId,
+        ctx: &Ctx,
+        receipt: CommandReceipt,
+    ) -> Result<Applied, CoreError> {
+        let envelope = self
+            .state
+            .messages
+            .get(&message)
+            .cloned()
+            .ok_or_else(|| not_found("message", message))?;
+        if !self.state.is_draft(&envelope) {
+            return Err(invalid(
+                "message",
+                "is not a draft; give a message with `is_draft` from get_thread",
+            ));
+        }
+        let receipt = receipt.affecting(EntityRef::Message(message));
+        if let Some(id) = self.state.local_draft_of(&envelope) {
+            let data = self
+                .state
+                .drafts
+                .get(&id)
+                .map(draft_json)
+                .unwrap_or_default();
+            let outcome = Outcome::new(
+                receipt
+                    .affecting(EntityRef::Draft(id))
+                    .with_data(json!({ "draft": data, "created": false })),
+            );
+            return Ok(Applied::plain(outcome));
+        }
+        if envelope.is_placeholder() || envelope.moved_to.is_some() {
+            return Err(invalid(
+                "message",
+                "is being moved; try again when the move has finished",
+            ));
+        }
+        let Some(header) = envelope
+            .message_id_hdr
+            .clone()
+            .filter(|id| is_message_id(id))
+        else {
+            return Err(invalid(
+                "message",
+                "has no usable Message-ID, so its server copy could not be replaced",
+            ));
+        };
+        let email = self
+            .state
+            .accounts
+            .get(&envelope.account)
+            .map(|a| a.email.clone())
+            .ok_or_else(|| not_found("account", envelope.account))?;
+        let mut ids = ctx.ids();
+        let id = self.fresh_draft_id(&mut ids);
+        let from = envelope
+            .from
+            .first()
+            .filter(|a| !a.email.eq_ignore_ascii_case(&email))
+            .and_then(|a| valid_addrs(std::slice::from_ref(a)).into_iter().next());
+        let draft = Draft {
+            id,
+            account: envelope.account,
+            from,
+            reply_to: None,
+            message_id_hdr: header,
+            in_reply_to: envelope.in_reply_to.clone().filter(|id| is_message_id(id)),
+            references: envelope
+                .references
+                .iter()
+                .filter(|id| is_message_id(id))
+                .cloned()
+                .collect(),
+            to: valid_addrs(&envelope.to),
+            cc: valid_addrs(&envelope.cc),
+            bcc: Vec::new(),
+            subject: strip_controls(&envelope.subject).trim().to_owned(),
+            body_text: String::new(),
+            quote: None,
+            attachments: Vec::new(),
+            created_ms: ctx.now_ms,
+            updated_ms: ctx.now_ms,
+            // The server copy is this version: nothing to save until the draft changes.
+            saved_ms: Some(ctx.now_ms),
+            save_error: None,
+            send_at: None,
+            sending: false,
+            send_error: None,
+            loading_from: Some(message),
+        };
+        let load = self.draft_load_effect(id, message);
+        if load.is_none() && !self.state.status.bodies_in_flight.contains(&message) {
+            return Err(invalid(
+                "message",
+                "its text can't be downloaded (the mailbox is not synced yet); try again later",
+            ));
+        }
+        let json = draft_json(&draft);
+        self.state.drafts.insert(id, draft);
+        let mut changes = CacheChanges::default();
+        changes.drafts.insert(id);
+        let mut outcome = self.draft_outcome(
+            receipt.affecting(EntityRef::Draft(id)),
+            json!({ "draft": json, "created": true }),
+            changes,
+        );
+        outcome.effects.extend(load);
+        Ok(Applied {
+            outcome,
+            undo: Some((
+                "Edit draft".to_owned(),
+                vec![Command::DiscardDraft {
+                    id,
+                    keep_server_copy: true,
+                }],
+            )),
+        })
+    }
+
+    /// The effect that brings server draft `message`'s text into draft `id`: `ReadDraft` if
+    /// its body is cached, else its download (`None` if it is downloading or can't be).
+    fn draft_load_effect(&mut self, id: DraftId, message: MessageId) -> Option<Effect> {
+        match &self.state.messages.get(&message)?.body {
+            BodyState::Fetched { blob } => Some(Effect::ReadDraft {
+                draft: id,
+                message,
+                blob: blob.clone(),
+            }),
+            _ => self.start_body_fetch(message),
+        }
+    }
+
+    /// After a body download: `ReadDraft` for each draft waiting for that message's text, or,
+    /// if the download failed, those drafts dropped (the server copy stays, and the message
+    /// shows why its body failed).
+    pub(super) fn drafts_after_body(&mut self, message: MessageId, outcome: &mut Outcome) {
+        let waiting: Vec<DraftId> = self
+            .state
+            .drafts
+            .values()
+            .filter(|d| d.loading_from == Some(message))
+            .map(|d| d.id)
+            .collect();
+        for id in waiting {
+            match self.state.messages.get(&message).map(|m| m.body.clone()) {
+                Some(BodyState::Fetched { blob }) => outcome.effects.push(Effect::ReadDraft {
+                    draft: id,
+                    message,
+                    blob,
+                }),
+                _ => {
+                    let dropped = self.abandon_draft_load(id, outcome.receipt.clone());
+                    outcome.effects.extend(dropped.effects);
+                }
+            }
+        }
+    }
+
+    /// `DraftRead` / `DraftReadFailed`: the text of a server draft arrived in draft `id` (or
+    /// could not be read: the draft is dropped, the server copy stays).
+    pub(super) fn ingest_draft_read(
+        &mut self,
+        id: DraftId,
+        message: MessageId,
+        read: Result<(String, Vec<Addr>, Vec<CarriedAttachment>), String>,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let receipt = receipt.affecting(EntityRef::Draft(id));
+        let waiting = self
+            .state
+            .drafts
+            .get(&id)
+            .is_some_and(|d| d.loading_from == Some(message));
+        if !waiting {
+            return Outcome::new(receipt);
+        }
+        let (body, bcc, carried) = match read {
+            Ok(read) => read,
+            Err(error) => {
+                return self.abandon_draft_load(
+                    id,
+                    receipt.with_data(json!({ "dropped": id, "error": error })),
+                );
+            }
+        };
+        let Some(draft) = self.state.drafts.get_mut(&id) else {
+            return Outcome::new(receipt);
+        };
+        draft.body_text = body.replace('\0', "");
+        draft.bcc = valid_addrs(&bcc);
+        draft.attachments = carried_attachments(carried);
+        draft.loading_from = None;
+        let json = draft_json(draft);
+        let mut changes = CacheChanges::default();
+        changes.drafts.insert(id);
+        self.draft_outcome(receipt, json, changes)
+    }
+
+    /// Drops a draft whose text could not be loaded, with the history steps about it. It had no
+    /// changes of its own and its server copy stays.
+    fn abandon_draft_load(&mut self, id: DraftId, receipt: CommandReceipt) -> Outcome {
+        self.state.drafts.shift_remove(&id);
+        self.history.forget(|entry| {
+            entry.forward.draft_id() == Some(id)
+                || entry.inverse.iter().any(|cmd| cmd.draft_id() == Some(id))
+        });
+        let mut changes = CacheChanges::default();
+        changes.removed_drafts.insert(id);
+        let mut outcome = Outcome::new(receipt.affecting(EntityRef::Draft(id)));
+        let delta = self.delta(changes);
+        if !delta.is_empty() {
+            outcome = outcome.with_effect(Effect::PersistState {
+                delta: PersistDelta::Mail(delta),
+            });
+        }
+        outcome
+    }
+
+    /// The cached copies of a draft in its account's Drafts mailbox (same `Message-ID`).
+    fn server_copies(&self, draft: &Draft) -> Vec<MessageId> {
+        self.state
+            .messages
+            .values()
+            .filter(|m| {
+                m.account == draft.account
+                    && m.message_id_hdr.as_deref() == Some(draft.message_id_hdr.as_str())
+                    && self.state.is_draft(m)
+            })
+            .map(|m| m.id)
+            .collect()
     }
 
     pub(super) fn attach_file(
@@ -524,7 +783,13 @@ impl Engine {
         outcome.effects.extend(effects);
         Applied {
             outcome,
-            undo: Some((label.to_owned(), vec![Command::DiscardDraft { id }])),
+            undo: Some((
+                label.to_owned(),
+                vec![Command::DiscardDraft {
+                    id,
+                    keep_server_copy: false,
+                }],
+            )),
         }
     }
 
@@ -667,9 +932,83 @@ fn validate_addrs(field: &str, addrs: Vec<Addr>) -> Result<Vec<Addr>, CoreError>
     Ok(out)
 }
 
+/// The valid addresses of `addrs` (an envelope's, which are email content): the others are left
+/// out instead of failing the command.
+fn valid_addrs(addrs: &[Addr]) -> Vec<Addr> {
+    let mut out: Vec<Addr> = Vec::with_capacity(addrs.len());
+    for addr in addrs {
+        if let Ok(mut valid) = validate_addrs("to", vec![addr.clone()]).or_else(|_| {
+            validate_addrs(
+                "to",
+                vec![Addr {
+                    name: None,
+                    email: addr.email.clone(),
+                }],
+            )
+        }) {
+            for valid in valid.drain(..) {
+                if !out
+                    .iter()
+                    .any(|known| known.email.eq_ignore_ascii_case(&valid.email))
+                {
+                    out.push(valid);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// `text` without control characters (an original subject is email content).
 fn strip_controls(text: &str) -> String {
     text.chars().filter(|c| !c.is_control()).collect()
+}
+
+/// The attachments of a draft read from the server (MISC-44d), checked already: each is ready,
+/// unless it would take the draft past [`MAX_ATTACHMENT_BYTES`] (then it is failed, as a file
+/// attached by hand would be, and the draft can't be sent until it is removed).
+fn carried_attachments(carried: Vec<CarriedAttachment>) -> Vec<AttachmentRef> {
+    let mut total: u64 = 0;
+    carried
+        .into_iter()
+        .map(|file| {
+            let fits = total.saturating_add(file.size) <= MAX_ATTACHMENT_BYTES;
+            let state = if fits {
+                total = total.saturating_add(file.size);
+                AttachmentState::Ready {
+                    size: file.size,
+                    content_type: file.content_type,
+                }
+            } else {
+                AttachmentState::Failed {
+                    error: format!(
+                        "{} is {}; all attachments together may have at most {}",
+                        file.name,
+                        megabytes(file.size),
+                        megabytes(MAX_ATTACHMENT_BYTES)
+                    ),
+                }
+            };
+            AttachmentRef {
+                path: file.path,
+                name: strip_controls(&file.name),
+                state,
+            }
+        })
+        .collect()
+}
+
+/// An attachment outside `untrusted_content`: `{state: {state, size?, content_type?}}`, without
+/// its name, path or error, which may come from email.
+fn attachment_state_json(attachment: &AttachmentRef) -> Value {
+    let state = match &attachment.state {
+        AttachmentState::Checking => json!({ "state": "checking" }),
+        AttachmentState::Ready { size, content_type } => {
+            json!({ "state": "ready", "size": size, "content_type": content_type })
+        }
+        AttachmentState::Failed { .. } => json!({ "state": "failed" }),
+    };
+    json!({ "state": state })
 }
 
 /// `12.5 MB` (MiB, one decimal).
@@ -678,8 +1017,9 @@ fn megabytes(bytes: u64) -> String {
     format!("{}.{} MB", tenths / 10, tenths % 10)
 }
 
-/// A draft in receipts. Recipients, subject, body, quote and the `In-Reply-To` of an answer may
-/// come from email, so they sit inside `untrusted_content`.
+/// A draft in receipts. Recipients, subject, body, quote, the `In-Reply-To` of an answer and the
+/// attachments' names, paths and errors may come from email (MISC-44d), so they sit inside
+/// `untrusted_content`; the top-level `attachments` keeps only each one's state, size and type.
 pub(super) fn draft_json(draft: &Draft) -> Value {
     json!({
         "id": draft.id,
@@ -693,8 +1033,9 @@ pub(super) fn draft_json(draft: &Draft) -> Value {
         "send_at": draft.send_at,
         "sending": draft.sending,
         "send_error": draft.send_error,
-        "attachments": draft.attachments,
+        "attachments": draft.attachments.iter().map(attachment_state_json).collect::<Vec<_>>(),
         "untrusted_content": {
+            "attachments": draft.attachments,
             "in_reply_to": draft.in_reply_to,
             "to": draft.to,
             "cc": draft.cc,

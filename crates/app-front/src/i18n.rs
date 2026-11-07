@@ -181,13 +181,38 @@ pub fn text(lang: Lang, key: Key) -> &'static str {
 }
 
 /// `key` in `lang` with its placeholders filled from `args` (`(name, value)`; unknown
-/// placeholders stay as they are).
+/// placeholders stay as they are). One pass over the template: a value is never scanned
+/// again, so untrusted text such as `{then}` in a value stays literal.
 pub fn tr(lang: Lang, key: Key, args: &[(&str, &str)]) -> String {
-    let mut text = self::text(lang, key).to_owned();
-    for (name, value) in args {
-        text = text.replace(&format!("{{{name}}}"), value);
+    fill(self::text(lang, key), args)
+}
+
+/// `template` with its `{name}` placeholders filled from `args` in a single pass.
+pub fn fill(template: &str, args: &[(&str, &str)]) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        out.push_str(&rest[..open]);
+        let after = &rest[open + 1..];
+        let value = after.find('}').and_then(|close| {
+            let name = &after[..close];
+            args.iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, v)| (*v, close))
+        });
+        match value {
+            Some((value, close)) => {
+                out.push_str(value);
+                rest = &after[close + 1..];
+            }
+            None => {
+                out.push('{');
+                rest = after;
+            }
+        }
     }
-    text
+    out.push_str(rest);
+    out
 }
 
 /// The pseudo-locale of an English template: letters accented outside placeholders, a third

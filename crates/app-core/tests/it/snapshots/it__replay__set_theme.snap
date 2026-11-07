@@ -41,6 +41,27 @@ expression: first
       "persist_error": null,
       "sync": {}
     },
+    "synced": {
+      "dirty": true,
+      "settings": {
+        "prefs": {
+          "list_density": {
+            "updated_ms": 1700000005000,
+            "value": 1
+          }
+        },
+        "schema": 1,
+        "theme": {
+          "updated_ms": 1700000004000,
+          "value": {
+            "dark": "dail-dark-hc",
+            "light": "dail-light-hc",
+            "mode": 1
+          }
+        },
+        "updated_ms": 1700000005000
+      }
+    },
     "threads": {},
     "update": {
       "status": {
@@ -89,6 +110,29 @@ expression: first
                     "updates": {
                       "checks": "unset",
                       "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000000000,
+                        "value": {
+                          "dark": "dail-dark-hc",
+                          "light": "dail-light",
+                          "mode": 2
+                        }
+                      },
+                      "updated_ms": 1700000000000
                     }
                   }
                 }
@@ -151,6 +195,29 @@ expression: first
                 }
               },
               "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000001000,
+                        "value": {
+                          "dark": "dail-dark",
+                          "light": "dail-light",
+                          "mode": 0
+                        }
+                      },
+                      "updated_ms": 1700000001000
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
             }
           ],
           "receipt": {
@@ -206,6 +273,29 @@ expression: first
                 }
               },
               "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000002000,
+                        "value": {
+                          "dark": "dail-dark-hc",
+                          "light": "dail-light",
+                          "mode": 2
+                        }
+                      },
+                      "updated_ms": 1700000002000
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
             }
           ],
           "receipt": {
@@ -256,6 +346,29 @@ expression: first
                     "updates": {
                       "checks": "unset",
                       "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000003000,
+                        "value": {
+                          "dark": "dail-dark-hc",
+                          "light": "dail-light-hc",
+                          "mode": 2
+                        }
+                      },
+                      "updated_ms": 1700000003000
                     }
                   }
                 }
@@ -318,6 +431,29 @@ expression: first
                 }
               },
               "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000004000,
+                        "value": {
+                          "dark": "dail-dark-hc",
+                          "light": "dail-light-hc",
+                          "mode": 1
+                        }
+                      },
+                      "updated_ms": 1700000004000
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
             }
           ],
           "receipt": {
@@ -370,6 +506,35 @@ expression: first
                     "updates": {
                       "checks": "unset",
                       "interval_hours": 24
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "synced",
+                  "value": {
+                    "dirty": true,
+                    "settings": {
+                      "prefs": {
+                        "list_density": {
+                          "updated_ms": 1700000005000,
+                          "value": 1
+                        }
+                      },
+                      "schema": 1,
+                      "theme": {
+                        "updated_ms": 1700000004000,
+                        "value": {
+                          "dark": "dail-dark-hc",
+                          "light": "dail-light-hc",
+                          "mode": 1
+                        }
+                      },
+                      "updated_ms": 1700000005000
                     }
                   }
                 }

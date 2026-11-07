@@ -249,7 +249,7 @@ fn special_use(attribute: &NameAttribute<'_>) -> Option<MailboxRole> {
 
 /// Header fields fetched for envelopes.
 const ENVELOPE_QUERY: &str = "(UID FLAGS RFC822.SIZE BODY.PEEK[HEADER.FIELDS (MESSAGE-ID \
-                              IN-REPLY-TO REFERENCES FROM TO CC SUBJECT DATE CONTENT-TYPE)])";
+                              IN-REPLY-TO REFERENCES FROM TO CC SUBJECT DATE CONTENT-TYPE LIST-ID)])";
 
 /// What `fetch_envelopes` found in a mailbox.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1076,7 +1076,11 @@ async fn select_by_message_id(
 }
 
 /// `UID STORE +FLAGS.SILENT (\Deleted)` and [`expunge`] `uids` of the selected mailbox `path`.
-async fn delete_uids(session: &mut ImapSession, path: &str, uids: &[u32]) -> Result<(), String> {
+pub(crate) async fn delete_uids(
+    session: &mut ImapSession,
+    path: &str,
+    uids: &[u32],
+) -> Result<(), String> {
     if uids.is_empty() {
         return Ok(());
     }

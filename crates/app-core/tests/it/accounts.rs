@@ -681,3 +681,21 @@ fn preset_profiles_are_data() {
     let custom = ProviderPreset::Custom.profile();
     assert!(custom.imap.is_none() && custom.smtp.is_none());
 }
+
+#[test]
+fn no_preset_has_a_managesieve_server_but_an_account_can_set_one() {
+    // Probed 2026-11-04: Hostinger resets ports 4190/2000 after login; Gmail has none.
+    for preset in ProviderPreset::ALL {
+        assert_eq!(preset.managesieve(), None, "{preset:?}");
+    }
+    let mut engine = Engine::default();
+    engine
+        .dispatch(add(ProviderPreset::Gmail, "me@gmail.com"), &ctx())
+        .unwrap();
+    let mut account = engine.state().accounts.values().next().unwrap().clone();
+    assert_eq!(account.managesieve, None);
+    assert_eq!(account.managesieve(), None);
+    let sieve = Endpoint::parse("mail.self.example:4190:starttls").unwrap();
+    account.managesieve = Some(sieve.clone());
+    assert_eq!(account.managesieve(), Some(sieve));
+}

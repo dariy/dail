@@ -1,12 +1,23 @@
 {
   "$defs": {
     "About": {
-      "description": "The About screen: the version and the licences of what the app bundles.",
+      "description": "The About screen: the version, then a list of pages, one per licence of what the app bundles\n(as the desktop's About). A tapped page replaces the list until Back.",
       "properties": {
-        "licences": {
-          "description": "One licence per bundled work.",
+        "page": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Licence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The open page: draw its text instead of the list. The top bar carries its name and Back."
+        },
+        "pages": {
+          "description": "One page per bundled work's licence, in this order.",
           "items": {
-            "$ref": "#/$defs/Licence"
+            "$ref": "#/$defs/AboutPage"
           },
           "type": "array"
         },
@@ -26,7 +37,7 @@
       "required": [
         "title",
         "text",
-        "licences",
+        "pages",
         "privacy"
       ],
       "type": "object"
@@ -46,6 +57,26 @@
       "required": [
         "label",
         "url"
+      ],
+      "type": "object"
+    },
+    "AboutPage": {
+      "description": "A row of the About screen's list: tapping it opens the page.",
+      "properties": {
+        "action": {
+          "description": "Opens its page.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "description": "The work (`Geist`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "action"
       ],
       "type": "object"
     },
@@ -1621,6 +1652,14 @@
     "ReaderMessage": {
       "description": "A message of the open thread.",
       "properties": {
+        "actions": {
+          "default": [],
+          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays. A tap is a `tap` of the button's action. Not drawn as a row:\na long press on the card lists them (MISC-44e).",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "attachments": {
           "description": "Its attachments.",
           "items": {
@@ -1693,6 +1732,28 @@
             "string",
             "null"
           ]
+        },
+        "swipe_end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Swiped towards the end edge (MISC-44e): trash this message; a draft, discard."
+        },
+        "swipe_start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Button"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Swiped towards the start edge, as a list row (MISC-44e): archive this message; a draft,\nedit. The icon is the one revealed under the card; send `swipe` with its action."
         },
         "to": {
           "description": "The recipients (`To` and `Cc`), in full.",

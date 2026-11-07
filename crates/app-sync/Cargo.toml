@@ -16,6 +16,7 @@ app-core.workspace = true
 app-io.workspace = true
 app-tls.workspace = true
 async-imap.workspace = true
+chrono.workspace = true
 futures-util.workspace = true
 http-body-util.workspace = true
 hyper.workspace = true

@@ -45,12 +45,48 @@ pub struct AppState {
     /// Updates of dail itself (Wave 7): the running build and where an update stands.
     #[serde(default)]
     pub update: crate::update::UpdateState,
+    /// The settings that follow the user across devices, stored on the mail server (ADR 0015).
+    #[serde(default, skip_serializing_if = "crate::synced::SyncedState::is_empty")]
+    pub synced: crate::synced::SyncedState,
     /// Counts the engine's inputs, so that a front-end can keep what it derived from a state
     /// until the next one (`listing` projections are O(n) per call). Not part of the state's
     /// value: never serialized, and equal in every comparison.
     #[serde(skip)]
     #[schemars(skip)]
     pub revision: Revision,
+}
+
+impl AppState {
+    /// Whether a cached message is an unsent draft: flagged `\Draft`, or held in its account's
+    /// Drafts mailbox (MISC-44).
+    pub fn is_draft(&self, envelope: &Envelope) -> bool {
+        envelope.flags.draft
+            || self
+                .mailboxes
+                .get(&envelope.location())
+                .is_some_and(|m| m.role == Some(crate::mailbox::MailboxRole::Drafts))
+    }
+
+    /// The local draft that is saved as `envelope` (same account and `Message-ID`), if any.
+    pub fn local_draft_of(&self, envelope: &Envelope) -> Option<DraftId> {
+        let header = envelope.message_id_hdr.as_deref()?;
+        self.drafts
+            .values()
+            .find(|d| d.account == envelope.account && d.message_id_hdr == header)
+            .map(|d| d.id)
+    }
+
+    /// The newest message of a thread that is not a draft (the newest message if every one is),
+    /// the one a thread's Reply answers and a thread's Star marks (MISC-44).
+    pub fn newest_message(&self, thread: ThreadId) -> Option<MessageId> {
+        let messages = &self.threads.get(&thread)?.messages;
+        messages
+            .iter()
+            .rev()
+            .find(|id| self.messages.get(*id).is_some_and(|m| !self.is_draft(m)))
+            .or_else(|| messages.last())
+            .copied()
+    }
 }
 
 /// The number of inputs the engine had applied when a state was taken (see
@@ -143,6 +179,8 @@ pub enum SettingsSection {
     General,
     /// The accounts.
     Accounts,
+    /// The sorting rules stored on the mail server (ADR 0015, SET-5).
+    Rules,
     /// The version, the licences and the links.
     About,
 }
@@ -413,6 +451,10 @@ pub struct Settings {
     pub hidden_mailboxes: BTreeSet<FolderKey>,
     /// Update checks of dail itself (`set_update_policy`, `skip_update_version`; ADR 0011).
     pub updates: crate::update::UpdatePolicy,
+    /// The account whose `dail/Settings` folder holds the synced settings
+    /// (`set_settings_account`, ADR 0015). `None` or an account that is gone: the first account.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settings_account: Option<crate::ids::AccountId>,
 }
 
 /// A set of key bindings.
@@ -468,6 +510,7 @@ impl Default for Settings {
             pinned_mailboxes: Vec::new(),
             hidden_mailboxes: BTreeSet::new(),
             updates: crate::update::UpdatePolicy::default(),
+            settings_account: None,
         }
     }
 }

@@ -506,6 +506,7 @@ dependencies = [
  "app-tls",
  "apple-native-keyring-store",
  "async-imap",
+ "chrono",
  "futures-util",
  "http-body-util",
  "hyper",

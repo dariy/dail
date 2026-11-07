@@ -157,6 +157,14 @@ expression: first
         }
       }
     },
+    "synced": {
+      "pulled_ms": 1700000001000,
+      "settings": {
+        "schema": 0,
+        "updated_ms": 0
+      },
+      "source": "00000000-0000-0003-0000-000000000000"
+    },
     "threads": {
       "00000000-0000-0005-0000-000000000000": {
         "account": "00000000-0000-0003-0000-000000000000",
@@ -670,6 +678,7 @@ expression: first
                   },
                   "date_ms": 1699000000000,
                   "downloading": true,
+                  "draft": null,
                   "flags": {
                     "answered": false,
                     "draft": false,
@@ -678,6 +687,7 @@ expression: first
                   },
                   "has_attachments": false,
                   "id": "00000000-0000-0005-0000-000000000001",
+                  "is_draft": false,
                   "mailbox": "00000000-0000-0004-0000-000000000000",
                   "moving": false,
                   "size": 0,
@@ -698,6 +708,7 @@ expression: first
                   },
                   "date_ms": 1699000001000,
                   "downloading": true,
+                  "draft": null,
                   "flags": {
                     "answered": false,
                     "draft": false,
@@ -706,6 +717,7 @@ expression: first
                   },
                   "has_attachments": false,
                   "id": "00000000-0000-0005-0000-000000000002",
+                  "is_draft": false,
                   "mailbox": "00000000-0000-0004-0000-000000000000",
                   "moving": false,
                   "size": 0,
@@ -756,6 +768,7 @@ expression: first
                   },
                   "date_ms": 1699000000000,
                   "downloading": true,
+                  "draft": null,
                   "flags": {
                     "answered": false,
                     "draft": false,
@@ -764,6 +777,7 @@ expression: first
                   },
                   "has_attachments": false,
                   "id": "00000000-0000-0005-0000-000000000001",
+                  "is_draft": false,
                   "mailbox": "00000000-0000-0004-0000-000000000000",
                   "moving": false,
                   "size": 0,
@@ -784,6 +798,7 @@ expression: first
                   },
                   "date_ms": 1699000001000,
                   "downloading": true,
+                  "draft": null,
                   "flags": {
                     "answered": false,
                     "draft": false,
@@ -792,6 +807,7 @@ expression: first
                   },
                   "has_attachments": false,
                   "id": "00000000-0000-0005-0000-000000000002",
+                  "is_draft": false,
                   "mailbox": "00000000-0000-0004-0000-000000000000",
                   "moving": false,
                   "size": 0,
@@ -961,6 +977,7 @@ expression: first
                 },
                 "date_ms": 1699000001000,
                 "downloading": true,
+                "draft": null,
                 "flags": {
                   "answered": false,
                   "draft": false,
@@ -969,6 +986,7 @@ expression: first
                 },
                 "has_attachments": false,
                 "id": "00000000-0000-0005-0000-000000000002",
+                "is_draft": false,
                 "mailbox": "00000000-0000-0004-0000-000000000000",
                 "moving": false,
                 "size": 0,

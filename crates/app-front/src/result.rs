@@ -122,7 +122,7 @@ fn view_of(name: CommandName) -> Option<View> {
         CommandName::ListContacts => View::Contacts,
         CommandName::ListPendingOps => View::PendingOps,
         CommandName::ListApprovals => View::Approvals,
-        CommandName::GetSettings | CommandName::GetView => View::Fields,
+        CommandName::GetSettings | CommandName::GetView | CommandName::ListRules => View::Fields,
         CommandName::TestAccount => View::TestAccount,
         CommandName::DiscoverServers => View::Discovery,
         // reason: the kind check above leaves only queries; a new one lands here and the test
@@ -137,12 +137,22 @@ pub fn has_view(name: CommandName) -> bool {
 }
 
 /// The document of a query's result; `None` for a command that is not a query. Data a view does
-/// not know falls back to labelled fields.
-pub fn doc(name: CommandName, data: &Value, state: &AppState, now_ms: i64) -> Option<ResultDoc> {
+/// not know falls back to labelled fields. Dates are in the local time of `zone`.
+pub fn doc(
+    name: CommandName,
+    data: &Value,
+    state: &AppState,
+    now_ms: i64,
+    zone: format::Zone,
+) -> Option<ResultDoc> {
     if name.kind() != CommandKind::Query {
         return None;
     }
-    let cx = Cx { state, now_ms };
+    let cx = Cx {
+        state,
+        now_ms,
+        zone,
+    };
     let sections = match view_of(name) {
         Some(View::Message) => cx.message(data.get("message").unwrap_or(data)),
         Some(View::Thread) => cx.thread(data),
@@ -164,6 +174,7 @@ pub fn doc(name: CommandName, data: &Value, state: &AppState, now_ms: i64) -> Op
 struct Cx<'a> {
     state: &'a AppState,
     now_ms: i64,
+    zone: format::Zone,
 }
 
 impl Cx<'_> {
@@ -176,7 +187,9 @@ impl Cx<'_> {
         push(
             &mut fields,
             crate::i18n::s(Key::Date),
-            m["date_ms"].as_i64().map(format::long_date),
+            m["date_ms"]
+                .as_i64()
+                .map(|ms| format::long_date(ms, self.zone)),
         );
         push(
             &mut fields,
@@ -232,7 +245,9 @@ impl Cx<'_> {
         push(
             &mut fields,
             crate::i18n::s(Key::LastMessage),
-            t["last_date_ms"].as_i64().map(format::long_date),
+            t["last_date_ms"]
+                .as_i64()
+                .map(|ms| format::long_date(ms, self.zone)),
         );
         let rows = items(&t["messages"])
             .map(|m| {
@@ -582,7 +597,8 @@ impl Cx<'_> {
     }
 
     fn date(&self, v: &Value) -> Option<String> {
-        v.as_i64().map(|ms| format::short_date(ms, self.now_ms))
+        v.as_i64()
+            .map(|ms| format::short_date(ms, self.now_ms, self.zone))
     }
 }
 

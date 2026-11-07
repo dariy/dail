@@ -162,7 +162,14 @@ async fn idle_drafts_are_saved_to_the_drafts_mailbox_and_replaced_on_change() {
         "Q3, final"
     );
 
-    run(&session, Command::DiscardDraft { id: draft }).await;
+    run(
+        &session,
+        Command::DiscardDraft {
+            id: draft,
+            keep_server_copy: false,
+        },
+    )
+    .await;
     assert!(server_drafts(&backend).is_empty(), "discard deletes it");
     session.shutdown().await.unwrap();
 }

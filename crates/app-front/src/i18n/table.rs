@@ -2204,4 +2204,247 @@ strings! {
     ToNameLower:
         "to {name}",
         "à {name}";
+    SyncedSettings:
+        "Settings on the server",
+        "Paramètres sur le serveur";
+    SettingsAccount:
+        "Settings account",
+        "Compte des paramètres";
+    SettingsAccountHint:
+        "Its hidden dail/Settings folder holds the settings shared by your devices",
+        "Son dossier caché dail/Settings garde les paramètres partagés par vos appareils";
+    SettingsAccountFirst:
+        "{email} (first account)",
+        "{email} (premier compte)";
+    SettingsAccountWhich:
+        "Which account holds the settings?",
+        "Quel compte garde les paramètres ?";
+    SettingsReading:
+        "reading from the server…",
+        "lecture sur le serveur…";
+    SettingsWriting:
+        "storing on the server…",
+        "enregistrement sur le serveur…";
+    SettingsUpToDate:
+        "up to date",
+        "à jour";
+    SettingsNotRead:
+        "not read yet",
+        "pas encore lus";
+    SettingsSyncState:
+        "Settings sync",
+        "Synchronisation des paramètres";
+    SettingsShared:
+        "Follow this account on every device: the theme, language, list density, mark-read delay, undo-send window and what shows after triage. The rest stays on this device.",
+        "Suivent ce compte sur chaque appareil : le thème, la langue, la densité de la liste, le délai avant lecture, le délai d’annulation d’envoi et ce qui s’affiche après le tri. Le reste reste sur cet appareil.";
+    RuleSenderContains:
+        "Sort mail whose sender contains…",
+        "Trier le courrier dont l’expéditeur contient…";
+    RuleSenderHint:
+        "e.g. newsletter@example.org",
+        "par ex. newsletter@example.org";
+    RuleMoveToWhichFolder:
+        "Move it to which folder?",
+        "Le déplacer dans quel dossier ?";
+    RuleFromTo:
+        "From {sender} to {to}",
+        "De {sender} vers {to}";
+    DeleteWhichRule:
+        "Delete which rule?",
+        "Supprimer quelle règle ?";
+    ToggleWhichRule:
+        "Turn which rule on or off?",
+        "Activer ou désactiver quelle règle ?";
+    ApplyRulesWhichMailbox:
+        "Run the rules on which mailbox?",
+        "Appliquer les règles à quel dossier ?";
+    RuleOn:
+        "on",
+        "active";
+    RuleOff:
+        "off",
+        "inactive";
+    RulesTab:
+        "Rules",
+        "Règles";
+    RulesTitle:
+        "Sorting rules",
+        "Règles de tri";
+    RulesHint:
+        "dail runs these rules on new mail while it is open, on every device. They are stored with the settings on the server.",
+        "dail applique ces règles au nouveau courrier tant qu’il est ouvert, sur chaque appareil. Elles sont enregistrées avec les paramètres sur le serveur.";
+    RulesEmpty:
+        "No rules yet.",
+        "Aucune règle pour l’instant.";
+    RulesNotStored:
+        "Changes not stored on the server yet",
+        "Modifications pas encore enregistrées sur le serveur";
+    RulesStored:
+        "Stored on the server",
+        "Enregistrées sur le serveur";
+    RulesStore:
+        "Store on the server",
+        "Enregistrer sur le serveur";
+    RulesApplyHere:
+        "Apply to this mailbox",
+        "Appliquer à ce dossier";
+    RulesApplyHint:
+        "Open a mailbox to run the rules on it.",
+        "Ouvrez un dossier pour lui appliquer les règles.";
+    AddRule:
+        "Add a rule…",
+        "Ajouter une règle…";
+    EditRule:
+        "Edit…",
+        "Modifier…";
+    RuleEnabled:
+        "Enabled",
+        "Active";
+    RuleSummary:
+        "{when} → {then}",
+        "{when} → {then}";
+    RuleDoNothing:
+        "do nothing",
+        "ne rien faire";
+    RuleEveryMessage:
+        "every message",
+        "tout message";
+    RuleNoMessage:
+        "no message",
+        "aucun message";
+    RuleAnd:
+        " and ",
+        " et ";
+    RuleOr:
+        " or ",
+        " ou ";
+    RuleNot:
+        "not ({condition})",
+        "non ({condition})";
+    RuleCondFrom:
+        "sender contains “{text}”",
+        "l’expéditeur contient « {text} »";
+    RuleCondTo:
+        "To contains “{text}”",
+        "À contient « {text} »";
+    RuleCondCc:
+        "Cc contains “{text}”",
+        "Cc contient « {text} »";
+    RuleCondSubject:
+        "subject contains “{text}”",
+        "l’objet contient « {text} »";
+    RuleCondList:
+        "mailing list contains “{text}”",
+        "la liste de diffusion contient « {text} »";
+    RuleCondAttachment:
+        "has an attachment",
+        "a une pièce jointe";
+    RuleCondMailbox:
+        "in {path}",
+        "dans {path}";
+    RuleActMove:
+        "move to {to}",
+        "déplacer vers {to}";
+    RuleActLabel:
+        "label {label}",
+        "étiqueter {label}";
+    RuleActRead:
+        "mark read",
+        "marquer comme lu";
+    RuleActStar:
+        "star",
+        "suivre";
+    RuleActArchive:
+        "archive",
+        "archiver";
+    RuleWhichTest:
+        "Match mail by what?",
+        "Reconnaître le courrier à quoi ?";
+    RuleTestFrom:
+        "Sender",
+        "Expéditeur";
+    RuleTestTo:
+        "Recipient (To)",
+        "Destinataire (À)";
+    RuleTestCc:
+        "Copy (Cc)",
+        "Copie (Cc)";
+    RuleTestSubject:
+        "Subject",
+        "Objet";
+    RuleTestList:
+        "Mailing list",
+        "Liste de diffusion";
+    RuleTestAttachment:
+        "Has an attachment",
+        "A une pièce jointe";
+    RuleContainsWhat:
+        "Containing what?",
+        "Contenant quoi ?";
+    RuleContainsHint:
+        "Upper or lower case does not matter",
+        "Majuscules et minuscules indifférentes";
+    RuleWhichAction:
+        "Then do what?",
+        "Puis faire quoi ?";
+    RuleActionMove:
+        "Move to a folder…",
+        "Déplacer dans un dossier…";
+    RuleActionArchive:
+        "Archive",
+        "Archiver";
+    RuleActionRead:
+        "Mark read",
+        "Marquer comme lu";
+    RuleActionStar:
+        "Star",
+        "Suivre";
+    RuleEditWhat:
+        "Change what?",
+        "Modifier quoi ?";
+    RuleEditName:
+        "Name",
+        "Nom";
+    RuleEditCondition:
+        "Condition",
+        "Condition";
+    RuleEditAction:
+        "Action",
+        "Action";
+    RuleDelete:
+        "Delete",
+        "Supprimer";
+    RuleNewName:
+        "New name?",
+        "Nouveau nom ?";
+    MakeRuleFromMessage:
+        "Make a rule from this message",
+        "Créer une règle à partir de ce message";
+    RuleFromMessageWhich:
+        "Match mail like this one by…",
+        "Reconnaître le courrier semblable par…";
+    RulesFooter:
+        "Tab section · j/k move · Enter edit · Space on/off · a add · x apply · p store · Esc close",
+        "Tab section · j/k déplacer · Entrée modifier · Espace activer · a ajouter · x appliquer · p enregistrer · Échap fermer";
+    RuleEditComplex:
+        "Change what? This rule's conditions or actions are too complex to edit here: use the CLI or an agent.",
+        "Modifier quoi ? Les conditions ou actions de cette règle sont trop complexes pour être modifiées ici : utilisez la CLI ou un agent.";
+    RuleEnable:
+        "Turn on",
+        "Activer";
+    RuleDisable:
+        "Turn off",
+        "Désactiver";
+    MessageActionName:
+        "{action}, message from {sender}",
+        "{action}, message de {sender}";
+    MessageCursorHelp:
+        "n p            the message cursor: the next / previous message of the conversation; its keys (r a f u s #) then act on that message alone, Enter edits a draft",
+        "n p            le curseur de message : le message suivant / précédent de la discussion ; ses touches (r a f u s #) agissent alors sur ce seul message, Entrée modifie un brouillon";
+    NoteDelete:
+        "Delete",
+        "Supprimer";
+    NewConversations:
+        "{n} new conversations",
+        "{n} nouvelles discussions";
 }

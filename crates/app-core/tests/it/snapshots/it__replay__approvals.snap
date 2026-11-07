@@ -235,6 +235,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -311,6 +312,7 @@ expression: first
                   "send_error": null,
                   "sending": false,
                   "untrusted_content": {
+                    "attachments": [],
                     "bcc": [],
                     "body": "Noon?",
                     "cc": [],
@@ -374,6 +376,7 @@ expression: first
                     "send_error": null,
                     "sending": false,
                     "untrusted_content": {
+                      "attachments": [],
                       "bcc": [],
                       "body": "Noon?",
                       "cc": [],
@@ -461,6 +464,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -562,6 +566,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -696,6 +701,7 @@ expression: first
                   "send_error": null,
                   "sending": false,
                   "untrusted_content": {
+                    "attachments": [],
                     "bcc": [],
                     "body": "Noon?",
                     "cc": [],
@@ -799,6 +805,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon at the usual place?",
                 "cc": [],
@@ -875,6 +882,7 @@ expression: first
                   "send_error": null,
                   "sending": false,
                   "untrusted_content": {
+                    "attachments": [],
                     "bcc": [],
                     "body": "Noon at the usual place?",
                     "cc": [],
@@ -965,6 +973,7 @@ expression: first
                 "send_error": "the user declined to send it",
                 "sending": false,
                 "untrusted_content": {
+                  "attachments": [],
                   "bcc": [],
                   "body": "Noon at the usual place?",
                   "cc": [],
@@ -1051,6 +1060,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon at the usual place?",
                 "cc": [],

@@ -60,6 +60,8 @@ fn kinds_follow_the_catalogue() {
     assert_eq!(CommandName::GetSettings.kind(), CommandKind::Query);
     assert_eq!(CommandName::SetSetting.kind(), CommandKind::Mutation);
     assert_eq!(CommandName::OpenPalette.kind(), CommandKind::View);
+    assert_eq!(CommandName::EditDraft.kind(), CommandKind::Mutation);
+    assert_eq!(CommandName::EditDraft.agent_access(), AgentAccess::Allowed);
 }
 
 #[test]
@@ -79,6 +81,8 @@ fn the_agent_policy_is_pinned() {
             "set_password",
             "set_identity",
             "remove_identity",
+            "push_settings",
+            "set_settings_account",
             "save_attachments",
             "restore_draft",
             "install_update",

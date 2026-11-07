@@ -93,6 +93,11 @@ impl ProfileDirs {
         self.root.join("breaker")
     }
 
+    /// `draft-files/`: attachments carried from server drafts by `edit_draft` (MISC-44d).
+    pub fn draft_files_dir(&self) -> PathBuf {
+        self.root.join("draft-files")
+    }
+
     /// `lock`: single-instance lock (M7).
     pub fn lock_file(&self) -> PathBuf {
         self.root.join("lock")

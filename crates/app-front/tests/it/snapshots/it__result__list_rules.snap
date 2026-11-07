@@ -1,0 +1,23 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "List sorting rules",
+    sections: [
+        Section {
+            title: None,
+            fields: [
+                Field {
+                    label: "Dirty",
+                    value: "yes",
+                },
+                Field {
+                    label: "Rules",
+                    value: "Enabled: yes, Id: 00000000-0000-0200-0000-000000000000, Untrusted content · Name: News, Untrusted content · Then: Action: star, Untrusted content · When · Contains: news@, Untrusted content · When · Test: from, Updated ms: 1700035200000",
+                },
+            ],
+            rows: [],
+        },
+    ],
+}

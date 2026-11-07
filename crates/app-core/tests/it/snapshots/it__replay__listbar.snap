@@ -42,7 +42,7 @@ expression: first
         "total": 20,
         "uid_next": 4,
         "uid_validity": 1,
-        "unread": 0
+        "unread": 2
       }
     },
     "messages": {
@@ -217,6 +217,14 @@ expression: first
           }
         }
       }
+    },
+    "synced": {
+      "pulled_ms": 1700000001000,
+      "settings": {
+        "schema": 0,
+        "updated_ms": 0
+      },
+      "source": "00000000-0000-0001-0000-000000000000"
     },
     "threads": {
       "00000000-0000-0003-0000-000000000000": {
@@ -823,6 +831,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "last_fetch_ms": 1700000002000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 20,
+                        "uid_next": 4,
+                        "uid_validity": 1,
+                        "unread": 7
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0001-0000-000000000000",
@@ -1034,6 +1056,20 @@ expression: first
                 "delta": {
                   "table": "mail",
                   "value": {
+                    "mailboxes": [
+                      {
+                        "account": "00000000-0000-0001-0000-000000000000",
+                        "delimiter": "/",
+                        "id": "00000000-0000-0002-0000-000000000000",
+                        "last_fetch_ms": 1700000002000,
+                        "path": "INBOX",
+                        "role": "inbox",
+                        "total": 20,
+                        "uid_next": 4,
+                        "uid_validity": 1,
+                        "unread": 2
+                      }
+                    ],
                     "messages": [
                       {
                         "account": "00000000-0000-0001-0000-000000000000",

@@ -6,8 +6,10 @@
 //! Texts come from `app_front::alerts` (cleaned, short). The lock-screen version
 //! (`public_title`) names no sender and no subject.
 
-use app_core::{AppState, Command, DraftId, SettingKey, ThreadId, WatchState};
-use app_front::alerts::{AlertKind, alerts};
+use app_core::{
+    AppState, Command, DraftId, MailboxId, MessageId, SettingKey, ThreadId, WatchState,
+};
+use app_front::alerts::{Alert, AlertKind, alerts, new_mail_by_conversation};
 use app_front::i18n::{self, Key};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -41,6 +43,12 @@ pub struct Notification {
     pub open: Option<NoteAct>,
     /// The buttons.
     pub actions: Vec<NoteAction>,
+    /// The group it shows in (new mail: `new_mail`, one notification per conversation).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+    /// Whether it is its group's summary (Android shows it in place of the group when it folds).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub summary: bool,
 }
 
 /// A button of a notification.
@@ -56,15 +64,38 @@ pub struct NoteAction {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "act", rename_all = "snake_case")]
 pub enum NoteAct {
-    /// Archive these threads.
+    /// Archive these threads, or only these messages when `messages` is not empty.
     Archive {
         /// The threads.
         threads: Vec<ThreadId>,
+        /// The messages (a conversation's new ones).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
     },
-    /// Mark these threads read.
+    /// Mark these threads read, or only these messages when `messages` is not empty.
     MarkRead {
         /// The threads.
         threads: Vec<ThreadId>,
+        /// The messages (a conversation's new ones).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Move these threads to Trash, or only these messages when `messages` is not empty.
+    Trash {
+        /// The threads.
+        threads: Vec<ThreadId>,
+        /// The messages (a conversation's new ones).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        messages: Vec<MessageId>,
+    },
+    /// Open this message: its mailbox, its thread in the reader, the message expanded.
+    OpenMessage {
+        /// The mailbox.
+        mailbox: MailboxId,
+        /// The thread.
+        thread: ThreadId,
+        /// The message.
+        message: MessageId,
     },
     /// Open this thread in the reader.
     OpenThread {
@@ -86,27 +117,38 @@ impl NoteAct {
     /// The commands it submits, as the user. Threads or drafts that are gone submit nothing.
     pub fn commands(&self, state: &AppState) -> Vec<Command> {
         match self {
-            Self::Archive { threads } => {
-                let ids = known(threads, state);
-                if ids.is_empty() {
-                    Vec::new()
-                } else {
-                    vec![Command::ArchiveThreads {
-                        ids,
-                        messages: Vec::new(),
-                    }]
+            Self::Archive { threads, messages } => scoped(threads, messages, state)
+                .map(|(ids, messages)| Command::ArchiveThreads { ids, messages })
+                .into_iter()
+                .collect(),
+            Self::MarkRead { threads, messages } => scoped(threads, messages, state)
+                .map(|(ids, messages)| Command::MarkRead { ids, messages })
+                .into_iter()
+                .collect(),
+            Self::Trash { threads, messages } => scoped(threads, messages, state)
+                .map(|(ids, messages)| Command::TrashThreads { ids, messages })
+                .into_iter()
+                .collect(),
+            Self::OpenMessage {
+                mailbox,
+                thread,
+                message,
+            } if state.threads.contains_key(thread) => {
+                let mut out = Vec::new();
+                if state.mailboxes.contains_key(mailbox) {
+                    out.push(Command::OpenMailbox { id: *mailbox });
                 }
-            }
-            Self::MarkRead { threads } => {
-                let ids = known(threads, state);
-                if ids.is_empty() {
-                    Vec::new()
-                } else {
-                    vec![Command::MarkRead {
-                        ids,
-                        messages: Vec::new(),
-                    }]
+                out.push(Command::OpenThread { id: *thread });
+                if state
+                    .messages
+                    .get(message)
+                    .is_some_and(|m| m.thread == *thread)
+                {
+                    out.push(Command::ExpandMessages {
+                        ids: vec![*message],
+                    });
                 }
+                out
             }
             Self::OpenThread { thread } if state.threads.contains_key(thread) => {
                 vec![Command::OpenThread { id: *thread }]
@@ -118,9 +160,32 @@ impl NoteAct {
                 key: SettingKey::BackgroundSync,
                 value: 1.into(),
             }],
-            Self::OpenThread { .. } | Self::OpenDraft { .. } | Self::BatterySettings => Vec::new(),
+            Self::OpenMessage { .. }
+            | Self::OpenThread { .. }
+            | Self::OpenDraft { .. }
+            | Self::BatterySettings => Vec::new(),
         }
     }
+}
+
+/// What a triage act targets: the messages that still exist when it names messages (never the
+/// rest of their threads), else the threads that still exist. `None` when nothing is left.
+fn scoped(
+    threads: &[ThreadId],
+    messages: &[MessageId],
+    state: &AppState,
+) -> Option<(Vec<ThreadId>, Vec<MessageId>)> {
+    let target = if messages.is_empty() {
+        (known(threads, state), Vec::new())
+    } else {
+        let left: Vec<MessageId> = messages
+            .iter()
+            .filter(|m| state.messages.contains_key(*m))
+            .copied()
+            .collect();
+        (Vec::new(), left)
+    };
+    (!target.0.is_empty() || !target.1.is_empty()).then_some(target)
 }
 
 fn known(threads: &[ThreadId], state: &AppState) -> Vec<ThreadId> {
@@ -131,45 +196,38 @@ fn known(threads: &[ThreadId], state: &AppState) -> Vec<ThreadId> {
         .collect()
 }
 
-/// The notifications for going from `before` to `after` (none when `notifications` is 0).
+/// The group of the new-mail notifications.
+pub const NEW_MAIL_GROUP: &str = "new_mail";
+
+/// The notifications for going from `before` to `after` (none when `notifications` is 0): one
+/// per new conversation (tag `new_mail:<thread>`, group `new_mail`) with *Delete*, *Mark read*
+/// and *Archive* on its new messages and a tap that opens the newest one, then the group's
+/// summary (tag `new_mail`); then one per failed send. The lock screen shows only *New mail*.
 /// Approval requests are left out: the phone has no approvals (ADR 0009).
 pub fn notifications(before: &AppState, after: &AppState) -> Vec<Notification> {
-    alerts(before, after)
-        .into_iter()
-        .filter_map(|alert| match alert.kind {
-            AlertKind::NewMail => {
-                let count = alert.threads.len();
-                let open = match alert.threads[..] {
-                    [thread] => Some(NoteAct::OpenThread { thread }),
-                    _ => None,
-                };
-                Some(Notification {
-                    tag: "new_mail".to_owned(),
-                    channel: Channel::NewMail,
-                    public_title: if count == 1 {
-                        i18n::s(Key::NewMail).to_owned()
-                    } else {
-                        i18n::f(Key::NewMailInConversations, &[("n", &count.to_string())])
-                    },
-                    title: alert.title,
-                    body: alert.body,
-                    open,
-                    actions: vec![
-                        NoteAction {
-                            label: i18n::s(Key::Archive).to_owned(),
-                            act: NoteAct::Archive {
-                                threads: alert.threads.clone(),
-                            },
-                        },
-                        NoteAction {
-                            label: i18n::s(Key::MarkRead).to_owned(),
-                            act: NoteAct::MarkRead {
-                                threads: alert.threads,
-                            },
-                        },
-                    ],
-                })
-            }
+    let conversations = new_mail_by_conversation(before, after);
+    let count = conversations.len();
+    let mut out: Vec<Notification> = conversations.into_iter().filter_map(conversation).collect();
+    if count > 0 {
+        let title = if count == 1 {
+            i18n::s(Key::NewMail).to_owned()
+        } else {
+            i18n::f(Key::NewConversations, &[("n", &count.to_string())])
+        };
+        out.push(Notification {
+            tag: NEW_MAIL_GROUP.to_owned(),
+            channel: Channel::NewMail,
+            title,
+            body: String::new(),
+            public_title: i18n::s(Key::NewMail).to_owned(),
+            open: None,
+            actions: Vec::new(),
+            group: Some(NEW_MAIL_GROUP.to_owned()),
+            summary: true,
+        });
+    }
+    out.extend(alerts(before, after).into_iter().filter_map(|alert| {
+        match alert.kind {
             AlertKind::SendFailed => Some(Notification {
                 tag: alert
                     .draft
@@ -180,10 +238,58 @@ pub fn notifications(before: &AppState, after: &AppState) -> Vec<Notification> {
                 body: alert.body,
                 open: alert.draft.map(|draft| NoteAct::OpenDraft { draft }),
                 actions: Vec::new(),
+                group: None,
+                summary: false,
             }),
-            AlertKind::ApprovalNeeded => None,
-        })
-        .collect()
+            AlertKind::NewMail | AlertKind::ApprovalNeeded => None,
+        }
+    }));
+    out
+}
+
+/// One new conversation's notification.
+fn conversation(alert: Alert) -> Option<Notification> {
+    let thread = *alert.threads.first()?;
+    let open = match (alert.mailbox, alert.messages.last()) {
+        (Some(mailbox), Some(&message)) => Some(NoteAct::OpenMessage {
+            mailbox,
+            thread,
+            message,
+        }),
+        _ => Some(NoteAct::OpenThread { thread }),
+    };
+    let threads = vec![thread];
+    let messages = alert.messages;
+    Some(Notification {
+        tag: format!("{NEW_MAIL_GROUP}:{thread}"),
+        channel: Channel::NewMail,
+        public_title: i18n::s(Key::NewMail).to_owned(),
+        title: alert.title,
+        body: alert.body,
+        open,
+        actions: vec![
+            NoteAction {
+                label: i18n::s(Key::NoteDelete).to_owned(),
+                act: NoteAct::Trash {
+                    threads: threads.clone(),
+                    messages: messages.clone(),
+                },
+            },
+            NoteAction {
+                label: i18n::s(Key::MarkRead).to_owned(),
+                act: NoteAct::MarkRead {
+                    threads: threads.clone(),
+                    messages: messages.clone(),
+                },
+            },
+            NoteAction {
+                label: i18n::s(Key::Archive).to_owned(),
+                act: NoteAct::Archive { threads, messages },
+            },
+        ],
+        group: Some(NEW_MAIL_GROUP.to_owned()),
+        summary: false,
+    })
 }
 
 /// The tag of the push service's notification.
@@ -214,6 +320,8 @@ pub fn push_status(before: &AppState, after: &AppState) -> Option<Notification> 
                 act: NoteAct::BatterySettings,
             },
         ],
+        group: None,
+        summary: false,
     })
 }
 

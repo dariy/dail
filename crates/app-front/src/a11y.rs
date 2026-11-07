@@ -7,8 +7,13 @@ use app_core::ThreadSummary;
 use crate::format;
 
 /// What a screen reader says for a thread row: what the dot, the star, the clip and the tick
-/// show, then senders, subject, size of the conversation and date.
-pub fn thread_row(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> String {
+/// show, then senders, subject, size of the conversation and date (local time of `zone`).
+pub fn thread_row(
+    summary: &ThreadSummary<'_>,
+    checked: bool,
+    now_ms: i64,
+    zone: format::Zone,
+) -> String {
     let mut parts: Vec<String> = Vec::new();
     if checked {
         parts.push(crate::i18n::s(Key::Checked).to_owned());
@@ -42,7 +47,11 @@ pub fn thread_row(summary: &ThreadSummary<'_>, checked: bool, now_ms: i64) -> St
             &[("n", &summary.messages.len().to_string())],
         ));
     }
-    parts.push(format::short_date(summary.thread.last_date_ms, now_ms));
+    parts.push(format::short_date(
+        summary.thread.last_date_ms,
+        now_ms,
+        zone,
+    ));
     parts.join(", ")
 }
 
