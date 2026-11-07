@@ -123,6 +123,9 @@ tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "tim
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "logging"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "logging"] }
 webpki-roots = "1"
+# The local UTC offset of an instant for the dates the front ends show (MISC-46). Already in the tree via
+# async-imap; `clock` reads the zone in pure Rust (TZif on Unix and Android, the system API on Windows, iOS).
+chrono = { version = "0.4.45", default-features = false, features = ["clock"] }
 # Updates (ADR 0011): minisign signatures, verified in app-io, made by xtask. Pure Rust.
 minisign-verify = "0.3"
 minisign = { version = "0.10", default-features = false }

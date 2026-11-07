@@ -12,7 +12,7 @@ use crate::text::{f, s};
 use app_core::{AppState, BodyState, Envelope, MailboxRole, MessageId, ThreadId, listing};
 use app_front::body::{Bodies, Body, links};
 use app_front::i18n::Key;
-use app_front::{fold, format, mailbox::mailbox_name};
+use app_front::{fold, format, format::Zone, mailbox::mailbox_name};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
@@ -93,13 +93,13 @@ impl Reader {
         &mut self,
         state: &AppState,
         bodies: &Bodies,
-        now_ms: i64,
+        now: (i64, Zone),
         width: u16,
         height: u16,
     ) -> Vec<Line<'static>> {
         self.sync(state);
         let cursor = self.cursor(state);
-        let (all, row) = wrapped(state, bodies, now_ms, usize::from(width), cursor);
+        let (all, row) = wrapped(state, bodies, now, usize::from(width), cursor);
         self.height = usize::from(height);
         self.len = all.len();
         if std::mem::take(&mut self.follow)
@@ -120,7 +120,7 @@ impl Reader {
 fn wrapped(
     state: &AppState,
     bodies: &Bodies,
-    now_ms: i64,
+    (now_ms, zone): (i64, Zone),
     width: usize,
     cursor: Option<MessageId>,
 ) -> (Vec<Line<'static>>, Option<usize>) {
@@ -145,7 +145,13 @@ fn wrapped(
         out.push((String::new(), Style::default()));
         let start = out.len();
         if listing::is_expanded(state, thread, message) {
-            message_lines(state, message, bodies.get(message.id), now_ms, &mut out);
+            message_lines(
+                state,
+                message,
+                bodies.get(message.id),
+                (now_ms, zone),
+                &mut out,
+            );
         } else {
             out.push((
                 collapsed_line(message, bodies.get(message.id), now_ms),
@@ -219,7 +225,7 @@ fn message_lines(
     state: &AppState,
     message: &Envelope,
     body: Option<&Body>,
-    now_ms: i64,
+    (now_ms, zone): (i64, Zone),
     out: &mut Vec<(String, Style)>,
 ) {
     let from = message
@@ -237,7 +243,7 @@ fn message_lines(
         f(
             Key::DateLabel,
             &[
-                ("date", &format::long_date(message.date_ms)),
+                ("date", &format::long_date(message.date_ms, zone)),
                 ("age", &format::age(message.date_ms, now_ms)),
             ],
         ),

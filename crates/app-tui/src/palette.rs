@@ -250,10 +250,15 @@ pub struct ResultView {
 
 impl ResultView {
     /// The result of the query `name`: its view, with the JSON one key away.
-    pub fn new(name: CommandName, data: &serde_json::Value, state: &AppState, now_ms: i64) -> Self {
+    pub fn new(
+        name: CommandName,
+        data: &serde_json::Value,
+        state: &AppState,
+        (now_ms, zone): (i64, app_front::format::Zone),
+    ) -> Self {
         let json = serde_json::to_string_pretty(data).unwrap_or_default();
         let mut view = Self::text(app_front::i18n::title(name), s(Key::ReadOnlyResult), json);
-        if let Some(doc) = app_front::result::doc(name, data, state, now_ms) {
+        if let Some(doc) = app_front::result::doc(name, data, state, now_ms, zone) {
             view.raw = false;
             for section in doc.sections {
                 if let Some(title) = section.title {

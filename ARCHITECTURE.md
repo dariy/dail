@@ -103,7 +103,7 @@ dail account password --email me@gmail.com           # alias for exec set_passwo
 `app-front` (ADR 0004) is the toolkit-free half of the front-ends: palette flows and ranking, the keymap, formatting,
 the status and approval projections and the body tracking. It depends on `app-core` only (no toolkit, no tokio), so the
 GUI and the TUI share these rules and neither re-derives the other's. `app-gui` and `app-tui` don't depend on each
-other. Modules: `format` (dates in UTC, addresses, sizes), `body` (the reader's body tracking: which
+other. Modules: `format` (dates in local time: the front end passes a `Zone`, the UTC offset at each instant, MISC-46; addresses, sizes), `body` (the reader's body tracking: which
 `get_thread {include_body: true}` to submit — `Bodies::rich()` adds `rich_body` for the GUI —, the bodies taken from its
 receipt with their `document`, `links`), `status` (sync text, problems,
 pending ops), `approvals` (the cards of agents' send requests), `message_actions` (MISC-44: one message's
@@ -1184,7 +1184,7 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
   if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
   `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
-  this month*, then *November 2023*, UTC days — as heading rows that take one row slot each, so `show_rows` stays
+  this month*, then *November 2023*, local days — as heading rows that take one row slot each, so `show_rows` stays
   uniform; the densities are `list_density`'s), the toolbar under it (UX-7: tri-state *Select all*
   box — `check_threads{}` / `uncheck_threads{}` —, the *Unread*/*Starred*/*Attachments* filter chips, and for a mailbox
   *Refresh* (`sync_now` for its account; a spinner while it syncs or the mailbox is fetched) and *Mark all as read* as
@@ -1219,8 +1219,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   would become an undo step). Screen readers (AccessKit): thread rows and mailbox rows are buttons named by what their
   marks show (`unread, starred, with attachments, Carol, Lunch?, 2 messages, Nov 14`; `Inbox, 3 unread`), the open
   mailbox pressed, their parts as children; icon buttons carry their tooltip as name; form fields are labelled by their
-  captions and Tab follows the reading order. The TUI follows the terminal's colours and font. Dates are shown
-  in UTC (`app_core::date`, the calendar math shared with the core's quote headers and the audit log's file names).
+  captions and Tab follows the reading order. The TUI follows the terminal's colours and font. Dates and day groups are shown
+  in local time (MISC-46): `app_front::format` shifts each instant by the `Zone` the front end passes in
+  (`app_sync::clock::local_offset_ms`, chrono's system zone, asked per instant so daylight saving time holds for past
+  dates; `with_clock` uses UTC, `with_zone` overrides), then uses `app_core::date`, the calendar math shared with the
+  core's quote headers and the audit log's file names.
   `cargo run -p app-gui --example demo [open] [compose] [agent] [palette] [light|dark]` opens it on the memory
   backend (`agent`: an agent has asked to send a reply).
 
@@ -1310,7 +1313,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
 
 - **Projection.** `Tui` is UI-local state, like `Shell`: `draw(frame, &state)` renders one frame of `AppState` and
   `input(event, &state) -> Vec<Request>` turns a key, a paste, a resize or a tick into requests; `replies(replies,
-  &state)` takes the results back. The clock is injected (`Tui::with_clock`). A resize never dispatches a command.
+  &state)` takes the results back. The clock and the time zone are injected (`Tui::with_clock`, `Tui::with_zone`). A resize never dispatches a command.
 - **Layout** (`app_tui::layout::arrange`, a function of `ViewState` and the terminal size): ≥ 120 columns the
   mailboxes (unless `toggle_sidebar` collapsed them), the list and the reader or the composer; 80–119 the list and the
   reader (or composer), the mailboxes in the list's place while the sidebar has the focus; < 80 one pane: the mailboxes
@@ -1461,7 +1464,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `refresh(&state) -> Vec<Request>` (bodies for the open thread, before each frame), `replies(Vec<Reply>, &state) ->
   Vec<Request>` (results; a new draft opens in the composer) and `externals() -> Vec<External>` (what only Android
   does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`, `schedule {sync, interval_mins}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
-  app-sync. The clock is injected (`Mobile::with_clock`).
+  app-sync. The clock is injected (`Mobile::with_clock`); so is the time zone (`Mobile::with_zone`: `app-host` passes `app_sync::clock::local_offset_ms`, else UTC, MISC-46).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and

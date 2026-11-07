@@ -95,7 +95,7 @@ pub fn show(
     t: &Tokens,
     state: &AppState,
     bodies: &Bodies,
-    now_ms: i64,
+    (now_ms, zone): (i64, format::Zone),
     io: ReaderIo<'_>,
 ) {
     let ReaderIo {
@@ -178,6 +178,7 @@ pub fn show(
                         message,
                         body,
                         now_ms,
+                        zone,
                     };
                     message_card(ui, t, &card, io);
                     ui.add_space(t.m.space.md);
@@ -478,6 +479,8 @@ struct Card<'a> {
     message: &'a Envelope,
     body: Option<&'a Body>,
     now_ms: i64,
+    /// The local time zone of the date (MISC-46).
+    zone: format::Zone,
 }
 
 fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
@@ -487,6 +490,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
         message,
         body: _,
         now_ms,
+        zone,
     } = *card;
     let ReaderIo {
         images,
@@ -516,7 +520,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                             &t.type_scale.label_md,
                             format!(
                                 "{} ({})",
-                                format::long_date(message.date_ms),
+                                format::long_date(message.date_ms, zone),
                                 format::age(message.date_ms, now_ms)
                             ),
                             t.text_muted,

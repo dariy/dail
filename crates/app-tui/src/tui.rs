@@ -86,6 +86,8 @@ pub enum EditOutcome {
 /// UI-local state that is not part of `AppState`.
 pub struct Tui {
     clock: fn() -> i64,
+    /// The local time zone of the dates shown (MISC-46).
+    zone: app_front::format::Zone,
     /// The mark-as-read timer (UX-5).
     autoread: app_front::autoread::AutoRead,
     /// `NO_COLOR` is set: never paint the theme's colours.
@@ -136,6 +138,7 @@ impl Default for Tui {
     fn default() -> Self {
         Self {
             clock: system_now_ms,
+            zone: app_sync::clock::local_offset_ms,
             autoread: app_front::autoread::AutoRead::default(),
             no_color: false,
             lang: app_front::i18n::Lang::default(),
@@ -207,12 +210,21 @@ impl Tui {
         self
     }
 
-    /// A TUI that reads the time from `clock` (Unix ms) instead of the system clock.
+    /// A TUI that reads the time from `clock` (Unix ms) instead of the system clock, and shows
+    /// dates in UTC (see [`Self::with_zone`]).
     pub fn with_clock(clock: fn() -> i64) -> Self {
         Self {
             clock,
+            zone: app_front::format::utc,
             ..Self::default()
         }
+    }
+
+    /// Shows dates in the local time of `zone` instead of the system's (MISC-46).
+    #[must_use]
+    pub fn with_zone(mut self, zone: app_front::format::Zone) -> Self {
+        self.zone = zone;
+        self
     }
 
     /// Tells the TUI that it owns the session, so quitting while a send is scheduled asks first
@@ -372,8 +384,13 @@ impl Tui {
             Slot::List => self.list_lines(state, inner),
             Slot::Reader => {
                 let now = self.now_ms();
-                self.reader
-                    .lines(state, &self.bodies, now, inner.width, inner.height)
+                self.reader.lines(
+                    state,
+                    &self.bodies,
+                    (now, self.zone),
+                    inner.width,
+                    inner.height,
+                )
             }
             Slot::Composer => {
                 let now = self.now_ms();
@@ -430,7 +447,7 @@ impl Tui {
                     Some(thread.id) == cursor,
                     state.view.checked.contains(&thread.id),
                 );
-                view::thread_row(&summary, now, area.width, marks)
+                view::thread_row(&summary, (now, self.zone), area.width, marks)
             })
             .collect()
     }
@@ -950,7 +967,7 @@ impl Tui {
                             reply.name,
                             &receipt.data,
                             state,
-                            self.now_ms(),
+                            (self.now_ms(), self.zone),
                         ));
                     }
                     // A new draft (compose, reply, forward) opens in the composer, as in the GUI.

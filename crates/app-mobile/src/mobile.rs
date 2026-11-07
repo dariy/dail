@@ -139,7 +139,7 @@ struct RowText {
 }
 
 impl RowText {
-    fn of(summary: &ThreadSummary, thread: &Thread, now: i64) -> Self {
+    fn of(summary: &ThreadSummary, thread: &Thread, now: i64, zone: format::Zone) -> Self {
         let sender = format::names(&summary.senders);
         Self {
             sender: if sender.is_empty() {
@@ -151,7 +151,7 @@ impl RowText {
                 "" => i18n::s(Text::NoSubject).to_owned(),
                 s => clean(s),
             },
-            date: format::short_date(thread.last_date_ms, now),
+            date: format::short_date(thread.last_date_ms, now, zone),
         }
     }
 }
@@ -159,6 +159,8 @@ impl RowText {
 /// UI-local state that is not part of `AppState`.
 pub struct Mobile {
     clock: fn() -> i64,
+    /// The local time zone of the dates shown (MISC-46); the host passes the system's in.
+    zone: format::Zone,
     lang: Lang,
     /// The device's language, for the `language` setting's "system".
     system_lang: Lang,
@@ -269,6 +271,7 @@ impl Mobile {
     pub fn with_clock(clock: fn() -> i64) -> Self {
         Self {
             clock,
+            zone: format::utc,
             lang: Lang::default(),
             system_lang: Lang::default(),
             window: Window {
@@ -306,6 +309,19 @@ impl Mobile {
             setup: None,
             offered: false,
         }
+    }
+
+    /// Shows dates in the local time of `zone` instead of UTC (MISC-46). This crate reads no time
+    /// zone: the host passes the system's in.
+    #[must_use]
+    pub fn with_zone(mut self, zone: format::Zone) -> Self {
+        self.zone = zone;
+        self
+    }
+
+    /// The time zone of the dates shown.
+    pub fn zone(&self) -> format::Zone {
+        self.zone
     }
 
     /// The time the presenter shows (Unix ms).
@@ -1298,7 +1314,7 @@ impl Mobile {
                 ids: vec![thread.id],
                 messages: Vec::new(),
             }));
-            let text = RowText::of(&summary, thread, now);
+            let text = RowText::of(&summary, thread, now, self.zone);
             let snippet = summary
                 .messages
                 .last()
@@ -1331,7 +1347,7 @@ impl Mobile {
                 selected: Some(thread.id) == cursor,
                 checked,
                 marks: sheet::row_marks(&words, subject, snippet),
-                a11y: clean(&a11y::thread_row(&summary, checked, now)),
+                a11y: clean(&a11y::thread_row(&summary, checked, now, self.zone)),
             });
         }
         let empty = (total == 0).then(|| {

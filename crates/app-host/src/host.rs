@@ -154,7 +154,7 @@ impl Host {
             runtime,
             bridge: Mutex::new(bridge),
             client,
-            mobile: Mutex::new(Mobile::default()),
+            mobile: Mutex::new(Mobile::default().with_zone(app_sync::clock::local_offset_ms)),
             task: Mutex::new(Some(task)),
             alerts,
             alert,

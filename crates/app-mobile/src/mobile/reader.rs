@@ -516,7 +516,7 @@ impl Mobile {
                     |a| clean(&format::full(a)),
                 ),
                 to: to.join(", "),
-                date: format::short_date(message.date_ms, now),
+                date: format::short_date(message.date_ms, now, self.zone()),
                 expanded,
                 toggle,
                 snippet: clean(&snippet),
@@ -613,7 +613,12 @@ impl Mobile {
         label: &str,
     ) -> Option<Neighbour> {
         let thread = state.threads.get(&id)?;
-        let text = RowText::of(&ThreadSummary::of(state, thread), thread, self.now_ms());
+        let text = RowText::of(
+            &ThreadSummary::of(state, thread),
+            thread,
+            self.now_ms(),
+            self.zone(),
+        );
         Some(Neighbour {
             open: self.button(icon, label, Act::Run(Command::OpenThread { id })),
             sender: text.sender,
