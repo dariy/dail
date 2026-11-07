@@ -3,6 +3,7 @@
 mod support;
 
 mod attachments;
+mod autoread;
 mod background;
 mod composer;
 mod contract;

@@ -1061,7 +1061,7 @@ English and French.
 - [x] MISC-45 [front][mobile][host][kt]: one notification per new conversation with *Delete*, *Mark read* and
   *Archive* on its new messages; a tap opens the mailbox, the thread and the message
 - [x] MISC-46 [front][gui][tui][mobile]: dates in local time, not UTC
-- [ ] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`
+- [x] MISC-47 [mobile]: the phone marks an open message read after `mark_read_after_ms`
 
 ---
 

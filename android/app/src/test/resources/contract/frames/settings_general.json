@@ -104,6 +104,33 @@
             "hint": "Per mailbox, on its first sync.",
             "label": "Messages fetched first",
             "value": "500"
+          },
+          {
+            "actions": [],
+            "choices": [
+              {
+                "action": 22,
+                "label": "Never",
+                "selected": false
+              },
+              {
+                "action": 23,
+                "label": "Immediately",
+                "selected": false
+              },
+              {
+                "action": 24,
+                "label": "After 2 s",
+                "selected": true
+              },
+              {
+                "action": 25,
+                "label": "After 5 s",
+                "selected": false
+              }
+            ],
+            "label": "Mark as read after",
+            "value": "After 2 s"
           }
         ],
         "title": "General"
@@ -114,17 +141,17 @@
             "actions": [],
             "choices": [
               {
-                "action": 22,
+                "action": 26,
                 "label": "Only while open",
                 "selected": false
               },
               {
-                "action": 23,
+                "action": 27,
                 "label": "Periodic",
                 "selected": true
               },
               {
-                "action": 24,
+                "action": 28,
                 "label": "Push",
                 "selected": false
               }
@@ -137,32 +164,32 @@
             "actions": [],
             "choices": [
               {
-                "action": 25,
+                "action": 29,
                 "label": "15 min",
                 "selected": false
               },
               {
-                "action": 26,
+                "action": 30,
                 "label": "30 min",
                 "selected": true
               },
               {
-                "action": 27,
+                "action": 31,
                 "label": "1 h",
                 "selected": false
               },
               {
-                "action": 28,
+                "action": 32,
                 "label": "2 h",
                 "selected": false
               },
               {
-                "action": 29,
+                "action": 33,
                 "label": "6 h",
                 "selected": false
               },
               {
-                "action": 30,
+                "action": 34,
                 "label": "12 h",
                 "selected": false
               }
@@ -174,12 +201,12 @@
             "actions": [],
             "choices": [
               {
-                "action": 31,
+                "action": 35,
                 "label": "Off",
                 "selected": false
               },
               {
-                "action": 32,
+                "action": 36,
                 "label": "On",
                 "selected": true
               }
@@ -191,11 +218,11 @@
           {
             "actions": [
               {
-                "action": 33,
+                "action": 37,
                 "label": "Battery optimization"
               },
               {
-                "action": 34,
+                "action": 38,
                 "label": "Notification settings"
               }
             ],

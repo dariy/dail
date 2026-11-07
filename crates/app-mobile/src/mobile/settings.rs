@@ -46,9 +46,17 @@ fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
             vec![(200, "200"), (500, "500"), (1_000, "1000"), (5_000, "5000")]
         }
         SettingKey::Language => i18n::languages(i18n::current()).to_vec(),
-        SettingKey::ListDensity => vec![(0, i18n::s(Key::CozyX)), (1, i18n::s(Key::CompactX)), (2, i18n::s(Key::Preview))],
+        SettingKey::ListDensity => vec![
+            (0, i18n::s(Key::CozyX)),
+            (1, i18n::s(Key::CompactX)),
+            (2, i18n::s(Key::Preview)),
+        ],
         SettingKey::Notifications => vec![(0, i18n::s(Key::Off)), (1, i18n::s(Key::On))],
-        SettingKey::BackgroundSync => vec![(0, i18n::s(Key::OnlyWhileOpen)), (1, i18n::s(Key::Periodic)), (2, i18n::s(Key::Push))],
+        SettingKey::BackgroundSync => vec![
+            (0, i18n::s(Key::OnlyWhileOpen)),
+            (1, i18n::s(Key::Periodic)),
+            (2, i18n::s(Key::Push)),
+        ],
         SettingKey::BackgroundIntervalMins => vec![
             (15, "15 min"),
             (30, "30 min"),
@@ -57,12 +65,16 @@ fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
             (360, "6 h"),
             (720, "12 h"),
         ],
+        SettingKey::MarkReadAfterMs => vec![
+            (0, i18n::s(Key::Never)),
+            (250, i18n::s(Key::Immediately)),
+            (2_000, i18n::s(Key::After2s)),
+            (5_000, i18n::s(Key::After5s)),
+        ],
         SettingKey::HistoryCap
         | SettingKey::Theme
         | SettingKey::TextScale
         | SettingKey::TuiColors
-        // The phone has no mark-as-read timer yet (UX-5 is the desktop's).
-        | SettingKey::MarkReadAfterMs
         | SettingKey::StaleSecs
         | SettingKey::FullSyncSecs
         | SettingKey::AfterTriage => Vec::new(),
@@ -340,6 +352,7 @@ impl Mobile {
             SettingKey::UndoSendMs,
             SettingKey::PollSecs,
             SettingKey::InitialWindow,
+            SettingKey::MarkReadAfterMs,
         ]
         .into_iter()
         .map(|key| self.setting_row(state, key))

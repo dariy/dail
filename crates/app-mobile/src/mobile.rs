@@ -156,6 +156,20 @@ impl RowText {
     }
 }
 
+/// The panes of a frame (`Mobile::panes`).
+struct Panes {
+    kinds: Vec<PaneKind>,
+    /// The open message as a page over the list (compact windows, MISC-18).
+    page: Option<PaneKind>,
+    /// The drawer is modal, over the other panes.
+    modal: bool,
+    rail: bool,
+    side: bool,
+    /// Something is beside the message to hide (MISC-14).
+    crowded: bool,
+    maximized: bool,
+}
+
 /// UI-local state that is not part of `AppState`.
 pub struct Mobile {
     clock: fn() -> i64,
@@ -218,6 +232,8 @@ pub struct Mobile {
     setup: Option<setup::Setup>,
     /// Whether the setup was opened on its own for a profile without accounts (once).
     offered: bool,
+    /// Mark as read after a delay (UX-5, MISC-47): the desktop's timer, counted while visible.
+    autoread: app_front::autoread::AutoRead,
 }
 
 impl Default for Mobile {
@@ -308,6 +324,7 @@ impl Mobile {
             preview: None,
             setup: None,
             offered: false,
+            autoread: app_front::autoread::AutoRead::default(),
         }
     }
 
@@ -349,7 +366,21 @@ impl Mobile {
                 cmd,
             })
             .into_iter()
+            .chain(self.autoread(state))
             .collect()
+    }
+
+    /// Mark as read after a delay (UX-5, MISC-47): the open thread's unread expanded messages
+    /// get one `mark_read` from the user once it has been open `mark_read_after_ms` while the
+    /// app is visible and the message on screen. Polled before each frame, on every tick and
+    /// on `visible`.
+    fn autoread(&mut self, state: &AppState) -> Option<Request> {
+        let now = self.now_ms();
+        let focused = self.visible && self.reader_on_screen(state);
+        match self.autoread.poll(state, now, focused) {
+            app_front::autoread::Poll::Fire(cmd) => Some(Request::user(cmd)),
+            app_front::autoread::Poll::Wait(_) | app_front::autoread::Poll::Idle => None,
+        }
     }
 
     /// Shows `text` in the snackbar for a while: something the host did on its own failed
@@ -388,6 +419,10 @@ impl Mobile {
         if !flushed.is_empty() {
             out.splice(0..0, flushed);
         }
+        // The user's `mark_unread` disarms the timer until another thread opens.
+        for request in &out {
+            self.autoread.note(&request.cmd);
+        }
         out
     }
 
@@ -411,8 +446,11 @@ impl Mobile {
                 Vec::new()
             }
             UiEvent::Visible { visible } => {
+                // Bring the timer up to now under the old focus first, so time spent in the
+                // background never counts (MISC-47). It may fire for the time just before.
+                let read = self.autoread(state);
                 self.visible = visible;
-                Vec::new()
+                read.into_iter().collect()
             }
             UiEvent::Tap { action } => self.act(action, state),
             UiEvent::LongPress { action } | UiEvent::Swipe { action } => {
@@ -495,7 +533,12 @@ impl Mobile {
             } => Vec::new(),
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
-            UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
+            UiEvent::Tick => self
+                .compose
+                .idle(state, now)
+                .into_iter()
+                .chain(self.autoread(state))
+                .collect(),
             UiEvent::Share {
                 mailto,
                 to,
@@ -569,8 +612,8 @@ impl Mobile {
         out
     }
 
-    /// Whether the screen changes with the clock: a send counts down, an age is shown, or a
-    /// message is about to leave the snackbar.
+    /// Whether the screen changes with the clock: a send counts down, an age is shown, a
+    /// message is about to leave the snackbar, or the open thread may be marked read.
     pub fn wants_tick(&self, state: &AppState) -> bool {
         let now = self.now_ms();
         !state.accounts.is_empty()
@@ -578,6 +621,8 @@ impl Mobile {
             || self.notice.as_ref().is_some_and(|(_, until)| *until > now)
             || self.undo_until > now
             || self.compose.is_dirty()
+            // A thread is open: its unread messages may be marked read (MISC-47).
+            || (state.view.thread.is_some() && state.settings.mark_read_after_ms > 0)
     }
 
     fn act(&mut self, action: ActionId, state: &AppState) -> Vec<Request> {
@@ -801,40 +846,9 @@ impl Mobile {
     }
 
     /// Whether the drawer is modal and open: compact and medium windows, the sidebar focused.
-    fn drawer_back(&self, state: &AppState) -> bool {
-        self.class() != Class::Expanded
-            && state.view.focus == Pane::Sidebar
-            && !state.accounts.is_empty()
-    }
-
-    fn add(&mut self, act: Act) -> ActionId {
-        let id = self.next_action;
-        self.next_action = self.next_action.wrapping_add(1).max(1);
-        self.actions.push((id, act));
-        id
-    }
-
-    fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
-        Button {
-            icon: Some(icon.to_owned()),
-            label: label.to_owned(),
-            action: self.add(act),
-        }
-    }
-
-    /// The next screen. The action IDs of earlier frames stop working.
-    pub fn frame(&mut self, state: &AppState) -> Frame {
-        self.lang = Lang::resolve(state.settings.language, self.system_lang);
-        i18n::set_current(self.lang);
-        self.compose.sync(state);
-        self.palette_sync(state);
-        self.actions.clear();
-        self.revision += 1;
-        if !self.offered && state.accounts.is_empty() {
-            self.offered = true;
-            self.open_setup();
-        }
-        let class = self.class();
+    /// The panes the frame shows: which, the phone's page, and how (MISC-6, MISC-11, MISC-14,
+    /// MISC-18). The frame and the mark-as-read timer (MISC-47) share it.
+    fn panes(&self, state: &AppState, class: Class) -> Panes {
         let width = match class {
             Class::Compact => Width::Narrow,
             Class::Medium => Width::Medium,
@@ -890,6 +904,73 @@ impl Mobile {
             PaneKind::Reader
         });
         let maximized = self.pane_step >= 2 && kinds == [PaneKind::Reader];
+        Panes {
+            kinds,
+            page,
+            modal,
+            rail,
+            side,
+            crowded,
+            maximized,
+        }
+    }
+
+    /// Whether the open message is on screen: its pane or page is shown and nothing covers it
+    /// (a modal drawer, About, the setup, the palette, a result or a preview).
+    fn reader_on_screen(&self, state: &AppState) -> bool {
+        let panes = self.panes(state, self.class());
+        (panes.kinds.contains(&PaneKind::Reader) || panes.page.is_some())
+            && !panes.modal
+            && !self.about
+            && self.setup.is_none()
+            && !state.view.palette_open
+            && self.result.is_none()
+            && self.preview.is_none()
+    }
+
+    fn drawer_back(&self, state: &AppState) -> bool {
+        self.class() != Class::Expanded
+            && state.view.focus == Pane::Sidebar
+            && !state.accounts.is_empty()
+    }
+
+    fn add(&mut self, act: Act) -> ActionId {
+        let id = self.next_action;
+        self.next_action = self.next_action.wrapping_add(1).max(1);
+        self.actions.push((id, act));
+        id
+    }
+
+    fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
+        Button {
+            icon: Some(icon.to_owned()),
+            label: label.to_owned(),
+            action: self.add(act),
+        }
+    }
+
+    /// The next screen. The action IDs of earlier frames stop working.
+    pub fn frame(&mut self, state: &AppState) -> Frame {
+        self.lang = Lang::resolve(state.settings.language, self.system_lang);
+        i18n::set_current(self.lang);
+        self.compose.sync(state);
+        self.palette_sync(state);
+        self.actions.clear();
+        self.revision += 1;
+        if !self.offered && state.accounts.is_empty() {
+            self.offered = true;
+            self.open_setup();
+        }
+        let class = self.class();
+        let Panes {
+            kinds,
+            page,
+            modal,
+            rail,
+            side,
+            crowded,
+            maximized,
+        } = self.panes(state, class);
         let mut top_bar = self.top_bar(state, &kinds);
         if maximized {
             // Minimal: the message has the room; its own bar keeps its actions.
