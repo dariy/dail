@@ -1,7 +1,9 @@
 //! `RedbStore`: the mail cache in `state.redb` (`ARCHITECTURE.md §6`).
 //!
 //! Tables map 128-bit IDs to JSON records: `mailboxes`, `messages` (envelopes), `threads`,
-//! `outbox` (pending ops), `drafts`, `approvals` (agents' send requests); `meta` holds `schema_version`. Each [`MailDelta`] is applied in one ACID write transaction.
+//! `outbox` (pending ops), `drafts`, `approvals` (agents' send requests); `meta` holds `schema_version`;
+//! `synced` holds one row, `document`: the synced settings with their unpushed-changes flag
+//! (SET-4; absent in older profiles, which start with an empty document). Each [`MailDelta`] is applied in one ACID write transaction.
 //!
 //! An unreadable row of the cache proper (mailboxes, messages, threads) is skipped: sync
 //! fetches it again. An unreadable draft, queued operation or approval is the user's own work, so
@@ -11,8 +13,8 @@
 use std::path::{Path, PathBuf};
 
 use app_core::{
-    AppState, ApprovalRequest, Draft, Envelope, MailDelta, Mailbox, PendingOp, QuarantinedRow,
-    Thread,
+    AppState, ApprovalRequest, Draft, Envelope, LocalSettings, MailDelta, Mailbox, PendingOp,
+    QuarantinedRow, Thread,
 };
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 use serde::Serialize;
@@ -30,6 +32,9 @@ const DRAFTS: TableDefinition<u128, &[u8]> = TableDefinition::new("drafts");
 const APPROVALS: TableDefinition<u128, &[u8]> = TableDefinition::new("approvals");
 /// Rows of `drafts`, `outbox` and `approvals` that did not read, moved aside (STORE-6).
 const QUARANTINE: TableDefinition<u128, &[u8]> = TableDefinition::new("quarantine");
+/// The synced settings document (SET-4): one row under [`SYNCED_ROW`].
+const SYNCED: TableDefinition<&str, &[u8]> = TableDefinition::new("synced");
+const SYNCED_ROW: &str = "document";
 const SCHEMA_VERSION: &str = "schema_version";
 
 /// The mail cache of one profile.
@@ -113,6 +118,8 @@ impl RedbStore {
         ] {
             txn.open_table(table).map_err(|e| self.err(e))?;
         }
+        // Additive within version 1, like `drafts`.
+        txn.open_table(SYNCED).map_err(|e| self.err(e))?;
         txn.open_table(META)
             .map_err(|e| self.err(e))?
             .insert(SCHEMA_VERSION, migrations::CURRENT)
@@ -208,6 +215,20 @@ impl RedbStore {
         drafts.sort_by_key(|draft| draft.created_ms);
         for draft in drafts {
             state.drafts.insert(draft.id, draft);
+        }
+        match txn.open_table(SYNCED) {
+            Ok(table) => {
+                if let Some(row) = table.get(SYNCED_ROW).map_err(|e| self.err(e))? {
+                    match serde_json::from_slice::<LocalSettings>(row.value()) {
+                        Ok(local) => local.apply_to(state),
+                        Err(err) => {
+                            tracing::warn!(error = %err, "skipping unreadable synced settings")
+                        }
+                    }
+                }
+            }
+            Err(redb::TableError::TableDoesNotExist(_)) => {}
+            Err(err) => return Err(self.err(err)),
         }
         let mut approvals = self.read_all::<ApprovalRequest>(&txn, APPROVALS)?;
         approvals.sort_by_key(|approval| approval.requested_ms);
@@ -317,6 +338,17 @@ impl RedbStore {
                     .map_err(|e| self.err(e))?;
             }
         }
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Stores the synced settings document and its flag (SET-4).
+    pub fn put_synced(&self, local: &LocalSettings) -> Result<(), IoError> {
+        let bytes = self.encode(local)?;
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        txn.open_table(SYNCED)
+            .map_err(|e| self.err(e))?
+            .insert(SYNCED_ROW, bytes.as_slice())
+            .map_err(|e| self.err(e))?;
         txn.commit().map_err(|e| self.err(e))
     }
 

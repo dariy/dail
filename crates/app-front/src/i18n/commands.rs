@@ -33,6 +33,14 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::SetDraftFrom => "Envoyer ce brouillon depuis…",
         CommandName::RemoveAccount => "Supprimer le compte",
         CommandName::SyncNow => "Synchroniser",
+        CommandName::PullSettings => "Récupérer les paramètres du serveur",
+        CommandName::PushSettings => "Envoyer les paramètres au serveur",
+        CommandName::SetSettingsAccount => "Choisir le compte des paramètres",
+        CommandName::ListRules => "Lister les règles de tri",
+        CommandName::SaveRule => "Créer une règle de tri",
+        CommandName::DeleteRule => "Supprimer une règle de tri",
+        CommandName::EnableRule => "Activer ou désactiver une règle de tri",
+        CommandName::ApplyRules => "Appliquer les règles de tri à un dossier",
         CommandName::ListMailboxes => "Lister les dossiers",
         CommandName::SetSyncWindow => "Régler le courrier gardé hors ligne",
         CommandName::ListThreads => "Lister les discussions",
@@ -75,6 +83,7 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::Forward => "Transférer",
         CommandName::UpdateDraft => "Modifier le brouillon",
         CommandName::DiscardDraft => "Abandonner le brouillon",
+        CommandName::EditDraft => "Modifier un brouillon de la conversation",
         CommandName::RestoreDraft => "Restaurer le brouillon",
         CommandName::AttachFile => "Joindre un fichier",
         CommandName::RemoveAttachment => "Supprimer la pièce jointe",
@@ -155,6 +164,24 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         }
         CommandName::SetDraftFrom => "Choisir l’adresse d’envoi d’un brouillon.",
         CommandName::RemoveAccount => "Retirer un compte et effacer son mot de passe du trousseau.",
+        CommandName::PullSettings => {
+            "Récupérer du serveur de courrier les paramètres partagés entre appareils et les fusionner."
+        }
+        CommandName::PushSettings => {
+            "Enregistrer les paramètres partagés sur le serveur de courrier pour les autres appareils."
+        }
+        CommandName::SetSettingsAccount => {
+            "Choisir le compte dont le serveur garde les paramètres partagés entre appareils."
+        }
+        CommandName::ListRules => "Lister les règles qui trient le nouveau courrier.",
+        CommandName::SaveRule => {
+            "Créer ou remplacer une règle qui trie le nouveau courrier ; elle ne peut ni transférer ni répondre."
+        }
+        CommandName::DeleteRule => "Supprimer une règle de tri, sur tous les appareils.",
+        CommandName::EnableRule => "Activer ou désactiver une règle de tri sans la supprimer.",
+        CommandName::ApplyRules => {
+            "Appliquer maintenant les règles de tri au courrier en cache d’un dossier."
+        }
         CommandName::SyncNow => {
             "Synchroniser maintenant : lister les dossiers et récupérer le nouveau courrier."
         }
@@ -230,6 +257,9 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         CommandName::Forward => "Commencer le transfert d’un message.",
         CommandName::UpdateDraft => "Modifier les champs d’un brouillon.",
         CommandName::DiscardDraft => "Supprimer un brouillon.",
+        CommandName::EditDraft => {
+            "Modifier un brouillon affiché dans une conversation, même écrit sur un autre appareil."
+        }
         CommandName::AttachFile => "Joindre un fichier local à un brouillon.",
         CommandName::RemoveAttachment => {
             "Retirer une pièce jointe d’un brouillon (le fichier n’est pas touché)."

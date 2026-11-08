@@ -87,7 +87,7 @@ fn the_reader_shows_the_thread_and_its_actions_act_on_it() {
     let mut h = gui(state);
     apply(&mut h, Command::OpenMailbox { id: inbox });
     apply(&mut h, Command::OpenThread { id: threads[1] });
-    h.get_by_label_contains("Bob <bob@example.org>");
+    h.get_by_label("Bob <bob@example.org>");
     h.state_mut().out.clear();
     let ids = vec![threads[1]];
     for (label, expected) in [
@@ -126,7 +126,7 @@ fn the_reader_shows_the_thread_and_its_actions_act_on_it() {
         // Archive and Trash are followed by opening a neighbour (UX-12).
         assert_eq!(h.state_mut().take().first(), Some(&expected), "{label}");
     }
-    h.get(By::new().role(Role::Button).label_contains("Reply all"))
+    h.get(By::new().role(Role::Button).label_contains("Reply all ("))
         .click();
     h.run();
     assert!(matches!(
@@ -570,5 +570,36 @@ fn the_junk_folder_offers_to_empty_itself_after_a_confirmation() {
             account,
             confirm: true
         }
+    );
+}
+
+#[test]
+fn each_message_card_has_its_own_actions() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let message = state.threads[&threads[1]].messages[0];
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(&mut h, Command::OpenThread { id: threads[1] });
+    h.state_mut().out.clear();
+    h.get_by_label("Trash, message from Bob <bob@example.org>")
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take().first(),
+        Some(&Command::TrashThreads {
+            ids: Vec::new(),
+            messages: vec![message]
+        })
+    );
+    h.get_by_label("Reply, message from Bob <bob@example.org>")
+        .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take().first(),
+        Some(&Command::Reply {
+            message,
+            body: None
+        })
     );
 }

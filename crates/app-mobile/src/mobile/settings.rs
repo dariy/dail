@@ -17,11 +17,12 @@ use crate::event::{External, SystemScreen};
 use crate::frame::{Button, Choice, SettingRow, SettingsGroup, SettingsPage};
 
 /// The tabs, in order.
-const TABS: [(SettingsSection, Key); 4] = [
+const TABS: [(SettingsSection, Key); 5] = [
     (SettingsSection::Appearance, Key::Appearance),
     (SettingsSection::Keys, Key::Keyboard),
     (SettingsSection::General, Key::General),
     (SettingsSection::Accounts, Key::Accounts),
+    (SettingsSection::Rules, Key::RulesTab),
 ];
 
 /// The values offered for a numeric setting, with their labels.
@@ -45,9 +46,17 @@ fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
             vec![(200, "200"), (500, "500"), (1_000, "1000"), (5_000, "5000")]
         }
         SettingKey::Language => i18n::languages(i18n::current()).to_vec(),
-        SettingKey::ListDensity => vec![(0, i18n::s(Key::CozyX)), (1, i18n::s(Key::CompactX)), (2, i18n::s(Key::Preview))],
+        SettingKey::ListDensity => vec![
+            (0, i18n::s(Key::CozyX)),
+            (1, i18n::s(Key::CompactX)),
+            (2, i18n::s(Key::Preview)),
+        ],
         SettingKey::Notifications => vec![(0, i18n::s(Key::Off)), (1, i18n::s(Key::On))],
-        SettingKey::BackgroundSync => vec![(0, i18n::s(Key::OnlyWhileOpen)), (1, i18n::s(Key::Periodic)), (2, i18n::s(Key::Push))],
+        SettingKey::BackgroundSync => vec![
+            (0, i18n::s(Key::OnlyWhileOpen)),
+            (1, i18n::s(Key::Periodic)),
+            (2, i18n::s(Key::Push)),
+        ],
         SettingKey::BackgroundIntervalMins => vec![
             (15, "15 min"),
             (30, "30 min"),
@@ -56,12 +65,16 @@ fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
             (360, "6 h"),
             (720, "12 h"),
         ],
+        SettingKey::MarkReadAfterMs => vec![
+            (0, i18n::s(Key::Never)),
+            (250, i18n::s(Key::Immediately)),
+            (2_000, i18n::s(Key::After2s)),
+            (5_000, i18n::s(Key::After5s)),
+        ],
         SettingKey::HistoryCap
         | SettingKey::Theme
         | SettingKey::TextScale
         | SettingKey::TuiColors
-        // The phone has no mark-as-read timer yet (UX-5 is the desktop's).
-        | SettingKey::MarkReadAfterMs
         | SettingKey::StaleSecs
         | SettingKey::FullSyncSecs
         | SettingKey::AfterTriage => Vec::new(),
@@ -180,12 +193,14 @@ impl Mobile {
             SettingsSection::Keys => self.keyboard(state),
             SettingsSection::General | SettingsSection::About => self.general(state),
             SettingsSection::Accounts => self.accounts(state),
+            SettingsSection::Rules => self.rules(state),
         };
         let name = match section {
             SettingsSection::Appearance => "appearance",
             SettingsSection::Keys => "keys",
             SettingsSection::General | SettingsSection::About => "general",
             SettingsSection::Accounts => "accounts",
+            SettingsSection::Rules => "rules",
         };
         Some(SettingsPage {
             section: name.to_owned(),
@@ -337,6 +352,7 @@ impl Mobile {
             SettingKey::UndoSendMs,
             SettingKey::PollSecs,
             SettingKey::InitialWindow,
+            SettingKey::MarkReadAfterMs,
         ]
         .into_iter()
         .map(|key| self.setting_row(state, key))
@@ -422,6 +438,87 @@ impl Mobile {
             hint: None,
             rows,
         }]
+    }
+
+    /// The Rules section (ADR 0015, SET-5): a row per sorting rule (on/off, *Edit…*,
+    /// *Delete*), then *Add a rule…* and *Apply to this mailbox*, and the push. Rule names and
+    /// summaries are untrusted: cleaned plain text.
+    fn rules(&mut self, state: &AppState) -> Vec<SettingsGroup> {
+        let panel = app_front::rules::panel(state);
+        let mut rows = Vec::new();
+        for rule in &panel.rows {
+            let id = rule.id;
+            let choices = [(true, Key::On), (false, Key::Off)]
+                .into_iter()
+                .map(|(enabled, label)| {
+                    self.choice(
+                        i18n::s(label),
+                        rule.enabled == enabled,
+                        Command::EnableRule { id, enabled },
+                    )
+                })
+                .collect();
+            let actions = vec![
+                self.link(i18n::s(Key::EditRule), Act::EditRule(id)),
+                self.link(
+                    i18n::s(Key::RuleDelete),
+                    Act::Run(Command::DeleteRule { id }),
+                ),
+            ];
+            rows.push(SettingRow {
+                label: rule.name.clone(),
+                value: i18n::s(if rule.enabled { Key::On } else { Key::Off }).to_owned(),
+                hint: Some(rule.summary.clone()),
+                choices,
+                actions,
+            });
+        }
+        let mut more = vec![self.link(i18n::s(Key::AddRule), Act::AddRule)];
+        if let Some(mailbox) = panel.mailbox {
+            more.push(self.link(
+                i18n::s(Key::RulesApplyHere),
+                Act::Run(Command::ApplyRules { mailbox }),
+            ));
+        }
+        rows.push(SettingRow {
+            label: i18n::s(Key::AddRule).to_owned(),
+            value: String::new(),
+            hint: panel
+                .rows
+                .is_empty()
+                .then(|| i18n::s(Key::RulesEmpty).to_owned()),
+            choices: Vec::new(),
+            actions: more,
+        });
+        let store = if panel.dirty && panel.can_push {
+            vec![self.link(i18n::s(Key::RulesStore), Act::Run(Command::PushSettings {}))]
+        } else {
+            Vec::new()
+        };
+        let server = SettingRow {
+            label: i18n::s(Key::SettingsSyncState).to_owned(),
+            value: i18n::s(if panel.dirty {
+                Key::RulesNotStored
+            } else {
+                Key::RulesStored
+            })
+            .to_owned(),
+            hint: None,
+            choices: Vec::new(),
+            actions: store,
+        };
+        vec![
+            SettingsGroup {
+                title: i18n::s(Key::RulesTitle).to_owned(),
+                hint: Some(i18n::s(Key::RulesHint).to_owned()),
+                rows,
+            },
+            SettingsGroup {
+                title: i18n::s(Key::SyncedSettings).to_owned(),
+                hint: Some(i18n::s(Key::SettingsShared).to_owned()),
+                rows: vec![server],
+            },
+        ]
     }
 
     /// Asks the host for a system settings screen.

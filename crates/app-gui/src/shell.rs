@@ -69,6 +69,8 @@ pub struct Shell {
     /// The last query result the user asked for, shown as `app_front::result`'s view or raw.
     result: Option<QueryResult>,
     clock: fn() -> i64,
+    /// The local time zone of the dates shown (MISC-46).
+    zone: app_front::format::Zone,
     /// The mark-as-read timer (UX-5).
     autoread: app_front::autoread::AutoRead,
     /// The language of the shared texts (`app_front::i18n`).
@@ -98,6 +100,7 @@ impl Default for Shell {
             settings: crate::settings::SettingsState::default(),
             result: None,
             clock: system_now_ms,
+            zone: app_sync::clock::local_offset_ms,
             autoread: app_front::autoread::AutoRead::default(),
             lang: app_front::i18n::Lang::default(),
             system_lang: app_front::i18n::Lang::default(),
@@ -129,12 +132,21 @@ impl Shell {
         self.composer.lang = lang;
     }
 
-    /// A shell that reads the time from `clock` (Unix ms) instead of the system clock.
+    /// A shell that reads the time from `clock` (Unix ms) instead of the system clock, and shows
+    /// dates in UTC (see [`Self::with_zone`]).
     pub fn with_clock(clock: fn() -> i64) -> Self {
         Self {
             clock,
+            zone: app_front::format::utc,
             ..Self::default()
         }
+    }
+
+    /// Shows dates in the local time of `zone` instead of the system's (MISC-46).
+    #[must_use]
+    pub fn with_zone(mut self, zone: app_front::format::Zone) -> Self {
+        self.zone = zone;
+        self
     }
 
     /// What the user asked for outside the engine since the last call.
@@ -236,6 +248,7 @@ impl Shell {
         self.lang = lang;
         t.lang = lang;
         let now_ms = (self.clock)();
+        let zone = self.zone;
         self.saver.receive(&mut queue);
         if let Some((thread, cmd)) = self.bodies.refresh(state) {
             queue.push(Request {
@@ -383,7 +396,15 @@ impl Shell {
                     .inner_margin(egui::Margin::ZERO)
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
-                        list::show(ui, &t, state, &rows, &mut self.list, now_ms, &mut queue);
+                        list::show(
+                            ui,
+                            &t,
+                            state,
+                            &rows,
+                            &mut self.list,
+                            (now_ms, zone),
+                            &mut queue,
+                        );
                         if let Some(step) = self.list.take_ask() {
                             self.palette.open_at(step);
                             queue.push(Request::user(Command::OpenPalette {}));
@@ -466,7 +487,7 @@ impl Shell {
             t,
             state,
             &self.bodies,
-            now_ms,
+            (now_ms, self.zone),
             reader::ReaderIo {
                 images: &mut self.images,
                 folds: &mut self.folds,
@@ -539,7 +560,8 @@ impl Shell {
             egui::ScrollArea::vertical()
                 .id_salt("query-result")
                 .show(ui, |ui| {
-                    let doc = app_front::result::doc(result.name, &result.data, state, now_ms);
+                    let doc =
+                        app_front::result::doc(result.name, &result.data, state, now_ms, self.zone);
                     match doc.filter(|_| !result.raw) {
                         Some(doc) => chosen = result_doc(ui, t, &doc),
                         None => {

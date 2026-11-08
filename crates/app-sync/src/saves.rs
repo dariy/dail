@@ -54,7 +54,7 @@ async fn write_all(
 }
 
 /// Creates `dir/name` (or the first free `name (n).ext`) and writes `bytes` into it.
-async fn write_new(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, String> {
+pub(crate) async fn write_new(dir: &Path, name: &str, bytes: &[u8]) -> Result<String, String> {
     for n in 0..=MAX_ALTERNATIVES {
         let candidate = if n == 0 {
             name.to_owned()

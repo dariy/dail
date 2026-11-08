@@ -10,6 +10,10 @@ use super::{Lang, commands, pseudo};
 /// English reasons of `error_002_invalid_argument` and similar errors, with their French.
 const REASONS: &[(&str, &str)] = &[
     (
+        "there is no folder for the draft's attachments",
+        "il n’y a pas de dossier pour les pièces jointes du brouillon",
+    ),
+    (
         "expected an address like sales@example.org",
         "adresse attendue, par exemple sales@example.org",
     ),
@@ -258,6 +262,10 @@ const PATTERNS: &[(&str, &str)] = &[
     (
         "“{}” is larger than 25 MiB and cannot be attached",
         "« {} » dépasse 25 Mio et ne peut pas être joint",
+    ),
+    (
+        "the draft's attachments could not be written: {}",
+        "les pièces jointes du brouillon n’ont pas pu être écrites : {}",
     ),
     (
         "“{}” could not be copied: {}",

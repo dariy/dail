@@ -21,7 +21,8 @@ expression: parsed
     "cc": [],
     "subject": "Grüße – Preis 50 €",
     "date_ms": 1700046000000,
-    "has_attachments": false
+    "has_attachments": false,
+    "list_id": null
   },
   "text": "Grüße aus Köln – ça va? 50 €",
   "text_source": "plain",

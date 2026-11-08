@@ -304,7 +304,8 @@ class GoldenPathTest {
         }
 
         // Archive, then undo.
-        tap("Archive")
+        // The reader may still be sliding in: a tap on a moving button lands elsewhere.
+        tap(settled("Archive"))
         awaitThat("archived") { !listed(SUBJECT) }
         undoArchive()
 

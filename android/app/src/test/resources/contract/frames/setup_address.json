@@ -16,16 +16,16 @@
     "title": "Conversations",
     "total": 0
   },
-  "revision": 6,
+  "revision": 7,
   "setup": {
     "actions": [
       {
-        "action": 37,
+        "action": 50,
         "label": "Find servers"
       }
     ],
     "back": {
-      "action": 38,
+      "action": 51,
       "icon": "arrow_back",
       "label": "Back"
     },
@@ -81,11 +81,11 @@
   "top_bar": {
     "actions": [
       {
-        "action": 35,
+        "action": 48,
         "label": "Add account"
       },
       {
-        "action": 36,
+        "action": 49,
         "label": "About"
       }
     ],

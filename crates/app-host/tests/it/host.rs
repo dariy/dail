@@ -620,23 +620,26 @@ fn new_mail_alerts_only_while_no_activity_is_visible() {
     }
     let note: serde_json::Value = serde_json::from_str(&got.lock().unwrap()[0]).unwrap();
     assert_eq!(note["channel"], "new_mail");
+    assert_eq!(note["group"], "new_mail");
     assert_eq!(note["body"], "Lunch");
+    assert_eq!(note["open"]["act"], "open_message");
     assert_eq!(note["public_title"], "New mail");
     // Its *Mark read* button, passed back as `background` would get it.
     let act: app_mobile::NoteAct =
         serde_json::from_value(note["actions"][1]["act"].clone()).unwrap();
     assert!(host.notification(&act, Duration::from_secs(10)).unwrap());
-    let thread = match &act {
-        app_mobile::NoteAct::MarkRead { threads } => threads[0],
+    let messages = match &act {
+        app_mobile::NoteAct::MarkRead { messages, .. } => messages.clone(),
         other => panic!("{other:?}"),
     };
+    assert!(!messages.is_empty(), "its new messages");
     let state = host.state();
-    assert!(
-        state.threads[&thread]
-            .messages
-            .iter()
-            .all(|m| state.messages[m].flags.seen)
-    );
+    assert!(messages.iter().all(|m| state.messages[m].flags.seen));
+    // The second notification is the group's summary.
+    let notes = got.lock().unwrap().clone();
+    let summary: serde_json::Value = serde_json::from_str(&notes[1]).unwrap();
+    assert_eq!(summary["summary"], true);
+    assert_eq!(summary["tag"], "new_mail");
     host.close();
 }
 

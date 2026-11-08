@@ -11,5 +11,6 @@ mod original;
 mod pdf;
 mod plain;
 mod scale;
+mod settings;
 mod store;
 mod update;

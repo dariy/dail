@@ -1,0 +1,10 @@
+# The theme and shared preferences follow the synced document (ADR 0015, SET-7): local changes stamp it, a pull applies newer fields, an older one and a local-only key are ignored, undo restamps.
+{"t": 1700000000000, "seed": 18446744073709551616, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.com", "imap": {"host": "imap.example.com", "port": 993, "security": "tls"}, "smtp": {"host": "smtp.example.com", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "list_density", "value": 1}}}}
+{"t": 1700000002000, "origin": "gui", "input": {"command": {"cmd": "set_theme", "args": {"mode": "dark"}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "set_setting", "args": {"key": "text_scale", "value": 150}}}}
+{"t": 1700000004000, "seed": 36893488147419103232, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0001-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "dail", "delimiter": "/", "selectable": true}, {"path": "dail/Settings", "delimiter": "/", "selectable": true}]}}}}
+{"t": 1700000005000, "origin": "runtime", "input": {"event": {"event": "settings_read", "args": {"account": "00000000-0000-0001-0000-000000000000", "copy": {"uid_validity": 9, "uid": 4}, "document": "{\"schema\":1,\"updated_ms\":1700000009000,\"theme\":{\"updated_ms\":1700000009000,\"value\":{\"mode\":1,\"light\":\"dail-light-hc\",\"dark\":\"dail-dark\"}},\"prefs\":{\"list_density\":{\"updated_ms\":50,\"value\":2},\"text_scale\":{\"updated_ms\":1700000009000,\"value\":200}}}"}}}}
+{"t": 1700000006000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000007000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000008000, "origin": "mcp", "input": {"command": {"cmd": "get_settings", "args": {}}}}

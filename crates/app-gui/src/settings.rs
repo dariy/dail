@@ -39,11 +39,12 @@ pub struct SettingsActions {
 }
 
 /// The tabs, in order, with their icons and titles.
-const TABS: [(SettingsSection, Icon, Key); 5] = [
+const TABS: [(SettingsSection, Icon, Key); 6] = [
     (SettingsSection::Appearance, Icon::Contrast, Key::Appearance),
     (SettingsSection::Keys, Icon::Keyboard, Key::Keyboard),
     (SettingsSection::General, Icon::Settings, Key::General),
     (SettingsSection::Accounts, Icon::Person, Key::Accounts),
+    (SettingsSection::Rules, Icon::DriveFileMove, Key::RulesTab),
     (SettingsSection::About, Icon::Info, Key::About),
 ];
 
@@ -114,10 +115,12 @@ impl SettingsState {
                     SettingsSection::General => {
                         general(ui, t, state, queue);
                         updates(ui, t, state, now_ms, &mut actions, queue);
+                        synced(ui, t, state, &mut actions);
                     }
                     SettingsSection::Accounts => {
                         self.accounts(ui, t, state, &mut actions, queue);
                     }
+                    SettingsSection::Rules => rules(ui, t, state, &mut actions, queue),
                     SettingsSection::About => about(ui, t, &mut actions),
                 }
             });
@@ -746,6 +749,147 @@ fn updates(
     });
 }
 
+/// The settings on the mail server (ADR 0015, SET-3): which account holds them, with
+/// *Change…*, and where the last pull or push stands, or its error with its code.
+fn synced(ui: &mut Ui, t: &Tokens, state: &AppState, actions: &mut SettingsActions) {
+    let Some(panel) = app_front::synced::panel(state) else {
+        return;
+    };
+    ui.add_space(t.m.space.lg);
+    ui::caption(ui, t, t.s(Key::SyncedSettings));
+    ui.label(ui::text(&t.type_scale.body_sm, panel.shared, t.text_muted));
+    ui.add_space(t.m.space.sm);
+    let detail = format!("{}\n{}", panel.account_label, t.s(Key::SettingsAccountHint));
+    row(ui, t, t.s(Key::SettingsAccount), &detail, |ui| {
+        let more = state.accounts.len() > 1;
+        if ui::secondary(ui, t, t.s(Key::Change), None, more)
+            && let Flow::Ask(step) =
+                app_front::palette::flow(CommandName::SetSettingsAccount, state)
+        {
+            actions.ask = Some(step);
+        }
+    });
+    let status = match panel.pending {
+        Some(pending) => format!("{}\n{pending}", panel.status),
+        None => panel.status,
+    };
+    row(ui, t, t.s(Key::SettingsSyncState), &status, |_| {});
+}
+
+/// The Rules section (ADR 0015, SET-5): every sorting rule with its switch, *Edit…* and
+/// *Delete*, then *Add a rule…*, *Apply to this mailbox* and *Store on the server*. Rule text
+/// is untrusted: names and summaries are plain labels, never markup or links.
+fn rules(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    actions: &mut SettingsActions,
+    queue: &mut Vec<Request>,
+) {
+    let panel = app_front::rules::panel(state);
+    ui::caption(ui, t, t.s(Key::RulesTitle));
+    ui.label(ui::text(
+        &t.type_scale.body_sm,
+        t.s(Key::RulesHint),
+        t.text_muted,
+    ));
+    ui.add_space(t.m.space.sm);
+    if panel.rows.is_empty() {
+        ui.label(ui::text(
+            &t.type_scale.body_md,
+            t.s(Key::RulesEmpty),
+            t.text_secondary,
+        ));
+        ui::divider(ui, t);
+    }
+    for rule in &panel.rows {
+        let id = rule.id;
+        split(
+            ui,
+            t,
+            &format!("rule-{id}"),
+            t.m.rows.palette + t.m.space.md,
+            |ui| {
+                let color = if rule.enabled {
+                    t.text_strong
+                } else {
+                    t.text_muted
+                };
+                ui.label(ui::text(&t.type_scale.body_md, rule.name.as_str(), color));
+                ui.label(ui::text(
+                    &t.type_scale.body_sm,
+                    rule.summary.as_str(),
+                    t.text_muted,
+                ));
+            },
+            |ui| {
+                if ui::switch(ui, t, rule.enabled, t.s(Key::RuleEnabled)).clicked() {
+                    queue.push(Request::user(Command::EnableRule {
+                        id,
+                        enabled: !rule.enabled,
+                    }));
+                }
+                if ui::secondary(ui, t, t.s(Key::EditRule), None, true)
+                    && let Flow::Ask(step) = app_front::palette::edit_rule(state, id)
+                {
+                    actions.ask = Some(step);
+                }
+                let delete = ui::text(
+                    &t.type_scale.body_md,
+                    t.s(Key::RuleDelete),
+                    t.text_secondary,
+                );
+                if ui::ghost(ui, t, delete).clicked() {
+                    queue.push(Request::user(Command::DeleteRule { id }));
+                }
+            },
+        );
+        ui::divider(ui, t);
+    }
+    ui.add_space(t.m.space.md);
+    ui.horizontal_wrapped(|ui| {
+        if ui::primary(ui, t, t.s(Key::AddRule), None, true)
+            && let Flow::Ask(step) = app_front::palette::new_rule()
+        {
+            actions.ask = Some(step);
+        }
+        if ui::secondary(
+            ui,
+            t,
+            t.s(Key::RulesApplyHere),
+            None,
+            panel.mailbox.is_some(),
+        ) && let Some(mailbox) = panel.mailbox
+        {
+            queue.push(Request::user(Command::ApplyRules { mailbox }));
+        }
+    });
+    if panel.mailbox.is_none() {
+        ui.label(ui::text(
+            &t.type_scale.body_sm,
+            t.s(Key::RulesApplyHint),
+            t.text_muted,
+        ));
+    }
+    ui.add_space(t.m.space.lg);
+    let status = if panel.dirty {
+        t.s(Key::RulesNotStored)
+    } else {
+        t.s(Key::RulesStored)
+    };
+    row(ui, t, t.s(Key::SyncedSettings), status, |ui| {
+        if ui::secondary(
+            ui,
+            t,
+            t.s(Key::RulesStore),
+            None,
+            panel.can_push && panel.dirty,
+        ) {
+            queue.push(Request::user(Command::PushSettings {}));
+        }
+    });
+}
+
 /// The About section (MISC-27): the name, the version, the licence, the links and the texts of
 /// what the desktop app bundles.
 fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
@@ -781,6 +925,8 @@ fn about(ui: &mut Ui, t: &Tokens, actions: &mut SettingsActions) {
     licences.push(("Material Symbols", app_theme::icon::ICON_LICENSE));
     for (name, text) in licences {
         egui::CollapsingHeader::new(name).show(ui, |ui| {
+            // Hard-wrapped text, rewrapped to the panel's width.
+            let text = app_front::text::reflow(text);
             ui.label(ui::text(&t.type_scale.body_sm, text, t.text_secondary));
         });
     }

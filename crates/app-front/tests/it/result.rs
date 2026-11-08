@@ -28,7 +28,7 @@ fn run(state: &AppState, cmd: Value) -> (CommandName, Value) {
 
 fn doc(state: &AppState, cmd: Value) -> ResultDoc {
     let (name, data) = run(state, cmd);
-    result::doc(name, &data, state, support::NOW).unwrap()
+    result::doc(name, &data, state, support::NOW, app_front::format::utc).unwrap()
 }
 
 /// Every query, with arguments over the demo state.
@@ -47,6 +47,7 @@ fn queries(state: &AppState) -> Vec<(CommandName, Value)> {
         json!({"cmd": "list_approvals", "args": {}}),
         json!({"cmd": "get_settings", "args": {}}),
         json!({"cmd": "get_view", "args": {}}),
+        json!({"cmd": "list_rules", "args": {}}),
         json!({"cmd": "test_account", "args": {"id": account}}),
         json!({"cmd": "discover_servers", "args": {"email": "me@example.org"}}),
     ];
@@ -111,7 +112,14 @@ fn untrusted_text_is_cleaned() {
         }],
         "total": 1,
     });
-    let doc = result::doc(CommandName::ListThreads, &data, &state, support::NOW).unwrap();
+    let doc = result::doc(
+        CommandName::ListThreads,
+        &data,
+        &state,
+        support::NOW,
+        app_front::format::utc,
+    )
+    .unwrap();
     let row = &doc.sections[0].rows[0];
     for text in [&row.title, row.detail.as_ref().unwrap()] {
         assert!(
@@ -128,7 +136,14 @@ fn untrusted_text_is_cleaned() {
 fn unknown_data_falls_back_to_fields_without_braces() {
     let state = rich_state();
     let data = json!({"odd": {"nested": {"deep": [1, 2]}}, "flag": true});
-    let doc = result::doc(CommandName::GetView, &data, &state, support::NOW).unwrap();
+    let doc = result::doc(
+        CommandName::GetView,
+        &data,
+        &state,
+        support::NOW,
+        app_front::format::utc,
+    )
+    .unwrap();
     let text = format!("{:?}", doc.sections);
     assert!(!text.contains('{') || text.contains("Section {"));
     for section in &doc.sections {

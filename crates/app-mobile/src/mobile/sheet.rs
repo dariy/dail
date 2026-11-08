@@ -188,7 +188,8 @@ impl Mobile {
             .to_owned(),
             action: self.add(Act::RawResult),
         };
-        let doc = app_front::result::doc(result.name, &result.data, state, self.now_ms());
+        let doc =
+            app_front::result::doc(result.name, &result.data, state, self.now_ms(), self.zone());
         let title = doc.as_ref().map_or_else(
             || app_front::i18n::title(result.name).to_owned(),
             |d| d.title.clone(),

@@ -42,6 +42,7 @@ pub(super) fn account(n: u128) -> Account {
         secret: SecretRef::for_account(id),
         status: AccountStatus::Unverified,
         identities: Vec::new(),
+        managesieve: None,
     }
 }
 
@@ -85,6 +86,7 @@ pub(super) fn cache(account: u128, n: u128) -> MailDelta {
             flags: Flags::default(),
             size: 10,
             has_attachments: false,
+            list_id: None,
             snippet: None,
             body: BodyState::NotFetched,
             moved_to: None,
@@ -203,6 +205,7 @@ pub(super) fn draft(n: u128, created_ms: i64) -> Draft {
         send_at: None,
         sending: false,
         send_error: None,
+        loading_from: None,
         from: None,
     }
 }
@@ -481,5 +484,56 @@ fn a_cache_that_does_not_open_is_restored_from_the_daily_backup() {
     assert_eq!(std::fs::read(&recovery.broken).unwrap(), b"not a redb file");
     let state = store.load_snapshot().unwrap().unwrap();
     assert_eq!(state.messages.len(), 1, "the mail of the backup is back");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_saved_rule_survives_a_restart_unpushed() {
+    let dir = scratch("synced");
+    let dirs = ProfileDirs::at(&dir);
+    let rule = app_core::Rule {
+        name: "News".into(),
+        enabled: true,
+        when: app_core::Condition::From {
+            contains: "news@".into(),
+        },
+        then: vec![app_core::RuleAction::Star],
+    };
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store.apply(&PersistDelta::Account(account(1))).unwrap();
+        let mut engine = app_core::Engine::new(store.load_snapshot().unwrap().unwrap());
+        let ctx = app_core::Ctx {
+            now_ms: 1_700_000_000_000,
+            id_seed: 9 << 64,
+            origin: Origin::Cli,
+        };
+        let out = engine
+            .dispatch(
+                app_core::Command::SaveRule {
+                    id: None,
+                    rule: rule.clone(),
+                },
+                &ctx,
+            )
+            .unwrap();
+        for effect in out.effects {
+            if let app_core::Effect::PersistState { delta } = effect {
+                store.apply(&delta).unwrap();
+            }
+        }
+    }
+    let config = std::fs::read_to_string(dirs.config_file()).unwrap();
+    assert!(!config.contains("news@"), "rules stay out of config.toml");
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap().unwrap();
+    let live: Vec<_> = state
+        .synced
+        .settings
+        .live_rules()
+        .map(|(_, r)| r.clone())
+        .collect();
+    assert_eq!(live, vec![rule]);
+    assert!(state.synced.dirty, "the edit is still unpushed");
     std::fs::remove_dir_all(dir).unwrap();
 }

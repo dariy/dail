@@ -57,7 +57,10 @@ fn the_tabs_open_the_sections() {
     let mut phone = Phone::inbox(360, 800);
     let page = page(&mut phone, SettingsSection::Appearance);
     let tabs: Vec<_> = page.tabs.iter().map(|t| t.label.as_str()).collect();
-    assert_eq!(tabs, ["Appearance", "Keyboard", "General", "Accounts"]);
+    assert_eq!(
+        tabs,
+        ["Appearance", "Keyboard", "General", "Accounts", "Rules"]
+    );
     assert!(page.tabs[0].selected);
     assert_eq!(
         phone.tap(page.tabs[2].action),
@@ -413,4 +416,52 @@ fn a_failed_login_tries_another_password_and_the_banner_reenters_it() {
     let sheet = phone.frame().setup.unwrap();
     let got = phone.tap(sheet_button(&sheet, "Save and test"));
     assert!(matches!(got[0], Command::SetPassword { id: got_id, .. } if got_id == id));
+}
+
+/// A rule that stars mail from `news@` (SET-5).
+pub fn news_rule() -> Command {
+    Command::SaveRule {
+        id: None,
+        rule: app_core::Rule {
+            name: "News".into(),
+            enabled: true,
+            when: app_core::Condition::From {
+                contains: "news@".into(),
+            },
+            then: vec![app_core::RuleAction::Star],
+        },
+    }
+}
+
+/// SET-5: the Rules section lists the rules with on/off, *Edit…* and *Delete*, adds one through
+/// the palette's steps, and stores the edits on the server.
+#[test]
+fn the_rules_section_drives_the_rule_commands() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(news_rule());
+    let id = *phone.state().synced.settings.rules.keys().next().unwrap();
+    let rules = page(&mut phone, SettingsSection::Rules);
+    assert_eq!(rules.section, "rules");
+    let row = rules.groups[0]
+        .rows
+        .iter()
+        .find(|r| r.label == "News")
+        .unwrap();
+    assert!(row.hint.as_deref().unwrap().contains("news@"), "{row:?}");
+    let off = choice(&rules, "News", "Off");
+    assert_eq!(phone.tap(off), [Command::EnableRule { id, enabled: false }]);
+    let rules = page(&mut phone, SettingsSection::Rules);
+    let delete = button(&rules, "Delete");
+    assert_eq!(phone.tap(delete), [Command::DeleteRule { id }]);
+    let rules = page(&mut phone, SettingsSection::Rules);
+    let store = button(&rules, "Store on the server");
+    assert_eq!(phone.tap(store), [Command::PushSettings {}]);
+    let rules = page(&mut phone, SettingsSection::Rules);
+    let add = button(&rules, "Add a rule…");
+    assert_eq!(phone.tap(add), [Command::OpenPalette {}]);
+    let sheet = phone
+        .frame()
+        .palette
+        .expect("the palette at the first step");
+    assert_eq!(sheet.prompt.as_deref(), Some("Match mail by what?"));
 }

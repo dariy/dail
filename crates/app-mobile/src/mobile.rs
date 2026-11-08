@@ -61,6 +61,8 @@ enum Act {
     Compose,
     /// Open the About screen.
     About,
+    /// Open this page of the About screen (an index into `theme::licences`).
+    AboutPage(usize),
     /// Maximize the message pane, or restore the panes (MISC-14).
     Maximize,
     /// Add a suggested contact to a recipient field.
@@ -99,6 +101,10 @@ enum Act {
     RawResult,
     /// A row of a query's result: close the result and run its command.
     FromResult(Command),
+    /// *Add a rule…* of the Rules settings: the palette's steps (SET-5).
+    AddRule,
+    /// *Edit…* of a sorting rule: the palette's steps (SET-5).
+    EditRule(app_core::RuleId),
 }
 
 /// The window, as the host last configured it.
@@ -135,7 +141,7 @@ struct RowText {
 }
 
 impl RowText {
-    fn of(summary: &ThreadSummary, thread: &Thread, now: i64) -> Self {
+    fn of(summary: &ThreadSummary, thread: &Thread, now: i64, zone: format::Zone) -> Self {
         let sender = format::names(&summary.senders);
         Self {
             sender: if sender.is_empty() {
@@ -147,14 +153,30 @@ impl RowText {
                 "" => i18n::s(Text::NoSubject).to_owned(),
                 s => clean(s),
             },
-            date: format::short_date(thread.last_date_ms, now),
+            date: format::short_date(thread.last_date_ms, now, zone),
         }
     }
+}
+
+/// The panes of a frame (`Mobile::panes`).
+struct Panes {
+    kinds: Vec<PaneKind>,
+    /// The open message as a page over the list (compact windows, MISC-18).
+    page: Option<PaneKind>,
+    /// The drawer is modal, over the other panes.
+    modal: bool,
+    rail: bool,
+    side: bool,
+    /// Something is beside the message to hide (MISC-14).
+    crowded: bool,
+    maximized: bool,
 }
 
 /// UI-local state that is not part of `AppState`.
 pub struct Mobile {
     clock: fn() -> i64,
+    /// The local time zone of the dates shown (MISC-46); the host passes the system's in.
+    zone: format::Zone,
     lang: Lang,
     /// The device's language, for the `language` setting's "system".
     system_lang: Lang,
@@ -183,6 +205,8 @@ pub struct Mobile {
     theme_sent: Option<String>,
     /// Whether the About screen is open.
     about: bool,
+    /// The open page of the About screen, if one is.
+    about_page: Option<usize>,
     /// Panes a pinch took away from the reader (MISC-6): 0 none, 1 the sidebar, 2 the list too.
     /// Kept across threads.
     pane_step: u8,
@@ -212,6 +236,8 @@ pub struct Mobile {
     setup: Option<setup::Setup>,
     /// Whether the setup was opened on its own for a profile without accounts (once).
     offered: bool,
+    /// Mark as read after a delay (UX-5, MISC-47): the desktop's timer, counted while visible.
+    autoread: app_front::autoread::AutoRead,
 }
 
 impl Default for Mobile {
@@ -265,6 +291,7 @@ impl Mobile {
     pub fn with_clock(clock: fn() -> i64) -> Self {
         Self {
             clock,
+            zone: format::utc,
             lang: Lang::default(),
             system_lang: Lang::default(),
             window: Window {
@@ -287,6 +314,7 @@ impl Mobile {
             dark: false,
             theme_sent: None,
             about: false,
+            about_page: None,
             pane_step: 0,
             compose: Buffers::default(),
             told: Vec::new(),
@@ -301,7 +329,21 @@ impl Mobile {
             preview: None,
             setup: None,
             offered: false,
+            autoread: app_front::autoread::AutoRead::default(),
         }
+    }
+
+    /// Shows dates in the local time of `zone` instead of UTC (MISC-46). This crate reads no time
+    /// zone: the host passes the system's in.
+    #[must_use]
+    pub fn with_zone(mut self, zone: format::Zone) -> Self {
+        self.zone = zone;
+        self
+    }
+
+    /// The time zone of the dates shown.
+    pub fn zone(&self) -> format::Zone {
+        self.zone
     }
 
     /// The time the presenter shows (Unix ms).
@@ -329,7 +371,21 @@ impl Mobile {
                 cmd,
             })
             .into_iter()
+            .chain(self.autoread(state))
             .collect()
+    }
+
+    /// Mark as read after a delay (UX-5, MISC-47): the open thread's unread expanded messages
+    /// get one `mark_read` from the user once it has been open `mark_read_after_ms` while the
+    /// app is visible and the message on screen. Polled before each frame, on every tick and
+    /// on `visible`.
+    fn autoread(&mut self, state: &AppState) -> Option<Request> {
+        let now = self.now_ms();
+        let focused = self.visible && self.reader_on_screen(state);
+        match self.autoread.poll(state, now, focused) {
+            app_front::autoread::Poll::Fire(cmd) => Some(Request::user(cmd)),
+            app_front::autoread::Poll::Wait(_) | app_front::autoread::Poll::Idle => None,
+        }
     }
 
     /// Shows `text` in the snackbar for a while: something the host did on its own failed
@@ -368,6 +424,10 @@ impl Mobile {
         if !flushed.is_empty() {
             out.splice(0..0, flushed);
         }
+        // The user's `mark_unread` disarms the timer until another thread opens.
+        for request in &out {
+            self.autoread.note(&request.cmd);
+        }
         out
     }
 
@@ -391,8 +451,11 @@ impl Mobile {
                 Vec::new()
             }
             UiEvent::Visible { visible } => {
+                // Bring the timer up to now under the old focus first, so time spent in the
+                // background never counts (MISC-47). It may fire for the time just before.
+                let read = self.autoread(state);
                 self.visible = visible;
-                Vec::new()
+                read.into_iter().collect()
             }
             UiEvent::Tap { action } => self.act(action, state),
             UiEvent::LongPress { action } | UiEvent::Swipe { action } => {
@@ -475,7 +538,12 @@ impl Mobile {
             } => Vec::new(),
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
-            UiEvent::Tick => self.compose.idle(state, now).into_iter().collect(),
+            UiEvent::Tick => self
+                .compose
+                .idle(state, now)
+                .into_iter()
+                .chain(self.autoread(state))
+                .collect(),
             UiEvent::Share {
                 mailto,
                 to,
@@ -549,8 +617,8 @@ impl Mobile {
         out
     }
 
-    /// Whether the screen changes with the clock: a send counts down, an age is shown, or a
-    /// message is about to leave the snackbar.
+    /// Whether the screen changes with the clock: a send counts down, an age is shown, a
+    /// message is about to leave the snackbar, or the open thread may be marked read.
     pub fn wants_tick(&self, state: &AppState) -> bool {
         let now = self.now_ms();
         !state.accounts.is_empty()
@@ -558,6 +626,8 @@ impl Mobile {
             || self.notice.as_ref().is_some_and(|(_, until)| *until > now)
             || self.undo_until > now
             || self.compose.is_dirty()
+            // A thread is open: its unread messages may be marked read (MISC-47).
+            || (state.view.thread.is_some() && state.settings.mark_read_after_ms > 0)
     }
 
     fn act(&mut self, action: ActionId, state: &AppState) -> Vec<Request> {
@@ -573,6 +643,7 @@ impl Mobile {
         // from it, or the panes would change unseen beneath it (MISC-12).
         if matches!(act, Act::Run(_) | Act::Many(_)) {
             self.about = false;
+            self.about_page = None;
         }
         match act {
             Act::Run(cmd) => vec![Request::user(cmd)],
@@ -595,6 +666,11 @@ impl Mobile {
             }
             Act::About => {
                 self.about = true;
+                self.about_page = None;
+                Vec::new()
+            }
+            Act::AboutPage(at) => {
+                self.about_page = Some(at);
                 Vec::new()
             }
             Act::Suggest(field, addr) => self.compose.suggest(field, addr, state),
@@ -632,6 +708,8 @@ impl Mobile {
                 Vec::new()
             }
             Act::RemoveAccount(account) => self.ask(palette::remove_account(state, account), state),
+            Act::AddRule => self.ask(palette::new_rule(), state),
+            Act::EditRule(id) => self.ask(palette::edit_rule(state, id), state),
             Act::System(screen) => {
                 self.system(screen);
                 Vec::new()
@@ -734,7 +812,10 @@ impl Mobile {
     /// else uncheck the checked threads, else from the drawer of a one-pane window back to the list.
     fn back(&mut self, state: &AppState) -> Vec<Request> {
         if self.about {
-            self.about = false;
+            // From a page back to the list, from the list out of About.
+            if self.about_page.take().is_none() {
+                self.about = false;
+            }
             return Vec::new();
         }
         if let Some(setup) = self.setup.as_mut() {
@@ -779,40 +860,9 @@ impl Mobile {
     }
 
     /// Whether the drawer is modal and open: compact and medium windows, the sidebar focused.
-    fn drawer_back(&self, state: &AppState) -> bool {
-        self.class() != Class::Expanded
-            && state.view.focus == Pane::Sidebar
-            && !state.accounts.is_empty()
-    }
-
-    fn add(&mut self, act: Act) -> ActionId {
-        let id = self.next_action;
-        self.next_action = self.next_action.wrapping_add(1).max(1);
-        self.actions.push((id, act));
-        id
-    }
-
-    fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
-        Button {
-            icon: Some(icon.to_owned()),
-            label: label.to_owned(),
-            action: self.add(act),
-        }
-    }
-
-    /// The next screen. The action IDs of earlier frames stop working.
-    pub fn frame(&mut self, state: &AppState) -> Frame {
-        self.lang = Lang::resolve(state.settings.language, self.system_lang);
-        i18n::set_current(self.lang);
-        self.compose.sync(state);
-        self.palette_sync(state);
-        self.actions.clear();
-        self.revision += 1;
-        if !self.offered && state.accounts.is_empty() {
-            self.offered = true;
-            self.open_setup();
-        }
-        let class = self.class();
+    /// The panes the frame shows: which, the phone's page, and how (MISC-6, MISC-11, MISC-14,
+    /// MISC-18). The frame and the mark-as-read timer (MISC-47) share it.
+    fn panes(&self, state: &AppState, class: Class) -> Panes {
         let width = match class {
             Class::Compact => Width::Narrow,
             Class::Medium => Width::Medium,
@@ -868,6 +918,73 @@ impl Mobile {
             PaneKind::Reader
         });
         let maximized = self.pane_step >= 2 && kinds == [PaneKind::Reader];
+        Panes {
+            kinds,
+            page,
+            modal,
+            rail,
+            side,
+            crowded,
+            maximized,
+        }
+    }
+
+    /// Whether the open message is on screen: its pane or page is shown and nothing covers it
+    /// (a modal drawer, About, the setup, the palette, a result or a preview).
+    fn reader_on_screen(&self, state: &AppState) -> bool {
+        let panes = self.panes(state, self.class());
+        (panes.kinds.contains(&PaneKind::Reader) || panes.page.is_some())
+            && !panes.modal
+            && !self.about
+            && self.setup.is_none()
+            && !state.view.palette_open
+            && self.result.is_none()
+            && self.preview.is_none()
+    }
+
+    fn drawer_back(&self, state: &AppState) -> bool {
+        self.class() != Class::Expanded
+            && state.view.focus == Pane::Sidebar
+            && !state.accounts.is_empty()
+    }
+
+    fn add(&mut self, act: Act) -> ActionId {
+        let id = self.next_action;
+        self.next_action = self.next_action.wrapping_add(1).max(1);
+        self.actions.push((id, act));
+        id
+    }
+
+    fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
+        Button {
+            icon: Some(icon.to_owned()),
+            label: label.to_owned(),
+            action: self.add(act),
+        }
+    }
+
+    /// The next screen. The action IDs of earlier frames stop working.
+    pub fn frame(&mut self, state: &AppState) -> Frame {
+        self.lang = Lang::resolve(state.settings.language, self.system_lang);
+        i18n::set_current(self.lang);
+        self.compose.sync(state);
+        self.palette_sync(state);
+        self.actions.clear();
+        self.revision += 1;
+        if !self.offered && state.accounts.is_empty() {
+            self.offered = true;
+            self.open_setup();
+        }
+        let class = self.class();
+        let Panes {
+            kinds,
+            page,
+            modal,
+            rail,
+            side,
+            crowded,
+            maximized,
+        } = self.panes(state, class);
         let mut top_bar = self.top_bar(state, &kinds);
         if maximized {
             // Minimal: the message has the room; its own bar keeps its actions.
@@ -929,7 +1046,7 @@ impl Mobile {
             self.theme_sent = Some(chosen.id.to_string());
             crate::theme::frame_theme(&chosen)
         });
-        let about = self.about.then(crate::theme::about);
+        let about = self.about.then(|| self.about_screen());
         let setup = self.setup_sheet(state);
         let palette = self.palette_sheet(state);
         let result = self.result_view(state);
@@ -983,7 +1100,40 @@ impl Mobile {
         }
     }
 
+    /// The About screen: a row per licence, or the open page's text.
+    fn about_screen(&mut self) -> crate::theme::About {
+        let licences = crate::theme::licences();
+        let page = self.about_page.and_then(|at| licences.get(at).cloned());
+        let pages = if page.is_some() {
+            Vec::new()
+        } else {
+            licences
+                .into_iter()
+                .enumerate()
+                .map(|(at, licence)| crate::theme::AboutPage {
+                    label: licence.name,
+                    action: self.add(Act::AboutPage(at)),
+                })
+                .collect()
+        };
+        crate::theme::about(pages, page)
+    }
+
     fn top_bar(&mut self, state: &AppState, kinds: &[PaneKind]) -> TopBar {
+        if let Some(page) = self.about_page.filter(|_| self.about) {
+            // A licence page: its name, and back to the list.
+            let title = crate::theme::licences()
+                .into_iter()
+                .nth(page)
+                .map(|l| l.name)
+                .unwrap_or_default();
+            return TopBar {
+                title,
+                subtitle: None,
+                navigation: Some(self.button("arrow_back", i18n::s(Text::Back), Act::Back)),
+                actions: Vec::new(),
+            };
+        }
         if self.about {
             // MISC-3: the About screen closes from its own top bar, not only with Back.
             return TopBar {
@@ -1141,12 +1291,12 @@ impl Mobile {
                     (None, None) => continue,
                 };
                 mailboxes.push(DrawerItem {
-                    a11y: a11y::nav_row(&label, node.unread),
+                    a11y: a11y::nav_row(&label, node.unread_total()),
                     label,
                     depth: node.depth,
                     fold,
                     icon: mailbox_icon(node.role).to_owned(),
-                    unread: node.unread,
+                    unread: node.unread_total(),
                     selected: !state.view.unified
                         && node.mailbox.is_some()
                         && state.view.mailbox == node.mailbox
@@ -1292,7 +1442,7 @@ impl Mobile {
                 ids: vec![thread.id],
                 messages: Vec::new(),
             }));
-            let text = RowText::of(&summary, thread, now);
+            let text = RowText::of(&summary, thread, now, self.zone);
             let snippet = summary
                 .messages
                 .last()
@@ -1325,7 +1475,7 @@ impl Mobile {
                 selected: Some(thread.id) == cursor,
                 checked,
                 marks: sheet::row_marks(&words, subject, snippet),
-                a11y: clean(&a11y::thread_row(&summary, checked, now)),
+                a11y: clean(&a11y::thread_row(&summary, checked, now, self.zone)),
             });
         }
         let empty = (total == 0).then(|| {
@@ -1575,7 +1725,10 @@ impl Mobile {
             actions.push(self.button(
                 "delete",
                 i18n::s(Text::Discard),
-                Act::Run(Command::DiscardDraft { id: draft.id }),
+                Act::Run(Command::DiscardDraft {
+                    id: draft.id,
+                    keep_server_copy: false,
+                }),
             ));
         }
         Some(Composer {

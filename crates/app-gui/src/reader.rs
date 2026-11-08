@@ -95,7 +95,7 @@ pub fn show(
     t: &Tokens,
     state: &AppState,
     bodies: &Bodies,
-    now_ms: i64,
+    (now_ms, zone): (i64, format::Zone),
     io: ReaderIo<'_>,
 ) {
     let ReaderIo {
@@ -178,6 +178,7 @@ pub fn show(
                         message,
                         body,
                         now_ms,
+                        zone,
                     };
                     message_card(ui, t, &card, io);
                     ui.add_space(t.m.space.md);
@@ -213,7 +214,8 @@ fn toolbar(
 ) -> Option<app_front::palette::Ask> {
     let ids = vec![tool.thread];
     let messages = tool.messages;
-    let last = messages.last().map(|m| m.id);
+    // The thread's answers skip drafts (MISC-44).
+    let last = tool.state.newest_message(tool.thread);
     let mut ask = None;
     ui::toolbar(ui, t, |ui| {
         let mut push = |cmd| queue.push(Request::user(cmd));
@@ -477,6 +479,8 @@ struct Card<'a> {
     message: &'a Envelope,
     body: Option<&'a Body>,
     now_ms: i64,
+    /// The local time zone of the date (MISC-46).
+    zone: format::Zone,
 }
 
 fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
@@ -486,6 +490,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
         message,
         body: _,
         now_ms,
+        zone,
     } = *card;
     let ReaderIo {
         images,
@@ -515,7 +520,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                             &t.type_scale.label_md,
                             format!(
                                 "{} ({})",
-                                format::long_date(message.date_ms),
+                                format::long_date(message.date_ms, zone),
                                 format::age(message.date_ms, now_ms)
                             ),
                             t.text_muted,
@@ -587,6 +592,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                 externals.push(External::OpenOriginal { blob: blob.clone() });
             }
         }
+        card_actions(ui, t, state, message, queue);
         ui.add_space(t.m.space.sm);
         message_body(
             ui,
@@ -601,6 +607,65 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                 externals,
             },
         );
+    });
+}
+
+/// The message's own actions (MISC-44, `app_front::message_actions`): Reply, Reply all,
+/// Forward, Read/Unread, Star/Unstar and Trash, or Edit and Discard on a draft. Icon buttons in
+/// the toolbar's style; each pushes its command for this message alone.
+fn card_actions(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    message: &Envelope,
+    queue: &mut Vec<Request>,
+) {
+    use app_front::message_actions::{MessageAction, message_actions};
+    let items = message_actions(state, message.id);
+    if items.is_empty() {
+        return;
+    }
+    let from = sender(t, message);
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing.x = t.m.space.xs;
+        for item in items {
+            let (icon, filled) = match item.action {
+                MessageAction::Reply => (Icon::Reply, false),
+                MessageAction::ReplyAll => (Icon::ReplyAll, false),
+                MessageAction::Forward => (Icon::Forward, false),
+                MessageAction::MarkRead => (Icon::MarkEmailRead, false),
+                MessageAction::MarkUnread => (Icon::MarkEmailUnread, false),
+                MessageAction::Star => (Icon::Star, false),
+                MessageAction::Unstar => (Icon::Star, true),
+                MessageAction::Trash | MessageAction::Discard => (Icon::Delete, false),
+                MessageAction::Edit => (Icon::Edit, false),
+            };
+            let color = if filled {
+                t.text_strong
+            } else {
+                t.text_secondary
+            };
+            // Named with the sender, so each card's buttons differ from the toolbar's.
+            let name = t.f(
+                Key::MessageActionName,
+                &[("action", t.s(item.action.label())), ("sender", &from)],
+            );
+            let response = ui::icon_button(ui, t, color, icon, &name);
+            if filled {
+                // The starred state: the star filled over the outline, as in the toolbar.
+                ui::paint_icon(
+                    ui,
+                    response.rect.center(),
+                    icon,
+                    t.m.controls.icon_md,
+                    color,
+                    true,
+                );
+            }
+            if response.clicked() {
+                queue.push(Request::user(item.command));
+            }
+        }
     });
 }
 

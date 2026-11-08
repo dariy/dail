@@ -2087,6 +2087,7 @@ async fn fetched_bodies_are_indexed_searched_and_dropped() {
         flags: app_core::Flags::default(),
         size: 0,
         has_attachments: false,
+        list_id: None,
     }
     .into_envelope(
         message,

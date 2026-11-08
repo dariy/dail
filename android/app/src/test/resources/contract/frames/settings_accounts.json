@@ -14,15 +14,15 @@
           {
             "actions": [
               {
-                "action": 7,
+                "action": 8,
                 "label": "Test"
               },
               {
-                "action": 8,
+                "action": 9,
                 "label": "Password"
               },
               {
-                "action": 9,
+                "action": 10,
                 "label": "Remove"
               }
             ],
@@ -34,7 +34,7 @@
           {
             "actions": [
               {
-                "action": 10,
+                "action": 11,
                 "label": "Add an account"
               }
             ],
@@ -68,6 +68,11 @@
         "action": 6,
         "label": "Accounts",
         "selected": true
+      },
+      {
+        "action": 7,
+        "label": "Rules",
+        "selected": false
       }
     ]
   },

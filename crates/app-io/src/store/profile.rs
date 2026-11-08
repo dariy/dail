@@ -99,6 +99,7 @@ impl Store for ProfileStore {
     fn apply(&self, delta: &PersistDelta) -> Result<(), IoError> {
         match delta {
             PersistDelta::Mail(mail) => self.cache.apply_mail(mail),
+            PersistDelta::Synced(local) => self.cache.put_synced(local),
             PersistDelta::Settings(_)
             | PersistDelta::Account(_)
             | PersistDelta::AccountRemoved(_)

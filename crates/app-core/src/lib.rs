@@ -23,8 +23,10 @@ pub mod ops;
 pub mod receipt;
 pub mod registry;
 pub mod replay;
+pub mod rules;
 pub mod search;
 pub mod state;
+pub mod synced;
 pub mod threading;
 pub mod update;
 
@@ -42,7 +44,9 @@ pub use engine::{Change, Diff, Engine, PREFETCH_MAX_BYTES, Preview};
 pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
-pub use ids::{AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, ThreadId};
+pub use ids::{
+    AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, RuleId, ThreadId,
+};
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{
@@ -53,11 +57,17 @@ pub use ops::{CopyRef, FlagKind, OpState, PendingOp, RemoteOp, RemoteStep};
 pub use receipt::{CommandReceipt, EntityRef, Outcome};
 pub use registry::{AgentAccess, Category, CommandName, CommandSpec};
 pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
+pub use rules::{Placement, RulePlan, Scope};
 pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
     KeyPreset, ListFilter, Pane, QuarantinedRow, Revision, SaveState, ServerSearch, Settings,
     SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
+};
+pub use synced::{
+    Condition, LocalSettings, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA,
+    SettingsCopy, SettingsError, Stamped, SyncedSettings, SyncedState, SyncedTheme,
+    settings_folder,
 };
 pub use update::{
     InstallKind, UpdateArtifact, UpdateChecks, UpdateHost, UpdateManifest, UpdatePolicy,

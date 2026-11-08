@@ -78,6 +78,7 @@ fn batch(account: AccountId, mailbox: MailboxId, range: std::ops::Range<u128>) -
             flags: Flags::default(),
             size: 1_500,
             has_attachments: false,
+            list_id: None,
             snippet: Some(format!("Line one of message {n} about project {}", n % 97)),
             body: BodyState::NotFetched,
             moved_to: None,

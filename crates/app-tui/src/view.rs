@@ -192,11 +192,9 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
                 Span::raw(fold),
                 label,
             ];
-            if node.unread > 0 {
-                spans.push(Span::styled(format!(" {}", node.unread), bold()));
-            }
-            if collapsed && node.unread_below > 0 {
-                spans.push(Span::styled(format!(" +{}", node.unread_below), dim()));
+            // A parent folder counts the unread mail below it too.
+            if node.unread_total() > 0 {
+                spans.push(Span::styled(format!(" {}", node.unread_total()), bold()));
             }
             let line = Line::from(spans);
             let line = if open { line.style(reverse()) } else { line };
@@ -212,7 +210,7 @@ pub fn mailboxes(state: &AppState) -> Vec<(Line<'static>, Option<app_core::Mailb
 /// rows are bold, the cursor's row reversed.
 pub fn thread_row(
     summary: &ThreadSummary<'_>,
-    now_ms: i64,
+    (now_ms, zone): (i64, format::Zone),
     width: u16,
     (cursor, checked): (bool, bool),
 ) -> Line<'static> {
@@ -244,7 +242,7 @@ pub fn thread_row(
     } else {
         subject
     };
-    let date = format::short_date(summary.thread.last_date_ms, now_ms);
+    let date = format::short_date(summary.thread.last_date_ms, now_ms, zone);
     let sender_width = (width / 4).clamp(6, 18);
     let rest = width.saturating_sub(sender_width + date.chars().count() + 3);
     let style = if summary.unread > 0 {

@@ -36,6 +36,8 @@ pub struct HeaderSummary {
     pub date_ms: i64,
     /// `multipart/mixed` or a single non-text part: probably has attachments.
     pub has_attachments: bool,
+    /// `List-Id`, trimmed, if present.
+    pub list_id: Option<String>,
 }
 
 /// Parses a header block (or a whole message; the body is ignored).
@@ -64,6 +66,10 @@ pub fn summarize_headers(raw: &[u8]) -> HeaderSummary {
             .date()
             .map_or(0, |date| date.to_timestamp().saturating_mul(1000)),
         has_attachments,
+        list_id: message
+            .header_raw("List-Id")
+            .map(|raw| raw.trim().to_owned())
+            .filter(|id| !id.is_empty()),
     }
 }
 
@@ -88,6 +94,7 @@ pub fn remote_envelope<'a>(
         flags: parse_flags(flags),
         size,
         has_attachments: summary.has_attachments,
+        list_id: summary.list_id,
     }
 }
 
@@ -142,6 +149,24 @@ pub fn snippet(raw: &[u8]) -> Option<String> {
 /// unparsable message yields empty fields.
 pub fn parse_message(raw: &[u8]) -> ParsedMessage {
     parse(raw, false).0
+}
+
+/// What `edit_draft` takes from a stored draft (MISC-44): its readable text and its `Bcc`
+/// recipients, which no envelope carries. Never fails: an unparsable message yields empty fields.
+pub fn draft_text(raw: &[u8]) -> (String, Vec<Addr>) {
+    let bcc = MessageParser::default()
+        .parse_headers(raw)
+        .map(|message| addresses(message.bcc()))
+        .unwrap_or_default();
+    (parse_message(raw).text, bcc)
+}
+
+/// The attachments `edit_draft` carries from a stored draft into the local one (MISC-44d):
+/// `(safe file name, decoded bytes)` for every attachment, as [`attachment_files`] gives them
+/// (inline parts such as `cid:` images included, since the local draft is plain text and would
+/// lose them otherwise). Never fails: an unparsable message yields none.
+pub fn draft_attachments(raw: &[u8]) -> Vec<(String, Vec<u8>)> {
+    attachment_files(raw, &[]).unwrap_or_default()
 }
 
 /// [`parse_message`], plus the body as a [`Document`] for display: the HTML's, or the plain text read as

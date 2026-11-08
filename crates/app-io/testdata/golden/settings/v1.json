@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "updated_ms": 1793750400000,
+  "theme": {
+    "updated_ms": 1793750400000,
+    "value": { "mode": 2, "light": "dail-light", "dark": "dail-dark" }
+  },
+  "prefs": {
+    "list_density": { "updated_ms": 1793664000000, "value": 1 },
+    "after_triage": { "updated_ms": 1793664000000, "value": 2 }
+  },
+  "rules": {
+    "00000000-0000-0000-0000-00000000a001": {
+      "updated_ms": 1793750400000,
+      "rule": {
+        "name": "Newsletters to Reading",
+        "enabled": true,
+        "when": {
+          "test": "any",
+          "of": [
+            { "test": "list_id", "contains": "news" },
+            { "test": "all", "of": [
+              { "test": "from", "contains": "@shop.example" },
+              { "test": "not", "of": { "test": "has_attachment" } }
+            ] }
+          ]
+        },
+        "then": [
+          { "action": "move", "to": "Reading" },
+          { "action": "mark_read" }
+        ]
+      }
+    },
+    "00000000-0000-0000-0000-00000000a002": {
+      "updated_ms": 1793750400000,
+      "rule": {
+        "name": "Invoices",
+        "enabled": false,
+        "when": { "test": "all", "of": [
+          { "test": "mailbox", "path": "INBOX" },
+          { "test": "subject", "contains": "invoice" },
+          { "test": "to", "contains": "billing@" },
+          { "test": "cc", "contains": "accounts" }
+        ] },
+        "then": [
+          { "action": "add_label", "label": "Finance" },
+          { "action": "star" },
+          { "action": "archive" }
+        ]
+      }
+    },
+    "00000000-0000-0000-0000-00000000a003": { "updated_ms": 1793577600000 }
+  }
+}

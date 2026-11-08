@@ -47,17 +47,30 @@ pub struct TextStyle {
     pub tracking: f32,
 }
 
-/// The About screen: the version and the licences of what the app bundles.
+/// The About screen: the version, then a list of pages, one per licence of what the app bundles
+/// (as the desktop's About). A tapped page replaces the list until Back.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct About {
     /// The screen's title.
     pub title: String,
     /// What the app is.
     pub text: String,
-    /// One licence per bundled work.
-    pub licences: Vec<Licence>,
+    /// One page per bundled work's licence, in this order.
+    pub pages: Vec<AboutPage>,
     /// The privacy policy (STORE-19), opened in the browser.
     pub privacy: AboutLink,
+    /// The open page: draw its text instead of the list. The top bar carries its name and Back.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page: Option<Licence>,
+}
+
+/// A row of the About screen's list: tapping it opens the page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct AboutPage {
+    /// The work (`Geist`).
+    pub label: String,
+    /// Opens its page.
+    pub action: crate::frame::ActionId,
 }
 
 /// A link on the About screen: its label and its `https` target.
@@ -173,18 +186,19 @@ pub fn about_title() -> String {
     )
 }
 
-/// The About screen.
-pub fn about() -> About {
+/// The licences of what the app bundles, one per About page. Prose is reflowed for the screen
+/// (`text::reflow`); the crate and library lists keep one entry per line.
+pub fn licences() -> Vec<Licence> {
     let mut licences: Vec<Licence> = fonts::fonts()
         .iter()
         .map(|font| Licence {
             name: font.name.to_owned(),
-            text: font.license.to_owned(),
+            text: app_front::text::reflow(font.license),
         })
         .collect();
     licences.push(Licence {
         name: "Material Symbols".to_owned(),
-        text: icon::ICON_LICENSE.to_owned(),
+        text: app_front::text::reflow(icon::ICON_LICENSE),
     });
     // Written by `cargo xtask android licences`; `android check` fails when they are stale.
     licences.push(Licence {
@@ -197,12 +211,17 @@ pub fn about() -> About {
     });
     licences.push(Licence {
         name: app_front::i18n::s(Key::PdfFontsAndCmaps).to_owned(),
-        text: include_str!("../licences/pdf-assets.txt").to_owned(),
+        text: app_front::text::reflow(include_str!("../licences/pdf-assets.txt")),
     });
     licences.push(Licence {
         name: app_front::i18n::s(Key::PdfCraftViewer).to_owned(),
-        text: include_str!("../licences/pdfcraft-viewer.txt").to_owned(),
+        text: app_front::text::reflow(include_str!("../licences/pdfcraft-viewer.txt")),
     });
+    licences
+}
+
+/// The About screen with the given rows and the open page.
+pub fn about(pages: Vec<AboutPage>, page: Option<Licence>) -> About {
     About {
         title: about_title(),
         // The phone has no MCP server and no keyboard-first use: neither is said here (MISC-13).
@@ -210,10 +229,11 @@ pub fn about() -> About {
             Key::AboutMobileText,
             &[("licence", env!("CARGO_PKG_LICENSE"))],
         ),
-        licences,
+        pages,
         privacy: AboutLink {
             label: app_front::i18n::s(Key::PrivacyPolicy).to_owned(),
             url: PRIVACY_URL.to_owned(),
         },
+        page,
     }
 }

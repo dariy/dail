@@ -89,7 +89,36 @@ pub(crate) fn rich_state() -> AppState {
     );
     dispatch(&mut engine, 508, Command::OpenComposer { id: open });
     dispatch(&mut engine, 509, Command::FocusPane { pane: Pane::List });
+    dispatch(
+        &mut engine,
+        512,
+        Command::SaveRule {
+            id: None,
+            rule: app_core::Rule {
+                name: "News".into(),
+                enabled: true,
+                when: app_core::Condition::From {
+                    contains: "news@".into(),
+                },
+                then: vec![app_core::RuleAction::Star],
+            },
+        },
+    );
     engine.state().clone()
+}
+
+/// [`rich_state`] with a draft in the open conversation, older than its other message, for
+/// `edit_draft` (MISC-44): the last inbox thread's message becomes it.
+fn with_thread_draft(mut state: AppState) -> AppState {
+    let (_, threads) = inbox_of(&state);
+    let open = state.view.thread.unwrap();
+    let last = *threads.iter().rfind(|t| **t != open).unwrap();
+    let message = state.threads.shift_remove(&last).unwrap().messages[0];
+    let envelope = &mut state.messages[&message];
+    envelope.flags.draft = true;
+    envelope.thread = open;
+    state.threads[&open].messages.insert(0, message);
+    state
 }
 
 /// Follows a flow, answering every step with its first choice (`text` for free text).
@@ -134,7 +163,7 @@ fn the_language_setting_offers_names_and_submits_the_value() {
 
 #[test]
 fn every_registry_command_is_reachable_from_the_palette() {
-    let state = rich_state();
+    let state = with_thread_draft(rich_state());
     let roots: Vec<Target> = palette::root_rows(&state)
         .into_iter()
         .map(|r| r.target)

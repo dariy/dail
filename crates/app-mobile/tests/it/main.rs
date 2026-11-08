@@ -3,6 +3,7 @@
 mod support;
 
 mod attachments;
+mod autoread;
 mod background;
 mod composer;
 mod contract;
@@ -11,6 +12,7 @@ mod events;
 mod frames;
 mod keys;
 mod list;
+mod message_actions;
 mod palette;
 mod reader;
 mod settings;

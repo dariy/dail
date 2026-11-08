@@ -20,4 +20,4 @@ pub use frame::{Class, Frame};
 pub use mobile::{Mobile, preview_text};
 pub use notify::{NoteAct, Notification, notifications, push_status};
 pub use request::{Purpose, Reply, Request};
-pub use theme::{About, FrameTheme};
+pub use theme::{About, AboutPage, FrameTheme};

@@ -15,11 +15,9 @@ ResultDoc {
                     title: "Inbox",
                     detail: None,
                     meta: Some(
-                        "1 unread · 2",
+                        "0 unread · 2",
                     ),
-                    marks: [
-                        Unread,
-                    ],
+                    marks: [],
                     command: Some(
                         OpenMailbox {
                             id: MailboxId(

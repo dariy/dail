@@ -20,7 +20,8 @@ expression: parsed
     "cc": [],
     "subject": "お知らせ",
     "date_ms": 1700096400000,
-    "has_attachments": false
+    "has_attachments": false,
+    "list_id": null
   },
   "text": "価格は**千円**です。",
   "text_source": "html",

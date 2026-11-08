@@ -525,3 +525,58 @@ fn running_ops_are_queued_again_after_a_restart_and_dropped_with_their_account()
     .unwrap();
     assert!(m.engine.state().outbox.is_empty());
 }
+
+#[test]
+fn mark_read_and_unread_change_the_mailboxs_unread_count_and_undo_restores_it() {
+    let mut m = Mail::hostinger();
+    let mailbox = m.mailbox("INBOX");
+    let account = m.account;
+    m.feed(Event::EnvelopesFetched {
+        account,
+        mailbox,
+        uid_validity: 7,
+        uid_next: Some(4),
+        total: 3,
+        unread: 2,
+        envelopes: vec![
+            mail(1, "a@x", None, "Plans", true),
+            mail(2, "b@x", Some("a@x"), "Re: Plans", false),
+            mail(3, "c@x", None, "Lunch", false),
+        ],
+    });
+    let unread = |m: &Mail| m.engine.state().mailboxes[&mailbox].unread;
+    assert_eq!(unread(&m), 2);
+    let lunch = m.message("INBOX", 3);
+    let outcome = m
+        .run(Command::MarkRead {
+            ids: vec![],
+            messages: vec![lunch],
+        })
+        .unwrap();
+    assert_eq!(unread(&m), 1, "the count follows at once");
+    let persisted = of_kind(&outcome.effects, "persist_state");
+    let Effect::PersistState {
+        delta: PersistDelta::Mail(delta),
+    } = persisted[0]
+    else {
+        unreachable!()
+    };
+    assert!(delta.mailboxes.iter().any(|b| b.id == mailbox));
+    // Marking an already read message changes nothing.
+    m.run(Command::MarkRead {
+        ids: vec![],
+        messages: vec![lunch],
+    })
+    .unwrap();
+    assert_eq!(unread(&m), 1);
+    m.run(Command::MarkUnread {
+        ids: vec![],
+        messages: vec![m.message("INBOX", 1), lunch],
+    })
+    .unwrap();
+    assert_eq!(unread(&m), 3);
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(unread(&m), 1);
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(unread(&m), 2);
+}

@@ -215,6 +215,8 @@ mod tests {
                     body: body.into(),
                     threads: Vec::new(),
                     draft: None,
+                    messages: Vec::new(),
+                    mailbox: None,
                 })
                 .unwrap();
             std::thread::sleep(std::time::Duration::from_secs(2));

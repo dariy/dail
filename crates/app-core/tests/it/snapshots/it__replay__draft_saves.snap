@@ -98,6 +98,14 @@ expression: first
         }
       }
     },
+    "synced": {
+      "pulled_ms": 1700000001000,
+      "settings": {
+        "schema": 0,
+        "updated_ms": 0
+      },
+      "source": "00000000-0000-0001-0000-000000000000"
+    },
     "threads": {},
     "update": {
       "status": {
@@ -361,6 +369,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -516,6 +525,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -649,6 +659,7 @@ expression: first
               "send_error": null,
               "sending": false,
               "untrusted_content": {
+                "attachments": [],
                 "bcc": [],
                 "body": "Noon?",
                 "cc": [],
@@ -733,6 +744,7 @@ expression: first
                 "send_error": null,
                 "sending": false,
                 "untrusted_content": {
+                  "attachments": [],
                   "bcc": [],
                   "body": "Noon?",
                   "cc": [],

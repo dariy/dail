@@ -278,10 +278,17 @@ struct ReaderMessage: Codable {
     let saveAll: ActionButton?
     let images: ImagesBar?
     let links: [ActionButton]
+    /// MISC-44: this message's own actions (decoded; the iOS reader does not draw them yet).
+    let actions: [ActionButton]
+    /// MISC-44e: the card's swipes, as a list row's (decoded; the iOS reader does not draw them yet).
+    let swipeStart: ActionButton?
+    let swipeEnd: ActionButton?
 
     enum CodingKeys: String, CodingKey {
-        case message, from, to, date, expanded, toggle, snippet, body, status, attachments, images, links
+        case message, from, to, date, expanded, toggle, snippet, body, status, attachments, images, links, actions
         case saveAll = "save_all"
+        case swipeStart = "swipe_start"
+        case swipeEnd = "swipe_end"
     }
 }
 
@@ -623,9 +630,16 @@ struct TextStyleToken: Codable {
 struct About: Codable {
     let title: String
     let text: String
-    let licences: [Licence]
-    /// The privacy policy (STORE-19); decoded, not yet shown on iOS.
+    let pages: [AboutPage]
+    /// The privacy policy (STORE-19).
     let privacy: AboutLink
+    /// The open page: drawn instead of the list.
+    let page: Licence?
+}
+
+struct AboutPage: Codable {
+    let label: String
+    let action: ActionId
 }
 
 struct AboutLink: Codable {
@@ -698,9 +712,11 @@ struct Note: Codable {
     let publicTitle: String
     let open: JSON?
     let actions: [NoteAction]?
+    let group: String?
+    let summary: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case tag, channel, title, body, open, actions
+        case tag, channel, title, body, open, actions, group, summary
         case publicTitle = "public_title"
     }
 }

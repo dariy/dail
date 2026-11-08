@@ -73,12 +73,17 @@ fn undo_redo_round_trip() {
     let changed = engine.state().clone();
 
     let undo = engine.dispatch(Command::Undo {}, &ctx()).unwrap();
-    assert_eq!(engine.state(), &initial);
+    // The shared setting is stamped again in the synced document (SET-7): only it differs.
+    assert_eq!(engine.state().settings, initial.settings);
     assert_eq!(undo.receipt.data, json!({"undone": "Set undo_send_ms"}));
-    assert_eq!(undo.effects.len(), 1, "undo persists the reverted settings");
+    assert_eq!(
+        undo.effects.len(),
+        2,
+        "undo persists the reverted settings and the synced document"
+    );
 
     let redo = engine.dispatch(Command::Redo {}, &ctx()).unwrap();
-    assert_eq!(engine.state(), &changed);
+    assert_eq!(engine.state().settings, changed.settings);
     assert_eq!(redo.receipt.undo_label.as_deref(), Some("Set undo_send_ms"));
 }
 

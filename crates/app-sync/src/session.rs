@@ -471,12 +471,15 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::SaveDraft { account, .. }
         | Effect::DeleteDraft { account, .. }
         | Effect::ManageFolder { account, .. }
+        | Effect::ReadSettingsBlob { account, .. }
+        | Effect::WriteSettingsBlob { account, .. }
         | Effect::SearchMailbox { account, .. }
         | Effect::SmtpSend { account, .. }
         | Effect::WatchMailbox { account, .. } => Lane::Account(*account),
         Effect::PersistState { .. }
         | Effect::ScheduleTick { .. }
         | Effect::InspectAttachment { .. }
+        | Effect::ReadDraft { .. }
         | Effect::SaveAttachments { .. }
         | Effect::CompactStore { .. }
         | Effect::SearchIndex { .. } => Lane::Local,

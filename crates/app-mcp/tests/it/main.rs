@@ -4,4 +4,5 @@
 mod parity;
 mod prompts;
 mod resources;
+mod rules;
 mod untrusted;

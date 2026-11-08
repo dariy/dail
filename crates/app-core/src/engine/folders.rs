@@ -36,7 +36,7 @@ fn folder_path(path: &str, separator: &str) -> Result<String, CoreError> {
 
 impl Engine {
     /// The account's hierarchy delimiter, as its mailboxes report it.
-    fn separator_of(&self, account: AccountId) -> String {
+    pub(super) fn separator_of(&self, account: AccountId) -> String {
         self.state
             .mailboxes
             .values()

@@ -21,7 +21,8 @@ expression: parsed
     "cc": [],
     "subject": "Alternative",
     "date_ms": 1699866000000,
-    "has_attachments": false
+    "has_attachments": false,
+    "list_id": null
   },
   "text": "The plain version wins.",
   "text_source": "plain",

@@ -21,7 +21,8 @@ expression: parsed
     "cc": [],
     "subject": "Report and photo",
     "date_ms": 1699954860000,
-    "has_attachments": true
+    "has_attachments": true,
+    "list_id": null
   },
   "text": "See the chart:",
   "text_source": "html",

@@ -27,6 +27,8 @@ data class Note(
     @SerialName("public_title") val publicTitle: String,
     val open: JsonObject? = null,
     val actions: List<NoteAction> = emptyList(),
+    val group: String? = null,
+    val summary: Boolean = false,
 )
 
 /** A button: [act] goes back to Rust verbatim. */
@@ -106,6 +108,8 @@ object Notifier {
                 .setAutoCancel(!push)
                 .setOngoing(push)
                 .setContentIntent(open(context, id, note.open))
+        // One notification per conversation, folded under the group's summary.
+        note.group?.let { builder.setGroup(it).setGroupSummary(note.summary) }
         note.actions.forEachIndexed { index, action ->
             if (action.act["act"]?.toString() == "\"battery_settings\"") {
                 // A host action: the system screen, straight from the notification.

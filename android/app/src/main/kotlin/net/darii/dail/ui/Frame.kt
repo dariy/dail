@@ -251,6 +251,11 @@ data class ReaderMessage(
     @SerialName("save_all") val saveAll: Button? = null,
     val images: ImagesBar? = null,
     val links: List<Button>,
+    // MISC-44: this message's own actions (reply, forward, read, star, trash; a draft's edit, discard).
+    val actions: List<Button> = emptyList(),
+    // MISC-44e: the card's swipes, as a list row's (start: archive or edit; end: trash or discard).
+    @SerialName("swipe_start") val swipeStart: Button? = null,
+    @SerialName("swipe_end") val swipeEnd: Button? = null,
 )
 
 @Serializable
@@ -592,8 +597,17 @@ data class TextStyleToken(
 data class About(
     val title: String,
     val text: String,
-    val licences: List<Licence>,
+    val pages: List<AboutPage>,
     val privacy: AboutLink,
+    /** The open page: drawn instead of the list. */
+    val page: Licence? = null,
+)
+
+/** A row of the About screen: tapping it opens the work's licence page. */
+@Serializable
+data class AboutPage(
+    val label: String,
+    val action: ActionId,
 )
 
 /** A link on the About screen (STORE-19): the privacy policy. */

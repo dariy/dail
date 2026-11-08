@@ -155,12 +155,12 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 27
+      "action": 35
     },
     "maximize": {
       "icon": "open_in_full",
       "label": "Maximize message",
-      "action": 28
+      "action": 36
     },
     "actions": [
       {
@@ -216,14 +216,56 @@ expression: phone.frame()
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
-        "links": []
+        "links": [],
+        "actions": [
+          {
+            "icon": "reply",
+            "label": "Reply",
+            "action": 28
+          },
+          {
+            "icon": "reply_all",
+            "label": "Reply all",
+            "action": 29
+          },
+          {
+            "icon": "forward",
+            "label": "Forward",
+            "action": 30
+          },
+          {
+            "icon": "mark_email_read",
+            "label": "Mark read",
+            "action": 31
+          },
+          {
+            "icon": "star",
+            "label": "Star",
+            "action": 32
+          },
+          {
+            "icon": "delete",
+            "label": "Trash",
+            "action": 34
+          }
+        ],
+        "swipe_start": {
+          "icon": "archive",
+          "label": "Archive",
+          "action": 27
+        },
+        "swipe_end": {
+          "icon": "delete",
+          "label": "Trash",
+          "action": 33
+        }
       }
     ]
   },
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 29
+    "action": 37
   },
   "theme": {
     "id": "dail-light",

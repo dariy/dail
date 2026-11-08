@@ -61,6 +61,7 @@ fn envelope(uid: u32, id: &str, from: &str, subject: &str, day: i64, seen: bool)
         },
         size: 1,
         has_attachments: false,
+        list_id: None,
     }
 }
 
