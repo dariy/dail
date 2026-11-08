@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.8
+
+- Wave 13: synced settings, rules, per-message actions, live unread counts
+
 ## 0.1.7
 
 - Wave 10.5: MISC-37 to MISC-43, ADR 0015
