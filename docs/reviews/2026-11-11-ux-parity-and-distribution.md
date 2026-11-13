@@ -5,6 +5,9 @@ question: what stands between dail and a smooth, consistent experience on every 
 Play, the App Store, winget, F-Droid, apt and Homebrew? This file is a task source for `ROADMAP.md`; it changes no
 roadmap item itself.
 
+**Scheduled on 2026-11-13** in `ROADMAP.md`: Waves 14 to 17 as in section 8, REL-2 in Wave 14, and TCH-10 to TCH-12
+under *future waves*. REL-1 was done by then (v0.1.8 carries Waves 12 and 13).
+
 **How it was checked.** The code and docs were read. No gate was run, no device or emulator was used, and no screen was
 looked at. Every finding names its code anchor. Findings marked *not seen* are conclusions from the code that a device
 check must confirm. Store rules for Play and F-Droid come from `docs/reviews/2026-11-02-store-readiness.md`. The rules of
