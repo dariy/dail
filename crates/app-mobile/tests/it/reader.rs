@@ -27,7 +27,7 @@ fn open(thread: usize, bodies: Vec<serde_json::Value>) -> (Phone, Vec<ThreadId>)
 }
 
 fn button(reader: &Reader, label: &str) -> u32 {
-    // TCH-2: an icon or an entry of the ⋮ menu.
+    // TCH-2: an icon or an entry of the ⋯ menu.
     reader
         .actions
         .iter()

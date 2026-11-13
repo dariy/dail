@@ -15,37 +15,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 119,
+        "action": 120,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 120,
+        "long_press": 121,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 122,
-        "swipe_start": 121,
+        "swipe_end": 123,
+        "swipe_start": 122,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 123,
+        "action": 124,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 124,
+        "long_press": 125,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 126,
-        "swipe_start": 125,
+        "swipe_end": 127,
+        "swipe_start": 126,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -55,7 +55,7 @@
   },
   "palette": {
     "close": {
-      "action": 151,
+      "action": 153,
       "icon": "close",
       "label": "Close"
     },
@@ -69,22 +69,22 @@
       {
         "rows": [
           {
-            "action": 147,
+            "action": 149,
             "detail": "alice@example.com",
             "title": "Inbox"
           },
           {
-            "action": 148,
+            "action": 150,
             "detail": "alice@example.com",
             "title": "Sent"
           },
           {
-            "action": 149,
+            "action": 151,
             "detail": "alice@example.com",
             "title": "Drafts"
           },
           {
-            "action": 150,
+            "action": 152,
             "detail": "alice@example.com",
             "title": "Archive"
           }
@@ -96,28 +96,28 @@
   "reader": {
     "actions": [
       {
-        "action": 127,
+        "action": 128,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 128,
+        "action": 129,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 133,
+        "action": 134,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 135,
+        "action": 136,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 146,
+      "action": 148,
       "icon": "close",
       "label": "Close message"
     },
@@ -125,32 +125,32 @@
       {
         "actions": [
           {
-            "action": 139,
+            "action": 141,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 140,
+            "action": 142,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 141,
+            "action": 143,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 142,
+            "action": 144,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 143,
+            "action": 145,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 145,
+            "action": 147,
             "icon": "delete",
             "label": "Trash"
           }
@@ -164,23 +164,23 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "swipe_end": {
-          "action": 144,
+          "action": 146,
           "icon": "delete",
           "label": "Trash"
         },
         "swipe_start": {
-          "action": 138,
+          "action": 140,
           "icon": "archive",
           "label": "Archive"
         },
         "to": "alice@example.com",
-        "toggle": 137
+        "toggle": 139
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 136,
+        "action": 138,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -189,29 +189,34 @@
     },
     "overflow": [
       {
-        "action": 129,
+        "action": 130,
         "icon": "report",
         "label": "Junk"
       },
       {
-        "action": 130,
+        "action": 131,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 131,
+        "action": 132,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 132,
+        "action": 133,
         "icon": "push_pin",
         "label": "Pin"
       },
       {
-        "action": 134,
+        "action": 135,
         "icon": "edit",
         "label": "Make a rule…"
+      },
+      {
+        "action": 137,
+        "icon": "search",
+        "label": "Search or run a command"
       }
     ],
     "position": "1 of 2",
@@ -222,13 +227,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 118,
+        "action": 119,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 117,
+      "action": 118,
       "icon": "menu",
       "label": "Mailboxes"
     },

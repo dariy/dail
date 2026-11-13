@@ -165,7 +165,7 @@ pub struct TopBar {
     pub navigation: Option<Button>,
     /// The buttons on the right (icons, or text without an icon).
     pub actions: Vec<Button>,
-    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
     /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
     /// `overflow` by the window class; together they are the bar's whole list, in order.
     pub overflow: Vec<Button>,
@@ -360,7 +360,7 @@ pub struct Bulk {
     pub title: String,
     /// The thread actions drawn as icons: archive, trash, read or unread, *Move…*, ….
     pub actions: Vec<Button>,
-    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
     /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
     /// `overflow` by the window class; together they are the bar's whole list, in order.
     pub overflow: Vec<Button>,
@@ -384,7 +384,7 @@ pub struct Reader {
     pub maximize: Option<Button>,
     /// What can be done with it, drawn as icons: archive, trash, *Move…*, reply, ….
     pub actions: Vec<Button>,
-    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
     /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
     /// `overflow` by the window class; together they are the bar's whole list, in order.
     pub overflow: Vec<Button>,

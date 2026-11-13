@@ -185,7 +185,7 @@
           "description": "Unchecks every thread."
         },
         "overflow": {
-          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -1622,7 +1622,7 @@
           "description": "The conversation below it in the list, if any: a pull past the end of the body turns to\nit (MISC-18; no button)."
         },
         "overflow": {
-          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -2417,7 +2417,7 @@
           "description": "The navigation button: the drawer, or back."
         },
         "overflow": {
-          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
           "items": {
             "$ref": "#/$defs/Button"
           },

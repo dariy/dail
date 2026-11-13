@@ -48,7 +48,7 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
-    // The bulk bar of a phone: four icons and a ⋮ menu (TCH-2).
+    // The bulk bar of a phone: four icons and a ⋯ menu (TCH-2).
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::CheckThreads {
         ids: vec![threads[0], threads[1]],

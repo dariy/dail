@@ -963,6 +963,16 @@ impl Mobile {
         self.button(entry.icon, i18n::s(entry.label), Act::Action(entry.run))
     }
 
+    /// Opens the command palette: the top bar's search, and the entry of a bar that hides it
+    /// (TCH-1).
+    fn palette_button(&mut self) -> Button {
+        self.button(
+            "search",
+            i18n::s(Text::SearchOrRun),
+            Act::Run(Command::OpenPalette {}),
+        )
+    }
+
     fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
         Button {
             icon: Some(icon.to_owned()),
@@ -1007,7 +1017,13 @@ impl Mobile {
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
         let mut reader = if kinds.contains(&PaneKind::Reader) || page.is_some() {
-            self.reader(state, reader_budget(class, &kinds))
+            // TCH-1: the reader carries the palette only where the top bar's search is not on
+            // screen: a phone's page covers the top bar, a maximized message clears its actions.
+            self.reader(
+                state,
+                reader_budget(class, &kinds),
+                page.is_some() || maximized,
+            )
         } else {
             None
         };
@@ -1185,11 +1201,7 @@ impl Mobile {
         };
         let mut actions = Vec::new();
         if !state.accounts.is_empty() {
-            actions.push(self.button(
-                "search",
-                i18n::s(Text::SearchOrRun),
-                Act::Run(Command::OpenPalette {}),
-            ));
+            actions.push(self.palette_button());
         }
         if state.accounts.is_empty() {
             actions.push(Button {
@@ -1524,13 +1536,16 @@ impl Mobile {
             return None;
         }
         let ids = palette::targets(state);
-        let items = app_front::actions::thread_actions(state, &ids)
+        let mut items: Vec<_> = app_front::actions::thread_actions(state, &ids)
             .into_iter()
             .map(|entry| {
                 let primary = entry.primary;
                 (self.action_button(entry), primary)
             })
             .collect();
+        // TCH-1: the bulk bar replaces the top bar and its search: the palette, last and not
+        // primary (it keeps the checked threads as its targets).
+        items.push((self.palette_button(), false));
         let (actions, overflow) = split(items, bar_budget(self.class()));
         let close = self.button(
             "close",
@@ -1937,7 +1952,7 @@ fn reader_budget(class: Class, kinds: &[PaneKind]) -> usize {
     }
 }
 
-/// Splits a bar's buttons into icons and a ⋮ menu (TCH-2): when they do not all fit in
+/// Splits a bar's buttons into icons and a ⋯ menu (TCH-2): when they do not all fit in
 /// `budget`, the icons are the primary ones (`app_front::actions::Entry::primary`) in list order
 /// up to `budget`, then others in list order while room is left; the rest is the overflow. Both
 /// keep list order, so together they are the whole list.
@@ -1998,4 +2013,67 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
     .into_iter()
     .map(|key| (i18n::english(key).to_owned(), i18n::s(key).to_owned()))
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Button, split};
+
+    fn items(spec: &[(&str, bool)]) -> Vec<(Button, bool)> {
+        spec.iter()
+            .zip(1..)
+            .map(|((label, primary), action)| {
+                (
+                    Button {
+                        icon: None,
+                        label: (*label).to_owned(),
+                        action,
+                    },
+                    *primary,
+                )
+            })
+            .collect()
+    }
+
+    fn labels(buttons: &[Button]) -> Vec<&str> {
+        buttons.iter().map(|b| b.label.as_str()).collect()
+    }
+
+    #[test]
+    fn everything_fits() {
+        let (icons, more) = split(items(&[("a", false), ("b", true), ("c", false)]), 3);
+        assert_eq!(labels(&icons), ["a", "b", "c"]);
+        assert!(more.is_empty());
+    }
+
+    #[test]
+    fn more_primaries_than_the_budget() {
+        let spec = [
+            ("a", true),
+            ("x", false),
+            ("b", true),
+            ("c", true),
+            ("d", true),
+        ];
+        let (icons, more) = split(items(&spec), 2);
+        assert_eq!(labels(&icons), ["a", "b"]);
+        assert_eq!(labels(&more), ["x", "c", "d"]);
+    }
+
+    #[test]
+    fn others_fill_what_primaries_leave() {
+        let spec = [
+            ("x", false),
+            ("a", true),
+            ("y", false),
+            ("z", false),
+            ("b", true),
+        ];
+        let (icons, more) = split(items(&spec), 3);
+        assert_eq!(labels(&icons), ["x", "a", "b"]);
+        assert_eq!(labels(&more), ["y", "z"]);
+        let mut all: Vec<u32> = icons.iter().chain(&more).map(|b| b.action).collect();
+        all.sort_unstable();
+        assert_eq!(all, [1, 2, 3, 4, 5], "nothing lost or duplicated");
+    }
 }

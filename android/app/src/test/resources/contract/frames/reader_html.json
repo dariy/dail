@@ -77,7 +77,7 @@
       }
     ],
     "close": {
-      "action": 34,
+      "action": 35,
       "icon": "close",
       "label": "Close message"
     },
@@ -85,32 +85,32 @@
       {
         "actions": [
           {
-            "action": 27,
+            "action": 28,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 28,
+            "action": 29,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 29,
+            "action": 30,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 30,
+            "action": 31,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 31,
+            "action": 32,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 33,
+            "action": 34,
             "icon": "delete",
             "label": "Trash"
           }
@@ -133,7 +133,7 @@
               },
               {
                 "bold": true,
-                "link": 22,
+                "link": 23,
                 "text": "the report"
               },
               {
@@ -208,7 +208,7 @@
             "blocks": [],
             "expanded": false,
             "label": "Signature",
-            "toggle": 23,
+            "toggle": 24,
             "type": "fold"
           }
         ],
@@ -219,14 +219,14 @@
           "shown": false,
           "text": "Pictures in this message are hidden.",
           "toggle": {
-            "action": 25,
+            "action": 26,
             "icon": "visibility",
             "label": "Show images from carol@example.org"
           }
         },
         "links": [
           {
-            "action": 24,
+            "action": 25,
             "icon": "link",
             "label": "https://example.org/q3"
           }
@@ -234,23 +234,23 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Q3 numbers See the report",
         "swipe_end": {
-          "action": 32,
+          "action": 33,
           "icon": "delete",
           "label": "Trash"
         },
         "swipe_start": {
-          "action": 26,
+          "action": 27,
           "icon": "archive",
           "label": "Archive"
         },
         "to": "alice@example.com",
-        "toggle": 21
+        "toggle": 22
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 20,
+        "action": 21,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -282,6 +282,11 @@
         "action": 18,
         "icon": "edit",
         "label": "Make a rule…"
+      },
+      {
+        "action": 20,
+        "icon": "search",
+        "label": "Search or run a command"
       }
     ],
     "position": "1 of 2",

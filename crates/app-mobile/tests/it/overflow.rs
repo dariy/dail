@@ -1,10 +1,37 @@
-//! TCH-2: the bars split their buttons into icons and a ⋮ menu by the window class.
+//! TCH-2: the bars split their buttons into icons and a ⋯ menu by the window class.
 
 use app_core::{Command, ThreadId};
 use app_front::i18n;
 use app_mobile::frame::{Button, Frame};
 
 use crate::support::{Phone, SIZES, inbox_of};
+
+const PALETTE: &str = "Search or run a command";
+
+/// Asserts that `actions` and `overflow` each keep the order of `list` and together are all of
+/// it, once each.
+fn halves_of(list: &[String], actions: &[Button], overflow: &[Button]) {
+    for half in [actions, overflow] {
+        let at: Vec<usize> = half
+            .iter()
+            .map(|b| {
+                list.iter()
+                    .position(|l| *l == b.label)
+                    .unwrap_or(usize::MAX)
+            })
+            .collect();
+        assert!(
+            at.windows(2).all(|w| w[0] < w[1]),
+            "{at:?} keeps list order"
+        );
+    }
+    let mut all = labels(actions);
+    all.extend(labels(overflow));
+    all.sort();
+    let mut want = list.to_vec();
+    want.sort();
+    assert_eq!(all, want);
+}
 
 fn labels(buttons: &[Button]) -> Vec<String> {
     buttons.iter().map(|b| b.label.clone()).collect()
@@ -55,14 +82,11 @@ fn a_phone_bulk_bar_has_four_icons_and_loses_nothing() {
         labels(&bulk.actions),
         ["Archive", "Trash", "Mark read", "Move…"]
     );
-    assert_eq!(labels(&bulk.overflow), ["Junk", "Star", "Pin"]);
-    let mut all = bulk.actions.clone();
-    all.extend(bulk.overflow.clone());
-    let mut order = labels(&all);
-    // Both halves keep list order; merged by the shared list they are the whole list.
-    let expected = shared(&phone, &ids);
-    order.sort_by_key(|l| expected.iter().position(|e| e == l));
-    assert_eq!(order, expected);
+    assert_eq!(labels(&bulk.overflow), ["Junk", "Star", "Pin", PALETTE]);
+    // TCH-1: the palette comes last, after the shared list.
+    let mut expected = shared(&phone, &ids);
+    expected.push(PALETTE.to_owned());
+    halves_of(&expected, &bulk.actions, &bulk.overflow);
     assert!(bulk.overflow.iter().all(|b| !b.label.is_empty()));
 }
 
@@ -77,6 +101,9 @@ fn a_phone_reader_has_reply_archive_trash_and_move_as_icons() {
     );
     let mut expected = shared(&phone, &[thread]);
     expected.push("Reply".to_owned());
+    // TCH-1: the page covers the top bar, so the palette is the menu's last entry.
+    expected.push(PALETTE.to_owned());
+    halves_of(&expected, &reader.actions, &reader.overflow);
     let more = labels(&reader.overflow);
     assert_eq!(
         more,
@@ -110,7 +137,7 @@ fn the_budgets_hold_at_every_size() {
         assert!(!wide || bulk.overflow.is_empty(), "{w}×{h}");
         assert_eq!(
             bulk.actions.len() + bulk.overflow.len(),
-            shared(&phone, &ids).len()
+            shared(&phone, &ids).len() + 1
         );
         assert!(frame.top_bar.actions.len() <= 4 || wide);
 
@@ -118,7 +145,7 @@ fn the_budgets_hold_at_every_size() {
         let frame = phone.frame();
         let budget = reader_budget(&frame);
         let reader = frame.reader.unwrap();
-        let total = shared(&phone, &[thread]).len() + 1;
+        let total = shared(&phone, &[thread]).len() + 1 + usize::from(frame.layout.page.is_some());
         assert_eq!(reader.actions.len(), total.min(budget), "{w}×{h}");
         assert_eq!(reader.actions.len() + reader.overflow.len(), total);
     }

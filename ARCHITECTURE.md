@@ -1502,7 +1502,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
 - **Overflow menus** (TCH-2). `top_bar`, `bulk` and `reader` each carry `actions` (drawn as icons, or text for a
-  button without an icon) and `overflow` (drawn as a ⋮ button opening a menu of text labels, each `Button` keeping its
+  button without an icon) and `overflow` (drawn as a ⋯ button opening a menu of text labels, each `Button` keeping its
   icon name for a leading glyph). Both are always present, `[]` when empty, as every `Vec` of the frame; the menu is
   drawn only when `overflow` is not empty, and its trigger's accessible name is the label `More actions` (`labels`,
   `Plus d’actions` in French). The presenter decides the split (`mobile::split`), never Kotlin or Swift: when a bar's
@@ -1511,7 +1511,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   two together are the whole list. Budgets: the top bar and the bulk bar (full width) 4 on a compact window and all
   on a medium or expanded one; the reader 4 on a compact window and in a medium window's detail pane beside the list,
   6 in an expanded window's detail pane beside other panes, all when the message has a medium or expanded window to
-  itself. The menu trigger does not count, nor do `close`, `maximize` and `navigation`.
+  itself. The menu trigger does not count, nor do `close`, `maximize` and `navigation`. The trigger is drawn with
+  the horizontal `more_horiz` glyph (SF Symbols `ellipsis` on iOS), hence ⋯.
 - **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
   `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
@@ -1561,7 +1562,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   threads are checked, `bulk` replaces the top bar: `N selected`, the buttons of `app_front::actions::thread_actions`
   over `palette::targets` (PAR-1: archive, trash, junk or not junk, one read, star and pin toggle, *Move…*, and for
   one thread *Make a rule…*; a flow opens the palette at its step) split into `actions` and `overflow` (TCH-2: on a
-  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋮ menu), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋯ menu), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
   buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
@@ -1643,7 +1644,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   trash, junk or not junk, read or unread, star or unstar, pin or unpin, *Move…* and *Make a rule…*, the last two
   opening the palette at their step) and reply, split into `actions` and `overflow` (TCH-2). In the reader, reply is
   primary and the read toggle is not (opening the message reads it), so a phone shows archive, trash, *Move…* and
-  reply as icons, and junk, the read, star and pin toggles and *Make a rule…* in the ⋮ menu.
+  reply as icons, and junk, the read, star and pin toggles and *Make a rule…* in the ⋯ menu.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
     trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
@@ -1695,6 +1696,16 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `marks` (their subject and snippet cut at `app_front::highlight` words) and the list's `server` says *Searching the
   server…* or the newest server search's failure. `tests/it/palette.rs` walks every registry command through the sheet
   by taps (the parity walk).
+- **Where the palette opens on touch** (TCH-1, AGENTS.md §1's Android rule). Every state with a bar has exactly one
+  button that opens the palette at its root (icon `search`, label *Search or run a command*, `open_palette`): the
+  top bar's search where the top bar shows it (the list, two-pane readers, the composer and settings on every window
+  class); otherwise the last, non-primary entry of the bar that hides it, so on a compact window it is in the ⋯ menu:
+  the bulk bar (every class: it replaces the top bar; the palette then keeps the checked threads as its targets,
+  `palette::targets`), and the reader when it is a phone's page (it covers the top bar) or maximized (the top bar loses
+  its actions). The reader's entry is only for those two states, so no state shows two. Out of scope: the sheets that
+  take the whole screen and have their own close (the palette, the setup, a result, the link dialog, a preview,
+  About), and the no-accounts state, whose top bar keeps *Add account* and *About* (the palette is of no use without
+  an account). `tests/it/touch_palette.rs` taps every bar button of each state.
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
   tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result or the palette

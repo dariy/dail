@@ -201,9 +201,9 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
     assert_eq!(bulk.title, "2 selected");
     let labels: Vec<_> = bulk.actions.iter().map(|b| b.label.as_str()).collect();
     assert_eq!(labels, ["Archive", "Trash", "Mark read", "Move…"]);
-    // TCH-2: the rest is in the ⋮ menu of a phone.
+    // TCH-2: the rest is in the ⋯ menu of a phone.
     let more: Vec<_> = bulk.overflow.iter().map(|b| b.label.as_str()).collect();
-    assert_eq!(more, ["Junk", "Star", "Pin"]);
+    assert_eq!(more, ["Junk", "Star", "Pin", "Search or run a command"]);
     // PAR-1: *Move…* of the checked threads asks for the folder in the palette.
     assert_eq!(phone.tap(bulk.actions[3].action), [Command::OpenPalette {}]);
     let bulk = phone.frame().bulk.unwrap();

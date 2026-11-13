@@ -37,7 +37,7 @@ class ContractTest {
 
     @Test
     fun phoneBarsOverflowIntoAMenu() {
-        // TCH-2: four icons on a phone, the rest under the ⋮ menu.
+        // TCH-2: four icons on a phone, the rest under the ⋯ menu.
         val frames = fixtures("frames")
         val bulk = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("bulk_360x800")).bulk)
         assertEquals(4, bulk.actions.size)

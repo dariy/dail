@@ -1123,7 +1123,7 @@ ships in English and French.
 - [x] TCH-2 (M) [mobile][kt][ios]: overflow menus in the frame contract. `Reader.actions`, `Bulk.actions` and
   `TopBar.actions` split by PAR-1's `primary` flag: at most four icons on a compact window, the rest under a ⋮ menu with
   text labels. The presenter decides the split by window class; Kotlin draws it
-- [ ] TCH-1 (S) [mobile][kt][ios]: the palette opens from every touch state, through TCH-2's overflow: the open message
+- [x] TCH-1 (S) [mobile][kt][ios]: the palette opens from every touch state, through TCH-2's overflow: the open message
   on a phone, the bulk bar, the maximized reader, the composer and settings (AGENTS.md §1's Android rule). A presenter
   test builds a frame for each state and asserts that some button runs `open_palette`
 - [ ] TCH-3 (S) [mobile][kt][ios]: the bulk bar from `thread_actions`: adds *Move…*, Junk or Not junk and *Select all*,

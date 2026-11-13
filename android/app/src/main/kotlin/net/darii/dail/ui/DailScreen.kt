@@ -282,7 +282,7 @@ internal fun ActionButton(
 }
 
 /**
- * A bar's `overflow` (TCH-2): a ⋮ button opening a menu of text labels, nothing when empty. The presenter decides
+ * A bar's `overflow` (TCH-2): a ⋯ button opening a menu of text labels, nothing when empty. The presenter decides
  * what overflows; this only draws it.
  */
 @Composable
@@ -296,7 +296,7 @@ internal fun OverflowMenu(
     Box {
         IconButton(onClick = { open = true }, modifier = Modifier.semantics { contentDescription = name }) {
             val glyph = LocalChrome.current.icons["more_horiz"]
-            if (glyph != null) Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE) else Text("⋮")
+            if (glyph != null) Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE) else Text("⋯")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             buttons.forEach { button ->

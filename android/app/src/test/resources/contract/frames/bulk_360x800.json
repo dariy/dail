@@ -24,7 +24,7 @@
       }
     ],
     "close": {
-      "action": 19,
+      "action": 20,
       "icon": "close",
       "label": "Uncheck all"
     },
@@ -43,6 +43,11 @@
         "action": 17,
         "icon": "push_pin",
         "label": "Pin"
+      },
+      {
+        "action": 19,
+        "icon": "search",
+        "label": "Search or run a command"
       }
     ],
     "title": "2 selected"

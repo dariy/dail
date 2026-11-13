@@ -126,7 +126,7 @@ struct TopBar: Codable {
     let subtitle: String?
     let navigation: ActionButton?
     let actions: [ActionButton]
-    /// TCH-2: what does not fit as an icon, a ⋮ menu of text labels (drawn by IOS-6).
+    /// TCH-2: what does not fit as an icon, a ⋯ menu of text labels (drawn by IOS-6).
     let overflow: [ActionButton]
 }
 
@@ -243,7 +243,7 @@ struct RowMarks: Codable {
 struct Bulk: Codable {
     let title: String
     let actions: [ActionButton]
-    /// TCH-2: what does not fit as an icon, a ⋮ menu of text labels (drawn by IOS-6).
+    /// TCH-2: what does not fit as an icon, a ⋯ menu of text labels (drawn by IOS-6).
     let overflow: [ActionButton]
     let close: ActionButton
 }
@@ -254,7 +254,7 @@ struct Reader: Codable {
     let close: ActionButton
     let maximize: ActionButton?
     let actions: [ActionButton]
-    /// TCH-2: what does not fit as an icon, a ⋮ menu of text labels (drawn by IOS-6).
+    /// TCH-2: what does not fit as an icon, a ⋯ menu of text labels (drawn by IOS-6).
     let overflow: [ActionButton]
     let previous: Neighbour?
     let next: Neighbour?

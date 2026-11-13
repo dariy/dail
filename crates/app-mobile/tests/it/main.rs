@@ -19,5 +19,6 @@ mod reader;
 mod settings;
 mod share;
 mod theme;
+mod touch_palette;
 mod untrusted;
 mod updates;

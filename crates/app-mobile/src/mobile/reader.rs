@@ -270,8 +270,14 @@ fn openable(url: &str) -> bool {
 }
 
 impl Mobile {
-    /// The open thread; its toolbar draws `budget` buttons as icons (TCH-2).
-    pub(super) fn reader(&mut self, state: &AppState, budget: usize) -> Option<Reader> {
+    /// The open thread; its toolbar draws `budget` buttons as icons (TCH-2), and ends with the
+    /// palette when `palette` (the top bar's search is not on screen, TCH-1).
+    pub(super) fn reader(
+        &mut self,
+        state: &AppState,
+        budget: usize,
+        palette: bool,
+    ) -> Option<Reader> {
         let thread = state.view.thread.and_then(|id| state.threads.get(&id))?;
         let now = self.now_ms();
         let envelopes: Vec<_> = thread
@@ -300,6 +306,9 @@ impl Mobile {
                 }),
             );
             items.push((reply, true));
+        }
+        if palette {
+            items.push((self.palette_button(), false));
         }
         let (actions, overflow) = super::split(items, budget);
         let (previous, next, position) = self.neighbours(state, thread.id);
