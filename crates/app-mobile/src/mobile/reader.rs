@@ -7,7 +7,7 @@
 //! through `app_front::text`.
 
 use app_core::document::{Block, FoldKind, Span};
-use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
+use app_core::{AppState, BodyState, Command, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
 use app_front::i18n::{self, Key};
 use app_front::message_actions::{self, MessageAction};
@@ -273,78 +273,16 @@ impl Mobile {
     pub(super) fn reader(&mut self, state: &AppState) -> Option<Reader> {
         let thread = state.view.thread.and_then(|id| state.threads.get(&id))?;
         let now = self.now_ms();
-        let ids = vec![thread.id];
         let envelopes: Vec<_> = thread
             .messages
             .iter()
             .filter_map(|id| state.messages.get(id))
             .collect();
-        let starred = envelopes.iter().any(|m| m.flags.flagged);
-        let unread = envelopes.iter().any(|m| !m.flags.seen);
-        let messages = Vec::new;
-        let (star_icon, star_label, star) = if starred {
-            (
-                "star",
-                i18n::s(Key::Unstar),
-                Command::Unstar {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        } else {
-            (
-                "star",
-                i18n::s(Key::Star),
-                Command::Star {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        };
-        let (read_icon, read_label, read) = if unread {
-            (
-                "mark_email_read",
-                i18n::s(Key::MarkRead),
-                Command::MarkRead {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        } else {
-            (
-                "mark_email_unread",
-                i18n::s(Key::MarkUnread),
-                Command::MarkUnread {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        };
-        let mut actions = vec![
-            self.button(
-                "archive",
-                i18n::s(Key::Archive),
-                Act::Run(Command::ArchiveThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                }),
-            ),
-            self.button(
-                "delete",
-                i18n::s(Key::Trash),
-                Act::Run(Command::TrashThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                }),
-            ),
-            self.button(star_icon, star_label, Act::Run(star)),
-            self.button(read_icon, read_label, Act::Run(read)),
-            self.button(
-                "drive_file_move",
-                i18n::s(Key::Move),
-                Act::Flow(CommandName::MoveThreads),
-            ),
-        ];
+        // PAR-1: the thread's actions, then Reply.
+        let mut actions: Vec<_> = app_front::actions::thread_actions(state, &[thread.id])
+            .into_iter()
+            .map(|entry| self.action_button(entry))
+            .collect();
         if let Some(message) = palette::newest_message(state, thread.id) {
             actions.push(self.button(
                 "reply",

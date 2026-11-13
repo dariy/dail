@@ -15,37 +15,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 229,
+        "action": 244,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 230,
+        "long_press": 245,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 232,
-        "swipe_start": 231,
+        "swipe_end": 247,
+        "swipe_start": 246,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 233,
+        "action": 248,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 234,
+        "long_press": 249,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 236,
-        "swipe_start": 235,
+        "swipe_end": 251,
+        "swipe_start": 250,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -56,7 +56,7 @@
   "preview": {
     "blob": "b0",
     "close": {
-      "action": 273,
+      "action": 291,
       "icon": "close",
       "label": "Close"
     },
@@ -66,7 +66,7 @@
     "name": "q3.pdf",
     "part": 4,
     "save": {
-      "action": 272,
+      "action": 290,
       "icon": "download",
       "label": "Save"
     }
@@ -74,38 +74,53 @@
   "reader": {
     "actions": [
       {
-        "action": 237,
+        "action": 252,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 238,
+        "action": 253,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 239,
-        "icon": "star",
-        "label": "Star"
+        "action": 254,
+        "icon": "report",
+        "label": "Junk"
       },
       {
-        "action": 240,
+        "action": 255,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 241,
+        "action": 256,
+        "icon": "star",
+        "label": "Star"
+      },
+      {
+        "action": 257,
+        "icon": "push_pin",
+        "label": "Pin"
+      },
+      {
+        "action": 258,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 242,
+        "action": 259,
+        "icon": "edit",
+        "label": "Make a rule…"
+      },
+      {
+        "action": 260,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 270,
+      "action": 288,
       "icon": "close",
       "label": "Close message"
     },
@@ -113,32 +128,32 @@
       {
         "actions": [
           {
-            "action": 263,
+            "action": 281,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 264,
+            "action": 282,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 265,
+            "action": 283,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 266,
+            "action": 284,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 267,
+            "action": 285,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 269,
+            "action": 287,
             "icon": "delete",
             "label": "Trash"
           }
@@ -147,49 +162,49 @@
           {
             "mime": "image/png",
             "name": "chart.png",
-            "open": 249,
+            "open": 267,
             "part": 2,
-            "save": 250,
+            "save": 268,
             "size": "2 KB"
           },
           {
             "mime": "text/plain",
             "name": "notes.txt",
-            "open": 251,
+            "open": 269,
             "part": 3,
-            "save": 252,
+            "save": 270,
             "size": "12 B"
           },
           {
             "mime": "application/pdf",
             "name": "q3.pdf",
-            "open": 253,
+            "open": 271,
             "part": 4,
-            "save": 254,
+            "save": 272,
             "size": "120 KB"
           },
           {
             "mime": "application/zip",
             "name": "archive.zip",
-            "open": 255,
+            "open": 273,
             "part": 6,
-            "save": 256,
+            "save": 274,
             "size": "5 KB"
           },
           {
             "mime": "application/octet-stream",
             "name": "scan.PDF",
-            "open": 257,
+            "open": 275,
             "part": 7,
-            "save": 258,
+            "save": 276,
             "size": "9 KB"
           },
           {
             "mime": "application/octet-stream",
             "name": "photo.jpg",
-            "open": 259,
+            "open": 277,
             "part": 8,
-            "save": 260,
+            "save": 278,
             "size": "9 KB"
           }
         ],
@@ -210,7 +225,7 @@
               },
               {
                 "bold": true,
-                "link": 245,
+                "link": 263,
                 "text": "the report"
               },
               {
@@ -289,7 +304,7 @@
             "blocks": [],
             "expanded": false,
             "label": "Signature",
-            "toggle": 246,
+            "toggle": 264,
             "type": "fold"
           }
         ],
@@ -300,43 +315,43 @@
           "shown": true,
           "text": "Showing the pictures in this message.",
           "toggle": {
-            "action": 248,
+            "action": 266,
             "icon": "visibility_off",
             "label": "Hide images from carol@example.org"
           }
         },
         "links": [
           {
-            "action": 247,
+            "action": 265,
             "icon": "link",
             "label": "https://example.org/q3"
           }
         ],
         "message": "00000000-0000-0007-0000-000000000003",
         "save_all": {
-          "action": 261,
+          "action": 279,
           "icon": "download",
           "label": "Save all (6)"
         },
         "snippet": "Q3 numbers",
         "swipe_end": {
-          "action": 268,
+          "action": 286,
           "icon": "delete",
           "label": "Trash"
         },
         "swipe_start": {
-          "action": 262,
+          "action": 280,
           "icon": "archive",
           "label": "Archive"
         },
         "to": "alice@example.com",
-        "toggle": 244
+        "toggle": 262
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 243,
+        "action": 261,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -350,7 +365,7 @@
   "revision": 6,
   "snackbar": {
     "action": {
-      "action": 271,
+      "action": 289,
       "label": "Undo"
     },
     "text": "Show images from carol@example.org"
@@ -358,13 +373,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 228,
+        "action": 243,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 227,
+      "action": 242,
       "icon": "menu",
       "label": "Mailboxes"
     },

@@ -1103,13 +1103,14 @@ ships in English and French.
   table. AGENTS.md §3's sequence gets the step
 
 ### P — One action model
-- [ ] PAR-1 (M) [front][gui][tui][mobile]: `app_front::actions`, next to `message_actions`: `thread_actions(state, ids)`
+- [x] PAR-1 (M) [front][gui][tui][mobile]: `app_front::actions`, next to `message_actions`: `thread_actions(state, ids)`
   for one or many threads (archive, trash, junk or not junk, read or unread by state, star or unstar by state, pin or
   unpin, *Move…*, *Make a rule…* for one thread), `mailbox_actions(state, id)` (new subfolder, rename, delete, pin, hide,
   focus, mark all read, empty for Trash and Junk, apply rules, offline window) and `account_actions(state, id)` (test,
   password, servers, addresses, remove). An entry is a label key, an icon name, a `Command` or a palette `Flow`, and a
   `primary` flag. The GUI's bulk bar and context menus, the TUI and the mobile presenter draw from these lists and keep
-  none of their own. A unit test pins each list
+  none of their own. A unit test pins each list *(done without the* Servers *entry: no flow sends `imap` or `smtp`
+  yet, PAR-5 adds it. The TUI has no thread or folder menus, so it draws nothing from the lists)*
 - [ ] PAR-2 (S) [front][gui][tui][mobile]: a reach table, pinned by a test as `registry.rs` pins agent access: for every
   `CommandName` and every front end, one of `Control`, `Flow`, `Palette` or `Never`, from an exhaustive `match`. The test
   enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, and nothing is `Never` unless an ADR says

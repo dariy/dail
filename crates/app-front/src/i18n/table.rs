@@ -2447,4 +2447,16 @@ strings! {
     NewConversations:
         "{n} new conversations",
         "{n} nouvelles discussions";
+    MakeRule:
+        "Make a rule…",
+        "Créer une règle…";
+    ApplyRules:
+        "Apply rules",
+        "Appliquer les règles";
+    OfflineWindow:
+        "Offline window…",
+        "Copie hors ligne…";
+    SendingAddresses:
+        "Sending addresses…",
+        "Adresses d’envoi…";
 }

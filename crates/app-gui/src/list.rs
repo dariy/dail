@@ -71,7 +71,7 @@ pub fn show(
     (now_ms, zone): (i64, format::Zone),
     queue: &mut Vec<Request>,
 ) {
-    header(ui, t, state, rows.unread, queue);
+    header(ui, t, state, rows.unread, local, queue);
     toolbar(ui, t, state, &rows.ids, local, queue);
     let rows = rows.ids.as_slice();
     ui::divider(ui, t);
@@ -130,6 +130,7 @@ pub fn show(
                 let selected = state.view.selected.contains(id);
                 let open = state.view.thread == Some(*id);
                 let checked = state.view.checked.contains(id);
+                let actions = app_front::actions::thread_actions(state, &[*id]);
                 let look = RowLook {
                     selected,
                     open,
@@ -149,7 +150,7 @@ pub fn show(
                         .mailbox
                         .filter(|_| state.view.search.is_none() && !state.view.unified),
                     checked_ids: &state.view.checked,
-                    junk: app_front::mailbox::in_junk(state),
+                    actions: &actions,
                 };
                 match row(ui, t, &summary, &look, density, (now_ms, zone)) {
                     Some(Click::Open) => {
@@ -165,13 +166,7 @@ pub fn show(
                         queue.push(Request::user(Command::CheckThreads { ids }));
                     }
                     Some(Click::Run(cmd)) => queue.push(Request::user(cmd)),
-                    Some(Click::Move) => {
-                        if let app_front::palette::Flow::Ask(step) =
-                            app_front::palette::move_to(state, vec![*id])
-                        {
-                            local.ask = Some(step);
-                        }
-                    }
+                    Some(Click::Action(action)) => run(state, &action, local, queue),
                     None => {}
                 }
             }
@@ -182,7 +177,14 @@ pub fn show(
         .data_mut(|d| d.insert_temp(ui.scope_id().with("list-offset"), offset));
 }
 
-fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut Vec<Request>) {
+fn header(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    unread: usize,
+    local: &mut ListState,
+    queue: &mut Vec<Request>,
+) {
     // The search lives in the top bar's pill (the palette, UI-5).
     let title = match (&state.view.search, state.view.mailbox) {
         (Some(query), _) => t.f(Key::SearchTitle, &[("query", query)]),
@@ -226,7 +228,7 @@ fn header(ui: &mut Ui, t: &Tokens, state: &AppState, unread: usize, queue: &mut 
                     }
                 },
             );
-            bulk_bar(ui, t, state, queue);
+            bulk_bar(ui, t, state, local, queue);
         });
 }
 
@@ -340,8 +342,14 @@ fn toolbar(
     });
 }
 
-/// While threads are checked: how many, and the actions that apply to all of them.
-fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
+/// While threads are checked: how many, and their actions (`app_front::actions`, PAR-1).
+fn bulk_bar(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    local: &mut ListState,
+    queue: &mut Vec<Request>,
+) {
     let checked = &state.view.checked;
     if checked.is_empty() {
         return;
@@ -353,59 +361,38 @@ fn bulk_bar(ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>)
             t.f(Key::CheckedCount, &[("n", &checked.len().to_string())]),
             t.text_strong,
         ));
-        let ids = || checked.clone();
-        let junk = if app_front::mailbox::in_junk(state) {
-            t.s(Key::NotJunk)
-        } else {
-            t.s(Key::MarkJunk)
-        };
-        let actions: [(&str, Command); 6] = [
-            (
-                t.s(Key::Archive),
-                Command::ArchiveThreads {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            ),
-            (
-                t.s(Key::Trash),
-                Command::TrashThreads {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            ),
-            (junk, app_front::mailbox::junk_command(state, ids())),
-            (
-                t.s(Key::MarkRead),
-                Command::MarkRead {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            ),
-            (
-                t.s(Key::MarkUnread),
-                Command::MarkUnread {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            ),
-            (
-                t.s(Key::Star),
-                Command::Star {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            ),
-        ];
-        for (label, cmd) in actions {
-            if ui::secondary(ui, t, label, None, true) {
-                queue.push(Request::user(cmd));
+        for entry in app_front::actions::thread_actions(state, checked) {
+            if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                run(state, &entry.run, local, queue);
             }
         }
         if ui::secondary(ui, t, t.s(Key::UncheckAll), None, true) {
             queue.push(Request::user(Command::UncheckThreads { ids: Vec::new() }));
         }
     });
+}
+
+/// Starts an action of `app_front::actions`: submits its command, or opens its palette step.
+fn run(
+    state: &AppState,
+    action: &app_front::actions::Run,
+    local: &mut ListState,
+    queue: &mut Vec<Request>,
+) {
+    match action.flow(state) {
+        app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+        app_front::palette::Flow::Ask(step) => local.ask = Some(step),
+        _ => {}
+    }
+}
+
+/// The `app_theme` icon named `name` (the names of `app_front::actions`).
+pub fn icon_named(name: &str) -> Icon {
+    Icon::ALL
+        .iter()
+        .copied()
+        .find(|icon| icon.name() == name)
+        .unwrap_or(Icon::MoreHoriz)
 }
 
 /// The list footer (UI-5, UI-6): the undo offer while there is one, else the key hints; the
@@ -461,115 +448,9 @@ enum Click {
     Range,
     /// A hover action or a context-menu entry (UX-10).
     Run(Command),
-    /// *Move to…* from the context menu.
-    Move,
-}
-
-/// The actions a row offers on hover and in its context menu: archive, trash, junk (not junk
-/// in a Junk folder), star or unstar, read or unread, pin or unpin (by its current state).
-fn row_actions(
-    t: &Tokens,
-    summary: &ThreadSummary<'_>,
-    junk: bool,
-) -> [(Icon, &'static str, Command); 6] {
-    let ids = || vec![summary.thread.id];
-    let junk = if junk {
-        (
-            Icon::Inbox,
-            t.s(Key::NotJunk),
-            Command::MarkNotJunk {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    } else {
-        (
-            Icon::Report,
-            t.s(Key::MarkJunk),
-            Command::MarkJunk {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    };
-    let star = if summary.flagged {
-        (
-            Icon::Star,
-            t.s(Key::Unstar),
-            Command::Unstar {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    } else {
-        (
-            Icon::Star,
-            t.s(Key::Star),
-            Command::Star {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    };
-    let read = if summary.unread > 0 {
-        (
-            Icon::MarkEmailRead,
-            t.s(Key::MarkRead),
-            Command::MarkRead {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    } else {
-        (
-            Icon::MarkEmailUnread,
-            t.s(Key::MarkUnread),
-            Command::MarkUnread {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        )
-    };
-    [
-        (
-            Icon::Archive,
-            t.s(Key::Archive),
-            Command::ArchiveThreads {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        ),
-        (
-            Icon::Delete,
-            t.s(Key::Trash),
-            Command::TrashThreads {
-                ids: ids(),
-                messages: Vec::new(),
-            },
-        ),
-        junk,
-        star,
-        read,
-        if summary.pinned {
-            (
-                Icon::PushPin,
-                t.s(Key::Unpin),
-                Command::UnpinThreads {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            )
-        } else {
-            (
-                Icon::PushPin,
-                t.s(Key::Pin),
-                Command::PinThreads {
-                    ids: ids(),
-                    messages: Vec::new(),
-                },
-            )
-        },
-    ]
+    /// An action of the row's thread that may continue in the palette (*Move…*, *Make a
+    /// rule…*).
+    Action(app_front::actions::Run),
 }
 
 /// The hover actions, as icon buttons over the right end of the row (on the row's fill, so
@@ -578,10 +459,17 @@ fn hover_actions(
     ui: &mut Ui,
     t: &Tokens,
     rect: egui::Rect,
-    summary: &ThreadSummary<'_>,
-    junk: bool,
+    actions: &[app_front::actions::Entry],
 ) -> Option<Click> {
-    let actions = row_actions(t, summary, junk);
+    // The entries that run a command at once (the toggles and triage); the ones that ask go
+    // to the context menu.
+    let actions: Vec<_> = actions
+        .iter()
+        .filter_map(|e| match &e.run {
+            app_front::actions::Run::Command(cmd) => Some((e.icon, e.label, cmd)),
+            _ => None,
+        })
+        .collect();
     let side = t.m.controls.icon_button;
     let width = side * actions.len() as f32 + t.m.space.sm;
     let area = egui::Rect::from_min_max(
@@ -601,9 +489,9 @@ fn hover_actions(
     child.spacing_mut().item_spacing.x = 0.0;
     let mut picked = None;
     for (icon, label, cmd) in actions {
-        let name = t.f(Key::LabelConversation, &[("label", label)]);
-        if ui::icon_button(&mut child, t, t.text_secondary, icon, &name).clicked() {
-            picked = Some(Click::Run(cmd));
+        let name = t.f(Key::LabelConversation, &[("label", t.s(label))]);
+        if ui::icon_button(&mut child, t, t.text_secondary, icon_named(icon), &name).clicked() {
+            picked = Some(Click::Run(cmd.clone()));
         }
     }
     picked
@@ -675,8 +563,8 @@ struct RowLook<'a> {
     mailbox: Option<app_core::MailboxId>,
     /// Every checked thread, dragged together.
     checked_ids: &'a [ThreadId],
-    /// The list shows a Junk folder: *Not junk* instead of *Junk* (MISC-42).
-    junk: bool,
+    /// The thread's actions (`app_front::actions::thread_actions`, PAR-1).
+    actions: &'a [app_front::actions::Entry],
 }
 
 /// The threads a list row drag carries (UX-11): the sidebar's folders of the same account
@@ -895,18 +783,17 @@ fn row(
     // drawn in that frame for the click to land.
     let mut action = None;
     if response.contains_pointer() || cursor {
-        action = hover_actions(ui, t, rect, summary, look.junk);
+        action = hover_actions(ui, t, rect, look.actions);
     }
     response.context_menu(|ui| {
-        for (_, label, cmd) in row_actions(t, summary, look.junk) {
-            if ui.button(label).clicked() {
-                action = Some(Click::Run(cmd));
+        for entry in look.actions {
+            if ui.button(t.s(entry.label)).clicked() {
+                action = Some(match &entry.run {
+                    app_front::actions::Run::Command(cmd) => Click::Run(cmd.clone()),
+                    other => Click::Action(other.clone()),
+                });
                 ui.close();
             }
-        }
-        if ui.button(t.s(Key::MoveTo)).clicked() {
-            action = Some(Click::Move);
-            ui.close();
         }
         if let Some(mailbox) = look.mailbox
             && ui.button(t.s(Key::FocusMailbox)).clicked()

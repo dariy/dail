@@ -75,8 +75,10 @@ enum Act {
     Choose(palette::Target),
     /// Leave the palette's step, else close it.
     PaletteBack,
-    /// Open the palette at this command's step (*Move…*).
+    /// Open the palette at this command's step (a key binding's *Change…*).
     Flow(CommandName),
+    /// An action of `app_front::actions` (PAR-1): its command, or its palette step.
+    Action(app_front::actions::Run),
     /// Open or fold a message's quote or signature.
     Fold(MessageId, FoldKind),
     /// Show a link's full target (the link sheet).
@@ -681,6 +683,7 @@ impl Mobile {
             Act::Choose(target) => self.palette_choose(target, state),
             Act::PaletteBack => self.palette_back(),
             Act::Flow(name) => self.palette_flow(name, state),
+            Act::Action(run) => self.ask(run.flow(state), state),
             Act::Fold(message, kind) => {
                 self.toggle_fold(message, kind);
                 Vec::new()
@@ -953,6 +956,11 @@ impl Mobile {
         self.next_action = self.next_action.wrapping_add(1).max(1);
         self.actions.push((id, act));
         id
+    }
+
+    /// The button of an action of `app_front::actions` (PAR-1).
+    fn action_button(&mut self, entry: app_front::actions::Entry) -> Button {
+        self.button(entry.icon, i18n::s(entry.label), Act::Action(entry.run))
     }
 
     fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
@@ -1507,76 +1515,10 @@ impl Mobile {
             return None;
         }
         let ids = palette::targets(state);
-        let messages = Vec::new;
-        let all_pinned = ids
-            .iter()
-            .filter_map(|t| state.threads.get(t))
-            .all(|t| listing::is_pinned(state, t));
-        let actions = [
-            (
-                "archive",
-                i18n::s(Text::Archive),
-                Command::ArchiveThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "delete",
-                i18n::s(Text::Trash),
-                Command::TrashThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "mark_email_read",
-                i18n::s(Text::MarkRead),
-                Command::MarkRead {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "mark_email_unread",
-                i18n::s(Text::MarkUnread),
-                Command::MarkUnread {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "star",
-                i18n::s(Text::Star),
-                Command::Star {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            // MISC-4: unpin when every checked thread is pinned.
-            if all_pinned {
-                (
-                    "push_pin",
-                    i18n::s(Text::Unpin),
-                    Command::UnpinThreads {
-                        ids: ids.clone(),
-                        messages: messages(),
-                    },
-                )
-            } else {
-                (
-                    "push_pin",
-                    i18n::s(Text::Pin),
-                    Command::PinThreads {
-                        ids: ids.clone(),
-                        messages: messages(),
-                    },
-                )
-            },
-        ]
-        .into_iter()
-        .map(|(icon, label, cmd)| self.button(icon, label, Act::Run(cmd)))
-        .collect();
+        let actions = app_front::actions::thread_actions(state, &ids)
+            .into_iter()
+            .map(|entry| self.action_button(entry))
+            .collect();
         let close = self.button(
             "close",
             i18n::s(Text::UncheckAll),

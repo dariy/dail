@@ -3,17 +3,17 @@
   "composer": {
     "actions": [
       {
-        "action": 33,
+        "action": 36,
         "icon": "send",
         "label": "Send"
       },
       {
-        "action": 34,
+        "action": 37,
         "icon": "attach_file",
         "label": "Attach files"
       },
       {
-        "action": 35,
+        "action": 38,
         "icon": "delete",
         "label": "Discard"
       }
@@ -32,14 +32,14 @@
       "expanded": false,
       "header": [],
       "label": "Quoted message",
-      "toggle": 32
+      "toggle": 35
     },
     "recipients": [
       {
         "chips": [
           {
             "label": "Carol <carol@example.org>",
-            "remove": 30
+            "remove": 33
           }
         ],
         "field": "to",
@@ -60,7 +60,7 @@
         "label": "Cc",
         "suggestions": [
           {
-            "action": 31,
+            "action": 34,
             "label": "Carol <carol@example.org>"
           }
         ]
@@ -92,7 +92,7 @@
   "revision": 2,
   "snackbar": {
     "action": {
-      "action": 36,
+      "action": 39,
       "label": "Undo"
     },
     "text": "Reply"
@@ -100,13 +100,13 @@
   "top_bar": {
     "actions": [
       {
-        "action": 29,
+        "action": 32,
         "icon": "search",
         "label": "Search or run a command"
       }
     ],
     "navigation": {
-      "action": 28,
+      "action": 31,
       "icon": "arrow_back",
       "label": "Back"
     },

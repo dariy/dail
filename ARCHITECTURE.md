@@ -106,7 +106,16 @@ GUI and the TUI share these rules and neither re-derives the other's. `app-gui` 
 other. Modules: `format` (dates in local time: the front end passes a `Zone`, the UTC offset at each instant, MISC-46; addresses, sizes), `body` (the reader's body tracking: which
 `get_thread {include_body: true}` to submit — `Bodies::rich()` adds `rich_body` for the GUI —, the bodies taken from its
 receipt with their `document`, `links`), `status` (sync text, problems,
-pending ops), `approvals` (the cards of agents' send requests), `message_actions` (MISC-44: one message's
+pending ops), `approvals` (the cards of agents' send requests), `actions` (PAR-1: `thread_actions(state, ids)`,
+`mailbox_actions(state, id)`, `account_actions(state, id)`, each a list of `Entry {label, icon, run, primary}` — an
+`i18n::Key`, an `app_theme::Icon` name, a `Run` (a `Command`, or plain data naming a palette flow and its target,
+resolved by `Run::flow`) and whether a short bar shows it as an icon (at most four); threads: Archive, Trash,
+Junk/Not junk, one read, star and pin toggle by the threads' state, *Move…*, and for one thread *Make a rule…*;
+mailboxes: *New subfolder…*, *Rename…* (not the Inbox), favourites pin, show/hide, focus, *Mark all read*, *Empty
+Trash*/*Empty Junk* (only those folders), *Apply rules*, *Offline window…*, *Delete…* (not the Inbox); accounts:
+*Test*, *Re-enter password*, *Sending addresses…*, *Remove…*, no *Servers…* yet (PAR-5); the GUI's bulk bar, row
+hover icons and context menu, folder menu and account buttons and the phone's bulk bar and reader toolbar draw
+from them), `message_actions` (MISC-44: one message's
 actions and the command each submits — Reply, Reply all, Forward, Read/Unread, Star/Unstar and Trash with
 `messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
 server copy); `for_key` maps a registry key onto them), `compose` (`parse_addr`, recipient fields, the draft's
@@ -268,9 +277,9 @@ the top level (servers such as Dovecot put every folder below `INBOX.`); the oth
 `unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
 each account caption shows its sync state (`app_front::status::account_state`, UX-9: a busy dot while it syncs, a
 failed dot with the cleaned error on hover, `offline` while changes wait after failed attempts; the TUI writes `⟳`, `⚠`,
-`offline`); a folder row's context menu offers *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
-folder*, *Focus this mailbox*, *Mark all as read* and *Delete…* (the steps that ask go through the palette:
-`palette::new_subfolder`, `rename_folder`, `delete_folder`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+`offline`); a folder row's context menu offers `app_front::actions::mailbox_actions` (PAR-1): *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
+folder*, *Focus this mailbox*, *Mark all as read*, *Empty Trash*/*Empty Junk*, *Apply rules*, *Offline window…* and *Delete…* (the steps that ask go through the palette:
+`palette::new_subfolder`, `rename_folder`, `delete_folder`, `mark_mailbox_read`, `empty_folder`, `sync_window`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
 it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
 `list_mailboxes`.
 
@@ -1044,9 +1053,10 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
   and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
-  (a switch), undo history (`set_setting`). Accounts: a card per account with *Test*, *Re-enter password* and
-  *Remove…* (asks once more, then `remove_account {confirm: true}`), and *Add account*. Every control sends a
-  command; the page holds only a filter and the pending removal.
+  (a switch), undo history (`set_setting`). Accounts: a card per account with `app_front::actions::account_actions`
+  (PAR-1): *Test*, *Re-enter password*, *Sending addresses…* (the palette's `set_identity` step for that account) and
+  *Remove…* (the palette's confirmation, then `remove_account {confirm: true}`), and *Add account*. Every control
+  sends a command; the page holds only a filter.
 - **Rules** (SET-5, ADR 0015): `open_settings {section: "rules"}` on every front end, drawn from
   `app_front::rules::panel`: a row per live rule in `RuleId` order with its name and a summary in words
   (`sender contains “x” → move to Reading`), passed through `text::clean` and drawn as plain text, never markup or
@@ -1179,9 +1189,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message with its own icon buttons from
   `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card —, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
-  `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
-  palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
+  unread badge, *Clear* during a search, the checked-threads bar: `app_front::actions::thread_actions` of the checked threads as text buttons, PAR-1, then
+  *Uncheck all*), hover actions on a row (UX-10, PAR-1: the entries of `thread_actions` of that row that run a command
+  at once — *Archive*, *Trash*, *Junk*/*Not junk*, *Mark read*/*Mark unread*, *Star*/*Unstar*, *Pin*/*Unpin* — as icon buttons named
+  `<action> conversation`, also on the keyboard cursor's row; its context menu has every entry, *Move…* and *Make a
+  rule…* continuing in the palette, and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
   if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
   `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
   this month*, then *November 2023*, local days — as heading rows that take one row slot each, so `show_rows` stays
@@ -1521,8 +1533,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
   row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
-  threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
-  `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  threads are checked, `bulk` replaces the top bar: `N selected`, the buttons of `app_front::actions::thread_actions`
+  over `palette::targets` (PAR-1: archive, trash, junk or not junk, one read, star and pin toggle, *Move…*, and for
+  one thread *Make a rule…*; a flow opens the palette at its step), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
   buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
@@ -1600,8 +1613,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   tapped (presenter state per message and kind, no command). *Links (N)* lists every target in full. A link's tap
   opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
-  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
-  palette at `move_threads`' step) and reply.
+  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: `app_front::actions::thread_actions` of the open thread (PAR-1: archive,
+  trash, junk or not junk, read or unread, star or unstar, pin or unpin, *Move…* and *Make a rule…*, the last two
+  opening the palette at their step) and reply.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
     trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no

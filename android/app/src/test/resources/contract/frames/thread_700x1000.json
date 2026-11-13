@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 40,
+    "action": 43,
     "icon": "edit",
     "label": "Compose"
   },
@@ -72,8 +72,8 @@
       },
       {
         "action": 24,
-        "icon": "star",
-        "label": "Star"
+        "icon": "report",
+        "label": "Junk"
       },
       {
         "action": 25,
@@ -82,22 +82,37 @@
       },
       {
         "action": 26,
+        "icon": "star",
+        "label": "Star"
+      },
+      {
+        "action": 27,
+        "icon": "push_pin",
+        "label": "Pin"
+      },
+      {
+        "action": 28,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 27,
+        "action": 29,
+        "icon": "edit",
+        "label": "Make a rule…"
+      },
+      {
+        "action": 30,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 38,
+      "action": 41,
       "icon": "close",
       "label": "Close message"
     },
     "maximize": {
-      "action": 39,
+      "action": 42,
       "icon": "open_in_full",
       "label": "Maximize message"
     },
@@ -105,32 +120,32 @@
       {
         "actions": [
           {
-            "action": 31,
+            "action": 34,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 32,
+            "action": 35,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 33,
+            "action": 36,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 34,
+            "action": 37,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 35,
+            "action": 38,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 37,
+            "action": 40,
             "icon": "delete",
             "label": "Trash"
           }
@@ -144,23 +159,23 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "swipe_end": {
-          "action": 36,
+          "action": 39,
           "icon": "delete",
           "label": "Trash"
         },
         "swipe_start": {
-          "action": 30,
+          "action": 33,
           "icon": "archive",
           "label": "Archive"
         },
         "to": "alice@example.com",
-        "toggle": 29
+        "toggle": 32
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 28,
+        "action": 31,
         "icon": "expand_more",
         "label": "Next conversation"
       },

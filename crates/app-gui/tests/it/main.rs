@@ -4,6 +4,7 @@
 mod support;
 
 mod accessibility;
+mod actions;
 mod approvals;
 mod bridge;
 mod composer;

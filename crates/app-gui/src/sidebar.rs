@@ -15,42 +15,21 @@ use crate::theme::Tokens;
 use crate::ui;
 
 /// What the sidebar asked for that is not a command.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct SidebarActions {
     /// Open the account wizard.
     pub add_account: bool,
     /// Open the settings page.
     pub settings: bool,
-    /// A folder's context-menu entry that asks in the palette (UX-14).
-    pub folder: Option<FolderMenu>,
-}
-
-/// A folder context-menu entry that continues in the palette.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FolderMenu {
-    /// *New subfolder…*: asks for the name.
-    NewSubfolder(app_core::MailboxId),
-    /// *Rename…*: asks for the new path.
-    Rename(app_core::MailboxId),
-    /// *Delete…*: asks for the confirmation.
-    Delete(app_core::MailboxId),
-}
-
-impl FolderMenu {
-    /// The palette step.
-    pub fn flow(self, state: &AppState) -> app_front::palette::Flow {
-        match self {
-            Self::NewSubfolder(id) => app_front::palette::new_subfolder(state, id),
-            Self::Rename(id) => app_front::palette::rename_folder(state, id),
-            Self::Delete(id) => app_front::palette::delete_folder(state, id),
-        }
-    }
+    /// A folder's context-menu entry that asks in the palette (UX-14): an action of
+    /// `app_front::actions::mailbox_actions` (PAR-1).
+    pub folder: Option<app_front::actions::Run>,
 }
 
 /// What a mailbox row asked for.
 enum RowOut {
     Run(Command),
-    Menu(FolderMenu),
+    Menu(app_front::actions::Run),
 }
 
 /// The account the sidebar's shortcuts act on: the open mailbox's, else the first.
@@ -539,63 +518,12 @@ fn mailbox_row(
         .then_some(RowOut::Run(Command::OpenMailbox { id: mailbox.id }));
     // UX-8, UX-4, UX-14: the folder's context menu.
     response.context_menu(|ui| {
-        let id = mailbox.id;
-        let pinned = state.settings.pinned_mailboxes.contains(&node.key);
-        let hidden = state.settings.hidden_mailboxes.contains(&node.key);
-        let not_inbox = mailbox.role != Some(MailboxRole::Inbox);
-        let entries: [(&str, Option<RowOut>); 7] = [
-            (
-                t.s(Key::NewSubfolder),
-                Some(RowOut::Menu(FolderMenu::NewSubfolder(id))),
-            ),
-            (
-                t.s(Key::Rename),
-                not_inbox.then_some(RowOut::Menu(FolderMenu::Rename(id))),
-            ),
-            (
-                if pinned {
-                    t.s(Key::UnpinFavourites)
-                } else {
-                    t.s(Key::PinFavourites)
-                },
-                Some(RowOut::Run(if pinned {
-                    Command::UnpinMailbox { id }
-                } else {
-                    Command::PinMailbox { id }
-                })),
-            ),
-            (
-                if hidden {
-                    t.s(Key::ShowFolder)
-                } else {
-                    t.s(Key::HideFolder)
-                },
-                Some(RowOut::Run(if hidden {
-                    Command::ShowMailbox { id }
-                } else {
-                    Command::HideMailbox { id }
-                })),
-            ),
-            (
-                t.s(Key::FocusMailbox),
-                Some(RowOut::Run(Command::FocusMailbox {
-                    id: Some(id),
-                    account: None,
-                })),
-            ),
-            (
-                t.s(Key::MarkAllRead),
-                Some(RowOut::Run(Command::MarkMailboxRead { id })),
-            ),
-            (
-                t.s(Key::Delete),
-                not_inbox.then_some(RowOut::Menu(FolderMenu::Delete(id))),
-            ),
-        ];
-        for (label, entry) in entries {
-            let Some(entry) = entry else { continue };
-            if ui.button(label).clicked() {
-                out = Some(entry);
+        for entry in app_front::actions::mailbox_actions(state, mailbox.id) {
+            if ui.button(t.s(entry.label)).clicked() {
+                out = Some(match entry.run {
+                    app_front::actions::Run::Command(cmd) => RowOut::Run(cmd),
+                    other => RowOut::Menu(other),
+                });
                 ui.close();
             }
         }

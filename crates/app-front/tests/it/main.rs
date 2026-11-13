@@ -2,6 +2,7 @@
 
 mod support;
 
+mod actions;
 mod advance;
 mod alerts;
 mod autoread;

@@ -205,12 +205,16 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
         [
             "Archive",
             "Trash",
+            "Junk",
             "Mark read",
-            "Mark unread",
             "Star",
-            "Pin"
+            "Pin",
+            "Move…"
         ]
     );
+    // PAR-1: *Move…* of the checked threads asks for the folder in the palette.
+    assert_eq!(phone.tap(bulk.actions[6].action), [Command::OpenPalette {}]);
+    let bulk = phone.frame().bulk.unwrap();
     let sent = phone.tap(bulk.actions[4].action);
     let ids = match &sent[0] {
         Command::Star { ids, .. } => ids.clone(),
