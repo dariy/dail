@@ -21,7 +21,8 @@ expression: phone.frame()
         "label": "About",
         "action": 2
       }
-    ]
+    ],
+    "overflow": []
   },
   "list": {
     "title": "Conversations",

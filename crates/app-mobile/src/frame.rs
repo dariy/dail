@@ -163,8 +163,12 @@ pub struct TopBar {
     /// The navigation button: the drawer, or back.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub navigation: Option<Button>,
-    /// The buttons on the right.
+    /// The buttons on the right (icons, or text without an icon).
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
 }
 
 /// Accounts and their mailboxes.
@@ -354,8 +358,12 @@ pub struct RowMarks {
 pub struct Bulk {
     /// `3 selected`.
     pub title: String,
-    /// Archive, trash, read, unread, star.
+    /// The thread actions drawn as icons: archive, trash, read or unread, *Move…*, ….
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
     /// Unchecks every thread.
     pub close: Button,
 }
@@ -374,8 +382,12 @@ pub struct Reader {
     /// the panes. Only while there is something to hide or it is maximized (MISC-14).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maximize: Option<Button>,
-    /// What can be done with it: archive, trash, star, read, *Move…*, reply.
+    /// What can be done with it, drawn as icons: archive, trash, *Move…*, reply, ….
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
     /// The conversation above it in the list, if any: a pull past the top of the body turns to
     /// it (MISC-18; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]

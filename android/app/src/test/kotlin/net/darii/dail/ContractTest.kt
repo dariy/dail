@@ -36,6 +36,18 @@ class ContractTest {
     }
 
     @Test
+    fun phoneBarsOverflowIntoAMenu() {
+        // TCH-2: four icons on a phone, the rest under the ⋮ menu.
+        val frames = fixtures("frames")
+        val bulk = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("bulk_360x800")).bulk)
+        assertEquals(4, bulk.actions.size)
+        assertTrue(bulk.overflow.isNotEmpty())
+        val reader = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("thread_360x800")).reader)
+        assertEquals(4, reader.actions.size)
+        assertTrue(reader.overflow.all { it.label.isNotEmpty() })
+    }
+
+    @Test
     fun messageCardsCarryTheirSwipes() {
         // MISC-44e: a card swipes as a list row, its buttons drawn by the presenter.
         val frame = strict.decodeFromString(Frame.serializer(), fixtures("frames").getValue("thread_360x800"))

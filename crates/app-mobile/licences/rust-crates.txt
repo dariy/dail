@@ -6,7 +6,7 @@ aho-corasick 1.1.5 Unlicense OR MIT
 alloc-no-stdlib 2.0.4 BSD-3-Clause
 alloc-stdlib 0.2.4 BSD-3-Clause
 allocator-api2 0.2.21 MIT OR Apache-2.0
-ammonia 4.2.4 MIT OR Apache-2.0
+ammonia 4.2.5 MIT OR Apache-2.0
 android-native-keyring-store 1.0.0 MIT OR Apache-2.0
 android_system_properties 0.1.6 MIT OR Apache-2.0
 arc-swap 1.9.3 MIT OR Apache-2.0

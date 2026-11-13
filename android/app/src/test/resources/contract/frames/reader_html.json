@@ -66,34 +66,9 @@
         "label": "Trash"
       },
       {
-        "action": 13,
-        "icon": "report",
-        "label": "Junk"
-      },
-      {
-        "action": 14,
-        "icon": "mark_email_read",
-        "label": "Mark read"
-      },
-      {
-        "action": 15,
-        "icon": "star",
-        "label": "Star"
-      },
-      {
-        "action": 16,
-        "icon": "push_pin",
-        "label": "Pin"
-      },
-      {
         "action": 17,
         "icon": "drive_file_move",
         "label": "Move…"
-      },
-      {
-        "action": 18,
-        "icon": "edit",
-        "label": "Make a rule…"
       },
       {
         "action": 19,
@@ -282,6 +257,33 @@
       "sender": "Bob",
       "subject": "Q3 numbers"
     },
+    "overflow": [
+      {
+        "action": 13,
+        "icon": "report",
+        "label": "Junk"
+      },
+      {
+        "action": 14,
+        "icon": "mark_email_read",
+        "label": "Mark read"
+      },
+      {
+        "action": 15,
+        "icon": "star",
+        "label": "Star"
+      },
+      {
+        "action": 16,
+        "icon": "push_pin",
+        "label": "Pin"
+      },
+      {
+        "action": 18,
+        "icon": "edit",
+        "label": "Make a rule…"
+      }
+    ],
     "position": "1 of 2",
     "subject": "Lunch?",
     "thread": "00000000-0000-0007-0000-000000000002"
@@ -551,6 +553,7 @@
       "icon": "menu",
       "label": "Mailboxes"
     },
+    "overflow": [],
     "subtitle": "synced 9h ago",
     "title": "Inbox"
   },

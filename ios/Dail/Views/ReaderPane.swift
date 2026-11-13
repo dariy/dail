@@ -39,6 +39,7 @@ struct ReaderPane: View {
                         ForEach(Array(reader.actions.enumerated()), id: \.offset) { _, button in
                             FrameButton(button: button, send: send)
                         }
+                        OverflowMenu(buttons: reader.overflow, send: send)
                     }
                     ForEach(Array(reader.messages.enumerated()), id: \.offset) { _, message in
                         MessageView(message: message, send: send)

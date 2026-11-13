@@ -294,6 +294,7 @@ private fun Toolbar(
 ) {
     FlowRow(verticalArrangement = Arrangement.Center) {
         reader.actions.forEach { ActionButton(it, send) }
+        OverflowMenu(reader.overflow, send)
     }
 }
 

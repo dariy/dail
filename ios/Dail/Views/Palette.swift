@@ -73,3 +73,22 @@ struct FrameButton: View {
         }
     }
 }
+
+/// A bar's `overflow` (TCH-2): a ⋯ menu of text labels, nothing when it is empty. The presenter
+/// chooses what overflows; IOS-6 gives it its final look.
+struct OverflowMenu: View {
+    let buttons: [ActionButton]
+    let send: (UiEvent) -> Void
+
+    var body: some View {
+        if !buttons.isEmpty {
+            Menu {
+                ForEach(Array(buttons.enumerated()), id: \.offset) { _, button in
+                    SwiftUI.Button(button.label) { send(.tap(button.action)) }
+                }
+            } label: {
+                Image(systemName: "ellipsis").accessibilityLabel(tr("More actions"))
+            }
+        }
+    }
+}

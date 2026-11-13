@@ -73,6 +73,7 @@
       "icon": "arrow_back",
       "label": "Back"
     },
+    "overflow": [],
     "title": "Geist"
   },
   "wants_tick": false

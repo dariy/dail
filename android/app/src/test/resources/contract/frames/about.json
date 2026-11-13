@@ -98,6 +98,7 @@
       "icon": "close",
       "label": "Close"
     },
+    "overflow": [],
     "title": "About dail (<version>)"
   },
   "wants_tick": false

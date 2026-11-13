@@ -48,6 +48,12 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
+    // The bulk bar of a phone: four icons and a ⋮ menu (TCH-2).
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::CheckThreads {
+        ids: vec![threads[0], threads[1]],
+    });
+    out.push(("bulk_360x800".to_owned(), phone.frame()));
     // The folder tree in the iPad's portrait overlay drawer (MISC-10).
     let mut phone = crate::drawer::nested(820, 1180);
     phone.dispatch(Command::FocusPane {

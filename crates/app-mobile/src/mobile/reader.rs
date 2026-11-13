@@ -270,7 +270,8 @@ fn openable(url: &str) -> bool {
 }
 
 impl Mobile {
-    pub(super) fn reader(&mut self, state: &AppState) -> Option<Reader> {
+    /// The open thread; its toolbar draws `budget` buttons as icons (TCH-2).
+    pub(super) fn reader(&mut self, state: &AppState, budget: usize) -> Option<Reader> {
         let thread = state.view.thread.and_then(|id| state.threads.get(&id))?;
         let now = self.now_ms();
         let envelopes: Vec<_> = thread
@@ -278,21 +279,29 @@ impl Mobile {
             .iter()
             .filter_map(|id| state.messages.get(id))
             .collect();
-        // PAR-1: the thread's actions, then Reply.
-        let mut actions: Vec<_> = app_front::actions::thread_actions(state, &[thread.id])
+        // PAR-1: the thread's actions, then Reply. TCH-2: Reply is primary here, and the read
+        // toggle is not (opening the message reads it), so a phone's four icons are Archive,
+        // Trash, *Move…* and Reply.
+        let mut items: Vec<_> = app_front::actions::thread_actions(state, &[thread.id])
             .into_iter()
-            .map(|entry| self.action_button(entry))
+            .map(|entry| {
+                let primary =
+                    entry.primary && !matches!(entry.label, Key::MarkRead | Key::MarkUnread);
+                (self.action_button(entry), primary)
+            })
             .collect();
         if let Some(message) = palette::newest_message(state, thread.id) {
-            actions.push(self.button(
+            let reply = self.button(
                 "reply",
                 i18n::s(Key::Reply),
                 Act::Run(Command::Reply {
                     message,
                     body: None,
                 }),
-            ));
+            );
+            items.push((reply, true));
         }
+        let (actions, overflow) = super::split(items, budget);
         let (previous, next, position) = self.neighbours(state, thread.id);
         let words = state
             .view
@@ -484,6 +493,7 @@ impl Mobile {
                 s => clean(s),
             },
             actions,
+            overflow,
             previous,
             next,
             position,

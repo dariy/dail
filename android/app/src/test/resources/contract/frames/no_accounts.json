@@ -315,6 +315,7 @@
         "label": "About"
       }
     ],
+    "overflow": [],
     "title": "Conversations"
   },
   "wants_tick": false

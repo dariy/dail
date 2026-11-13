@@ -27,9 +27,11 @@ fn open(thread: usize, bodies: Vec<serde_json::Value>) -> (Phone, Vec<ThreadId>)
 }
 
 fn button(reader: &Reader, label: &str) -> u32 {
+    // TCH-2: an icon or an entry of the ⋮ menu.
     reader
         .actions
         .iter()
+        .chain(&reader.overflow)
         .find(|b| b.label == label)
         .unwrap_or_else(|| panic!("no {label} in {:?}", reader.actions))
         .action
@@ -251,19 +253,15 @@ fn the_toolbar_toggles_star_and_read_and_walks_the_list() {
     let read = r
         .actions
         .iter()
+        .chain(&r.overflow)
         .find(|b| b.label.starts_with("Mark "))
         .unwrap()
         .clone();
     let got = phone.tap(star);
     assert!(matches!(&got[..], [Command::Star { ids, .. }] if ids == &[threads[0]]));
     let frame = phone.frame();
-    assert!(reader(&frame).actions.iter().any(|b| b.label == "Unstar"));
-    let read = reader(&frame)
-        .actions
-        .iter()
-        .find(|b| b.label == read.label)
-        .unwrap()
-        .action;
+    button(reader(&frame), "Unstar");
+    let read = button(reader(&frame), &read.label);
     let got = phone.tap(read);
     assert!(matches!(
         &got[..],

@@ -2072,6 +2072,9 @@ strings! {
     NativePending:
         "Pending",
         "En attente";
+    NativeMoreActions:
+        "More actions",
+        "Plus d’actions";
     AboutDail:
         "About dail",
         "À propos de dail";

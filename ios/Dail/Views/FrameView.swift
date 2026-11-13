@@ -127,6 +127,7 @@ struct TopBarView: View {
                 Text(bulk.title).font(.headline)
                 Spacer()
                 ForEach(Array(bulk.actions.enumerated()), id: \.offset) { _, button in FrameButton(button: button, send: send) }
+                OverflowMenu(buttons: bulk.overflow, send: send)
             } else {
                 // The navigation button in a fixed slot, so the title starts on the text keyline (MISC-20).
                 if let navigation = frame.topBar.navigation {
@@ -143,6 +144,7 @@ struct TopBarView: View {
                 ForEach(Array(frame.topBar.actions.enumerated()), id: \.offset) { _, button in
                     FrameButton(button: button, send: send)
                 }
+                OverflowMenu(buttons: frame.topBar.overflow, send: send)
             }
         }
         .padding(.horizontal, Metrics.iconStart).padding(.vertical, 10)

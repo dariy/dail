@@ -1492,7 +1492,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`, `schedule {sync, interval_mins}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`); so is the time zone (`Mobile::with_zone`: `app-host` passes `app_sync::clock::local_offset_ms`, else UTC, MISC-46).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
-  `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
+  `top_bar` (title, sync state, the drawer or back button, search, and an `overflow` that is empty today), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
@@ -1501,6 +1501,17 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
   and `wants_tick`.
+- **Overflow menus** (TCH-2). `top_bar`, `bulk` and `reader` each carry `actions` (drawn as icons, or text for a
+  button without an icon) and `overflow` (drawn as a ⋮ button opening a menu of text labels, each `Button` keeping its
+  icon name for a leading glyph). Both are always present, `[]` when empty, as every `Vec` of the frame; the menu is
+  drawn only when `overflow` is not empty, and its trigger's accessible name is the label `More actions` (`labels`,
+  `Plus d’actions` in French). The presenter decides the split (`mobile::split`), never Kotlin or Swift: when a bar's
+  list does not fit its budget, the icons are its primary entries (`app_front::actions::Entry::primary`) in list order
+  up to the budget, then other entries in list order while room is left; the rest is `overflow`, in list order, so the
+  two together are the whole list. Budgets: the top bar and the bulk bar (full width) 4 on a compact window and all
+  on a medium or expanded one; the reader 4 on a compact window and in a medium window's detail pane beside the list,
+  6 in an expanded window's detail pane beside other panes, all when the message has a medium or expanded window to
+  itself. The menu trigger does not count, nor do `close`, `maximize` and `navigation`.
 - **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
   `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
@@ -1549,7 +1560,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
   threads are checked, `bulk` replaces the top bar: `N selected`, the buttons of `app_front::actions::thread_actions`
   over `palette::targets` (PAR-1: archive, trash, junk or not junk, one read, star and pin toggle, *Move…*, and for
-  one thread *Make a rule…*; a flow opens the palette at its step), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  one thread *Make a rule…*; a flow opens the palette at its step) split into `actions` and `overflow` (TCH-2: on a
+  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋮ menu), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
   buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
@@ -1629,7 +1641,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
   another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: `app_front::actions::thread_actions` of the open thread (PAR-1: archive,
   trash, junk or not junk, read or unread, star or unstar, pin or unpin, *Move…* and *Make a rule…*, the last two
-  opening the palette at their step) and reply.
+  opening the palette at their step) and reply, split into `actions` and `overflow` (TCH-2). In the reader, reply is
+  primary and the read toggle is not (opening the message reads it), so a phone shows archive, trash, *Move…* and
+  reply as icons, and junk, the read, star and pin toggles and *Make a rule…* in the ⋮ menu.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
     trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
@@ -1822,7 +1836,8 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
   `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
   `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
-  `ui/DailScreen.kt` the banner card and the snackbar, `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
+  `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
+  `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
   choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
@@ -1921,7 +1936,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `ContractTest` (`android/app/src/test/resources/contract`, a folder resource of the test bundle). Codable ignores
   unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
   had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
-  simulator, decodes its frame strictly and sends a `configure`.
+  simulator, decodes its frame strictly and sends a `configure`. The bars' `overflow` (TCH-2) is drawn by a plain
+  SwiftUI `Menu` (`OverflowMenu` in `Views/Palette.swift`) after their icons; its final look is IOS-6.
 - **The views** (`ios/Dail/Views`, as Kotlin's `ui/`). `Host.swift` runs every call on one serial queue ("dail-ui"),
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,

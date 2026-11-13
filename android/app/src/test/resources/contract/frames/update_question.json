@@ -335,6 +335,7 @@
       "icon": "menu",
       "label": "Mailboxes"
     },
+    "overflow": [],
     "subtitle": "synced 9h ago",
     "title": "Inbox"
   },

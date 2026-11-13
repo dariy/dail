@@ -21,7 +21,8 @@ expression: phone.frame()
         "label": "Search or run a command",
         "action": 1
       }
-    ]
+    ],
+    "overflow": []
   },
   "drawer": {
     "modal": false,
@@ -184,6 +185,18 @@ expression: phone.frame()
         "action": 22
       },
       {
+        "icon": "drive_file_move",
+        "label": "Move…",
+        "action": 25
+      },
+      {
+        "icon": "reply",
+        "label": "Reply",
+        "action": 27
+      }
+    ],
+    "overflow": [
+      {
         "icon": "star",
         "label": "Star",
         "action": 23
@@ -194,19 +207,9 @@ expression: phone.frame()
         "action": 24
       },
       {
-        "icon": "drive_file_move",
-        "label": "Move…",
-        "action": 25
-      },
-      {
         "icon": "edit",
         "label": "Make a rule…",
         "action": 26
-      },
-      {
-        "icon": "reply",
-        "label": "Reply",
-        "action": 27
       }
     ],
     "next": {

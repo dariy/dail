@@ -1120,7 +1120,7 @@ ships in English and French.
   thread when the clicked row is checked (check it first; the review did not)
 
 ### T — Touch
-- [ ] TCH-2 (M) [mobile][kt][ios]: overflow menus in the frame contract. `Reader.actions`, `Bulk.actions` and
+- [x] TCH-2 (M) [mobile][kt][ios]: overflow menus in the frame contract. `Reader.actions`, `Bulk.actions` and
   `TopBar.actions` split by PAR-1's `primary` flag: at most four icons on a compact window, the rest under a ⋮ menu with
   text labels. The presenter decides the split by window class; Kotlin draws it
 - [ ] TCH-1 (S) [mobile][kt][ios]: the palette opens from every touch state, through TCH-2's overflow: the open message

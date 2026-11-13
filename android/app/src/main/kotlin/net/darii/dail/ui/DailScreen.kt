@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -34,6 +36,10 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -119,7 +125,10 @@ private fun FrameScaffold(
                 TopAppBar(
                     title = { Text(bulk.title) },
                     navigationIcon = { ActionButton(bulk.close, send) },
-                    actions = { bulk.actions.forEach { ActionButton(it, send) } },
+                    actions = {
+                        bulk.actions.forEach { ActionButton(it, send) }
+                        OverflowMenu(bulk.overflow, send)
+                    },
                 )
                 return@Scaffold
             }
@@ -131,7 +140,10 @@ private fun FrameScaffold(
                     }
                 },
                 navigationIcon = { frame.topBar.navigation?.let { ActionButton(it, send) } },
-                actions = { frame.topBar.actions.forEach { ActionButton(it, send) } },
+                actions = {
+                    frame.topBar.actions.forEach { ActionButton(it, send) }
+                    OverflowMenu(frame.topBar.overflow, send)
+                },
                 colors = chromeBar(LocalChrome.current),
             )
         },
@@ -266,6 +278,38 @@ internal fun ActionButton(
         modifier = Modifier.semantics { contentDescription = button.label },
     ) {
         Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE)
+    }
+}
+
+/**
+ * A bar's `overflow` (TCH-2): a ⋮ button opening a menu of text labels, nothing when empty. The presenter decides
+ * what overflows; this only draws it.
+ */
+@Composable
+internal fun OverflowMenu(
+    buttons: List<Button>,
+    send: (UiEvent) -> Unit,
+) {
+    if (buttons.isEmpty()) return
+    var open by remember { mutableStateOf(false) }
+    val name = tr("More actions")
+    Box {
+        IconButton(onClick = { open = true }, modifier = Modifier.semantics { contentDescription = name }) {
+            val glyph = LocalChrome.current.icons["more_horiz"]
+            if (glyph != null) Text(glyph, fontFamily = Symbols, fontSize = ICON_SIZE) else Text("⋮")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            buttons.forEach { button ->
+                DropdownMenuItem(
+                    text = { Text(button.label) },
+                    leadingIcon = button.icon?.let { { Glyph(it) } },
+                    onClick = {
+                        open = false
+                        send(UiEvent.Tap(button.action))
+                    },
+                )
+            }
+        }
     }
 }
 

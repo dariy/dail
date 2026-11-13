@@ -997,6 +997,7 @@ impl Mobile {
         if maximized {
             // Minimal: the message has the room; its own bar keeps its actions.
             top_bar.actions.clear();
+            top_bar.overflow.clear();
         }
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         // A modal drawer gives way to the About screen it opened.
@@ -1006,7 +1007,7 @@ impl Mobile {
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
         let mut reader = if kinds.contains(&PaneKind::Reader) || page.is_some() {
-            self.reader(state)
+            self.reader(state, reader_budget(class, &kinds))
         } else {
             None
         };
@@ -1140,6 +1141,7 @@ impl Mobile {
                 subtitle: None,
                 navigation: Some(self.button("arrow_back", i18n::s(Text::Back), Act::Back)),
                 actions: Vec::new(),
+                overflow: Vec::new(),
             };
         }
         if self.about {
@@ -1150,6 +1152,7 @@ impl Mobile {
                 subtitle: None,
                 navigation: Some(self.button("close", i18n::s(Text::Close), Act::Back)),
                 actions: Vec::new(),
+                overflow: Vec::new(),
             };
         }
         let one = match kinds {
@@ -1203,11 +1206,17 @@ impl Mobile {
                 action: self.add(Act::About),
             });
         }
+        // Every button of the top bar is primary; TCH-1 adds what overflows.
+        let (actions, overflow) = split(
+            actions.into_iter().map(|b| (b, true)).collect(),
+            bar_budget(self.class()),
+        );
         TopBar {
             title,
             subtitle,
             navigation,
             actions,
+            overflow,
         }
     }
 
@@ -1515,10 +1524,14 @@ impl Mobile {
             return None;
         }
         let ids = palette::targets(state);
-        let actions = app_front::actions::thread_actions(state, &ids)
+        let items = app_front::actions::thread_actions(state, &ids)
             .into_iter()
-            .map(|entry| self.action_button(entry))
+            .map(|entry| {
+                let primary = entry.primary;
+                (self.action_button(entry), primary)
+            })
             .collect();
+        let (actions, overflow) = split(items, bar_budget(self.class()));
         let close = self.button(
             "close",
             i18n::s(Text::UncheckAll),
@@ -1527,6 +1540,7 @@ impl Mobile {
         Some(Bulk {
             title: i18n::f(Text::Selected, &[("n", &ids.len().to_string())]),
             actions,
+            overflow,
             close,
         })
     }
@@ -1900,6 +1914,56 @@ fn list_title(state: &AppState) -> String {
         )
 }
 
+/// How many buttons a full-width bar (the top bar, the bulk bar) draws as icons (TCH-2): four on
+/// a compact window, all of them on a wider one (its whole list fits from 600 dp).
+const fn bar_budget(class: Class) -> usize {
+    match class {
+        Class::Compact => 4,
+        Class::Medium | Class::Expanded => usize::MAX,
+    }
+}
+
+/// How many buttons the reader's toolbar draws as icons (TCH-2): four on a compact window (the
+/// page is the window's width, and narrow) and in the detail pane of a medium window beside the
+/// list; six in the detail pane of an expanded window beside other panes; all of them when the
+/// message has a medium or expanded window to itself.
+fn reader_budget(class: Class, kinds: &[PaneKind]) -> usize {
+    let alone = kinds == [PaneKind::Reader];
+    match class {
+        Class::Compact => 4,
+        Class::Medium | Class::Expanded if alone => usize::MAX,
+        Class::Medium => 4,
+        Class::Expanded => 6,
+    }
+}
+
+/// Splits a bar's buttons into icons and a ⋮ menu (TCH-2): when they do not all fit in
+/// `budget`, the icons are the primary ones (`app_front::actions::Entry::primary`) in list order
+/// up to `budget`, then others in list order while room is left; the rest is the overflow. Both
+/// keep list order, so together they are the whole list.
+fn split(items: Vec<(Button, bool)>, budget: usize) -> (Vec<Button>, Vec<Button>) {
+    if items.len() <= budget {
+        return (items.into_iter().map(|(b, _)| b).collect(), Vec::new());
+    }
+    let primaries = items.iter().filter(|(_, p)| *p).count().min(budget);
+    let mut others = budget - primaries;
+    let mut taken = 0;
+    let mut actions = Vec::new();
+    let mut overflow = Vec::new();
+    for (button, primary) in items {
+        if primary && taken < primaries {
+            taken += 1;
+            actions.push(button);
+        } else if !primary && others > 0 {
+            others -= 1;
+            actions.push(button);
+        } else {
+            overflow.push(button);
+        }
+    }
+    (actions, overflow)
+}
+
 /// The texts Kotlin and Swift compose themselves.
 fn native_labels() -> std::collections::BTreeMap<String, String> {
     if i18n::current() == Lang::English {
@@ -1924,6 +1988,7 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
         Text::NativeFailed,
         Text::NativePassed,
         Text::NativePending,
+        Text::NativeMoreActions,
         Text::Pinned,
         Text::ToNameLower,
         Text::Subject,

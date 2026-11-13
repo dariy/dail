@@ -24,7 +24,8 @@ expression: phone.frame()
         "label": "Search or run a command",
         "action": 2
       }
-    ]
+    ],
+    "overflow": []
   },
   "drawer": {
     "modal": true,

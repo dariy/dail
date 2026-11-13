@@ -106,6 +106,8 @@ data class TopBar(
     val subtitle: String? = null,
     val navigation: Button? = null,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋮ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
 )
 
 @Serializable
@@ -211,6 +213,8 @@ data class RowMarks(
 data class Bulk(
     val title: String,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋮ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
     val close: Button,
 )
 
@@ -221,6 +225,8 @@ data class Reader(
     val close: Button,
     val maximize: Button? = null,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋮ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
     val previous: Neighbour? = null,
     val next: Neighbour? = null,
     val position: String? = null,

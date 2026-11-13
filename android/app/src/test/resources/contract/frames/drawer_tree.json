@@ -442,6 +442,7 @@
       "icon": "menu",
       "label": "Mailboxes"
     },
+    "overflow": [],
     "subtitle": "⟳ syncing…",
     "title": "Inbox"
   },

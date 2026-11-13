@@ -174,7 +174,7 @@
       "description": "What can be done with the checked threads.",
       "properties": {
         "actions": {
-          "description": "Archive, trash, read, unread, star.",
+          "description": "The thread actions drawn as icons: archive, trash, read or unread, *Move…*, ….",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -184,6 +184,13 @@
           "$ref": "#/$defs/Button",
           "description": "Unchecks every thread."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "title": {
           "description": "`3 selected`.",
           "type": "string"
@@ -192,6 +199,7 @@
       "required": [
         "title",
         "actions",
+        "overflow",
         "close"
       ],
       "type": "object"
@@ -1574,7 +1582,7 @@
       "description": "The open thread.",
       "properties": {
         "actions": {
-          "description": "What can be done with it: archive, trash, star, read, *Move…*, reply.",
+          "description": "What can be done with it, drawn as icons: archive, trash, *Move…*, reply, ….",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -1613,6 +1621,13 @@
           ],
           "description": "The conversation below it in the list, if any: a pull past the end of the body turns to\nit (MISC-18; no button)."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "position": {
           "description": "Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).",
           "type": [
@@ -1645,6 +1660,7 @@
         "subject",
         "close",
         "actions",
+        "overflow",
         "messages"
       ],
       "type": "object"
@@ -2383,7 +2399,7 @@
       "description": "The top app bar.",
       "properties": {
         "actions": {
-          "description": "The buttons on the right.",
+          "description": "The buttons on the right (icons, or text without an icon).",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -2400,6 +2416,13 @@
           ],
           "description": "The navigation button: the drawer, or back."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋮ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "subtitle": {
           "description": "The sync state (`synced 2m ago`).",
           "type": [
@@ -2414,7 +2437,8 @@
       },
       "required": [
         "title",
-        "actions"
+        "actions",
+        "overflow"
       ],
       "type": "object"
     }

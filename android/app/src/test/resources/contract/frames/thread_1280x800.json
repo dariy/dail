@@ -162,24 +162,9 @@
         "label": "Mark read"
       },
       {
-        "action": 42,
-        "icon": "star",
-        "label": "Star"
-      },
-      {
-        "action": 43,
-        "icon": "push_pin",
-        "label": "Pin"
-      },
-      {
         "action": 44,
         "icon": "drive_file_move",
         "label": "Move…"
-      },
-      {
-        "action": 45,
-        "icon": "edit",
-        "label": "Make a rule…"
       },
       {
         "action": 46,
@@ -263,6 +248,23 @@
       "sender": "Bob",
       "subject": "Q3 numbers"
     },
+    "overflow": [
+      {
+        "action": 42,
+        "icon": "star",
+        "label": "Star"
+      },
+      {
+        "action": 43,
+        "icon": "push_pin",
+        "label": "Pin"
+      },
+      {
+        "action": 45,
+        "icon": "edit",
+        "label": "Make a rule…"
+      }
+    ],
     "position": "1 of 2",
     "subject": "Lunch?",
     "thread": "00000000-0000-0007-0000-000000000002"
@@ -276,6 +278,7 @@
         "label": "Search or run a command"
       }
     ],
+    "overflow": [],
     "subtitle": "synced 9h ago",
     "title": "Inbox"
   },
