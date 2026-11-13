@@ -116,6 +116,9 @@ pub fn show(
         .as_deref()
         .map(app_front::highlight::words)
         .unwrap_or_default();
+    // DSK-1: a checked row's context menu acts on every checked thread: one list for all rows.
+    let bulk = (!state.view.checked.is_empty())
+        .then(|| app_front::actions::thread_actions(state, &state.view.checked));
     let output = scroll.show_rows(ui, row_height, items.len(), |ui, range| {
         for item in &items[range] {
             let id = match item {
@@ -151,6 +154,11 @@ pub fn show(
                         .filter(|_| state.view.search.is_none() && !state.view.unified),
                     checked_ids: &state.view.checked,
                     actions: &actions,
+                    menu: match &bulk {
+                        Some(all) if checked => all,
+                        _ => &actions,
+                    },
+                    menu_count: if checked { state.view.checked.len() } else { 1 },
                 };
                 match row(ui, t, &summary, &look, density, (now_ms, zone)) {
                     Some(Click::Open) => {
@@ -565,6 +573,11 @@ struct RowLook<'a> {
     checked_ids: &'a [ThreadId],
     /// The thread's actions (`app_front::actions::thread_actions`, PAR-1).
     actions: &'a [app_front::actions::Entry],
+    /// The entries of the row's context menu: those of every checked thread when the row is
+    /// checked (DSK-1), else `actions`.
+    menu: &'a [app_front::actions::Entry],
+    /// How many threads the context menu acts on.
+    menu_count: usize,
 }
 
 /// The threads a list row drag carries (UX-11): the sidebar's folders of the same account
@@ -786,7 +799,13 @@ fn row(
         action = hover_actions(ui, t, rect, look.actions);
     }
     response.context_menu(|ui| {
-        for entry in look.actions {
+        if look.menu_count > 1 {
+            ui.add_enabled(
+                false,
+                egui::Label::new(t.f(Key::CheckedCount, &[("n", &look.menu_count.to_string())])),
+            );
+        }
+        for entry in look.menu {
             if ui.button(t.s(entry.label)).clicked() {
                 action = Some(match &entry.run {
                     app_front::actions::Run::Command(cmd) => Click::Run(cmd.clone()),

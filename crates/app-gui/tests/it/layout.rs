@@ -603,3 +603,75 @@ fn each_message_card_has_its_own_actions() {
         })
     );
 }
+
+#[test]
+fn a_checked_rows_context_menu_acts_on_every_checked_thread() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::CheckThreads {
+            ids: threads.clone(),
+        },
+    );
+    h.state_mut().out.clear();
+    h.get_by_label("Lunch?").click_secondary();
+    h.run();
+    // The bulk bar's title and the menu's.
+    assert_eq!(h.query_all_by_label("2 checked").count(), 2);
+    // The menu is drawn last: its entry is the last button of that name.
+    h.query_all(
+        By::new()
+            .role(Role::Button)
+            .label("Archive")
+            .predicate(|n| n.toggled().is_none()),
+    )
+    .last()
+    .unwrap()
+    .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::ArchiveThreads {
+            ids: threads,
+            messages: Vec::new()
+        }]
+    );
+}
+
+#[test]
+fn an_unchecked_rows_context_menu_acts_on_that_row_only() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(
+        &mut h,
+        Command::CheckThreads {
+            ids: vec![threads[1]],
+        },
+    );
+    h.state_mut().out.clear();
+    h.get_by_label("Lunch?").click_secondary();
+    h.run();
+    // The menu is drawn last: its entry is the last button of that name.
+    h.query_all(
+        By::new()
+            .role(Role::Button)
+            .label("Archive")
+            .predicate(|n| n.toggled().is_none()),
+    )
+    .last()
+    .unwrap()
+    .click();
+    h.run();
+    assert_eq!(
+        h.state_mut().take(),
+        [Command::ArchiveThreads {
+            ids: vec![threads[0]],
+            messages: Vec::new()
+        }]
+    );
+}

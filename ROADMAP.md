@@ -1116,7 +1116,7 @@ ships in English and French.
   `CommandName` and every front end, one of `Control`, `Flow`, `Palette` or `Never`, from an exhaustive `match`. The test
   enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, and nothing is `Never` unless an ADR says
   so. The table also shows the TUI's gaps, which the review did not check
-- [ ] DSK-1 (S) [gui]: *Move…* in the desktop bulk bar (free with PAR-1); a row's context menu acts on every checked
+- [x] DSK-1 (S) [gui]: *Move…* in the desktop bulk bar (free with PAR-1); a row's context menu acts on every checked
   thread when the clicked row is checked (check it first; the review did not)
 
 ### T — Touch

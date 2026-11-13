@@ -1207,7 +1207,7 @@ command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`
   *Uncheck all*), hover actions on a row (UX-10, PAR-1: the entries of `thread_actions` of that row that run a command
   at once — *Archive*, *Trash*, *Junk*/*Not junk*, *Mark read*/*Mark unread*, *Star*/*Unstar*, *Pin*/*Unpin* — as icon buttons named
   `<action> conversation`, also on the keyboard cursor's row; its context menu has every entry, *Move…* and *Make a
-  rule…* continuing in the palette, and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
+  rule…* continuing in the palette, and *Focus this mailbox*; on a checked row it acts on every checked thread, under a *N checked* line, DSK-1), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
   if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
   `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
   this month*, then *November 2023*, local days — as heading rows that take one row slot each, so `show_rows` stays
