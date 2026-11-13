@@ -1,6 +1,7 @@
 # dail — Roadmap
 
 Each checkbox is roughly one agent-sized change. A box is ticked only when all gates in `AGENTS.md §6` are green.
+An item that adds a control names where it appears on each front end (GUI, TUI, touch) or cites the reach table (`app_front::reach`, PAR-2).
 Command names refer to the catalogue in [`ARCHITECTURE.md §8`](ARCHITECTURE.md#8-initial-command-catalogue-mvp).
 
 Legend: **[core]** app-core · **[io]** app-io · **[sync]** app-sync · **[mcp]** · **[cli]** · **[gui]** · **[tk]** app-testkit · **[front]** app-front · **[tui]** app-tui
@@ -1099,7 +1100,7 @@ ships in English and French.
 - [x] REL-1 (S) [user]: merge `go/misc` into `main`, and from then on at least once per finished wave stage, so that an
   item ticked here is on the user's phone within one merge *(merged; v0.1.8 of 2026-11-08 and v0.1.9 carry Waves 12 and
   13. The rule stays)*
-- [ ] REL-2 (S) [docs]: each roadmap item that adds a control says where it appears on each front end, or cites PAR-2's
+- [x] REL-2 (S) [docs]: each roadmap item that adds a control says where it appears on each front end, or cites PAR-2's
   table. AGENTS.md §3's sequence gets the step
 
 ### P — One action model
