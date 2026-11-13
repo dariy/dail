@@ -24,6 +24,7 @@ pub mod notice;
 pub mod palette;
 pub mod panes;
 pub mod providers;
+pub mod reach;
 pub mod result;
 pub mod rules;
 pub mod status;

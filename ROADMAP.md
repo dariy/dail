@@ -1111,7 +1111,7 @@ ships in English and French.
   `primary` flag. The GUI's bulk bar and context menus, the TUI and the mobile presenter draw from these lists and keep
   none of their own. A unit test pins each list *(done without the* Servers *entry: no flow sends `imap` or `smtp`
   yet, PAR-5 adds it. The TUI has no thread or folder menus, so it draws nothing from the lists)*
-- [ ] PAR-2 (S) [front][gui][tui][mobile]: a reach table, pinned by a test as `registry.rs` pins agent access: for every
+- [x] PAR-2 (S) [front][gui][tui][mobile]: a reach table, pinned by a test as `registry.rs` pins agent access: for every
   `CommandName` and every front end, one of `Control`, `Flow`, `Palette` or `Never`, from an exhaustive `match`. The test
   enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, and nothing is `Never` unless an ADR says
   so. The table also shows the TUI's gaps, which the review did not check

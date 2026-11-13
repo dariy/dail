@@ -971,6 +971,20 @@ bracketed, so hard-coded and clipped strings show. Not translated: `app-core`'s 
 mail shows in logical order and the layout is not mirrored; bidi control characters from mail cannot reorder the UI
 (the TUI replaces them, `text::is_unsafe`; notifications drop them).
 
+**Reach table** (`app_front::reach`, PAR-2): for every `CommandName` and every front end (`FrontEnd::{Gui, Tui,
+Touch}`, touch being the presenter for Android and iOS), how the user reaches it: `Control` (a visible control runs
+it: button, menu entry, chip, settings row, a form's submit, a drag, a visible back or close button; not the system Back gesture), `Flow` (a control opens its
+palette step), `Palette` (only through the palette) or `Never`. It is an exhaustive `match` with no `_ =>` arm, so a
+new command does not compile without a decision per front end, and it describes the code as it is. Keys: on the TUI a
+default key counts as `Control` (keys are its controls); on the GUI a key alone does not (it is also used with a
+mouse); on touch keys never count. `app-front/tests/it/reach.rs` pins the `Palette`, `Never` and `Flow` lists per front end
+(the gaps, visible in review), and enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, but for
+`KNOWN_TOUCH_GAPS`, each naming the roadmap item that closes it (the list can only shrink); and nothing is `Never`
+unless `NEVER` names its ADR (today none: touch has no approvals screen, ADR 0009, but its palette offers them). It also checks that every
+command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`, `message_actions`) can return is
+`Control` or `Flow` where they are drawn, that every command with a default key is `Control` on the TUI, and that every
+`Palette` entry is offered by the palette.
+
 ### 7.1 GUI (`app-gui`)
 ```text
 ┌──────────────┬────────────────────────────────────────────────────────────────────┐
@@ -2081,6 +2095,7 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | app-sync | `app-testkit` fake transport | effect execution, retries, reconciliation, UIDVALIDITY reset; compose & send (`app-testkit/tests/it/compose.rs`: draft saves, Sent copies, Gmail's own copy, failures); undo-send timing on the virtual clock (`app-testkit/tests/it/undo_send.rs`: undo inside the window cancels, after it the send is irreversible, the window follows `undo_send_ms`, closing inside the window never sends); search (`app-testkit/tests/it/search.rs`: hits outside the window and in bodies merged into the cache, rounds and offline failures in `status.searches`; the fake `UID SEARCH` and its translation in `app-sync/tests/it/live.rs`) |
 | app-tls | RFC 8439/7748/4231/5869 vectors, Wycheproof (`testdata/wycheproof/`), `proptest` | every primitive against published vectors (`valid` must pass, `invalid` and `acceptable` fail, except X25519 twist and non-canonical points, which RFC 7748 defines); cross-checks against RustCrypto (`chacha20poly1305`, `x25519-dalek`, `p256`, `p384`; dev-dependencies only); random input never panics a parser or verifier; the provider's algorithm set pinned (`src/tests.rs`); TLS 1.3 and 1.2 handshakes in memory between a rustls client and server on `provider()` with ECDSA and RSA test chains (`testdata/certs/`), 1 MiB each way, and refusals (unknown issuer, wrong name, expired, flipped bit, all-zero X25519 secret) |
 | parity | test in app-mcp/app-cli | registry ⇔ MCP tools ⇔ CLI ⇔ schema |
+| reach | `app-front/tests/it/reach.rs` | the reach table (§7): `Palette`, `Never` and `Flow` pinned per front end, no touch-only-palette Mail mutation but the listed ones, every `Never` backed by an ADR, the action lists and default keys agree with it |
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |

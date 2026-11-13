@@ -12,6 +12,7 @@ mod keys;
 mod local_time;
 mod message_actions;
 mod palette;
+mod reach;
 mod result;
 mod rules;
 mod status;
