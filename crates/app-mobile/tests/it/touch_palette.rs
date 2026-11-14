@@ -5,30 +5,12 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use app_core::{Command, SettingsSection};
+use app_mobile::UiEvent;
 use app_mobile::event::Field;
-use app_mobile::frame::{Button, PaneKind};
-use app_mobile::{Frame, UiEvent};
 
-use crate::support::{Phone, SIZES, inbox_of};
-
-/// Every button of the bars the frame draws. The top bar is hidden by a bulk bar and by a
-/// phone's reader page.
-fn bar_buttons(frame: &Frame) -> Vec<Button> {
-    let mut out = Vec::new();
-    if let Some(bulk) = &frame.bulk {
-        out.extend(bulk.actions.iter().chain(&bulk.overflow).cloned());
-    } else if frame.layout.page != Some(PaneKind::Reader) {
-        let bar = &frame.top_bar;
-        out.extend(bar.actions.iter().chain(&bar.overflow).cloned());
-    }
-    if let Some(reader) = &frame.reader {
-        out.extend(reader.actions.iter().chain(&reader.overflow).cloned());
-    }
-    if let Some(composer) = &frame.composer {
-        out.extend(composer.actions.iter().cloned());
-    }
-    out
-}
+use crate::support::{
+    Phone, SIZES, bar_buttons, check_two, composing, inbox_of, maximized, open_first,
+};
 
 /// How many buttons of the bars of the `w`×`h` state built by `setup` open the palette at its
 /// top (a flow's button opens it at a step). Each
@@ -50,31 +32,6 @@ fn count(w: u32, h: u32, setup: impl Fn(&mut Phone)) -> usize {
                 && phone.tap(button.action) == [Command::OpenPalette {}]
         })
         .count()
-}
-
-fn open_first(phone: &mut Phone) {
-    let (_, threads) = inbox_of(phone.state());
-    phone.dispatch(Command::OpenThread { id: threads[0] });
-}
-
-fn check_two(phone: &mut Phone) {
-    let (_, threads) = inbox_of(phone.state());
-    phone.dispatch(Command::CheckThreads {
-        ids: vec![threads[0], threads[1]],
-    });
-}
-
-/// The open message, maximized where there is anything to hide.
-fn maximized(phone: &mut Phone) {
-    open_first(phone);
-    if let Some(maximize) = phone.frame().reader.unwrap().maximize {
-        phone.tap(maximize.action);
-    }
-}
-
-fn composing(phone: &mut Phone) {
-    let fab = phone.frame().fab.unwrap();
-    phone.tap(fab.action);
 }
 
 fn settings(phone: &mut Phone) {

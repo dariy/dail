@@ -5,7 +5,11 @@
 // reason: shared helpers; each test module uses a subset of them.
 #![allow(dead_code)]
 
-use app_core::{AppState, Command, Ctx, Engine, MailboxId, MailboxRole, Origin, ThreadId, listing};
+use app_core::{
+    AppState, Command, Ctx, Engine, Event, MailboxId, MailboxRole, Origin, Pane, RemoteMailbox,
+    ThreadId, listing,
+};
+use app_mobile::frame::{ActionSheet, Button, DrawerItem, PaneKind};
 use app_mobile::{Frame, Mobile, Reply, Request, UiEvent};
 use app_testkit::Fixture;
 
@@ -418,4 +422,157 @@ pub fn with_files_at(width: u32, height: u32) -> Phone {
     phone.bodies = Some(vec![body]);
     phone.dispatch(Command::OpenThread { id: threads[0] });
     phone
+}
+
+/// Every button of the bars the frame draws. The top bar is hidden by a bulk bar and by a
+/// phone's reader page.
+pub fn bar_buttons(frame: &Frame) -> Vec<Button> {
+    let mut out = Vec::new();
+    if let Some(bulk) = &frame.bulk {
+        out.extend(bulk.actions.iter().chain(&bulk.overflow).cloned());
+    } else if frame.layout.page != Some(PaneKind::Reader) {
+        let bar = &frame.top_bar;
+        out.extend(bar.actions.iter().chain(&bar.overflow).cloned());
+    }
+    if let Some(reader) = &frame.reader {
+        out.extend(reader.actions.iter().chain(&reader.overflow).cloned());
+    }
+    if let Some(composer) = &frame.composer {
+        out.extend(composer.actions.iter().cloned());
+    }
+    out
+}
+
+pub fn open_first(phone: &mut Phone) {
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::OpenThread { id: threads[0] });
+}
+
+pub fn check_two(phone: &mut Phone) {
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::CheckThreads {
+        ids: vec![threads[0], threads[1]],
+    });
+}
+
+/// The open message, maximized where there is anything to hide.
+pub fn maximized(phone: &mut Phone) {
+    open_first(phone);
+    if let Some(maximize) = phone.frame().reader.unwrap().maximize {
+        phone.tap(maximize.action);
+    }
+}
+
+pub fn composing(phone: &mut Phone) {
+    let fab = phone.frame().fab.unwrap();
+    phone.tap(fab.action);
+}
+
+/// The inbox with Trash, Junk and an ordinary folder `Work` listed, the drawer on screen.
+pub fn with_folders(width_dp: u32, height_dp: u32) -> Phone {
+    let state = synced_state();
+    folders_over(state, width_dp, height_dp)
+}
+
+pub fn folders_over(mut state: app_core::AppState, width_dp: u32, height_dp: u32) -> Phone {
+    state.settings.stale_secs = 86_400;
+    let account = *state.accounts.keys().next().unwrap();
+    let mut phone = Phone::new(state, width_dp, height_dp);
+    let mut listed: Vec<RemoteMailbox> = phone
+        .state()
+        .mailboxes
+        .values()
+        .map(|m| RemoteMailbox {
+            path: m.path.clone(),
+            delimiter: Some("/".into()),
+            special_use: m.role,
+            selectable: true,
+        })
+        .collect();
+    for (path, role) in [
+        ("Trash", Some(MailboxRole::Trash)),
+        ("Junk", Some(MailboxRole::Junk)),
+        ("Work", None),
+    ] {
+        listed.push(RemoteMailbox {
+            path: path.into(),
+            delimiter: Some("/".into()),
+            special_use: role,
+            selectable: true,
+        });
+    }
+    phone.ingest(Event::MailboxesListed {
+        account,
+        mailboxes: listed,
+    });
+    let inbox = mailbox(&phone, "INBOX");
+    phone.dispatch(Command::OpenMailbox { id: inbox });
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    phone
+}
+
+pub fn mailbox(phone: &Phone, path: &str) -> MailboxId {
+    phone
+        .state()
+        .mailboxes
+        .values()
+        .find(|m| m.path == path)
+        .unwrap()
+        .id
+}
+
+/// The drawer row of the mailbox `id` (its label is the mailbox's name).
+pub fn row(frame: &Frame, phone: &Phone, id: MailboxId) -> DrawerItem {
+    let name = app_front::mailbox::mailbox_name(&phone.state().mailboxes[&id]);
+    frame.drawer.as_ref().unwrap().accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == name)
+        .unwrap_or_else(|| panic!("{name} in the drawer"))
+        .clone()
+}
+
+/// Long-presses the folder `path`; returns the sheet it opens.
+pub fn open_menu(phone: &mut Phone, path: &str) -> ActionSheet {
+    let id = mailbox(phone, path);
+    let frame = phone.frame();
+    let item = row(&frame, phone, id);
+    phone.take();
+    phone.event(UiEvent::LongPress {
+        action: item.long_press.unwrap(),
+    });
+    assert!(phone.take().is_empty(), "opening the sheet runs nothing");
+    let frame = phone.frame();
+    assert!(frame.back, "Back closes the sheet");
+    frame
+        .menu
+        .unwrap_or_else(|| panic!("{path}: the sheet opens"))
+}
+
+pub fn configure(phone: &mut Phone, width_dp: u32, height_dp: u32, keyboard: bool) {
+    phone.event(UiEvent::Configure {
+        width_dp,
+        height_dp,
+        dark: false,
+        font_scale: 1.0,
+        locale: Some("en-US".to_owned()),
+        keyboard,
+    });
+}
+
+/// Opens the settings from the drawer's footer, as a user does.
+pub fn from_drawer(phone: &mut Phone) -> app_mobile::frame::Frame {
+    phone.dispatch(Command::FocusPane {
+        pane: app_core::Pane::Sidebar,
+    });
+    let drawer = phone.frame().drawer.unwrap();
+    let item = drawer
+        .footer
+        .iter()
+        .find(|i| i.label == "Settings")
+        .unwrap();
+    phone.tap(item.action);
+    phone.frame()
 }

@@ -11,7 +11,7 @@ use app_mobile::event::{Field, SystemScreen};
 use app_mobile::frame::{InputKind, SettingsPage, SetupSheet};
 use app_mobile::{External, UiEvent};
 
-use crate::support::{Phone, requests_of};
+use crate::support::{Phone, configure, from_drawer, requests_of};
 
 fn page(phone: &mut Phone, section: SettingsSection) -> SettingsPage {
     phone.dispatch(Command::OpenSettings {
@@ -103,32 +103,6 @@ fn the_tabs_open_the_sections() {
         phone.event(UiEvent::Back);
         assert_eq!(phone.state().view.settings, None, "{w}x{h}");
     }
-}
-
-fn configure(phone: &mut Phone, width_dp: u32, height_dp: u32, keyboard: bool) {
-    phone.event(UiEvent::Configure {
-        width_dp,
-        height_dp,
-        dark: false,
-        font_scale: 1.0,
-        locale: Some("en-US".to_owned()),
-        keyboard,
-    });
-}
-
-/// Opens the settings from the drawer's footer, as a user does.
-fn from_drawer(phone: &mut Phone) -> app_mobile::frame::Frame {
-    phone.dispatch(Command::FocusPane {
-        pane: app_core::Pane::Sidebar,
-    });
-    let drawer = phone.frame().drawer.expect("the drawer");
-    let item = drawer
-        .footer
-        .iter()
-        .find(|i| i.label == "Settings")
-        .expect("Settings in the footer");
-    phone.tap(item.action);
-    phone.frame()
 }
 
 fn labels(page: &SettingsPage) -> Vec<(&str, bool)> {

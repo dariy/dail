@@ -5,6 +5,7 @@ mod support;
 mod attachments;
 mod autoread;
 mod background;
+mod budgets;
 mod bulk;
 mod composer;
 mod contract;

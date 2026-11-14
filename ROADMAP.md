@@ -1140,7 +1140,7 @@ ships in English and French.
   when settings were last pulled and stored, and the last error with its ERR code
 
 ### Q — Proof
-- [ ] QA-2 (S) [mobile]: frame budgets as presenter tests at 360×640 dp: at most four primary icons per bar, a palette
+- [x] QA-2 (S) [mobile]: frame budgets as presenter tests at 360×640 dp: at most four primary icons per bar, a palette
   entry in every state, and no settings section more than one tap from the settings root
 - [ ] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
   message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off

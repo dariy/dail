@@ -4,96 +4,15 @@
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
-use app_core::{Command, Event, MailboxId, MailboxRole, Pane, RemoteMailbox};
+use app_core::{Command, Pane};
 use app_front::i18n;
+use app_mobile::UiEvent;
 use app_mobile::event::Field;
-use app_mobile::frame::{ActionSheet, DrawerItem};
-use app_mobile::{Frame, UiEvent};
+use app_mobile::frame::ActionSheet;
 
-use crate::support::{Phone, SIZES, requests_of, synced_state};
-
-/// The inbox with Trash, Junk and an ordinary folder `Work` listed, the drawer on screen.
-fn with_folders(width_dp: u32, height_dp: u32) -> Phone {
-    let state = synced_state();
-    folders_over(state, width_dp, height_dp)
-}
-
-fn folders_over(mut state: app_core::AppState, width_dp: u32, height_dp: u32) -> Phone {
-    state.settings.stale_secs = 86_400;
-    let account = *state.accounts.keys().next().unwrap();
-    let mut phone = Phone::new(state, width_dp, height_dp);
-    let mut listed: Vec<RemoteMailbox> = phone
-        .state()
-        .mailboxes
-        .values()
-        .map(|m| RemoteMailbox {
-            path: m.path.clone(),
-            delimiter: Some("/".into()),
-            special_use: m.role,
-            selectable: true,
-        })
-        .collect();
-    for (path, role) in [
-        ("Trash", Some(MailboxRole::Trash)),
-        ("Junk", Some(MailboxRole::Junk)),
-        ("Work", None),
-    ] {
-        listed.push(RemoteMailbox {
-            path: path.into(),
-            delimiter: Some("/".into()),
-            special_use: role,
-            selectable: true,
-        });
-    }
-    phone.ingest(Event::MailboxesListed {
-        account,
-        mailboxes: listed,
-    });
-    let inbox = mailbox(&phone, "INBOX");
-    phone.dispatch(Command::OpenMailbox { id: inbox });
-    phone.dispatch(Command::FocusPane {
-        pane: Pane::Sidebar,
-    });
-    phone
-}
-
-fn mailbox(phone: &Phone, path: &str) -> MailboxId {
-    phone
-        .state()
-        .mailboxes
-        .values()
-        .find(|m| m.path == path)
-        .unwrap()
-        .id
-}
-
-/// The drawer row of the mailbox `id` (its label is the mailbox's name).
-fn row(frame: &Frame, phone: &Phone, id: MailboxId) -> DrawerItem {
-    let name = app_front::mailbox::mailbox_name(&phone.state().mailboxes[&id]);
-    frame.drawer.as_ref().unwrap().accounts[0]
-        .mailboxes
-        .iter()
-        .find(|m| m.label == name)
-        .unwrap_or_else(|| panic!("{name} in the drawer"))
-        .clone()
-}
-
-/// Long-presses the folder `path`; returns the sheet it opens.
-fn open_menu(phone: &mut Phone, path: &str) -> ActionSheet {
-    let id = mailbox(phone, path);
-    let frame = phone.frame();
-    let item = row(&frame, phone, id);
-    phone.take();
-    phone.event(UiEvent::LongPress {
-        action: item.long_press.unwrap(),
-    });
-    assert!(phone.take().is_empty(), "opening the sheet runs nothing");
-    let frame = phone.frame();
-    assert!(frame.back, "Back closes the sheet");
-    frame
-        .menu
-        .unwrap_or_else(|| panic!("{path}: the sheet opens"))
-}
+use crate::support::{
+    Phone, SIZES, folders_over, mailbox, open_menu, requests_of, synced_state, with_folders,
+};
 
 fn item(sheet: &ActionSheet, label: &str) -> u32 {
     sheet

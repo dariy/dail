@@ -1795,6 +1795,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and types with `ESC`, C1 controls, `\r` and U+202E, and walks every string of the list, drawer, reader, link
   dialog, preview, palette, query result and reply frames at the three window sizes: none is left (a body keeps
   its line breaks), only U+FFFD.
+  `tests/it/budgets.rs` (QA-2) states the phone's frame budgets once, over every touch state at 360×640 dp: at most four
+  icons per bar (each button labelled), exactly one palette entry per state (the exemptions, About and no accounts,
+  are listed with their reason and asserted to have none), and every settings section one tap from the root.
 - **Contract.** `tests/it/contract.rs` writes those frames, one of every `UiEvent` and `External`, and the JSON Schema
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
