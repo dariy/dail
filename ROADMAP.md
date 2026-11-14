@@ -1130,7 +1130,7 @@ ships in English and French.
   and shows one read toggle and one star toggle by the state of the checked threads
 - [x] TCH-8 (S) [front][mobile][kt][ios]: *Make a rule from this message* in the message card's menu and in the reader's
   overflow, through `message_actions` and `thread_actions`, so the desktop cards get it too
-- [ ] TCH-4 (M) [mobile][kt][ios]: a folder's actions in the drawer: a long press on a folder (`DrawerItem` gets
+- [x] TCH-4 (M) [mobile][kt][ios]: a folder's actions in the drawer: a long press on a folder (`DrawerItem` gets
   `long_press`) opens a sheet of `mailbox_actions`. New names are typed in a text step; everything else is a tap
 - [ ] TCH-6 (M) [mobile][kt][ios]: settings as a list of sections on a compact window, not five scrolling tabs:
   *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*. *Keyboard* shows only

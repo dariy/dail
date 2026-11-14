@@ -110,6 +110,7 @@ private fun FrameScreen(
         }
     }
     frame.link?.let { LinkDialog(it, send) }
+    frame.menu?.let { ActionSheetView(it, send) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

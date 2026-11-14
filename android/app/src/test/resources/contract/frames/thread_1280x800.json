@@ -6,39 +6,43 @@
         "email": "alice@example.com",
         "fold": {
           "a11y": "alice@example.com folders",
-          "action": 25,
+          "action": 33,
           "collapsed": false
         },
         "mailboxes": [
           {
             "a11y": "Inbox, 1 unread",
-            "action": 21,
+            "action": 25,
             "icon": "inbox",
             "label": "Inbox",
+            "long_press": 26,
             "selected": true,
             "unread": 1
           },
           {
             "a11y": "Sent",
-            "action": 22,
+            "action": 27,
             "icon": "send",
             "label": "Sent",
+            "long_press": 28,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Drafts",
-            "action": 23,
+            "action": 29,
             "icon": "draft",
             "label": "Drafts",
+            "long_press": 30,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Archive",
-            "action": 24,
+            "action": 31,
             "icon": "archive",
             "label": "Archive",
+            "long_press": 32,
             "selected": false,
             "unread": 0
           }
@@ -49,7 +53,7 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 26,
+        "action": 34,
         "icon": "settings",
         "label": "Settings",
         "selected": false,
@@ -57,7 +61,7 @@
       },
       {
         "a11y": "About",
-        "action": 27,
+        "action": 35,
         "icon": "info",
         "label": "About",
         "selected": false,
@@ -65,7 +69,7 @@
       },
       {
         "a11y": "Add account",
-        "action": 28,
+        "action": 36,
         "icon": "add",
         "label": "Add account",
         "selected": false,
@@ -75,13 +79,13 @@
     "modal": false,
     "rail": false,
     "style": {
-      "action": 29,
+      "action": 37,
       "icon": "chevron_left",
       "label": "Icons only"
     }
   },
   "fab": {
-    "action": 60,
+    "action": 68,
     "icon": "edit",
     "label": "Compose"
   },
@@ -101,37 +105,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 30,
+        "action": 38,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 31,
+        "long_press": 39,
         "messages": 1,
         "selected": true,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 33,
-        "swipe_start": 32,
+        "swipe_end": 41,
+        "swipe_start": 40,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 34,
+        "action": 42,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 35,
+        "long_press": 43,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 37,
-        "swipe_start": 36,
+        "swipe_end": 45,
+        "swipe_start": 44,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }
@@ -142,43 +146,43 @@
   "reader": {
     "actions": [
       {
-        "action": 38,
+        "action": 46,
         "icon": "archive",
         "label": "Archive"
       },
       {
-        "action": 39,
+        "action": 47,
         "icon": "delete",
         "label": "Trash"
       },
       {
-        "action": 40,
+        "action": 48,
         "icon": "report",
         "label": "Junk"
       },
       {
-        "action": 41,
+        "action": 49,
         "icon": "mark_email_read",
         "label": "Mark read"
       },
       {
-        "action": 44,
+        "action": 52,
         "icon": "drive_file_move",
         "label": "Move…"
       },
       {
-        "action": 46,
+        "action": 54,
         "icon": "reply",
         "label": "Reply"
       }
     ],
     "close": {
-      "action": 58,
+      "action": 66,
       "icon": "close",
       "label": "Close message"
     },
     "maximize": {
-      "action": 59,
+      "action": 67,
       "icon": "open_in_full",
       "label": "Maximize message"
     },
@@ -186,37 +190,37 @@
       {
         "actions": [
           {
-            "action": 50,
+            "action": 58,
             "icon": "reply",
             "label": "Reply"
           },
           {
-            "action": 51,
+            "action": 59,
             "icon": "reply_all",
             "label": "Reply all"
           },
           {
-            "action": 52,
+            "action": 60,
             "icon": "forward",
             "label": "Forward"
           },
           {
-            "action": 53,
+            "action": 61,
             "icon": "mark_email_read",
             "label": "Mark read"
           },
           {
-            "action": 54,
+            "action": 62,
             "icon": "star",
             "label": "Star"
           },
           {
-            "action": 55,
+            "action": 63,
             "icon": "edit",
             "label": "Make a rule…"
           },
           {
-            "action": 57,
+            "action": 65,
             "icon": "delete",
             "label": "Trash"
           }
@@ -230,23 +234,23 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "swipe_end": {
-          "action": 56,
+          "action": 64,
           "icon": "delete",
           "label": "Trash"
         },
         "swipe_start": {
-          "action": 49,
+          "action": 57,
           "icon": "archive",
           "label": "Archive"
         },
         "to": "alice@example.com",
-        "toggle": 48
+        "toggle": 56
       }
     ],
     "next": {
       "date": "Nov 14",
       "open": {
-        "action": 47,
+        "action": 55,
         "icon": "expand_more",
         "label": "Next conversation"
       },
@@ -255,17 +259,17 @@
     },
     "overflow": [
       {
-        "action": 42,
+        "action": 50,
         "icon": "star",
         "label": "Star"
       },
       {
-        "action": 43,
+        "action": 51,
         "icon": "push_pin",
         "label": "Pin"
       },
       {
-        "action": 45,
+        "action": 53,
         "icon": "edit",
         "label": "Make a rule…"
       }
@@ -278,7 +282,7 @@
   "top_bar": {
     "actions": [
       {
-        "action": 20,
+        "action": 24,
         "icon": "search",
         "label": "Search or run a command"
       }

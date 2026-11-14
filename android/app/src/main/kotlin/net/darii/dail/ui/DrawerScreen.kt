@@ -1,13 +1,19 @@
 package net.darii.dail.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -15,9 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.NavigationDrawerItem
@@ -30,11 +38,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The modal drawer of compact and medium windows, over [content] (the panes of the layout). A
@@ -150,8 +165,98 @@ private fun DrawerEntry(
         modifier =
             Modifier
                 .padding(start = INDENT * item.depth)
+                .folderActions(item, send)
                 .semantics { contentDescription = item.a11y },
     )
+}
+
+/**
+ * TCH-4: a long press on an item with `long_press` sends it (the presenter opens the folder's actions); TalkBack
+ * offers the same as the long click and the custom action *Folder actions*. The item's own tap still opens it.
+ */
+private fun Modifier.folderActions(
+    item: DrawerItem,
+    send: (UiEvent) -> Unit,
+): Modifier {
+    val action = item.longPress ?: return this
+    val name = tr("Folder actions")
+    return this
+        .pointerInput(action) {
+            awaitEachGesture {
+                // Seen before the item's own click (the Initial pass), which a long press must not also trigger.
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val ended =
+                    withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                        var going = true
+                        while (going) {
+                            val change =
+                                awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+                            going =
+                                change != null &&
+                                change.pressed &&
+                                !change.isConsumed &&
+                                (change.position - down.position).getDistance() <= viewConfiguration.touchSlop
+                        }
+                        true
+                    }
+                if (ended == null) {
+                    send(UiEvent.LongPress(action))
+                    // The release belongs to the long press: consumed, so the item does not also open.
+                    do {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+        }.semantics {
+            onLongClick(label = name) {
+                send(UiEvent.LongPress(action))
+                true
+            }
+            customActions =
+                listOf(
+                    CustomAccessibilityAction(name) {
+                        send(UiEvent.LongPress(action))
+                        true
+                    },
+                )
+        }
+}
+
+/**
+ * TCH-4: a list of actions on one thing (a folder's) as a bottom sheet: its name, then one 48 dp row per action with
+ * its glyph and label. A tap sends the action; dismissing (outside, a swipe down, Back) sends `close`.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActionSheetView(
+    sheet: ActionSheet,
+    send: (UiEvent) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = { send(UiEvent.Tap(sheet.close.action)) }) {
+        Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
+            Text(
+                sheet.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp).semantics { heading() },
+            )
+            sheet.items.forEach { item ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = ROW_HEIGHT)
+                        .clickable { send(UiEvent.Tap(item.action)) }
+                        .padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.width(40.dp)) { item.icon?.let { Glyph(it) } }
+                    Text(item.label, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
 }
 
 /** Folds or unfolds the folders below a folder or an account. */
@@ -182,7 +287,7 @@ private fun DrawerRail(
                     selected = item.selected,
                     onClick = { send(UiEvent.Tap(item.action)) },
                     icon = { Glyph(item.icon) },
-                    modifier = Modifier.semantics { contentDescription = item.a11y },
+                    modifier = Modifier.folderActions(item, send).semantics { contentDescription = item.a11y },
                 )
                 Spacer(Modifier.height(4.dp))
             }
@@ -205,3 +310,4 @@ private val RAIL_WIDTH = 80.dp
 private val TAG_WIDTH = 4.dp
 private val TAG_HEIGHT = 16.dp
 private val GLYPH_SIZE = 24.sp
+private val ROW_HEIGHT = 48.dp

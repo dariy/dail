@@ -11,8 +11,8 @@ use std::collections::HashSet;
 use app_core::document::FoldKind;
 use app_core::{
     AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, FolderKey,
-    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, Thread, ThreadId, ThreadSummary,
-    listing,
+    MailboxId, MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, Thread, ThreadId,
+    ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -27,9 +27,9 @@ use app_front::{a11y, compose, format, palette, updates};
 use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
-    ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
-    Snackbar, TopBar,
+    ActionId, ActionSheet, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer,
+    DrawerAccount, DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold,
+    Recipients, Row, Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -107,6 +107,13 @@ enum Act {
     AddRule,
     /// *Edit…* of a sorting rule: the palette's steps (SET-5).
     EditRule(app_core::RuleId),
+    /// A long press on a folder in the drawer: open its actions (TCH-4).
+    Menu(MailboxId),
+    /// An entry of the open action sheet: close the sheet, then run it (its command, or its
+    /// palette step); `true` when a modal drawer closes first.
+    FromMenu(app_front::actions::Run, bool),
+    /// Dismiss the action sheet.
+    CloseMenu,
 }
 
 /// The window, as the host last configured it.
@@ -232,6 +239,8 @@ pub struct Mobile {
     folds: HashSet<(MessageId, FoldKind)>,
     /// The tapped link, while its sheet is open.
     link: Option<String>,
+    /// The folder whose actions are open in the action sheet (TCH-4).
+    menu: Option<MailboxId>,
     /// The attachment shown in the app, by message and part.
     preview: Option<(MessageId, usize)>,
     /// The account setup, while open.
@@ -328,6 +337,7 @@ impl Mobile {
             result: None,
             folds: HashSet::new(),
             link: None,
+            menu: None,
             preview: None,
             setup: None,
             offered: false,
@@ -461,8 +471,9 @@ impl Mobile {
             }
             UiEvent::Tap { action } => self.act(action, state),
             UiEvent::LongPress { action } | UiEvent::Swipe { action } => {
+                let menu = self.menu;
                 let out = self.act(action, state);
-                if !out.is_empty() {
+                if !out.is_empty() || (self.menu.is_some() && self.menu != menu) {
                     self.externals.push(External::Haptic);
                 }
                 out
@@ -713,6 +724,25 @@ impl Mobile {
             Act::RemoveAccount(account) => self.ask(palette::remove_account(state, account), state),
             Act::AddRule => self.ask(palette::new_rule(), state),
             Act::EditRule(id) => self.ask(palette::edit_rule(state, id), state),
+            Act::Menu(id) => {
+                self.menu = Some(id);
+                Vec::new()
+            }
+            Act::CloseMenu => {
+                self.menu = None;
+                Vec::new()
+            }
+            Act::FromMenu(run, close_drawer) => {
+                self.menu = None;
+                let mut out = Vec::new();
+                // The modal drawer closes first, so what the entry leads to (the palette's
+                // step, the focused list) is on screen.
+                if close_drawer {
+                    out.push(Request::user(Command::FocusPane { pane: Pane::List }));
+                }
+                out.extend(self.ask(run.flow(state), state));
+                out
+            }
             Act::System(screen) => {
                 self.system(screen);
                 Vec::new()
@@ -828,6 +858,7 @@ impl Mobile {
             return Vec::new();
         }
         if self.result.take().is_some()
+            || self.menu.take().is_some()
             || self.link.take().is_some()
             || self.preview.take().is_some()
         {
@@ -1080,6 +1111,11 @@ impl Mobile {
             self.preview = None;
         }
         let link = self.link_sheet();
+        // The sheet goes with its drawer and its folder (deleted, account removed).
+        if drawer.is_none() {
+            self.menu = None;
+        }
+        let menu = self.menu_sheet(state, modal);
         let preview = self.preview_view(state);
         if preview.is_none() {
             self.preview = None;
@@ -1091,6 +1127,7 @@ impl Mobile {
             || palette.is_some()
             || result.is_some()
             || link.is_some()
+            || menu.is_some()
             || preview.is_some()
             || self.escape(state).is_some()
             || !state.view.checked.is_empty()
@@ -1120,9 +1157,37 @@ impl Mobile {
             result,
             link,
             preview,
+            menu,
             back,
             wants_tick: self.wants_tick(state),
         }
+    }
+
+    /// The open folder's actions (TCH-4): `app_front::actions::mailbox_actions`, as the desktop's
+    /// folder menu lists them, under the folder's name. Gone with its folder.
+    fn menu_sheet(&mut self, state: &AppState, modal: bool) -> Option<ActionSheet> {
+        let id = self.menu?;
+        let Some(mailbox) = state.mailboxes.get(&id) else {
+            self.menu = None;
+            return None;
+        };
+        let title = clean(&mailbox_name(mailbox));
+        let items = app_front::actions::mailbox_actions(state, id)
+            .into_iter()
+            .map(|entry| {
+                self.button(
+                    entry.icon,
+                    i18n::s(entry.label),
+                    Act::FromMenu(entry.run, modal),
+                )
+            })
+            .collect();
+        let close = self.button("close", i18n::s(Text::Close), Act::CloseMenu);
+        Some(ActionSheet {
+            title,
+            items,
+            close,
+        })
     }
 
     /// The About screen: a row per licence, or the open page's text.
@@ -1294,6 +1359,7 @@ impl Mobile {
                 unread,
                 selected: state.view.unified && browsing,
                 action: self.add(open(Command::OpenUnifiedInbox {})),
+                long_press: None,
             }
         });
         let mut accounts = Vec::new();
@@ -1331,6 +1397,7 @@ impl Mobile {
                         && state.view.mailbox == node.mailbox
                         && browsing,
                     action,
+                    long_press: node.mailbox.map(|id| self.add(Act::Menu(id))),
                 });
             }
             let key = FolderKey {
@@ -1366,6 +1433,7 @@ impl Mobile {
                 unread: 0,
                 selected,
                 action: self.add(open(Command::OpenSettings { section })),
+                long_press: None,
             });
             if section.is_none() {
                 // MISC-3: *About* right after *Settings* (no command: the screen is the
@@ -1379,6 +1447,7 @@ impl Mobile {
                     unread: 0,
                     selected: self.about,
                     action: self.add(Act::About),
+                    long_press: None,
                 });
             }
         }
@@ -2008,6 +2077,7 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
         Text::NativePassed,
         Text::NativePending,
         Text::NativeMoreActions,
+        Text::NativeFolderActions,
         Text::Pinned,
         Text::ToNameLower,
         Text::Subject,

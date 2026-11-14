@@ -76,6 +76,10 @@ pub struct Frame {
     /// A received attachment shown in the app (over the panes; Back closes it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<Preview>,
+    /// A list of actions on one thing, while open: a folder's actions after a long press in the
+    /// drawer (TCH-4). A bottom sheet; a tap outside, Back or `close` dismisses it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu: Option<ActionSheet>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
@@ -240,6 +244,10 @@ pub struct DrawerItem {
     pub selected: bool,
     /// Opens it; for a folder the server does not let us open, the same as `fold`'s action.
     pub action: ActionId,
+    /// A long press: opens the folder's actions in `Frame::menu` (TCH-4). Only on a real
+    /// mailbox; TalkBack offers it as the custom action *Folder actions*.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub long_press: Option<ActionId>,
     /// TalkBack's name.
     pub a11y: String,
 }
@@ -575,6 +583,18 @@ pub struct LinkSheet {
     /// *Copy* the target.
     pub copy: Button,
     /// Closes the sheet.
+    pub close: Button,
+}
+
+/// A list of actions on one thing, drawn as a bottom sheet (TCH-4): a folder's actions today.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ActionSheet {
+    /// What the actions act on (a folder's name): plain text, never interpreted.
+    pub title: String,
+    /// The actions in order, each with its icon and its text label; a tap closes the sheet and
+    /// runs it.
+    pub items: Vec<Button>,
+    /// Dismisses the sheet without running anything.
     pub close: Button,
 }
 

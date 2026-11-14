@@ -18,9 +18,6 @@ use crate::support::synced_state;
 /// control. The list can only shrink: an entry that is no longer `Palette` fails the test, so
 /// the item that closes a gap removes its entry.
 const KNOWN_TOUCH_GAPS: &[(CommandName, &str)] = &[
-    (CommandName::CreateFolder, "TCH-4"),
-    (CommandName::RenameFolder, "TCH-4"),
-    (CommandName::MarkMailboxRead, "TCH-4"),
     (CommandName::SaveAttachments, "PAR-4"),
     (CommandName::RetryPendingOps, "unscheduled"),
     (CommandName::DiscardPendingOp, "unscheduled"),
@@ -58,8 +55,15 @@ const FLOW_TUI: &[&str] = &[
 ];
 const FLOW_TOUCH: &[&str] = &[
     "set_keybinding",
+    "create_folder",
+    "rename_folder",
+    "delete_folder",
+    "empty_trash",
+    "empty_junk",
     "remove_account",
     "save_rule",
+    "set_sync_window",
+    "mark_mailbox_read",
     "move_threads",
     "set_search",
 ];
@@ -167,26 +171,16 @@ fn the_touch_gaps_are_pinned() {
             "set_identity",
             "remove_identity",
             "set_mailbox_identity",
-            "create_folder",
-            "rename_folder",
-            "delete_folder",
-            "empty_trash",
-            "empty_junk",
             "pull_settings",
             "set_settings_account",
             "list_rules",
             "list_mailboxes",
-            "set_sync_window",
             "list_threads",
             "select_threads",
             "get_thread",
             "get_message",
-            "pin_mailbox",
-            "unpin_mailbox",
-            "hide_mailbox",
             "show_mailbox",
             "save_attachments",
-            "mark_mailbox_read",
             "list_pending_ops",
             "retry_pending_ops",
             "discard_pending_op",
@@ -194,7 +188,6 @@ fn the_touch_gaps_are_pinned() {
             "list_contacts",
             "clear_search",
             "set_list_filter",
-            "focus_mailbox",
             "clear_focus",
             "get_view",
             "compact_store",
@@ -304,7 +297,6 @@ fn states() -> Vec<AppState> {
         if special {
             let keys: Vec<_> = state.mailboxes.values().map(|m| m.key()).collect();
             state.settings.pinned_mailboxes = keys.clone();
-            state.settings.hidden_mailboxes = keys.into_iter().collect();
             let roles = [MailboxRole::Trash, MailboxRole::Junk];
             for (mailbox, role) in state
                 .mailboxes
@@ -314,6 +306,19 @@ fn states() -> Vec<AppState> {
             {
                 mailbox.role = Some(role);
             }
+            // Hidden: one folder (for the GUI's *Show folder*); the Inbox, Trash and Junk stay
+            // pinned and shown, so the mobile drawer reaches *Unpin* and *Empty*.
+            state.settings.hidden_mailboxes = state
+                .mailboxes
+                .values()
+                .filter(|m| {
+                    !matches!(
+                        m.role,
+                        Some(MailboxRole::Inbox | MailboxRole::Trash | MailboxRole::Junk)
+                    )
+                })
+                .map(|m| m.key())
+                .collect();
             let junk = state
                 .mailboxes
                 .values()
@@ -329,9 +334,9 @@ fn states() -> Vec<AppState> {
     out
 }
 
-/// Every command a list can return over [`states`]: the threads', mailboxes' and accounts'
-/// lists (drawn by the GUI) and the messages' list (drawn by the GUI and touch); touch draws
-/// only the threads' and the messages' lists.
+/// Every command a list can return over [`states`]: the threads', mailboxes' and messages'
+/// lists (drawn by the GUI and touch; touch draws the mailboxes' in the drawer's folder sheet,
+/// TCH-4) and the accounts' list (drawn by the GUI).
 fn listed(front: FrontEnd) -> HashSet<CommandName> {
     let mut out = HashSet::new();
     for state in states() {
@@ -343,10 +348,16 @@ fn listed(front: FrontEnd) -> HashSet<CommandName> {
         for id in &threads {
             runs.extend(thread_actions(&state, &[*id]).into_iter().map(|e| e.run));
         }
-        if front == FrontEnd::Gui {
-            for &id in state.mailboxes.keys() {
-                runs.extend(mailbox_actions(&state, id).into_iter().map(|e| e.run));
+        for (&id, mailbox) in &state.mailboxes {
+            // The mobile drawer shows no hidden folder (no *Show hidden* toggle), so touch never
+            // opens a hidden folder's sheet.
+            if front == FrontEnd::Touch && state.settings.hidden_mailboxes.contains(&mailbox.key())
+            {
+                continue;
             }
+            runs.extend(mailbox_actions(&state, id).into_iter().map(|e| e.run));
+        }
+        if front == FrontEnd::Gui {
             for &id in state.accounts.keys() {
                 runs.extend(account_actions(&state, id).into_iter().map(|e| e.run));
             }
@@ -375,19 +386,25 @@ fn what_the_action_lists_offer_has_a_control() {
                 "{front:?}: the fixtures reach {name:?}"
             );
         }
+        for name in [
+            CommandName::EmptyTrash,
+            CommandName::EmptyJunk,
+            CommandName::UnpinMailbox,
+        ] {
+            assert!(
+                names.contains(&name),
+                "{front:?}: the fixtures reach {name:?}"
+            );
+        }
         if front == FrontEnd::Gui {
-            for name in [
-                CommandName::EmptyTrash,
-                CommandName::EmptyJunk,
-                CommandName::UnpinMailbox,
-                CommandName::ShowMailbox,
-                CommandName::SetPassword,
-            ] {
-                assert!(
-                    names.contains(&name),
-                    "{front:?}: the fixtures reach {name:?}"
-                );
-            }
+            assert!(
+                names.contains(&CommandName::ShowMailbox),
+                "{front:?}: the fixtures reach ShowMailbox"
+            );
+            assert!(
+                names.contains(&CommandName::SetPassword),
+                "{front:?}: the fixtures reach SetPassword"
+            );
         }
         for name in names {
             assert!(

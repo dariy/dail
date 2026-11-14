@@ -2075,6 +2075,9 @@ strings! {
     NativeMoreActions:
         "More actions",
         "Plus d’actions";
+    NativeFolderActions:
+        "Folder actions",
+        "Actions sur le dossier";
     AboutDail:
         "About dail",
         "À propos de dail";

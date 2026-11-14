@@ -88,12 +88,14 @@ struct Frame: Codable {
     let result: ResultView?
     let link: LinkSheet?
     let preview: AttachmentPreview?
+    /// TCH-4: a list of actions on one thing (a folder's, after a long press in the drawer); drawn by IOS-6.
+    let menu: MenuSheet?
     let back: Bool
     let wantsTick: Bool
 
     enum CodingKeys: String, CodingKey {
         case revision, labels, layout, drawer, list, reader, composer, settings, setup, bulk, fab, banner, snackbar
-        case theme, about, palette, result, link, preview, back
+        case theme, about, palette, result, link, preview, menu, back
         case topBar = "top_bar"
         case wantsTick = "wants_tick"
     }
@@ -166,9 +168,14 @@ struct DrawerItem: Codable {
     let unread: Int
     let selected: Bool
     let action: ActionId
+    /// TCH-4: opens the folder's actions (`Frame.menu`); only on a real mailbox.
+    let longPress: ActionId?
     let a11y: String
 
-    enum CodingKeys: String, CodingKey { case label, depth, fold, icon, unread, selected, action, a11y }
+    enum CodingKeys: String, CodingKey {
+        case label, depth, fold, icon, unread, selected, action, a11y
+        case longPress = "long_press"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -180,6 +187,7 @@ struct DrawerItem: Codable {
         unread = try c.decode(Int.self, forKey: .unread)
         selected = try c.decode(Bool.self, forKey: .selected)
         action = try c.decode(ActionId.self, forKey: .action)
+        longPress = try c.decodeIfPresent(ActionId.self, forKey: .longPress)
         a11y = try c.decode(String.self, forKey: .a11y)
     }
 }
@@ -425,6 +433,13 @@ struct DocSpan: Codable {
     let image: InlineImage?
     /// A link's marker (MISC-28a); decoded, drawn by MISC-28b.
     let note: Int?
+}
+
+/// TCH-4: a list of actions on one thing: its name (plain text), the actions in order, its dismissal.
+struct MenuSheet: Codable {
+    let title: String
+    let items: [ActionButton]
+    let close: ActionButton
 }
 
 /// A tapped link's full target, before it opens.

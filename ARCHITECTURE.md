@@ -983,7 +983,8 @@ mouse); on touch keys never count. `app-front/tests/it/reach.rs` pins the `Palet
 `KNOWN_TOUCH_GAPS`, each naming the roadmap item that closes it (the list can only shrink); and nothing is `Never`
 unless `NEVER` names its ADR (today none: touch has no approvals screen, ADR 0009, but its palette offers them). It also checks that every
 command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`, `message_actions`) can return is
-`Control` or `Flow` where they are drawn, that every command with a default key is `Control` on the TUI, and that every
+`Control` or `Flow` where they are drawn (touch draws all but `account_actions`; `mailbox_actions` in the drawer's
+folder sheet, TCH-4), that every command with a default key is `Control` on the TUI, and that every
 `Palette` entry is offered by the palette.
 
 ### 7.1 GUI (`app-gui`)
@@ -1497,12 +1498,27 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `top_bar` (title, sync state, the drawer or back button, search, and an `overflow` that is empty today), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
   unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
-  compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
+  compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
+  mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
-  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
-  and `wants_tick`.
+  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `menu`
+  (below), `back` and `wants_tick`.
+- **Folder actions** (TCH-4). A long press on a folder in the drawer (`DrawerItem.long_press`, an optional action id,
+  omitted when absent) opens `menu`, an `ActionSheet { title, items: [Button], close }`: a generic list of actions on
+  one thing, today a folder's. `title` is the folder's name (`mailbox_name`, cleaned plain text), `items` are
+  `app_front::actions::mailbox_actions` in order, each with its icon and text label (the presenter adds, removes and
+  reorders nothing; the desktop's folder context menu draws the same list), `close` dismisses. The presenter holds the
+  open folder (`Mobile::menu`); the sheet closes on the next frame when the folder or the drawer is gone. A tap on an
+  item closes the sheet and runs it: a command at once (*Pin*, *Hide*, *Focus*, *Apply rules*, a small *Mark all as
+  read*), a flow at its palette step (`Run::flow`: a text step for *New subfolder…* and *Rename…*, a confirmation for
+  *Delete…*, *Empty Trash*/*Empty Junk* and a *Mark all as read* above 50 unread, a number for *Offline window…*). A
+  modal drawer stays under the open sheet and closes (`focus_pane list`, sent first) when an item is chosen, so the
+  palette step or the focused list is on screen; on an expanded window the drawer stays. Back, `close` and a tap
+  outside dismiss the sheet without a command. The drawer leaves hidden folders out and has no *Show hidden* toggle, so
+  *Show folder* never appears on touch (`show_mailbox` stays `Palette` there). TalkBack reaches the long press as the long click and the custom action
+  named by the label `Folder actions` (`labels`, `Actions sur le dossier`).
 - **Overflow menus** (TCH-2). `top_bar`, `bulk` and `reader` each carry `actions` (drawn as icons, or text for a
   button without an icon) and `overflow` (drawn as a ⋯ button opening a menu of text labels, each `Button` keeping its
   icon name for a leading glyph). Both are always present, `[]` when empty, as every `Vec` of the frame; the menu is
@@ -1712,8 +1728,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   an account). `tests/it/touch_palette.rs` taps every bar button of each state.
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
-  tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result or the palette
-  (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
+  tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result, the folder
+  sheet (`menu`), the link sheet, a preview or the palette (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
   settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Refresh` (pull to refresh) is `sync_now`.
 - **Hardware keyboards** (`app_mobile::keys`). `MainActivity.onKeyDown` gets the keys that no view took (text fields
@@ -1849,7 +1865,10 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
   manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DrawerScreen.kt`
   the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
-  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
+  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`; an item with `long_press` sends `LongPress`,
+  detected in the Initial pass so its release does not also open the folder, and offers it to TalkBack as long click
+  and custom action) and `ActionSheetView` (`menu` as a `ModalBottomSheet` over everything: the title, then 48 dp rows of
+  glyph and label; dismissal sends `close`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
   `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
   `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
   `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
@@ -1952,7 +1971,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
   had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
   simulator, decodes its frame strictly and sends a `configure`. The bars' `overflow` (TCH-2) is drawn by a plain
-  SwiftUI `Menu` (`OverflowMenu` in `Views/Palette.swift`) after their icons; its final look is IOS-6.
+  SwiftUI `Menu` (`OverflowMenu` in `Views/Palette.swift`) after their icons; its final look is IOS-6. TCH-4's
+  `DrawerItem.longPress` and `Frame.menu` (`MenuSheet`, as `ActionSheet` would shadow SwiftUI's) are decoded but not
+  drawn yet: the long press and the sheet are IOS-6.
 - **The views** (`ios/Dail/Views`, as Kotlin's `ui/`). `Host.swift` runs every call on one serial queue ("dail-ui"),
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,

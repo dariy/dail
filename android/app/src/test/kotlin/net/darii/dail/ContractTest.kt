@@ -48,6 +48,19 @@ class ContractTest {
     }
 
     @Test
+    fun aLongPressedFolderOpensItsActions() {
+        // TCH-4: every folder of the drawer has a long press; the sheet lists the folder's actions.
+        val frames = fixtures("frames")
+        val drawer = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("drawer_360x800")).drawer)
+        assertTrue(drawer.accounts.flatMap { it.mailboxes }.all { it.longPress != null })
+        assertTrue(drawer.footer.all { it.longPress == null })
+        val menu = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("folder_menu")).menu)
+        assertEquals("Work", menu.title)
+        assertTrue(menu.items.isNotEmpty())
+        assertTrue(menu.items.all { it.icon != null && it.label.isNotEmpty() })
+    }
+
+    @Test
     fun messageCardsCarryTheirSwipes() {
         // MISC-44e: a card swipes as a list row, its buttons drawn by the presenter.
         val frame = strict.decodeFromString(Frame.serializer(), fixtures("frames").getValue("thread_360x800"))

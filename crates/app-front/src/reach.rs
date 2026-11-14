@@ -19,7 +19,8 @@
 //!   key alone does not count: the GUI is also used with a mouse, so it needs a visible control
 //!   too. On touch keys never count (a hardware keyboard is optional).
 //! - [`Reach::Flow`]: a visible control opens the command's palette step (a confirmation, a
-//!   picker, a typed answer), like the folder menu's *Rename…*.
+//!   picker, a typed answer), like the folder menu's *Rename…*. A control that sometimes runs at
+//!   once and sometimes asks first (`mark_mailbox_read`, which asks above 50 unread) is `Flow`.
 //! - [`Reach::Palette`]: only through the palette (the parity walks prove it reaches every
 //!   command it offers).
 //! - [`Reach::Never`]: the front end cannot do it, by an ADR's decision.
@@ -145,19 +146,22 @@ const fn row(name: CommandName) -> Row {
         // The GUI's password form (account settings, problems); the TUI's only through the
         // palette.
         N::SetPassword => Row(C, P, C),
-        N::SetIdentity | N::SetSyncWindow => Row(F, P, P),
-        // The GUI's folder menu and list buttons; the drawer has no folder menu yet (TCH-4).
+        N::SetIdentity => Row(F, P, P),
+        // The GUI's folder menu and list buttons; on touch the drawer's folder sheet, after a
+        // long press on the folder (TCH-4).
         N::CreateFolder
         | N::RenameFolder
         | N::DeleteFolder
         | N::EmptyTrash
         | N::EmptyJunk
-        | N::MarkMailboxRead => Row(F, P, P),
-        N::PinMailbox | N::UnpinMailbox | N::HideMailbox | N::ShowMailbox | N::ClearFocus => {
-            Row(C, P, P)
-        }
-        N::SetListFilter | N::RetryPendingOps => Row(C, P, P),
-        N::FocusMailbox => Row(C, C, P),
+        | N::SetSyncWindow
+        | N::MarkMailboxRead => Row(F, P, F),
+        N::PinMailbox | N::UnpinMailbox | N::HideMailbox => Row(C, P, C),
+        // The mobile drawer leaves hidden folders out and has no *Show hidden* toggle, so a
+        // hidden folder's sheet (and its *Show folder*) never opens on touch.
+        N::ShowMailbox => Row(C, P, P),
+        N::SetListFilter | N::RetryPendingOps | N::ClearFocus => Row(C, P, P),
+        N::FocusMailbox => Row(C, C, C),
         N::RemoveAccount => Row(F, P, F),
         N::PullSettings => Row(P, C, P),
         N::SetSettingsAccount => Row(F, F, P),

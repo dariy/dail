@@ -60,6 +60,20 @@ fn frames() -> Vec<(String, Frame)> {
         pane: Pane::Sidebar,
     });
     out.push(("drawer_tree".to_owned(), phone.frame()));
+    // A folder's actions after a long press in a phone's drawer (TCH-4).
+    let mut phone = crate::drawer::nested(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    let work = phone.frame().drawer.unwrap().accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == "Work")
+        .unwrap()
+        .long_press
+        .unwrap();
+    phone.event(UiEvent::LongPress { action: work });
+    out.push(("folder_menu".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenPalette {});
     out.push(("palette".to_owned(), phone.frame()));

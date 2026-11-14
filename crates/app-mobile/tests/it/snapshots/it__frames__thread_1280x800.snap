@@ -30,7 +30,7 @@ expression: phone.frame()
     "style": {
       "icon": "chevron_left",
       "label": "Icons only",
-      "action": 10
+      "action": 14
     },
     "accounts": [
       {
@@ -38,7 +38,7 @@ expression: phone.frame()
         "email": "alice@example.com",
         "fold": {
           "collapsed": false,
-          "action": 6,
+          "action": 10,
           "a11y": "alice@example.com folders"
         },
         "mailboxes": [
@@ -48,6 +48,7 @@ expression: phone.frame()
             "unread": 1,
             "selected": true,
             "action": 2,
+            "long_press": 3,
             "a11y": "Inbox, 1 unread"
           },
           {
@@ -55,7 +56,8 @@ expression: phone.frame()
             "icon": "send",
             "unread": 0,
             "selected": false,
-            "action": 3,
+            "action": 4,
+            "long_press": 5,
             "a11y": "Sent"
           },
           {
@@ -63,7 +65,8 @@ expression: phone.frame()
             "icon": "draft",
             "unread": 0,
             "selected": false,
-            "action": 4,
+            "action": 6,
+            "long_press": 7,
             "a11y": "Drafts"
           },
           {
@@ -71,7 +74,8 @@ expression: phone.frame()
             "icon": "archive",
             "unread": 0,
             "selected": false,
-            "action": 5,
+            "action": 8,
+            "long_press": 9,
             "a11y": "Archive"
           }
         ]
@@ -83,7 +87,7 @@ expression: phone.frame()
         "icon": "settings",
         "unread": 0,
         "selected": false,
-        "action": 7,
+        "action": 11,
         "a11y": "Settings"
       },
       {
@@ -91,7 +95,7 @@ expression: phone.frame()
         "icon": "info",
         "unread": 0,
         "selected": false,
-        "action": 8,
+        "action": 12,
         "a11y": "About"
       },
       {
@@ -99,7 +103,7 @@ expression: phone.frame()
         "icon": "add",
         "unread": 0,
         "selected": false,
-        "action": 9,
+        "action": 13,
         "a11y": "Add account"
       }
     ]
@@ -114,10 +118,10 @@ expression: phone.frame()
     "rows": [
       {
         "thread": "00000000-0000-0007-0000-000000000002",
-        "action": 11,
-        "long_press": 12,
-        "swipe_start": 13,
-        "swipe_end": 14,
+        "action": 15,
+        "long_press": 16,
+        "swipe_start": 17,
+        "swipe_end": 18,
         "sender": "Carol",
         "subject": "Lunch?",
         "snippet": "Lunch at noon?",
@@ -132,10 +136,10 @@ expression: phone.frame()
       },
       {
         "thread": "00000000-0000-0007-0000-000000000000",
-        "action": 15,
-        "long_press": 16,
-        "swipe_start": 17,
-        "swipe_end": 18,
+        "action": 19,
+        "long_press": 20,
+        "swipe_start": 21,
+        "swipe_end": 22,
         "sender": "Bob",
         "subject": "Q3 numbers",
         "snippet": "",
@@ -156,67 +160,67 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 39
+      "action": 43
     },
     "maximize": {
       "icon": "open_in_full",
       "label": "Maximize message",
-      "action": 40
+      "action": 44
     },
     "actions": [
       {
         "icon": "archive",
         "label": "Archive",
-        "action": 19
+        "action": 23
       },
       {
         "icon": "delete",
         "label": "Trash",
-        "action": 20
+        "action": 24
       },
       {
         "icon": "report",
         "label": "Junk",
-        "action": 21
+        "action": 25
       },
       {
         "icon": "mark_email_read",
         "label": "Mark read",
-        "action": 22
+        "action": 26
       },
       {
         "icon": "drive_file_move",
         "label": "Move…",
-        "action": 25
+        "action": 29
       },
       {
         "icon": "reply",
         "label": "Reply",
-        "action": 27
+        "action": 31
       }
     ],
     "overflow": [
       {
         "icon": "star",
         "label": "Star",
-        "action": 23
+        "action": 27
       },
       {
         "icon": "push_pin",
         "label": "Pin",
-        "action": 24
+        "action": 28
       },
       {
         "icon": "edit",
         "label": "Make a rule…",
-        "action": 26
+        "action": 30
       }
     ],
     "next": {
       "open": {
         "icon": "expand_more",
         "label": "Next conversation",
-        "action": 28
+        "action": 32
       },
       "sender": "Bob",
       "subject": "Q3 numbers",
@@ -230,7 +234,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 29,
+        "toggle": 33,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -239,48 +243,48 @@ expression: phone.frame()
           {
             "icon": "reply",
             "label": "Reply",
-            "action": 31
+            "action": 35
           },
           {
             "icon": "reply_all",
             "label": "Reply all",
-            "action": 32
+            "action": 36
           },
           {
             "icon": "forward",
             "label": "Forward",
-            "action": 33
+            "action": 37
           },
           {
             "icon": "mark_email_read",
             "label": "Mark read",
-            "action": 34
+            "action": 38
           },
           {
             "icon": "star",
             "label": "Star",
-            "action": 35
+            "action": 39
           },
           {
             "icon": "edit",
             "label": "Make a rule…",
-            "action": 36
+            "action": 40
           },
           {
             "icon": "delete",
             "label": "Trash",
-            "action": 38
+            "action": 42
           }
         ],
         "swipe_start": {
           "icon": "archive",
           "label": "Archive",
-          "action": 30
+          "action": 34
         },
         "swipe_end": {
           "icon": "delete",
           "label": "Trash",
-          "action": 37
+          "action": 41
         }
       }
     ]
@@ -288,7 +292,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 41
+    "action": 45
   },
   "theme": {
     "id": "dail-light",

@@ -80,6 +80,32 @@
       ],
       "type": "object"
     },
+    "ActionSheet": {
+      "description": "A list of actions on one thing, drawn as a bottom sheet (TCH-4): a folder's actions today.",
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Dismisses the sheet without running anything."
+        },
+        "items": {
+          "description": "The actions in order, each with its icon and its text label; a tap closes the sheet and\nruns it.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "What the actions act on (a folder's name): plain text, never interpreted.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "items",
+        "close"
+      ],
+      "type": "object"
+    },
     "Attachment": {
       "description": "An attachment of a received message.",
       "properties": {
@@ -844,6 +870,15 @@
         "label": {
           "description": "The mailbox's name.",
           "type": "string"
+        },
+        "long_press": {
+          "description": "A long press: opens the folder's actions in `Frame::menu` (TCH-4). Only on a real\nmailbox; TalkBack offers it as the custom action *Folder actions*.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "selected": {
           "description": "Whether the list shows it.",
@@ -2548,6 +2583,17 @@
         }
       ],
       "description": "The thread list, while on screen."
+    },
+    "menu": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ActionSheet"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A list of actions on one thing, while open: a folder's actions after a long press in the\ndrawer (TCH-4). A bottom sheet; a tap outside, Back or `close` dismisses it."
     },
     "palette": {
       "anyOf": [

@@ -6,7 +6,7 @@
         "email": "alice@example.com",
         "fold": {
           "a11y": "alice@example.com folders",
-          "action": 12,
+          "action": 19,
           "collapsed": false
         },
         "mailboxes": [
@@ -15,39 +15,43 @@
             "action": 3,
             "icon": "inbox",
             "label": "Inbox",
+            "long_press": 4,
             "selected": true,
             "unread": 1
           },
           {
             "a11y": "Sent",
-            "action": 4,
+            "action": 5,
             "icon": "send",
             "label": "Sent",
+            "long_press": 6,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Drafts",
-            "action": 5,
+            "action": 7,
             "icon": "draft",
             "label": "Drafts",
+            "long_press": 8,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Archive",
-            "action": 6,
+            "action": 9,
             "icon": "archive",
             "label": "Archive",
+            "long_press": 10,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Lists",
-            "action": 7,
+            "action": 11,
             "fold": {
               "a11y": "Lists subfolders",
-              "action": 7,
+              "action": 11,
               "collapsed": false
             },
             "icon": "folder",
@@ -57,32 +61,35 @@
           },
           {
             "a11y": "rust",
-            "action": 8,
+            "action": 12,
             "depth": 1,
             "icon": "folder",
             "label": "rust",
+            "long_press": 13,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Work",
-            "action": 10,
+            "action": 15,
             "fold": {
               "a11y": "Work subfolders",
-              "action": 9,
+              "action": 14,
               "collapsed": false
             },
             "icon": "folder",
             "label": "Work",
+            "long_press": 16,
             "selected": false,
             "unread": 0
           },
           {
             "a11y": "Clients",
-            "action": 11,
+            "action": 17,
             "depth": 1,
             "icon": "folder",
             "label": "Clients",
+            "long_press": 18,
             "selected": false,
             "unread": 0
           }
@@ -93,7 +100,7 @@
     "footer": [
       {
         "a11y": "Settings",
-        "action": 13,
+        "action": 20,
         "icon": "settings",
         "label": "Settings",
         "selected": false,
@@ -101,7 +108,7 @@
       },
       {
         "a11y": "About",
-        "action": 14,
+        "action": 21,
         "icon": "info",
         "label": "About",
         "selected": false,
@@ -109,7 +116,7 @@
       },
       {
         "a11y": "Add account",
-        "action": 15,
+        "action": 22,
         "icon": "add",
         "label": "Add account",
         "selected": false,
@@ -120,7 +127,7 @@
     "rail": false
   },
   "fab": {
-    "action": 24,
+    "action": 31,
     "icon": "edit",
     "label": "Compose"
   },
@@ -139,37 +146,37 @@
     "rows": [
       {
         "a11y": "unread, Carol, Lunch?, Nov 14",
-        "action": 16,
+        "action": 23,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 17,
+        "long_press": 24,
         "messages": 1,
         "selected": false,
         "sender": "Carol",
         "snippet": "Lunch at noon?",
         "starred": false,
         "subject": "Lunch?",
-        "swipe_end": 19,
-        "swipe_start": 18,
+        "swipe_end": 26,
+        "swipe_start": 25,
         "thread": "00000000-0000-0007-0000-000000000002",
         "unread": true
       },
       {
         "a11y": "Bob, Q3 numbers, Nov 14",
-        "action": 20,
+        "action": 27,
         "attachments": false,
         "checked": false,
         "date": "Nov 14",
-        "long_press": 21,
+        "long_press": 28,
         "messages": 1,
         "selected": false,
         "sender": "Bob",
         "snippet": "",
         "starred": false,
         "subject": "Q3 numbers",
-        "swipe_end": 23,
-        "swipe_start": 22,
+        "swipe_end": 30,
+        "swipe_start": 29,
         "thread": "00000000-0000-0007-0000-000000000000",
         "unread": false
       }

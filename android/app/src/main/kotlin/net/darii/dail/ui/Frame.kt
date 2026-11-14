@@ -51,6 +51,8 @@ data class Frame(
     val result: ResultView? = null,
     val link: LinkSheet? = null,
     val preview: Preview? = null,
+    /** TCH-4: a list of actions on one thing (a folder's, after a long press in the drawer), as a bottom sheet. */
+    val menu: ActionSheet? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -145,7 +147,17 @@ data class DrawerItem(
     val unread: Int,
     val selected: Boolean,
     val action: ActionId,
+    /** TCH-4: opens the folder's actions; only on a real mailbox. */
+    @SerialName("long_press") val longPress: ActionId? = null,
     val a11y: String,
+)
+
+/** A list of actions on one thing (TCH-4): its name as plain text, the actions in order, and its dismissal. */
+@Serializable
+data class ActionSheet(
+    val title: String,
+    val items: List<Button>,
+    val close: Button,
 )
 
 @Serializable

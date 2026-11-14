@@ -10,6 +10,7 @@ mod composer;
 mod contract;
 mod drawer;
 mod events;
+mod folder_menu;
 mod frames;
 mod keys;
 mod list;
