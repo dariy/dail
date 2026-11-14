@@ -1911,8 +1911,14 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   session if no activity has. With `uiautomator dump`, `screencap` and `input` an agent drives and reads the app.
   `app/src/androidTest` (`connectedDemoDebugAndroidTest`) calls it through the shell (`UiAutomation`), as adb does.
   `GoldenPathTest` (STORE-9b) drives the demo build with the window's accessibility tree (`UiAutomation`) and `input`, and checks the
-  bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. It needs no test
-  library beyond the runner; CI's `android-emulator` job runs it. On failure it saves a screenshot to
+  bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. QA-1 adds three
+  journeys, one `@Test` each, by touch: check two threads (a long press, then a tap) and move them with the bulk bar's
+  *Move…* (undone with the snackbar); open a message, open the palette from the reader's ⋯ and make a rule from it
+  (*Make a rule from this message*, then *Sender*, then *Star*); open *Settings* from the drawer, tap *Rules* in the
+  root list, add a rule with *Add a rule…*, switch it *Off* and *Delete* it. They share the app's process: each starts
+  from the inbox (system Back while the frame takes it) and leaves the demo mail and the rules as it found them; checks
+  of mailboxes and rules go through the bridge's `exec` (`list_mailboxes`, `list_threads`) and `state`. A ⋯ menu is a
+  popup window, so menu items are looked up in every window of the app. It needs no test library beyond the runner; CI's `android-emulator` job runs it. On failure it saves a screenshot to
   `/data/local/tmp/golden` and logs every window's node tree under the `GoldenPath` tag. `golden-path.yml` runs only
   this test, by hand on any branch (`gh workflow run golden-path.yml --ref <branch>`). It uses warm caches of its own
   (AVD snapshot, Rust, Gradle) and always uploads that evidence with logcat and `dumpsys window`.

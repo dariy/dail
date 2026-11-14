@@ -15,12 +15,17 @@ import org.junit.Test
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.junit.runner.RunWith
+import kotlin.math.abs
 
 /**
  * The golden path over the demo build (STORE-9b), driven like an agent drives the app over adb:
  * the active window's accessibility tree to find what is on screen, `input` to tap and type, and the debug bridge's
  * `state` to check what happened. Open and read a conversation, archive it and undo, compose a
- * message, send it and undo the send. No test dependency beyond the runner.
+ * message, send it and undo the send (STORE-9b); check two threads and move them, make a rule from the open message,
+ * and add a rule in the settings and switch it off (QA-1). No test dependency beyond the runner.
+ *
+ * The tests share the app's process, so its state: each starts from the inbox ([home]) and leaves the demo mail and
+ * the rules as it found them.
  */
 @RunWith(AndroidJUnit4::class)
 class GoldenPathTest {
@@ -42,14 +47,61 @@ class GoldenPathTest {
         return ParcelFileDescriptor.AutoCloseInputStream(output).bufferedReader().readText()
     }
 
-    /** A debug bridge answer: `Result: Bundle[{result=<json>}]`. */
-    private fun bridge(method: String): JSONObject =
+    /** A debug bridge answer: `Result: Bundle[{result=<json>}]`. [arg] must hold no space. */
+    private fun bridge(
+        method: String,
+        arg: String? = null,
+    ): JSONObject =
         JSONObject(
-            shell("content call --uri content://$app.debug --method $method")
+            shell("content call --uri content://$app.debug --method $method" + (arg?.let { " --arg $it" } ?: ""))
                 .substringAfter("result=")
                 .trim()
                 .removeSuffix("}]"),
         )
+
+    /** Runs [command] as the user at a terminal (`cli`) and returns its receipt's `data`. */
+    private fun exec(command: JSONObject): JSONObject {
+        val answer = bridge("exec", command.toString())
+        val receipt = answer.optJSONObject("receipt") ?: error("refused: $command -> $answer")
+        return receipt.optJSONObject("data") ?: JSONObject()
+    }
+
+    private fun command(
+        name: String,
+        args: JSONObject? = null,
+    ): JSONObject = JSONObject().put("cmd", name).apply { args?.let { put("args", it) } }
+
+    /** The ID of the demo account's mailbox with [role] (`inbox`, `archive`, ...). */
+    private fun mailbox(role: String): String {
+        val boxes = exec(command("list_mailboxes")).getJSONArray("mailboxes")
+        return (0 until boxes.length())
+            .map(boxes::getJSONObject)
+            .first { it.optString("role") == role }
+            .getString("id")
+    }
+
+    /** The subjects of the threads shown in [mailbox], from `list_threads`. */
+    private fun subjects(mailbox: String): List<String> {
+        val threads = exec(command("list_threads", JSONObject().put("mailbox", mailbox))).getJSONArray("threads")
+        return (0 until threads.length()).map {
+            threads.getJSONObject(it).getJSONObject("untrusted_content").optString("subject")
+        }
+    }
+
+    /** The live sorting rules (not the tombstones) by ID, from the state. */
+    private fun rules(): Map<String, JSONObject> {
+        val rules =
+            state().optJSONObject("synced")?.optJSONObject("settings")?.optJSONObject("rules") ?: return emptyMap()
+        return rules
+            .keys()
+            .asSequence()
+            .mapNotNull { id -> rules.getJSONObject(id).optJSONObject("rule")?.let { id to it } }
+            .toMap()
+    }
+
+    private fun deleteRule(id: String) {
+        exec(command("delete_rule", JSONObject().put("id", id)))
+    }
 
     private fun state(): JSONObject = bridge("state")
 
@@ -78,6 +130,11 @@ class GoldenPathTest {
      */
     private fun nodes(): List<Node> {
         val root = instrumentation.uiAutomation.rootInActiveWindow ?: return emptyList()
+        return flatten(listOf(root))
+    }
+
+    /** The nodes under [roots], in order, each with the centre of its bounds. */
+    private fun flatten(roots: List<AccessibilityNodeInfo>): List<Node> {
         val out = mutableListOf<Node>()
         val bounds = Rect()
 
@@ -93,19 +150,33 @@ class GoldenPathTest {
                 )
             for (i in 0 until info.childCount) info.getChild(i)?.let(::walk)
         }
-        walk(root)
+        roots.forEach(::walk)
         return out
     }
 
-    /** Waits until [find] matches a node on screen, at most [seconds]. */
+    /**
+     * The nodes of every window of the app, the topmost first: a menu (`DropdownMenu`) or a sheet is a popup window of
+     * its own, which need not be the active one.
+     */
+    private fun allNodes(): List<Node> {
+        val roots =
+            instrumentation.uiAutomation.windows
+                .sortedByDescending { it.layer }
+                .mapNotNull { it.root }
+                .filter { it.packageName?.toString() == app }
+        return flatten(roots).ifEmpty { nodes() }
+    }
+
+    /** Waits until [find] matches a node on screen, at most [seconds]; [among] gives the nodes to look at. */
     private fun await(
         what: String,
         seconds: Int = 20,
+        among: () -> List<Node> = ::nodes,
         find: (Node) -> Boolean,
     ): Node {
         val deadline = System.currentTimeMillis() + seconds * 1000L
         while (true) {
-            val seen = nodes()
+            val seen = among()
             seen.firstOrNull(find)?.let { return it }
             check(System.currentTimeMillis() < deadline) {
                 // What was there instead, so a failure in CI says why.
@@ -137,6 +208,19 @@ class GoldenPathTest {
     private fun labelled(label: String) =
         { node: Node -> node.text == label || node.description == label || node.description.startsWith("$label,") }
 
+    /**
+     * A node whose text is [label]: also a clickable row that merges its texts (a palette row with its detail, a
+     * settings entry with its hint), whose text may be its first text or all of them joined.
+     */
+    private fun titled(label: String) =
+        { node: Node ->
+            node.description.isEmpty() &&
+                (node.text == label || node.text.startsWith("$label, ") || node.text.startsWith("$label\n"))
+        }
+
+    /** The thread row of the inbox whose description (the frame's `a11y`) names [subject]. */
+    private fun row(subject: String) = { node: Node -> node.description.split(", ").contains(subject) }
+
     private var taps = 0
 
     /**
@@ -162,6 +246,15 @@ class GoldenPathTest {
         shell("input tap ${node.x} ${node.y}")
     }
 
+    /** Presses [node] for a second: a long press. */
+    private fun longPress(node: Node) {
+        taps += 1
+        Log.i(TAG, "long press $taps: $node")
+        shell("mkdir -p $EVIDENCE")
+        shell("screencap -p $EVIDENCE/tap-${taps.toString().padStart(2, '0')}.png")
+        shell("input swipe ${node.x} ${node.y} ${node.x} ${node.y} 1000")
+    }
+
     /** The text of the frame's snackbar while it offers an action (an undo), else null. */
     private fun offer(): String? =
         bridge("frame")
@@ -175,8 +268,14 @@ class GoldenPathTest {
      * fast, on the lowest Undo, and tried again while the same offer stands. An undo that goes through clears the offer,
      * so a second tap never undoes an earlier step.
      */
-    private fun undoArchive() {
-        awaitThat("the archive's undo offer (it lasts 6 s)") { offer() != null }
+    private fun undoArchive() = undoUntil("back in the inbox") { listed(SUBJECT) }
+
+    /** Taps the snackbar's Undo, as [undoArchive] does, until [undone]. */
+    private fun undoUntil(
+        what: String,
+        undone: () -> Boolean,
+    ) {
+        awaitThat("the undo offer before: $what (it lasts 6 s)") { offer() != null }
         val offered = offer()
         repeat(UNDO_TRIES) { attempt ->
             val undo =
@@ -185,31 +284,85 @@ class GoldenPathTest {
             tap(undo, fast = true)
             val deadline = System.currentTimeMillis() + 5_000L
             while (System.currentTimeMillis() < deadline) {
-                if (listed(SUBJECT)) return
+                if (undone()) return
                 Thread.sleep(250)
             }
             val now = offer()
             if (now == null) {
-                // The undo went through and the list is slow, or the offer ran out: the list says which.
-                awaitThat("back in the inbox; the offer ended after ${attempt + 1} taps") { listed(SUBJECT) }
+                // The undo went through and the app is slow, or the offer ran out: [undone] says which.
+                awaitThat("$what; the offer ended after ${attempt + 1} taps", holds = undone)
                 return
             }
-            check(now == offered) { "never true: back in the inbox; offer before: $offered, now: $now" }
+            check(now == offered) { "never true: $what; offer before: $offered, now: $now" }
         }
-        error("never true: back in the inbox after $UNDO_TRIES taps on Undo; offer: ${offer()}")
+        error("never true: $what after $UNDO_TRIES taps on Undo; offer: ${offer()}")
     }
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
     /** The node labelled [label] once it stays put for half a second: a layout still moving would take a tap elsewhere. */
-    private fun settled(label: String): Node {
-        var last = await(label, find = labelled(label))
+    private fun settled(label: String): Node = settled(label, labelled(label))
+
+    private fun settled(
+        what: String,
+        find: (Node) -> Boolean,
+    ): Node {
+        var last = await(what, find = find)
         while (true) {
             Thread.sleep(500)
-            val now = await(label, find = labelled(label))
+            val now = await(what, find = find)
             if (now == last) return now
             last = now
         }
+    }
+
+    /**
+     * Taps the bar's button [label], or the item [label] of the bar's ⋯ menu (*More actions*) when the bar has no room
+     * for it: which one depends on the window's width. With several ⋯ on screen, the one nearest [near] (in height).
+     */
+    private fun barOrMenu(
+        label: String,
+        near: Node? = null,
+    ) {
+        nodes().firstOrNull { it.description == label }?.let {
+            tap(settled(label) { node -> node.description == label })
+            return
+        }
+        val menus = nodes().filter { it.description == MORE }
+        val more =
+            (if (near == null) menus.minByOrNull { it.y } else menus.minByOrNull { abs(it.y - near.y) })
+                ?: await("$label, or the ⋯ that holds it", find = { it.description == MORE })
+        tap(more)
+        tap(await("the menu item $label", among = ::allNodes) { it.text == label && it.description.isEmpty() })
+    }
+
+    /** The frame's `palette`, while the palette is open. */
+    private fun palette(): JSONObject? = bridge("frame").optJSONObject("palette")
+
+    /** Waits for the palette's step that asks [prompt], then taps its row [label] (below the question). */
+    private fun answer(
+        prompt: String,
+        label: String,
+    ) {
+        awaitThat("the palette asks: $prompt") { palette()?.optString("prompt") == prompt }
+        val question = await("the question $prompt") { it.text == prompt }
+        tap(await("the answer $label to $prompt") { titled(label)(it) && it.y > question.y })
+    }
+
+    /** Back to the demo inbox's list: the system Back while the app takes it (a step, a sheet, a page), then the inbox. */
+    private fun home() {
+        repeat(HOME_BACKS) {
+            val frame = bridge("frame")
+            if (!frame.optBoolean("back")) return@repeat
+            val revision = frame.optLong("revision")
+            shell("input keyevent KEYCODE_BACK")
+            awaitThat("Back drawn") { bridge("frame").optLong("revision") != revision }
+        }
+        check(!bridge("frame").optBoolean("back")) { "still not home: ${bridge("frame").optJSONObject("top_bar")}" }
+        if (bridge("frame").optJSONObject("list")?.optString("title") != INBOX) {
+            exec(command("open_mailbox", JSONObject().put("id", mailbox("inbox"))))
+        }
+        awaitThat("the inbox listed") { listed(SUBJECT) && listed(SECOND) }
     }
 
     /** The drafts, compactly, for a failure's message. */
@@ -290,6 +443,120 @@ class GoldenPathTest {
         // Android 13+ would ask first; the permission is not what this test is about.
         shell("pm grant $app android.permission.POST_NOTIFICATIONS")
         shell("am start -W -n $app/net.darii.dail.MainActivity")
+        // Without this flag `windows` is empty (allNodes, dumpWindows).
+        val automation = instrumentation.uiAutomation
+        automation.serviceInfo =
+            automation.serviceInfo.apply {
+                flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            }
+        await("the demo inbox", seconds = 60) { it.description.contains(SUBJECT) || it.text.contains(SUBJECT) }
+        home()
+    }
+
+    /** QA-1: check two threads by touch and move them to a folder from the bulk bar, then undo the move. */
+    @Test
+    fun checkTwoThreadsAndMoveThem() {
+        val inbox = mailbox("inbox")
+        val archive = mailbox("archive")
+        check(SUBJECT in subjects(inbox) && SECOND in subjects(inbox)) { "the demo inbox: ${subjects(inbox)}" }
+
+        // A long press checks the first thread; with one checked, a tap checks another.
+        longPress(settled("the row $SUBJECT", row(SUBJECT)))
+        awaitThat("one checked") { bridge("frame").optJSONObject("bulk")?.optString("title") == "1 selected" }
+        tap(await("the row $SECOND", find = row(SECOND)))
+        awaitThat("two checked") { bridge("frame").optJSONObject("bulk")?.optString("title") == "2 selected" }
+        await("the bulk bar's count") { it.text == "2 selected" }
+
+        // Move… opens the palette at its folder step; a folder moves both.
+        barOrMenu("Move…")
+        answer("Move to…", ARCHIVE_FOLDER)
+        awaitThat("both in $ARCHIVE_FOLDER") { subjects(archive).containsAll(listOf(SUBJECT, SECOND)) }
+        val left = subjects(inbox)
+        assertTrue("still in the inbox: $left", SUBJECT !in left && SECOND !in left)
+        awaitThat("the bulk bar gone") { bridge("frame").optJSONObject("bulk") == null }
+        assertTrue(palette() == null)
+
+        // The snackbar's Undo moves them back.
+        undoUntil("both back in the inbox") { subjects(inbox).containsAll(listOf(SUBJECT, SECOND)) }
+        val after = subjects(archive)
+        assertTrue("still in $ARCHIVE_FOLDER: $after", SUBJECT !in after && SECOND !in after)
+    }
+
+    /** QA-1: open a message, open the palette from it, and make a rule from it; the rule is deleted afterwards. */
+    @Test
+    fun makeARuleFromTheOpenMessage() {
+        rules().keys.forEach(::deleteRule)
+        tap(await("the row $SUBJECT", find = row(SUBJECT)))
+        awaitThat("the conversation in the reader") {
+            bridge("frame").optJSONObject("reader")?.optString("subject") == SUBJECT
+        }
+        // The reader may still be sliding in: wait for its buttons to rest.
+        val reply = settled("Reply")
+
+        // The reader's ⋯ (or its bar, on a wide window) opens the palette over the open message.
+        barOrMenu("Search or run a command", near = reply)
+        awaitThat("the palette open") { palette() != null }
+        val query = await("the palette's query field") { it.className == "android.widget.EditText" }
+        tap(query)
+        shell("input text Make%sa%srule")
+        awaitThat("the query typed") { palette()?.getJSONObject("query")?.optString("text") == "Make a rule" }
+        tap(await("the row $MAKE_RULE") { titled(MAKE_RULE)(it) && it.y > query.y })
+
+        // Its steps: the sender's test, pre-filled from the message, then an action harmless here.
+        answer("Match mail like this one by…", "Sender")
+        answer("Then do what?", "Star")
+        awaitThat("the palette closed") { palette() == null }
+
+        val made = rules().entries.filter { (_, rule) -> rule.getJSONObject("when").optString("test") == "from" }
+        assertTrue("rules: ${rules()}", made.size == 1)
+        val (id, rule) = made.single()
+        assertTrue("$rule", rule.getJSONObject("when").optString("contains") == SENDER)
+        assertTrue("$rule", rule.getJSONArray("then").getJSONObject(0).optString("action") == "star")
+        assertTrue("$rule", rule.optBoolean("enabled"))
+        deleteRule(id)
+        assertTrue(rules().isEmpty())
+    }
+
+    /** QA-1: the settings' root lists Rules; add a rule there, switch it off and delete it, all by touch. */
+    @Test
+    fun addARuleInTheSettingsAndSwitchItOff() {
+        rules().keys.forEach(::deleteRule)
+        // The drawer's Settings; on a wide window the drawer is a pane, already on screen.
+        if (nodes().none(labelled("Settings"))) tap("Mailboxes")
+        tap("Settings")
+        awaitThat("the settings open") { bridge("frame").optJSONObject("settings") != null }
+        val page = bridge("frame").getJSONObject("settings")
+        if (bridge("frame").getJSONObject("layout").optString("class") == "compact") {
+            // A phone: the root is a list of sections, Rules among them without scrolling a tab row.
+            val sections = page.getJSONArray("sections")
+            val labels = (0 until sections.length()).map { sections.getJSONObject(it).optString("label") }
+            assertTrue("$page", page.optString("section") == "index" && "Rules" in labels)
+        }
+        tap(await("Rules in the settings", find = titled("Rules")))
+        awaitThat("the Rules section") { bridge("frame").optJSONObject("settings")?.optString("section") == "rules" }
+
+        // Add a rule…: the row's button (its label is drawn above it too), then the palette's steps.
+        await(ADD_RULE, find = labelled(ADD_RULE))
+        tap(nodes().filter(labelled(ADD_RULE)).maxBy { it.y })
+        answer("Match mail by what?", "Has an attachment")
+        answer("Then do what?", "Star")
+        awaitThat("the palette closed") { palette() == null }
+        awaitThat("a rule saved") { rules().size == 1 }
+        val (id, rule) = rules().entries.single()
+        assertTrue("$rule", rule.getJSONObject("when").optString("test") == "has_attachment")
+        assertTrue("$rule", rule.optBoolean("enabled"))
+
+        // Its row on the Rules screen: Off switches it off, Delete deletes it.
+        val name = rule.getString("name")
+        val label = await("the rule's row $name") { it.text == name }
+        tap(await("the rule's Off") { it.text == "Off" && it.y > label.y })
+        awaitThat("the rule switched off") { rules()[id]?.optBoolean("enabled") == false }
+        val shown = await("the rule's row $name") { it.text == name }
+        tap(
+            nodes().filter { it.text == "Delete" && it.y > shown.y }.minByOrNull { it.y }
+                ?: await("the rule's Delete", find = labelled("Delete")),
+        )
+        awaitThat("the rule deleted") { rules().isEmpty() }
     }
 
     @Test
@@ -350,6 +617,22 @@ class GoldenPathTest {
         /** The demo fixture's first unread INBOX conversation (`crates/app-testkit/fixtures/basic.json`). */
         const val SUBJECT = "Lunch?"
         const val NEW_SUBJECT = "Golden"
+
+        /** The fixture's other INBOX conversation, from Bob; `media` adds a third. */
+        const val SECOND = "Q3 numbers"
+
+        /** The sender of [SUBJECT]. */
+        const val SENDER = "carol@example.org"
+
+        /** The fixture's folder with the `archive` role, as the move step lists it. */
+        const val ARCHIVE_FOLDER = "Archive"
+        const val INBOX = "Inbox"
+        const val MORE = "More actions"
+        const val MAKE_RULE = "Make a rule from this message"
+        const val ADD_RULE = "Add a rule…"
+
+        /** Back presses [home] makes at most. */
+        const val HOME_BACKS = 8
         const val TAG = "GoldenPath"
         const val EVIDENCE = "/data/local/tmp/golden"
 
