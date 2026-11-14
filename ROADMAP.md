@@ -1126,7 +1126,7 @@ ships in English and French.
 - [x] TCH-1 (S) [mobile][kt][ios]: the palette opens from every touch state, through TCH-2's overflow: the open message
   on a phone, the bulk bar, the maximized reader, the composer and settings (AGENTS.md §1's Android rule). A presenter
   test builds a frame for each state and asserts that some button runs `open_palette`
-- [ ] TCH-3 (S) [mobile][kt][ios]: the bulk bar from `thread_actions`: adds *Move…*, Junk or Not junk and *Select all*,
+- [x] TCH-3 (S) [mobile][kt][ios]: the bulk bar from `thread_actions`: adds *Move…*, Junk or Not junk and *Select all*,
   and shows one read toggle and one star toggle by the state of the checked threads
 - [ ] TCH-8 (S) [front][mobile][kt][ios]: *Make a rule from this message* in the message card's menu and in the reader's
   overflow, through `message_actions` and `thread_actions`, so the desktop cards get it too

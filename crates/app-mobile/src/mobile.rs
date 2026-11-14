@@ -1543,6 +1543,10 @@ impl Mobile {
                 (self.action_button(entry), primary)
             })
             .collect();
+        // TCH-3: *Select all* of the list, after the thread actions (not primary).
+        if let Some(entry) = app_front::actions::select_all(state) {
+            items.push((self.action_button(entry), false));
+        }
         // TCH-1: the bulk bar replaces the top bar and its search: the palette, last and not
         // primary (it keeps the checked threads as its targets).
         items.push((self.palette_button(), false));

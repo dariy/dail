@@ -223,6 +223,23 @@ pub fn thread_actions(state: &AppState, ids: &[ThreadId]) -> Vec<Entry> {
     out
 }
 
+/// *Select all* for a bar acting on the checked threads (TCH-3): checks every thread the list
+/// shows, as the desktop's header checkbox does (`check_threads` without ids). Not a thread
+/// action (it does not act on given ids), and none when the list shows nothing or every shown
+/// thread is checked already.
+pub fn select_all(state: &AppState) -> Option<Entry> {
+    let shown = listing::visible_threads(state);
+    let all = shown.iter().all(|id| state.view.checked.contains(id));
+    (!all).then(|| {
+        cmd(
+            Key::SelectAll,
+            Icon::CheckBox,
+            Command::CheckThreads { ids: Vec::new() },
+            false,
+        )
+    })
+}
+
 /// The actions of mailbox `id`, in display order; none if it is unknown.
 ///
 /// *New subfolder…*, *Rename…* (not the Inbox), pin or unpin in the favourites, show or hide,
@@ -396,4 +413,5 @@ icons! {
     VerifiedUser => "verified_user",
     Keyboard => "keyboard",
     Person => "person",
+    CheckBox => "check_box",
 }

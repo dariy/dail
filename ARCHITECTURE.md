@@ -1562,7 +1562,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   threads are checked, `bulk` replaces the top bar: `N selected`, the buttons of `app_front::actions::thread_actions`
   over `palette::targets` (PAR-1: archive, trash, junk or not junk, one read, star and pin toggle, *Move…*, and for
   one thread *Make a rule…*; a flow opens the palette at its step) split into `actions` and `overflow` (TCH-2: on a
-  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋯ menu), and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋯ menu), then *Select all*
+  (TCH-3, `app_front::actions::select_all`: `check_threads` without ids, the desktop's header checkbox; not offered
+  once every thread `listing::visible_threads` shows is checked) and the palette (TCH-1), both not primary, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
   buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
