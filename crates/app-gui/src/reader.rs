@@ -499,6 +499,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
         previews,
         queue,
         externals,
+        ask,
         ..
     } = io;
     ui::card_base(t).show(ui, |ui| {
@@ -592,7 +593,7 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
                 externals.push(External::OpenOriginal { blob: blob.clone() });
             }
         }
-        card_actions(ui, t, state, message, queue);
+        card_actions(ui, t, state, message, queue, ask);
         ui.add_space(t.m.space.sm);
         message_body(
             ui,
@@ -611,14 +612,16 @@ fn message_card(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: ReaderIo<'_>) {
 }
 
 /// The message's own actions (MISC-44, `app_front::message_actions`): Reply, Reply all,
-/// Forward, Read/Unread, Star/Unstar and Trash, or Edit and Discard on a draft. Icon buttons in
-/// the toolbar's style; each pushes its command for this message alone.
+/// Forward, Read/Unread, Star/Unstar, *Make a rule…* and Trash, or Edit and Discard on a draft.
+/// Icon buttons in the toolbar's style; each pushes its command for this message alone, or asks
+/// for its palette step (*Make a rule…*, TCH-8).
 fn card_actions(
     ui: &mut Ui,
     t: &Tokens,
     state: &AppState,
     message: &Envelope,
     queue: &mut Vec<Request>,
+    ask: &mut Option<app_front::palette::Ask>,
 ) {
     use app_front::message_actions::{MessageAction, message_actions};
     let items = message_actions(state, message.id);
@@ -638,7 +641,7 @@ fn card_actions(
                 MessageAction::Star => (Icon::Star, false),
                 MessageAction::Unstar => (Icon::Star, true),
                 MessageAction::Trash | MessageAction::Discard => (Icon::Delete, false),
-                MessageAction::Edit => (Icon::Edit, false),
+                MessageAction::Edit | MessageAction::MakeRule => (Icon::Edit, false),
             };
             let color = if filled {
                 t.text_strong
@@ -663,7 +666,11 @@ fn card_actions(
                 );
             }
             if response.clicked() {
-                queue.push(Request::user(item.command));
+                match item.run.flow(state) {
+                    app_front::palette::Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                    app_front::palette::Flow::Ask(step) => *ask = Some(step),
+                    _ => {}
+                }
             }
         }
     });

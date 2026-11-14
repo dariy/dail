@@ -80,12 +80,12 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 30
+      "action": 31
     },
     "maximize": {
       "icon": "open_in_full",
       "label": "Maximize message",
-      "action": 31
+      "action": 32
     },
     "actions": [
       {
@@ -186,9 +186,14 @@ expression: phone.frame()
             "action": 27
           },
           {
+            "icon": "edit",
+            "label": "Make a rule…",
+            "action": 28
+          },
+          {
             "icon": "delete",
             "label": "Trash",
-            "action": 29
+            "action": 30
           }
         ],
         "swipe_start": {
@@ -199,7 +204,7 @@ expression: phone.frame()
         "swipe_end": {
           "icon": "delete",
           "label": "Trash",
-          "action": 28
+          "action": 29
         }
       }
     ]
@@ -207,7 +212,7 @@ expression: phone.frame()
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 32
+    "action": 33
   },
   "theme": {
     "id": "dail-light",

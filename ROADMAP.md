@@ -1128,7 +1128,7 @@ ships in English and French.
   test builds a frame for each state and asserts that some button runs `open_palette`
 - [x] TCH-3 (S) [mobile][kt][ios]: the bulk bar from `thread_actions`: adds *Move…*, Junk or Not junk and *Select all*,
   and shows one read toggle and one star toggle by the state of the checked threads
-- [ ] TCH-8 (S) [front][mobile][kt][ios]: *Make a rule from this message* in the message card's menu and in the reader's
+- [x] TCH-8 (S) [front][mobile][kt][ios]: *Make a rule from this message* in the message card's menu and in the reader's
   overflow, through `message_actions` and `thread_actions`, so the desktop cards get it too
 - [ ] TCH-4 (M) [mobile][kt][ios]: a folder's actions in the drawer: a long press on a folder (`DrawerItem` gets
   `long_press`) opens a sheet of `mailbox_actions`. New names are typed in a text step; everything else is a tap

@@ -116,8 +116,9 @@ Trash*/*Empty Junk* (only those folders), *Apply rules*, *Offline window…*, *D
 *Test*, *Re-enter password*, *Sending addresses…*, *Remove…*, no *Servers…* yet (PAR-5); the GUI's bulk bar, row
 hover icons and context menu, folder menu and account buttons and the phone's bulk bar and reader toolbar draw
 from them), `message_actions` (MISC-44: one message's
-actions and the command each submits — Reply, Reply all, Forward, Read/Unread, Star/Unstar and Trash with
-`messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
+actions and what each runs (an `actions::Run`: a command, or a palette flow) — Reply, Reply all, Forward,
+Read/Unread, Star/Unstar, *Make a rule…* (TCH-8: `Run::RuleFrom` of that message, the palette's rule step; no key, so
+`key_command` is `None`) and Trash with `messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
 server copy); `for_key` maps a registry key onto them), `compose` (`parse_addr`, recipient fields, the draft's
 status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signature and trailing quoted part —
 `>` lines with their attribution, or an Outlook header block on), `mailbox` (labels), `notice` (the latest undo label, the send countdown, rejection texts),
@@ -1202,7 +1203,8 @@ command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message with its own icon buttons from
-  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card —, body text). The list has a 48 px header (title, the
+  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card, and *Make a rule…*
+  opens the palette at its step for that message (TCH-8) —, body text). The list has a 48 px header (title, the
   unread badge, *Clear* during a search, the checked-threads bar: `app_front::actions::thread_actions` of the checked threads as text buttons, PAR-1, then
   *Uncheck all*), hover actions on a row (UX-10, PAR-1: the entries of `thread_actions` of that row that run a command
   at once — *Archive*, *Trash*, *Junk*/*Not junk*, *Mark read*/*Mark unread*, *Star*/*Unstar*, *Pin*/*Unpin* — as icon buttons named
@@ -1367,7 +1369,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
   focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local
   `n`/`p`, per open thread, like scrolling) marks one message `▶` with its `app_front::message_actions` and their keys
-  under it; the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
+  under it (not *Make a rule…*, which has no key on a message: the palette offers it, TCH-8); the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
   draft; `p` before the first message drops it. No browser and no "open original": over
   SSH they would open on the host.
 - **Keys** go through the shared keymap (`app_front::keymap`): `app_tui::keys::chord_of` maps crossterm's key events
@@ -1649,7 +1651,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   reply as icons, and junk, the read, star and pin toggles and *Make a rule…* in the ⋯ menu.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
-    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
+    *Make a rule…* from that message, which opens the palette at the rule step (TCH-8), then trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
     button row (MISC-44e): a card swipes as a list row does, with `swipe_start` (archive the message,
     `archive_threads{messages}`; a draft: edit) and `swipe_end` (trash it, `trash_threads{messages}`; a draft:
     discard), `Button`s whose icon is revealed under the card, sent as `swipe` (a haptic follows). Android draws the

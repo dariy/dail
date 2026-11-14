@@ -77,7 +77,7 @@
       }
     ],
     "close": {
-      "action": 35,
+      "action": 36,
       "icon": "close",
       "label": "Close message"
     },
@@ -110,7 +110,12 @@
             "label": "Star"
           },
           {
-            "action": 34,
+            "action": 33,
+            "icon": "edit",
+            "label": "Make a rule…"
+          },
+          {
+            "action": 35,
             "icon": "delete",
             "label": "Trash"
           }
@@ -234,7 +239,7 @@
         "message": "00000000-0000-0007-0000-000000000003",
         "snippet": "Q3 numbers See the report",
         "swipe_end": {
-          "action": 33,
+          "action": 34,
           "icon": "delete",
           "label": "Trash"
         },

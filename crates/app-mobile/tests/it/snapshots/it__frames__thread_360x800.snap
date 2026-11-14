@@ -80,7 +80,7 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 31
+      "action": 32
     },
     "actions": [
       {
@@ -186,9 +186,14 @@ expression: phone.frame()
             "action": 28
           },
           {
+            "icon": "edit",
+            "label": "Make a rule…",
+            "action": 29
+          },
+          {
             "icon": "delete",
             "label": "Trash",
-            "action": 30
+            "action": 31
           }
         ],
         "swipe_start": {
@@ -199,7 +204,7 @@ expression: phone.frame()
         "swipe_end": {
           "icon": "delete",
           "label": "Trash",
-          "action": 29
+          "action": 30
         }
       }
     ]

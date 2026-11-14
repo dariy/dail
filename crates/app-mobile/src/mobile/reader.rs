@@ -541,19 +541,19 @@ impl Mobile {
                 MessageAction::MarkUnread => "mark_email_unread",
                 MessageAction::Star | MessageAction::Unstar => "star",
                 MessageAction::Trash | MessageAction::Discard => "delete",
-                MessageAction::Edit => "edit",
+                MessageAction::Edit | MessageAction::MakeRule => "edit",
             };
             let label = i18n::s(item.action.label());
             match item.action {
                 MessageAction::Trash | MessageAction::Discard => {
-                    swipe_end = Some(self.button(icon, label, Act::Run(item.command.clone())));
+                    swipe_end = Some(self.button(icon, label, Act::Action(item.run.clone())));
                 }
                 MessageAction::Edit => {
-                    swipe_start = Some(self.button(icon, label, Act::Run(item.command.clone())));
+                    swipe_start = Some(self.button(icon, label, Act::Action(item.run.clone())));
                 }
                 _ => {}
             }
-            actions.push(self.button(icon, label, Act::Run(item.command)));
+            actions.push(self.button(icon, label, Act::Action(item.run)));
         }
         (actions, swipe_start, swipe_end)
     }

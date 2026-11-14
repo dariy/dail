@@ -476,3 +476,18 @@ fn opening_a_missing_original_is_reported() {
     let notices = wait_for_notice(&bridge);
     assert_eq!(notices, ["The message is not in the local store any more."]);
 }
+
+#[test]
+fn a_message_card_makes_a_rule_from_its_message() {
+    // TCH-8: the card's *Make a rule…* opens the palette at the rule step for that message.
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(&mut h, Command::OpenThread { id: threads[0] });
+    h.state_mut().out.clear();
+    h.get_by_label_contains("Make a rule…, message from")
+        .click();
+    h.run();
+    assert_eq!(h.state_mut().take(), [Command::OpenPalette {}]);
+}

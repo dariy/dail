@@ -1,14 +1,16 @@
 //! The actions of one message of a conversation (MISC-44): what a message card (GUI), the
 //! reader's message cursor (TUI) and, later, the mobile presenter offer for that message alone,
-//! each with the `Command` it submits.
+//! each with what it runs ([`Run`]: a command, or a palette flow).
 //!
-//! A message answers, forwards, toggles its read state and its star, and moves to the Trash on
-//! its own (`messages: [id]`). A draft offers only Edit (`edit_draft`) and Discard: the local
+//! A message answers, forwards, toggles its read state and its star, makes a rule from itself
+//! (*Make a rule…*, the palette's `rule_from` step; TCH-8) and moves to the Trash on its own
+//! (`messages: [id]`). A draft offers only Edit (`edit_draft`) and Discard: the local
 //! draft saved as it is discarded (`discard_draft`), and a draft that is only on the server
 //! (written on another device) is moved to the Trash. Either way the conversation stays.
 
 use app_core::{AppState, Command, CommandName, Envelope, MessageId};
 
+use crate::actions::Run;
 use crate::i18n::Key;
 
 /// An action of a message.
@@ -28,6 +30,8 @@ pub enum MessageAction {
     Star,
     /// Remove its star.
     Unstar,
+    /// Make a rule from it (a palette flow; no key of its own).
+    MakeRule,
     /// Move it to the Trash.
     Trash,
     /// Edit the draft.
@@ -47,6 +51,7 @@ impl MessageAction {
             Self::MarkUnread => Key::MarkUnread,
             Self::Star => Key::Star,
             Self::Unstar => Key::Unstar,
+            Self::MakeRule => Key::MakeRule,
             Self::Trash => Key::Trash,
             Self::Edit => Key::Edit,
             Self::Discard => Key::Discard,
@@ -54,9 +59,10 @@ impl MessageAction {
     }
 
     /// The registry command whose keys run it (for key hints): `r` replies to the message, `#`
-    /// trashes or discards it, `u` and `s` toggle it.
-    pub const fn key_command(self) -> CommandName {
-        match self {
+    /// trashes or discards it, `u` and `s` toggle it. None for *Make a rule…*, which no key
+    /// runs on a message.
+    pub const fn key_command(self) -> Option<CommandName> {
+        Some(match self {
             Self::Reply => CommandName::Reply,
             Self::ReplyAll => CommandName::ReplyAll,
             Self::Forward => CommandName::Forward,
@@ -66,7 +72,8 @@ impl MessageAction {
             Self::Unstar => CommandName::Unstar,
             Self::Trash | Self::Discard => CommandName::TrashThreads,
             Self::Edit => CommandName::EditDraft,
-        }
+            Self::MakeRule => return None,
+        })
     }
 
     /// Whether a key of the registry command `name` runs it. The read and star keys toggle,
@@ -77,18 +84,18 @@ impl MessageAction {
                 matches!(name, CommandName::MarkRead | CommandName::MarkUnread)
             }
             Self::Star | Self::Unstar => matches!(name, CommandName::Star | CommandName::Unstar),
-            action => action.key_command() == name,
+            action => action.key_command() == Some(name),
         }
     }
 }
 
-/// An action and the command it submits.
+/// An action and what it runs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Item {
     /// The action.
     pub action: MessageAction,
-    /// What it submits.
-    pub command: Command,
+    /// What it runs: a command to submit, or a palette flow ([`Run::flow`]).
+    pub run: Run,
 }
 
 /// The actions of `message`, in display order; none if it is not cached.
@@ -100,7 +107,10 @@ pub fn message_actions(state: &AppState, message: MessageId) -> Vec<Item> {
         return draft_actions(state, envelope);
     }
     let messages = || vec![message];
-    let item = |action, command| Item { action, command };
+    let item = |action, command| Item {
+        action,
+        run: Run::Command(command),
+    };
     vec![
         item(
             MessageAction::Reply,
@@ -157,6 +167,10 @@ pub fn message_actions(state: &AppState, message: MessageId) -> Vec<Item> {
                 },
             )
         },
+        Item {
+            action: MessageAction::MakeRule,
+            run: Run::RuleFrom(message),
+        },
         item(MessageAction::Trash, trash(message)),
     ]
 }
@@ -173,13 +187,13 @@ fn draft_actions(state: &AppState, envelope: &Envelope) -> Vec<Item> {
     vec![
         Item {
             action: MessageAction::Edit,
-            command: Command::EditDraft {
+            run: Run::Command(Command::EditDraft {
                 message: envelope.id,
-            },
+            }),
         },
         Item {
             action: MessageAction::Discard,
-            command: discard,
+            run: Run::Command(discard),
         },
     ]
 }
@@ -197,5 +211,8 @@ pub fn for_key(state: &AppState, message: MessageId, name: CommandName) -> Optio
     message_actions(state, message)
         .into_iter()
         .find(|item| item.action.answers(name))
-        .map(|item| item.command)
+        .and_then(|item| match item.run {
+            Run::Command(cmd) => Some(cmd),
+            _ => None,
+        })
 }

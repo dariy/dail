@@ -223,3 +223,17 @@ fn a_draft_card_swipes_to_edit_and_to_discard() {
         "{sent:?}"
     );
 }
+
+#[test]
+fn a_card_makes_a_rule_from_its_message() {
+    // TCH-8: once in the card's menu, before Trash; a tap opens the palette at the rule step.
+    let mut phone = Phone::inbox(360, 800);
+    let card = first_card(&mut phone);
+    let labels = labels(&card);
+    assert_eq!(labels.iter().filter(|l| **l == "Make a rule…").count(), 1);
+    assert_eq!(labels[labels.len() - 2..], ["Make a rule…", "Trash"]);
+    let tap = action(&card, "Make a rule…");
+    assert_eq!(phone.tap(tap), [Command::OpenPalette {}]);
+    let sheet = phone.frame().palette.unwrap();
+    assert!(sheet.prompt.is_some(), "the palette opens at a step");
+}

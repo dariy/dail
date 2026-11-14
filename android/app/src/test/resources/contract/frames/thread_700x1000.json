@@ -1,7 +1,7 @@
 {
   "back": true,
   "fab": {
-    "action": 43,
+    "action": 44,
     "icon": "edit",
     "label": "Compose"
   },
@@ -82,12 +82,12 @@
       }
     ],
     "close": {
-      "action": 41,
+      "action": 42,
       "icon": "close",
       "label": "Close message"
     },
     "maximize": {
-      "action": 42,
+      "action": 43,
       "icon": "open_in_full",
       "label": "Maximize message"
     },
@@ -120,7 +120,12 @@
             "label": "Star"
           },
           {
-            "action": 40,
+            "action": 39,
+            "icon": "edit",
+            "label": "Make a rule…"
+          },
+          {
+            "action": 41,
             "icon": "delete",
             "label": "Trash"
           }
@@ -134,7 +139,7 @@
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "swipe_end": {
-          "action": 39,
+          "action": 40,
           "icon": "delete",
           "label": "Trash"
         },

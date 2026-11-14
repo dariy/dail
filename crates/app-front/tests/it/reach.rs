@@ -351,14 +351,10 @@ fn listed(front: FrontEnd) -> HashSet<CommandName> {
                 runs.extend(account_actions(&state, id).into_iter().map(|e| e.run));
             }
         }
-        out.extend(runs.iter().map(run_name));
         for &id in state.messages.keys() {
-            out.extend(
-                message_actions(&state, id)
-                    .into_iter()
-                    .map(|item| item.command.command_name()),
-            );
+            runs.extend(message_actions(&state, id).into_iter().map(|item| item.run));
         }
+        out.extend(runs.iter().map(run_name));
     }
     out
 }
