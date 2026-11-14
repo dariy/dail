@@ -358,8 +358,8 @@ finished pull, so a newer server copy is never overwritten unread; `WriteSetting
 `SettingsFailed{account, write, error}`; a diagnostic without an `ERR<code>: ` prefix is wrapped as `ERR023` (read) or
 `ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
 (`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
-(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the group under the Rules
-screen), with a short note of which settings follow the account and `Changes not stored on the server yet` while
+(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the *Settings on the server*
+group of General, TCH-7, and a stored/not-stored row with *Store on the server* under Rules), with a short note of which settings follow the account and `Changes not stored on the server yet` while
 `synced.dirty`.
 
 Shared and local settings (SET-7). The local `Settings` (in `config.toml`) stay the effective values every front end
@@ -1552,7 +1552,13 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `External::SystemSettings`); the GUI and the TUI show General for `notifications` and their first section for
   `index`. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
   password form), *Remove* (the palette's confirmation step, `app_front::palette::remove_account`), then *Add an
-  account*. `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
+  account*. General ends with *Settings on the server* (TCH-7, as on the desktop), built from `app_front::synced::panel`
+  (`pulling`, `pulled_ms`, `pushed_ms`, `error` beside `status`): *Settings account* (the address, `(first account)`
+  when none was chosen, and a choice per account running `set_settings_account`; there is no "off": the command
+  needs an account), *Last pulled* (`app_front::format::age` or *Never*; *reading from the server…* while a pull
+  runs, else a *Pull now* button = `pull_settings` for that account), *Last stored*, *Settings sync* (stored / not
+  stored, *Store on the server* = `push_settings` while dirty and pushable) and, only after a failure, *Last error*
+  (the cleaned plain text, starting with its `ERR<code>: `). `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
 - **Account setup** (`mobile/setup.rs`), the GUI's wizard and the TUI's: provider → address (the servers for a custom
   one, *Find servers* = `discover_servers`, whose answer fills them through `status.discovery`) → password →
   `add_account` (purpose `Setup`) → `test_account` → *Sync now* (`sync_now` for the account). `setup` is a sheet over

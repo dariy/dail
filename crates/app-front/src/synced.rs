@@ -21,6 +21,15 @@ pub struct Panel {
     pub shared: &'static str,
     /// `Changes not stored on the server yet` while local changes wait for a push.
     pub pending: Option<&'static str>,
+    /// A pull is in flight (a second one is not offered).
+    pub pulling: bool,
+    /// When the last pull finished, in Unix milliseconds.
+    pub pulled_ms: Option<i64>,
+    /// When the last push was stored on the server, in Unix milliseconds.
+    pub pushed_ms: Option<i64>,
+    /// The last failed pull or push, as plain text starting with its `ERR<code>: `, even
+    /// while a new pull or push runs (TCH-7).
+    pub error: Option<String>,
 }
 
 /// The panel for `state`; `None` without accounts.
@@ -59,5 +68,12 @@ pub fn panel(state: &AppState) -> Option<Panel> {
         failed,
         shared: s(Key::SettingsShared),
         pending: synced.dirty.then(|| s(Key::RulesNotStored)),
+        pulling: synced.pulling,
+        pulled_ms: synced.pulled_ms,
+        pushed_ms: synced.pushed_ms,
+        error: synced
+            .error
+            .as_ref()
+            .map(|issue| crate::text::clean(&issue.error)),
     })
 }

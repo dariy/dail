@@ -2483,4 +2483,16 @@ strings! {
     BatteryExemptHint:
         "Some phones stop background checks until dail is exempt from battery optimization.",
         "Certains téléphones arrêtent les vérifications en arrière-plan tant que dail n’est pas exempté de l’optimisation de la batterie.";
+    SettingsLastPulled:
+        "Last pulled",
+        "Dernière lecture";
+    SettingsLastStored:
+        "Last stored",
+        "Dernier enregistrement";
+    SettingsPullNow:
+        "Pull now",
+        "Lire maintenant";
+    SettingsLastError:
+        "Last error",
+        "Dernière erreur";
 }

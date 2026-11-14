@@ -307,7 +307,11 @@ fn choices_run_the_settings_commands() {
 fn background_and_notifications_have_a_section_of_their_own() {
     let mut phone = Phone::inbox(360, 800);
     let only_general = page(&mut phone, SettingsSection::General);
-    assert_eq!(only_general.groups.len(), 1);
+    assert_eq!(
+        only_general.groups.len(),
+        2,
+        "General, then the synced settings"
+    );
     assert!(
         !only_general
             .groups
@@ -725,4 +729,123 @@ fn escape_agrees_with_back_in_the_compact_settings() {
         },
         [Command::CloseSettings {}]
     );
+}
+
+/// The *Synced settings* group of General (TCH-7).
+fn synced(phone: &mut Phone) -> app_mobile::frame::SettingsGroup {
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::General),
+    });
+    phone
+        .frame()
+        .settings
+        .unwrap()
+        .groups
+        .into_iter()
+        .find(|g| g.title == "Settings on the server")
+        .expect("the synced settings group")
+}
+
+fn row<'a>(
+    group: &'a app_mobile::frame::SettingsGroup,
+    label: &str,
+) -> &'a app_mobile::frame::SettingRow {
+    group
+        .rows
+        .iter()
+        .find(|r| r.label == label)
+        .unwrap_or_else(|| panic!("no row {label}"))
+}
+
+#[test]
+fn settings_sync_has_its_rows_under_general() {
+    for (w, h) in [(360, 800), (1280, 800)] {
+        let mut phone = Phone::inbox(w, h);
+        let account = *phone.state().accounts.keys().next().unwrap();
+        let group = synced(&mut phone);
+        let labels: Vec<_> = group.rows.iter().map(|r| r.label.as_str()).collect();
+        assert_eq!(
+            labels,
+            [
+                "Settings account",
+                "Last pulled",
+                "Last stored",
+                "Settings sync"
+            ],
+            "{w}x{h}"
+        );
+        // No account chosen: the first one, marked so; a tap chooses it.
+        let picker = row(&group, "Settings account");
+        assert!(picker.value.contains("alice@example.com") && picker.value != "alice@example.com");
+        assert_eq!(picker.choices.len(), phone.state().accounts.len());
+        assert_eq!(
+            phone.tap(picker.choices[0].action),
+            [Command::SetSettingsAccount { account }]
+        );
+        let group = synced(&mut phone);
+        assert_eq!(row(&group, "Settings account").value, "alice@example.com");
+        assert_eq!(row(&group, "Last stored").value, "Never");
+
+        // A pull runs: the row says so and offers no second one.
+        let pulled = row(&group, "Last pulled");
+        if pulled.actions.is_empty() {
+            // `set_settings_account` pulls at once.
+            assert_eq!(pulled.value, "reading from the server…");
+        } else {
+            assert_eq!(
+                phone.tap(pulled.actions[0].action),
+                [Command::PullSettings {
+                    account: Some(account)
+                }]
+            );
+        }
+        let group = synced(&mut phone);
+        let pulled = row(&group, "Last pulled");
+        assert_eq!(pulled.value, "reading from the server…");
+        assert!(pulled.actions.is_empty());
+        phone.ingest(Event::SettingsRead {
+            account,
+            copy: None,
+            document: None,
+        });
+        let group = synced(&mut phone);
+        let pulled = row(&group, "Last pulled");
+        assert_eq!(pulled.value, "just now");
+        assert_eq!(pulled.actions[0].label, "Pull now");
+        assert_eq!(
+            phone.tap(pulled.actions[0].action),
+            [Command::PullSettings {
+                account: Some(account)
+            }]
+        );
+
+        // A failed pull shows its error with the code.
+        phone.ingest(Event::SettingsFailed {
+            account,
+            write: false,
+            error: "ERR023: the server said no".to_owned(),
+        });
+        let group = synced(&mut phone);
+        assert!(row(&group, "Last error").value.starts_with("ERR023: "));
+
+        // A rule change waits for a push; *Store on the server* pushes, and the push lands.
+        phone.dispatch(news_rule());
+        phone.dispatch(Command::PullSettings { account: None });
+        phone.ingest(Event::SettingsRead {
+            account,
+            copy: None,
+            document: None,
+        });
+        let group = synced(&mut phone);
+        let store = row(&group, "Settings sync");
+        assert_eq!(
+            phone.tap(store.actions[0].action),
+            [Command::PushSettings {}]
+        );
+        phone.ingest(Event::SettingsWritten { account });
+        let group = synced(&mut phone);
+        assert_eq!(row(&group, "Last stored").value, "just now");
+        assert!(row(&group, "Settings sync").actions.is_empty());
+        assert!(group.rows.iter().all(|r| r.label != "Last error"));
+    }
 }

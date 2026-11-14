@@ -163,8 +163,9 @@ const fn row(name: CommandName) -> Row {
         N::SetListFilter | N::RetryPendingOps | N::ClearFocus => Row(C, P, P),
         N::FocusMailbox => Row(C, C, C),
         N::RemoveAccount => Row(F, P, F),
-        N::PullSettings => Row(P, C, P),
-        N::SetSettingsAccount => Row(F, F, P),
+        // The phone's *Synced settings* group under General (TCH-7).
+        N::PullSettings => Row(P, C, C),
+        N::SetSettingsAccount => Row(F, F, C),
         N::SelectThreads => Row(P, C, P),
         N::FocusPane => Row(P, C, C),
         // The reader's and composer's controls the TUI does not draw.

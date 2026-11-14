@@ -134,6 +134,48 @@
           }
         ],
         "title": "General"
+      },
+      {
+        "hint": "Follow this account on every device: the theme, language, list density, mark-read delay, undo-send window and what shows after triage. The rest stays on this device.",
+        "rows": [
+          {
+            "actions": [],
+            "choices": [
+              {
+                "action": 21,
+                "label": "alice@example.com",
+                "selected": true
+              }
+            ],
+            "hint": "Its hidden dail/Settings folder holds the settings shared by your devices",
+            "label": "Settings account",
+            "value": "alice@example.com (first account)"
+          },
+          {
+            "actions": [
+              {
+                "action": 22,
+                "label": "Pull now"
+              }
+            ],
+            "choices": [],
+            "label": "Last pulled",
+            "value": "9h ago"
+          },
+          {
+            "actions": [],
+            "choices": [],
+            "label": "Last stored",
+            "value": "Never"
+          },
+          {
+            "actions": [],
+            "choices": [],
+            "label": "Settings sync",
+            "value": "Stored on the server"
+          }
+        ],
+        "title": "Settings on the server"
       }
     ],
     "section": "general",

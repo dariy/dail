@@ -165,6 +165,19 @@ fn frames() -> Vec<(String, Frame)> {
         section: Some(app_core::SettingsSection::Rules),
     });
     out.push(("settings_rules".to_owned(), phone.frame()));
+    // General's *Synced settings* with a failed pull (TCH-7).
+    let mut phone = Phone::inbox(360, 800);
+    let account = *phone.state().accounts.keys().next().unwrap();
+    phone.dispatch(Command::PullSettings { account: None });
+    phone.ingest(app_core::Event::SettingsFailed {
+        account,
+        write: false,
+        error: "ERR023: the server refused the folder".to_owned(),
+    });
+    phone.dispatch(Command::OpenSettings {
+        section: Some(app_core::SettingsSection::General),
+    });
+    out.push(("settings_synced_error".to_owned(), phone.frame()));
     // The settings root of a compact window (TCH-6), with and without a hardware keyboard.
     for (name, keyboard) in [
         ("settings_root", true),

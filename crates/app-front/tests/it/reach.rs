@@ -171,8 +171,6 @@ fn the_touch_gaps_are_pinned() {
             "set_identity",
             "remove_identity",
             "set_mailbox_identity",
-            "pull_settings",
-            "set_settings_account",
             "list_rules",
             "list_mailboxes",
             "list_threads",

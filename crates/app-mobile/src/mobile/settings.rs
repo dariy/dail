@@ -495,11 +495,109 @@ impl Mobile {
         .into_iter()
         .map(|key| self.setting_row(state, key))
         .collect();
-        vec![SettingsGroup {
+        let mut groups = vec![SettingsGroup {
             title: i18n::s(Key::General).to_owned(),
             hint: None,
             rows: general,
-        }]
+        }];
+        groups.extend(self.synced(state));
+        groups
+    }
+
+    /// *Synced settings* (TCH-7), under General as on the desktop: the settings account with a
+    /// picker, the last pull with *Pull now*, the last push, the stored state with *Store on
+    /// the server*, and the last error. Everything comes from `app_front::synced::panel`.
+    fn synced(&mut self, state: &AppState) -> Option<SettingsGroup> {
+        let panel = app_front::synced::panel(state)?;
+        let rules = app_front::rules::panel(state);
+        let now = self.now_ms();
+        let when = |ms: Option<i64>| {
+            ms.map_or_else(
+                || i18n::s(Key::Never).to_owned(),
+                |ms| app_front::format::age(ms, now),
+            )
+        };
+        let accounts: Vec<_> = state
+            .accounts
+            .values()
+            .map(|a| (a.id, clean(&a.email)))
+            .collect();
+        let choices = accounts
+            .into_iter()
+            .map(|(id, email)| {
+                self.choice(
+                    &email,
+                    id == panel.account,
+                    Command::SetSettingsAccount { account: id },
+                )
+            })
+            .collect();
+        let mut rows = vec![SettingRow {
+            label: i18n::s(Key::SettingsAccount).to_owned(),
+            value: panel.account_label.clone(),
+            hint: Some(i18n::s(Key::SettingsAccountHint).to_owned()),
+            choices,
+            actions: Vec::new(),
+        }];
+        let pull = if panel.pulling {
+            Vec::new()
+        } else {
+            vec![self.link(
+                i18n::s(Key::SettingsPullNow),
+                Act::Run(Command::PullSettings {
+                    account: Some(panel.account),
+                }),
+            )]
+        };
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsLastPulled).to_owned(),
+            value: if panel.pulling {
+                i18n::s(Key::SettingsReading).to_owned()
+            } else {
+                when(panel.pulled_ms)
+            },
+            hint: None,
+            choices: Vec::new(),
+            actions: pull,
+        });
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsLastStored).to_owned(),
+            value: when(panel.pushed_ms),
+            hint: None,
+            choices: Vec::new(),
+            actions: Vec::new(),
+        });
+        let store = if panel.pending.is_some() && rules.can_push {
+            vec![self.link(i18n::s(Key::RulesStore), Act::Run(Command::PushSettings {}))]
+        } else {
+            Vec::new()
+        };
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsSyncState).to_owned(),
+            value: i18n::s(if panel.pending.is_some() {
+                Key::RulesNotStored
+            } else {
+                Key::RulesStored
+            })
+            .to_owned(),
+            hint: None,
+            choices: Vec::new(),
+            actions: store,
+        });
+        if let Some(error) = panel.error {
+            rows.push(SettingRow {
+                label: i18n::s(Key::SettingsLastError).to_owned(),
+                value: error,
+                hint: None,
+                choices: Vec::new(),
+                actions: Vec::new(),
+            });
+        }
+        Some(SettingsGroup {
+            title: i18n::s(Key::SyncedSettings).to_owned(),
+            hint: Some(panel.shared.to_owned()),
+            rows,
+        })
     }
 
     /// *Notifications & background* (TCH-6): background checks, their interval, notifications

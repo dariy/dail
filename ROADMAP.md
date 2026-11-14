@@ -1136,7 +1136,7 @@ ships in English and French.
   *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*. *Keyboard* shows only
   while a hardware keyboard is attached and is otherwise the last, folded entry. Medium and expanded windows keep tabs
   or a two-pane layout
-- [ ] TCH-7 (S) [mobile][kt][ios]: settings sync on the phone: the settings account as a row with a picker, *Pull now*,
+- [x] TCH-7 (S) [mobile][kt][ios]: settings sync on the phone: the settings account as a row with a picker, *Pull now*,
   when settings were last pulled and stored, and the last error with its ERR code
 
 ### Q — Proof
