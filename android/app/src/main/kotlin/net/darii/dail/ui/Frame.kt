@@ -418,7 +418,17 @@ data class Attachment(
 data class SettingsPage(
     val section: String,
     val tabs: List<Choice>,
+    val sections: List<SettingsEntry>,
     val groups: List<SettingsGroup>,
+)
+
+@Serializable
+data class SettingsEntry(
+    val icon: String,
+    val label: String,
+    val hint: String? = null,
+    val folded: Boolean,
+    val action: ActionId,
 )
 
 @Serializable

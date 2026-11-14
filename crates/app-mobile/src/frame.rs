@@ -676,15 +676,36 @@ pub struct Preview {
     pub close: Button,
 }
 
-/// The settings page: the sections as tabs, and the open one's rows in groups.
+/// The settings page (TCH-6): on a compact window the root lists the sections and a section
+/// shows its groups alone; wider windows show the sections as tabs above the open one's groups.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SettingsPage {
-    /// The open section (`appearance`, `keys`, `general`, `accounts`).
+    /// The open section (`accounts`, `rules`, `appearance`, `general`, `notifications`,
+    /// `keys`), or `index` at the root of a compact window.
     pub section: String,
-    /// The sections; a tap opens one (`open_settings`).
+    /// The sections as tabs on medium and expanded windows (empty on compact); a tap opens one
+    /// (`open_settings`, or the About screen).
     pub tabs: Vec<Choice>,
+    /// The root's list of sections on a compact window (empty elsewhere and inside a section).
+    pub sections: Vec<SettingsEntry>,
     /// The open section's rows, under captions.
     pub groups: Vec<SettingsGroup>,
+}
+
+/// An entry of the settings root: a section, or *About*.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingsEntry {
+    /// Its glyph (`person`, `keyboard`).
+    pub icon: String,
+    /// Its name (`Rules`).
+    pub label: String,
+    /// A line under it (`2 account(s)`, `No keyboard attached`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    /// Drawn subdued, as secondary: the keyboard's entry while none is attached.
+    pub folded: bool,
+    /// Opens it (`open_settings`, or the About screen).
+    pub action: ActionId,
 }
 
 /// Rows of the settings page under one caption.

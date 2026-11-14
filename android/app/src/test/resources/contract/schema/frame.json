@@ -2186,6 +2186,43 @@
       ],
       "type": "object"
     },
+    "SettingsEntry": {
+      "description": "An entry of the settings root: a section, or *About*.",
+      "properties": {
+        "action": {
+          "description": "Opens it (`open_settings`, or the About screen).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "folded": {
+          "description": "Drawn subdued, as secondary: the keyboard's entry while none is attached.",
+          "type": "boolean"
+        },
+        "hint": {
+          "description": "A line under it (`2 account(s)`, `No keyboard attached`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "description": "Its glyph (`person`, `keyboard`).",
+          "type": "string"
+        },
+        "label": {
+          "description": "Its name (`Rules`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "icon",
+        "label",
+        "folded",
+        "action"
+      ],
+      "type": "object"
+    },
     "SettingsGroup": {
       "description": "Rows of the settings page under one caption.",
       "properties": {
@@ -2215,7 +2252,7 @@
       "type": "object"
     },
     "SettingsPage": {
-      "description": "The settings page: the sections as tabs, and the open one's rows in groups.",
+      "description": "The settings page (TCH-6): on a compact window the root lists the sections and a section\nshows its groups alone; wider windows show the sections as tabs above the open one's groups.",
       "properties": {
         "groups": {
           "description": "The open section's rows, under captions.",
@@ -2225,11 +2262,18 @@
           "type": "array"
         },
         "section": {
-          "description": "The open section (`appearance`, `keys`, `general`, `accounts`).",
+          "description": "The open section (`accounts`, `rules`, `appearance`, `general`, `notifications`,\n`keys`), or `index` at the root of a compact window.",
           "type": "string"
         },
+        "sections": {
+          "description": "The root's list of sections on a compact window (empty elsewhere and inside a section).",
+          "items": {
+            "$ref": "#/$defs/SettingsEntry"
+          },
+          "type": "array"
+        },
         "tabs": {
-          "description": "The sections; a tap opens one (`open_settings`).",
+          "description": "The sections as tabs on medium and expanded windows (empty on compact); a tap opens one\n(`open_settings`, or the About screen).",
           "items": {
             "$ref": "#/$defs/Choice"
           },
@@ -2239,6 +2283,7 @@
       "required": [
         "section",
         "tabs",
+        "sections",
         "groups"
       ],
       "type": "object"

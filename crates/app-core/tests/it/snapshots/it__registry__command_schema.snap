@@ -880,7 +880,17 @@ expression: command_schema()
         },
         {
           "const": "general",
-          "description": "Undo-send window, polling, notifications, history.",
+          "description": "Undo-send window, polling, the first fetch, mark-as-read, history. Front ends without a\nNotifications section of their own (the desktop GUI, the TUI) also show the\nnotification and background rows here.",
+          "type": "string"
+        },
+        {
+          "const": "notifications",
+          "description": "Notifications and background checks. A phone shows them apart from General; a\ndesktop shows General in its place (TCH-6).",
+          "type": "string"
+        },
+        {
+          "const": "index",
+          "description": "The list of the sections: a phone's settings root. A desktop shows its first section\n(`appearance`) in its place (TCH-6).",
           "type": "string"
         },
         {
@@ -3619,7 +3629,7 @@ expression: command_schema()
       "type": "object"
     },
     {
-      "description": "Show the settings page (in place of the list and the reader), at a section: `appearance`\n(default), `keys`, `general`, `accounts`, `rules` (the sorting rules) or `about`.\nSettings change through `set_setting`, `set_theme` and the other commands; the page only\nshows them.",
+      "description": "Show the settings page (in place of the list and the reader), at a section: `appearance`\n(default), `keys`, `general`, `notifications` (notifications and background checks),\n`accounts`, `rules` (the sorting rules), `about`, or `index` (the list of the sections,\na phone's settings root).\nSettings change through `set_setting`, `set_theme` and the other commands; the page only\nshows them.",
       "properties": {
         "args": {
           "properties": {

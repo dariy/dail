@@ -351,6 +351,57 @@ fn navigation_closes_the_settings_page() {
 }
 
 #[test]
+fn the_phone_sections_open_and_keep_their_json_names() {
+    use app_core::SettingsSection;
+    let mut engine = Engine::default();
+    for (at, (section, name)) in [
+        (SettingsSection::Index, "index"),
+        (SettingsSection::Notifications, "notifications"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let cmd: Command = serde_json::from_value(
+            serde_json::json!({"cmd": "open_settings", "args": {"section": name}}),
+        )
+        .unwrap();
+        assert_eq!(
+            cmd,
+            Command::OpenSettings {
+                section: Some(section)
+            }
+        );
+        let outcome = engine.dispatch(cmd, &ctx(at as u128 + 1)).unwrap();
+        assert_eq!(outcome.receipt.data["settings"], name);
+        assert_eq!(engine.state().view.settings, Some(section));
+    }
+    // Without a section the open one stays, the root included.
+    engine
+        .dispatch(
+            Command::OpenSettings {
+                section: Some(SettingsSection::Index),
+            },
+            &ctx(3),
+        )
+        .unwrap();
+    engine
+        .dispatch(Command::OpenSettings { section: None }, &ctx(4))
+        .unwrap();
+    assert_eq!(engine.state().view.settings, Some(SettingsSection::Index));
+    // The sections of before keep their names.
+    for (section, name) in [
+        (SettingsSection::Appearance, "appearance"),
+        (SettingsSection::Keys, "keys"),
+        (SettingsSection::General, "general"),
+        (SettingsSection::Accounts, "accounts"),
+        (SettingsSection::Rules, "rules"),
+        (SettingsSection::About, "about"),
+    ] {
+        assert_eq!(serde_json::to_value(section).unwrap(), name);
+    }
+}
+
+#[test]
 fn the_settings_page_opens_at_a_section_and_closes() {
     use app_core::SettingsSection;
     let mut engine = Engine::default();

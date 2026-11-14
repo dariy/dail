@@ -462,7 +462,17 @@ struct Attachment: Codable {
 struct SettingsPage: Codable {
     let section: String
     let tabs: [Choice]
+    let sections: [SettingsEntry]
     let groups: [SettingsGroup]
+}
+
+/// An entry of the settings root (`app_mobile::frame::SettingsEntry`, TCH-6).
+struct SettingsEntry: Codable {
+    let icon: String
+    let label: String
+    let hint: String?
+    let folded: Bool
+    let action: ActionId
 }
 
 struct SettingsGroup: Codable {

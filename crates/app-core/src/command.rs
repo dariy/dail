@@ -825,7 +825,9 @@ pub enum Command {
     /// Close the GUI composer. The draft is kept (and saved to the server's Drafts mailbox).
     CloseComposer {},
     /// Show the settings page (in place of the list and the reader), at a section: `appearance`
-    /// (default), `keys`, `general`, `accounts`, `rules` (the sorting rules) or `about`.
+    /// (default), `keys`, `general`, `notifications` (notifications and background checks),
+    /// `accounts`, `rules` (the sorting rules), `about`, or `index` (the list of the sections,
+    /// a phone's settings root).
     /// Settings change through `set_setting`, `set_theme` and the other commands; the page only
     /// shows them.
     OpenSettings {

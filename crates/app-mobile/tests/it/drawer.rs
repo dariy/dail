@@ -135,9 +135,12 @@ fn settings_and_add_account_open_the_settings_page() {
     let frame = phone.frame();
     assert_eq!(frame.layout.panes, [PaneKind::Settings]);
     assert_eq!(frame.settings.unwrap().section, "accounts");
-    assert_eq!(frame.top_bar.title, "Settings");
+    assert_eq!(frame.top_bar.title, "Accounts");
     assert!(frame.fab.is_none());
     assert!(frame.back);
+    // Back goes to the settings root (TCH-6), then out of the settings.
+    phone.event(UiEvent::Back);
+    assert_eq!(phone.frame().settings.unwrap().section, "index");
     phone.event(UiEvent::Back);
     assert_eq!(phone.state().view.settings, None);
 }

@@ -57,6 +57,13 @@ impl SettingsState {
         now_ms: i64,
         queue: &mut Vec<Request>,
     ) -> SettingsActions {
+        // The phone's own sections (TCH-6): notifications are General's here, and the root
+        // shows the first tab.
+        let section = match section {
+            SettingsSection::Notifications => SettingsSection::General,
+            SettingsSection::Index => SettingsSection::Appearance,
+            other => other,
+        };
         let mut actions = SettingsActions::default();
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.sm;
@@ -110,7 +117,9 @@ impl SettingsState {
                     SettingsSection::Keys => {
                         actions.ask = keys(ui, t, state, &mut self.filter, queue);
                     }
-                    SettingsSection::General => {
+                    SettingsSection::General
+                    | SettingsSection::Notifications
+                    | SettingsSection::Index => {
                         general(ui, t, state, queue);
                         updates(ui, t, state, now_ms, &mut actions, queue);
                         synced(ui, t, state, &mut actions);

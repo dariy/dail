@@ -210,6 +210,8 @@ pub struct Mobile {
     externals: Vec<External>,
     /// The system's dark mode (`configure`).
     dark: bool,
+    /// A hardware keyboard is attached (`configure`): places the settings' Keyboard (TCH-6).
+    keyboard: bool,
     /// The theme the host has, by slug.
     theme_sent: Option<String>,
     /// Whether the About screen is open.
@@ -323,6 +325,7 @@ impl Mobile {
             sending: None,
             externals: Vec::new(),
             dark: false,
+            keyboard: false,
             theme_sent: None,
             about: false,
             about_page: None,
@@ -433,6 +436,16 @@ impl Mobile {
             Vec::new()
         };
         let mut out = self.handle(event, state);
+        // Settings opened without a section (the palette, a key) start at their root (TCH-6).
+        if state.view.settings.is_none() {
+            for request in &mut out {
+                if request.cmd == (Command::OpenSettings { section: None }) {
+                    request.cmd = Command::OpenSettings {
+                        section: Some(SettingsSection::Index),
+                    };
+                }
+            }
+        }
         if !flushed.is_empty() {
             out.splice(0..0, flushed);
         }
@@ -451,9 +464,11 @@ impl Mobile {
                 height_dp,
                 dark,
                 locale,
+                keyboard,
                 ..
             } => {
                 self.dark = dark;
+                self.keyboard = keyboard;
                 self.window = Window {
                     width_dp,
                     height_dp,
@@ -833,6 +848,16 @@ impl Mobile {
         let now = self.now_ms();
         let typing = state.view.composer.is_some() && state.view.focus == Pane::Composer;
         match self.keys.press(chord, typing, state, now) {
+            // Escape inside a section of a compact window's settings goes to their root, as Back
+            // does (TCH-6).
+            Press::Done(Action::Run(Command::CloseSettings {}))
+                if self.settings_back(state).is_some() =>
+            {
+                self.settings_back(state)
+                    .into_iter()
+                    .map(Request::user)
+                    .collect()
+            }
             Press::Done(Action::Run(cmd)) => vec![Request::user(cmd)],
             Press::Done(Action::Ask(step)) => self.ask(palette::Flow::Ask(step), state),
             Press::Done(Action::Wizard) => self.ask(palette::Flow::Wizard, state),
@@ -870,6 +895,10 @@ impl Mobile {
         // A modal drawer closes before what it covers.
         if self.drawer_back(state) {
             return vec![Request::user(Command::FocusPane { pane: Pane::List })];
+        }
+        // Inside a section of a compact window, back to the settings root (TCH-6).
+        if let Some(cmd) = self.settings_back(state) {
+            return vec![Request::user(cmd)];
         }
         if let Some(cmd) = self.escape(state) {
             return vec![Request::user(cmd)];
@@ -1244,7 +1273,7 @@ impl Mobile {
             Some(PaneKind::Drawer) => i18n::s(Text::Mailboxes).to_owned(),
             Some(PaneKind::Reader) => i18n::s(Text::Message).to_owned(),
             Some(PaneKind::Composer) => i18n::s(Text::Draft).to_owned(),
-            Some(PaneKind::Settings) => i18n::s(Text::Settings).to_owned(),
+            Some(PaneKind::Settings) => self.settings_title(state).to_owned(),
             Some(PaneKind::List) | None => list_title(state),
         };
         let subtitle = (!state.accounts.is_empty())
@@ -1416,14 +1445,19 @@ impl Mobile {
         }
         let mut footer = Vec::new();
         for (label, icon, section) in [
-            (i18n::s(Text::Settings), "settings", None),
+            (
+                i18n::s(Text::Settings),
+                "settings",
+                Some(SettingsSection::Index),
+            ),
             (
                 i18n::s(Text::AddAccount),
                 "add",
                 Some(SettingsSection::Accounts),
             ),
         ] {
-            let selected = section.is_none() && state.view.settings.is_some() && !self.about;
+            let root = section == Some(SettingsSection::Index);
+            let selected = root && state.view.settings.is_some() && !self.about;
             footer.push(DrawerItem {
                 a11y: label.to_owned(),
                 label: label.to_owned(),
@@ -1435,7 +1469,7 @@ impl Mobile {
                 action: self.add(open(Command::OpenSettings { section })),
                 long_press: None,
             });
-            if section.is_none() {
+            if root {
                 // MISC-3: *About* right after *Settings* (no command: the screen is the
                 // presenter's).
                 footer.push(DrawerItem {

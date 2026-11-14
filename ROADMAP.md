@@ -1132,7 +1132,7 @@ ships in English and French.
   overflow, through `message_actions` and `thread_actions`, so the desktop cards get it too
 - [x] TCH-4 (M) [mobile][kt][ios]: a folder's actions in the drawer: a long press on a folder (`DrawerItem` gets
   `long_press`) opens a sheet of `mailbox_actions`. New names are typed in a text step; everything else is a tap
-- [ ] TCH-6 (M) [mobile][kt][ios]: settings as a list of sections on a compact window, not five scrolling tabs:
+- [x] TCH-6 (M) [mobile][kt][ios]: settings as a list of sections on a compact window, not five scrolling tabs:
   *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*. *Keyboard* shows only
   while a hardware keyboard is attached and is otherwise the last, folded entry. Medium and expanded windows keep tabs
   or a two-pane layout

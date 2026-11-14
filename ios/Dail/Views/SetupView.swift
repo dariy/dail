@@ -63,18 +63,36 @@ struct SettingsPane: View {
 
     var body: some View {
         List {
-            Section {
-                ScrollView(.horizontal) {
-                    HStack {
-                        ForEach(page.tabs, id: \.action) { tab in
-                            SwiftUI.Button { send(.tap(tab.action)) } label: { Text(verbatim: tab.label) }
-                                .buttonStyle(.bordered)
-                                .tint(tab.selected ? .accentColor : .secondary)
-                                .accessibilityAddTraits(tab.selected ? .isSelected : [])
+            if !page.tabs.isEmpty {
+                Section {
+                    ScrollView(.horizontal) {
+                        HStack {
+                            ForEach(page.tabs, id: \.action) { tab in
+                                SwiftUI.Button { send(.tap(tab.action)) } label: { Text(verbatim: tab.label) }
+                                    .buttonStyle(.bordered)
+                                    .tint(tab.selected ? .accentColor : .secondary)
+                                    .accessibilityAddTraits(tab.selected ? .isSelected : [])
+                            }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: Metrics.textStart - Self.buttonPadding, bottom: 4, trailing: 0))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: Metrics.textStart - Self.buttonPadding, bottom: 4, trailing: 0))
+            }
+            // The root of a compact window: the sections as a list (TCH-6; IOS-6 draws it fully).
+            if !page.sections.isEmpty {
+                Section {
+                    ForEach(Array(page.sections.enumerated()), id: \.offset) { _, entry in
+                        SwiftUI.Button { send(.tap(entry.action)) } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(verbatim: entry.label)
+                                if let hint = entry.hint {
+                                    Text(verbatim: hint).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .opacity(entry.folded ? 0.6 : 1)
+                    }
+                }
             }
             ForEach(Array(page.groups.enumerated()), id: \.offset) { _, group in
                 Section {

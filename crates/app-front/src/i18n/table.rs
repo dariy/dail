@@ -2465,4 +2465,22 @@ strings! {
     SendingAddresses:
         "Sending addresses…",
         "Adresses d’envoi…";
+    NotificationsBackground:
+        "Notifications & background",
+        "Notifications et arrière-plan";
+    NoKeyboardAttached:
+        "No keyboard attached",
+        "Aucun clavier branché";
+    SettingsAccountCount:
+        "{n} account(s)",
+        "{n} compte(s)";
+    SettingsRuleCount:
+        "{n} rule(s)",
+        "{n} règle(s)";
+    BackgroundSyncHint:
+        "Periodic checks wait for the phone's maintenance windows. Push keeps a silent notification while it watches the inboxes.",
+        "Les vérifications périodiques attendent les fenêtres de maintenance du téléphone. Le mode push garde une notification silencieuse pendant qu’il surveille les boîtes de réception.";
+    BatteryExemptHint:
+        "Some phones stop background checks until dail is exempt from battery optimization.",
+        "Certains téléphones arrêtent les vérifications en arrière-plan tant que dail n’est pas exempté de l’optimisation de la batterie.";
 }

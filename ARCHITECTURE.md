@@ -1065,7 +1065,7 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   phones, which have no such tab, show General (the phones have their own About screen).
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
   the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
-  runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the
+  runs `open_settings` with that section; the phone's `notifications` shows General and `index` Appearance), then the section. Appearance: the mode as a segmented control and the
   light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
   and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
@@ -1079,7 +1079,7 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   links (rule text is untrusted). GUI: a switch (`enable_rule`), *Edit…* and *Delete* (`delete_rule`, undoable) per
   rule, *Add a rule…*, *Apply to this mailbox* (`apply_rules` on the open mailbox; not the unified inbox) and
   *Store on the server* (`push_settings`, enabled while `synced.dirty`). TUI: the fourth section; `Enter` edits,
-  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the fifth tab, one settings row per rule
+  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the second section (one tap from the compact root, TCH-6), one settings row per rule
   with On/Off choices and *Edit…*/*Delete* buttons (the frame types are unchanged). *Add a rule…* and *Edit…* are
   palette steps (`palette::new_rule`, `palette::edit_rule`: a test (sender, To, Cc, subject, mailing list,
   attachment) and its text, then an action (move to a folder, archive, mark read, star); editing replaces the name,
@@ -1385,8 +1385,8 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
   field is dropped, never run as keys.
 - **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys, Accounts and Rules
-  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
-  General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
+  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance`, and the phone's
+  `notifications` and `index`, show General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
   that changes the row (or tests the account), Esc runs `close_settings`.
 - **Palette** (`app_tui::palette`, Ctrl+K or `:`): the shared `app_front::palette::Palette` drawn over the panes — the
   whole body below 80 columns, a bordered box from 80 — with the prompt of a second step, the query and the rows
@@ -1497,7 +1497,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
   `top_bar` (title, sync state, the drawer or back button, search, and an `overflow` that is empty today), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
-  unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
+  unread counts, and a footer: *Settings* = `open_settings index` (the root, TCH-6), *Add account* = `open_settings accounts`; `modal` on
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
   mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
@@ -1531,15 +1531,26 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   6 in an expanded window's detail pane beside other panes, all when the message has a medium or expanded window to
   itself. The menu trigger does not count, nor do `close`, `maximize` and `navigation`. The trigger is drawn with
   the horizontal `more_horiz` glyph (SF Symbols `ellipsis` on iOS), hence ⋯.
-- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
-  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
+- **Settings** (`mobile/settings.rs`, TCH-6). `settings` while `view.settings` is open. One ordered list of sections
+  feeds both layouts: *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*.
+  *Keyboard* stays before *About* while `configure`'s `keyboard` says a hardware keyboard is attached; otherwise it is
+  last, `folded` (drawn subdued, hint *No keyboard attached*), still one tap away. *About* opens the presenter's About
+  screen (MISC-3), not a section. On a compact window `open_settings index` is the root: `section` is `index`,
+  `sections` lists the entries (`SettingsEntry {icon, label, hint?, folded, action}`; hints count the accounts and the
+  rules) and `tabs` and `groups` are empty; an entry runs `open_settings <section>`, and inside a section `tabs` and
+  `sections` are empty, the top bar's title is the section's name, and Back (and the hardware Escape, which the presenter maps the same way) runs `open_settings index` (Back at the
+  root is the `Escape` binding, `close_settings`). The drawer's *Settings* runs `open_settings index`, and an
+  `open_settings` without a section sent while the settings are closed (the palette, `Ctrl+,`) is rewritten to
+  `index`. On medium and expanded windows the entries are `tabs` (*About* among them, unselected), `index` shows the
+  first tab, `sections` is empty and Back closes the settings as before. A section's `groups` of rows: a row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
   density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
-  delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47), and the phone's *Background &
-  notifications* group (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and
-  *Notification settings*: `External::SystemSettings`). It is a group under General and not a fifth section, so the
-  desktop's tabs stay as they are. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
+  delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47).
+  *Notifications & background* (`open_settings notifications`): the *Background & notifications* group
+  (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and *Notification settings*:
+  `External::SystemSettings`); the GUI and the TUI show General for `notifications` and their first section for
+  `index`. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
   password form), *Remove* (the palette's confirmation step, `app_front::palette::remove_account`), then *Add an
   account*. `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
 - **Account setup** (`mobile/setup.rs`), the GUI's wizard and the TUI's: provider → address (the servers for a custom
@@ -1643,7 +1654,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   again by the `push` task the service runs once it is in the foreground. Its buttons: *Stop* (`NoteAct::StopPush` =
   `set_setting background_sync 1`, as the user, which stops the service through the next `schedule`) and *Battery*
   (the system's battery-optimization screen, a host action). The periodic check stays scheduled as the fallback.
-  Settings › General › *Background & notifications* turns push on and off.
+  Settings › *Notifications & background* turns push on and off.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,
@@ -1730,7 +1741,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
   tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result, the folder
   sheet (`menu`), the link sheet, a preview or the palette (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
-  settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
+  settings; inside a section of a compact window's settings Back first returns to their root, TCH-6), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Refresh` (pull to refresh) is `sync_now`.
 - **Hardware keyboards** (`app_mobile::keys`). `MainActivity.onKeyDown` gets the keys that no view took (text fields
   take typing; Back, Home and volume stay the system's) and sends `KeyDown{code, unicode, ctrl, shift, alt, meta}`,
@@ -1871,7 +1882,8 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   glyph and label; dismissal sends `close`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
   `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
   `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
-  `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
+  `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (the compact root's
+  `sections` as 56 dp rows of glyph, label and hint, a folded one at reduced alpha; tabs only when `tabs` is not empty; `FilterChip`
   choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
@@ -1992,7 +2004,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `copy`, `open_url`, `haptic`, `system_settings` and `save_files` (each file read with `blob`'s `attachment`
   request into a private temporary folder, then `UIDocumentPickerViewController(forExporting:asCopy: true)`; the
   folder is removed when it closes); the other file ones wait for the compose wave.
-- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
+- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
+  when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
+  opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's
   (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
   moves; leaving a field sends `blur`. Setup fields take their keyboard, autofill and capitalisation from `InputKind`,
   and the password is a `SecureField` that never comes back in a frame. Tests over the demo host: the parity walk
@@ -2089,7 +2103,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `cancel_send` | Mutation | `id` (only while scheduled; undo schedules the send again) | M4 |
 | `search` | Query | `query: String, account?, offset = 0, limit = 50 (1–500), server = true` → `{query (canonical), total, threads: [list_threads entry without in_mailbox + matches: [MessageId]], server: [{account, state: started\|searching\|done, hits, error}]}`, newest first; matches the cached envelopes (subject and addresses for text; `in:` uses `location()`) plus the server's hits for the query (§5.2 step 10); errors `error_002_invalid_argument` on `query` (with column) or empty query | M5 |
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
-| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts | rules | about` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
+| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | notifications | accounts | rules | about | index` / — (the settings page in place of the list and the reader; `notifications` and `index`, the list of sections, are the phones' (TCH-6), the desktop shows General and its first section; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
 | `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `error_004_not_found` for an unknown account, `error_002_invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |

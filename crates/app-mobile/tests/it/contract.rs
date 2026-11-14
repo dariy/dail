@@ -165,6 +165,25 @@ fn frames() -> Vec<(String, Frame)> {
         section: Some(app_core::SettingsSection::Rules),
     });
     out.push(("settings_rules".to_owned(), phone.frame()));
+    // The settings root of a compact window (TCH-6), with and without a hardware keyboard.
+    for (name, keyboard) in [
+        ("settings_root", true),
+        ("settings_root_no_keyboard", false),
+    ] {
+        let mut phone = Phone::inbox(360, 800);
+        phone.event(UiEvent::Configure {
+            width_dp: 360,
+            height_dp: 800,
+            dark: false,
+            font_scale: 1.0,
+            locale: Some("en-US".to_owned()),
+            keyboard,
+        });
+        phone.dispatch(Command::OpenSettings {
+            section: Some(app_core::SettingsSection::Index),
+        });
+        out.push((name.to_owned(), phone.frame()));
+    }
     out
 }
 

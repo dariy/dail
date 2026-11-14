@@ -175,8 +175,16 @@ pub enum SettingsSection {
     Appearance,
     /// The key preset and the bindings.
     Keys,
-    /// Undo-send window, polling, notifications, history.
+    /// Undo-send window, polling, the first fetch, mark-as-read, history. Front ends without a
+    /// Notifications section of their own (the desktop GUI, the TUI) also show the
+    /// notification and background rows here.
     General,
+    /// Notifications and background checks. A phone shows them apart from General; a
+    /// desktop shows General in its place (TCH-6).
+    Notifications,
+    /// The list of the sections: a phone's settings root. A desktop shows its first section
+    /// (`appearance`) in its place (TCH-6).
+    Index,
     /// The accounts.
     Accounts,
     /// The sorting rules stored on the mail server (ADR 0015, SET-5).
