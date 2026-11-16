@@ -301,16 +301,17 @@ class GoldenPathTest {
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
     /** The node labelled [label] once it stays put for half a second: a layout still moving would take a tap elsewhere. */
-    private fun settled(label: String): Node = settled(label, labelled(label))
+    private fun settled(label: String): Node = settled(label, find = labelled(label))
 
     private fun settled(
         what: String,
+        among: () -> List<Node> = ::nodes,
         find: (Node) -> Boolean,
     ): Node {
-        var last = await(what, find = find)
+        var last = await(what, among = among, find = find)
         while (true) {
             Thread.sleep(500)
-            val now = await(what, find = find)
+            val now = await(what, among = among, find = find)
             if (now == last) return now
             last = now
         }
@@ -333,7 +334,8 @@ class GoldenPathTest {
             (if (near == null) menus.minByOrNull { it.y } else menus.minByOrNull { abs(it.y - near.y) })
                 ?: await("$label, or the ⋯ that holds it", find = { it.description == MORE })
         tap(more)
-        tap(await("the menu item $label", among = ::allNodes) { it.text == label && it.description.isEmpty() })
+        // The menu grows as it opens: a tap beside an item still on its way closes the menu instead.
+        tap(settled("the menu item $label", among = ::allNodes) { it.text == label && it.description.isEmpty() })
     }
 
     /** The frame's `palette`, while the palette is open. */
@@ -467,7 +469,7 @@ class GoldenPathTest {
         check(SUBJECT in subjects(inbox) && SECOND in subjects(inbox)) { "the demo inbox: ${subjects(inbox)}" }
 
         // A long press checks the first thread; with one checked, a tap checks another.
-        longPress(settled("the row $SUBJECT", row(SUBJECT)))
+        longPress(settled("the row $SUBJECT", find = row(SUBJECT)))
         awaitThat("one checked") { bridge("frame").optJSONObject("bulk")?.optString("title") == "1 selected" }
         tap(await("the row $SECOND", find = row(SECOND)))
         awaitThat("two checked") { bridge("frame").optJSONObject("bulk")?.optString("title") == "2 selected" }
@@ -589,7 +591,7 @@ class GoldenPathTest {
         // The composer's fields once they rest: the recipient's chip, when it comes, pushes them all down.
         val fields = {
             val find = { node: Node -> node.className == "android.widget.EditText" }
-            settled("the composer", find)
+            settled("the composer", find = find)
             nodes().filter(find)
         }
         tap(fields()[0])
