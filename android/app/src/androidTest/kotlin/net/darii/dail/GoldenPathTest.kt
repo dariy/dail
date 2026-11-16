@@ -346,7 +346,8 @@ class GoldenPathTest {
     ) {
         awaitThat("the palette asks: $prompt") { palette()?.optString("prompt") == prompt }
         val question = await("the question $prompt") { it.text == prompt }
-        tap(await("the answer $label to $prompt") { titled(label)(it) && it.y > question.y })
+        // The sheet may still be sliding in, or its rows changing with the step.
+        tap(settled("the answer $label to $prompt") { titled(label)(it) && it.y > question.y })
     }
 
     /** Back to the demo inbox's list: the system Back while the app takes it (a step, a sheet, a page), then the inbox. */
@@ -507,7 +508,8 @@ class GoldenPathTest {
         tap(query)
         shell("input text Make%sa%srule")
         awaitThat("the query typed") { palette()?.getJSONObject("query")?.optString("text") == "Make a rule" }
-        tap(await("the row $MAKE_RULE") { titled(MAKE_RULE)(it) && it.y > query.y })
+        // The rows move as the query filters them.
+        tap(settled("the row $MAKE_RULE") { titled(MAKE_RULE)(it) && it.y > query.y })
 
         // Its steps: the sender's test, pre-filled from the message, then an action harmless here.
         answer("Match mail like this one by…", "Sender")
@@ -556,13 +558,11 @@ class GoldenPathTest {
         // Its row on the Rules screen: Off switches it off, Delete deletes it.
         val name = rule.getString("name")
         val label = await("the rule's row $name") { it.text == name }
-        tap(await("the rule's Off") { it.text == "Off" && it.y > label.y })
+        tap(settled("the rule's Off") { it.text == "Off" && it.y > label.y })
         awaitThat("the rule switched off") { rules()[id]?.optBoolean("enabled") == false }
+        // The row is drawn again with On in place of Off: a tap while it changes is lost.
         val shown = await("the rule's row $name") { it.text == name }
-        tap(
-            nodes().filter { it.text == "Delete" && it.y > shown.y }.minByOrNull { it.y }
-                ?: await("the rule's Delete", find = labelled("Delete")),
-        )
+        tap(settled("the rule's Delete") { labelled("Delete")(it) && it.y > shown.y })
         awaitThat("the rule deleted") { rules().isEmpty() }
     }
 
@@ -586,16 +586,20 @@ class GoldenPathTest {
         // Back to the list, then compose.
         shell("input keyevent KEYCODE_BACK")
         tap("Compose")
+        // The composer's fields once they rest: the recipient's chip, when it comes, pushes them all down.
         val fields = {
-            await("the composer") { it.className == "android.widget.EditText" }
-            nodes().filter { it.className == "android.widget.EditText" }
+            val find = { node: Node -> node.className == "android.widget.EditText" }
+            settled("the composer", find)
+            nodes().filter(find)
         }
         tap(fields()[0])
         // The comma takes the address as a recipient.
         shell("input text carol@example.org,")
+        awaitState("the recipient taken") { s -> drafts(s).any { "carol@example.org" in it } }
         // To, Cc and Bcc come first; Subject and the body are the last two fields.
         fields().let { tap(it[it.size - 2]) }
         shell("input text $NEW_SUBJECT")
+        awaitState("the subject typed") { s -> drafts(s).any { it.startsWith("subject=$NEW_SUBJECT ") } }
         tap(fields().last())
         shell("input text Hello")
         // The keyboard would cover the snackbar's Undo.
