@@ -120,6 +120,30 @@ enum Act {
 /// replies makes a few frames before the host draws one.
 const KEPT_FRAMES: usize = 4;
 
+/// What the palette and the setup show, but for their action IDs and what is typed in a field:
+/// two frames with the same value show the same step and the same rows, so a row or a button of
+/// the one means the same in the other.
+fn steps(
+    palette: Option<&crate::frame::PaletteSheet>,
+    setup: Option<&crate::frame::SetupSheet>,
+) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    if let Some(palette) = palette {
+        (&palette.prompt, &palette.query.text).hash(&mut hasher);
+        for section in &palette.sections {
+            section.title.hash(&mut hasher);
+            for row in &section.rows {
+                (&row.title, &row.detail).hash(&mut hasher);
+            }
+        }
+    }
+    if let Some(setup) = setup {
+        (&setup.title, &setup.step).hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
 /// The window, as the host last configured it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Window {
@@ -200,8 +224,9 @@ pub struct Mobile {
     rows: RowCache,
     /// The action tables of the last [`KEPT_FRAMES`] frames, oldest first.
     actions: Vec<(ActionId, Act)>,
-    /// Where each kept frame's table starts in `actions`; the last is the current frame's.
-    frame_starts: Vec<usize>,
+    /// Where each kept frame's table starts in `actions`, and the step its palette and setup
+    /// were at ([`steps`]); the last is the current frame's.
+    frame_starts: Vec<(usize, u64)>,
     next_action: ActionId,
     revision: u64,
     bodies: Bodies,
@@ -671,10 +696,18 @@ impl Mobile {
         };
         let act = self.actions[at].1.clone();
         // An earlier frame's action runs only if it names what it acts on. A step of the palette
-        // or of the setup means something else once the step has changed.
-        let current = self.frame_starts.last().is_some_and(|start| at >= *start);
-        if !current && matches!(act, Act::Choose(_) | Act::PaletteBack | Act::Setup(_)) {
-            return Vec::new();
+        // or of the setup means something else once the step has changed: it runs only while the
+        // frame it came from showed the step the current one does.
+        if matches!(act, Act::Choose(_) | Act::PaletteBack | Act::Setup(_)) {
+            let step = |(_, step): &(usize, u64)| *step;
+            let from = self
+                .frame_starts
+                .iter()
+                .rev()
+                .find(|(start, _)| at >= *start);
+            if from.map(step) != self.frame_starts.last().map(step) {
+                return Vec::new();
+            }
         }
         // About is over everything: a command from elsewhere (a mailbox in the drawer) moves on
         // from it, or the panes would change unseen beneath it (MISC-12).
@@ -1058,12 +1091,12 @@ impl Mobile {
         i18n::set_current(self.lang);
         self.compose.sync(state);
         self.palette_sync(state);
-        self.frame_starts.push(self.actions.len());
+        self.frame_starts.push((self.actions.len(), 0));
         if self.frame_starts.len() > KEPT_FRAMES {
             self.frame_starts.remove(0);
-            let cut = self.frame_starts.first().copied().unwrap_or(0);
+            let cut = self.frame_starts.first().map_or(0, |(start, _)| *start);
             self.actions.drain(..cut);
-            for start in &mut self.frame_starts {
+            for (start, _) in &mut self.frame_starts {
                 *start -= cut;
             }
         }
@@ -1170,6 +1203,9 @@ impl Mobile {
         }
         // Nothing floats over a preview (its pages zoom under the whole screen).
         let fab = fab.filter(|_| preview.is_none());
+        if let Some((_, step)) = self.frame_starts.last_mut() {
+            *step = steps(palette.as_ref(), setup.as_ref());
+        }
         let back = self.about
             || setup.is_some()
             || palette.is_some()

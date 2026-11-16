@@ -35,19 +35,23 @@ fn a_tap_on_the_frame_before_still_runs() {
     assert_eq!(phone.tap(drawn), [Command::OpenThread { id: threads[0] }]);
 }
 
-/// But not a step of the palette: its rows mean something else once the step has changed.
+/// A palette row of the frame before runs while the palette shows the same step and rows, and
+/// not once the step has changed: there it means something else.
 #[test]
-fn a_palette_row_of_the_frame_before_is_ignored() {
+fn a_palette_row_of_the_frame_before_runs_only_in_its_step() {
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenPalette {});
-    let row = phone.frame().palette.unwrap().sections[0].rows[0].clone();
     let prompt = |phone: &mut Phone| phone.frame().palette.unwrap().prompt;
-    let before = prompt(&mut phone);
-    phone.event(UiEvent::Tap { action: row.action });
-    assert_eq!(prompt(&mut phone), before, "the row of two frames ago");
     let row = phone.frame().palette.unwrap().sections[0].rows[0].clone();
+    // A tick drew the same palette again: the row on screen still chooses.
+    let root = prompt(&mut phone);
     phone.event(UiEvent::Tap { action: row.action });
-    assert_ne!(prompt(&mut phone), before, "the row on screen does");
+    let step = prompt(&mut phone);
+    assert_ne!(step, root, "the row chose its step");
+    // The same ID again, now from a frame of another step: nothing.
+    phone.event(UiEvent::Tap { action: row.action });
+    assert_eq!(prompt(&mut phone), step);
+    assert!(phone.frame().palette.is_some());
 }
 
 #[test]

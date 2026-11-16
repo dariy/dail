@@ -1599,7 +1599,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
   grow, and the table holds those of the four newest frames (`KEPT_FRAMES`): a tick or a reply can make a frame the host
   has not drawn yet, and a tap on the one on screen must not be lost. An older ID is ignored, never taken for another
-  action; so is an earlier frame's palette row, palette Back or setup button, which mean something else once the step changed.
+  action. An earlier frame's palette row, palette Back or setup button runs only while that frame showed the step and
+  rows the current one does (`steps`): once the step changed, it would mean something else.
   So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
   row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
