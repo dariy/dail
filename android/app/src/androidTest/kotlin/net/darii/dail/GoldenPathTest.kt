@@ -362,7 +362,7 @@ class GoldenPathTest {
         if (bridge("frame").optJSONObject("list")?.optString("title") != INBOX) {
             exec(command("open_mailbox", JSONObject().put("id", mailbox("inbox"))))
         }
-        awaitThat("the inbox listed") { listed(SUBJECT) && listed(SECOND) }
+        awaitThat("the inbox listed", seconds = 60) { listed(SUBJECT) && listed(SECOND) }
     }
 
     /** The drafts, compactly, for a failure's message. */
@@ -449,8 +449,13 @@ class GoldenPathTest {
             automation.serviceInfo.apply {
                 flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             }
-        await("the demo inbox", seconds = 60) { it.description.contains(SUBJECT) || it.text.contains(SUBJECT) }
+        // The app keeps its state between tests: home first, from wherever the last journey ended (a page, a composer).
+        awaitThat(
+            "the app's first frame",
+            seconds = 60,
+        ) { runCatching { bridge("frame").has("layout") }.getOrDefault(false) }
         home()
+        await("the demo inbox", seconds = 60) { it.description.contains(SUBJECT) || it.text.contains(SUBJECT) }
     }
 
     /** QA-1: check two threads by touch and move them to a folder from the bulk bar, then undo the move. */
