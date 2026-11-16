@@ -36,14 +36,39 @@ class ContractTest {
     }
 
     @Test
-    fun messageCardsCarryTheirSwipes() {
-        // MISC-44e: a card swipes as a list row, its buttons drawn by the presenter.
+    fun phoneBarsOverflowIntoAMenu() {
+        // TCH-2: four icons on a phone, the rest under the ⋯ menu.
+        val frames = fixtures("frames")
+        val bulk = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("bulk_360x800")).bulk)
+        assertEquals(4, bulk.actions.size)
+        assertTrue(bulk.overflow.isNotEmpty())
+        val reader = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("thread_360x800")).reader)
+        assertEquals(4, reader.actions.size)
+        assertTrue(reader.overflow.all { it.label.isNotEmpty() })
+    }
+
+    @Test
+    fun aLongPressedFolderOpensItsActions() {
+        // TCH-4: every folder of the drawer has a long press; the sheet lists the folder's actions.
+        val frames = fixtures("frames")
+        val drawer = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("drawer_360x800")).drawer)
+        assertTrue(drawer.accounts.flatMap { it.mailboxes }.all { it.longPress != null })
+        assertTrue(drawer.footer.all { it.longPress == null })
+        val menu = checkNotNull(strict.decodeFromString(Frame.serializer(), frames.getValue("folder_menu")).menu)
+        assertEquals("Work", menu.title)
+        assertTrue(menu.items.isNotEmpty())
+        assertTrue(menu.items.all { it.icon != null && it.label.isNotEmpty() })
+    }
+
+    @Test
+    fun messageCardsCarryArchiveAndTrashAsActions() {
+        // A card has no swipes (the reader's drag closes the message): its long press lists them.
         val frame = strict.decodeFromString(Frame.serializer(), fixtures("frames").getValue("thread_360x800"))
         val cards = checkNotNull(frame.reader).messages
         assertTrue(cards.isNotEmpty())
         cards.forEach { card ->
-            assertEquals("archive", card.swipeStart?.icon)
-            assertEquals("delete", card.swipeEnd?.icon)
+            val icons = card.actions.map { it.icon }
+            assertEquals(icons.indexOf("archive") + 1, icons.indexOf("delete"))
         }
     }
 

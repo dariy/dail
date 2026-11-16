@@ -80,6 +80,32 @@
       ],
       "type": "object"
     },
+    "ActionSheet": {
+      "description": "A list of actions on one thing, drawn as a bottom sheet (TCH-4): a folder's actions today.",
+      "properties": {
+        "close": {
+          "$ref": "#/$defs/Button",
+          "description": "Dismisses the sheet without running anything."
+        },
+        "items": {
+          "description": "The actions in order, each with its icon and its text label; a tap closes the sheet and\nruns it.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "What the actions act on (a folder's name): plain text, never interpreted.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "items",
+        "close"
+      ],
+      "type": "object"
+    },
     "Attachment": {
       "description": "An attachment of a received message.",
       "properties": {
@@ -174,7 +200,7 @@
       "description": "What can be done with the checked threads.",
       "properties": {
         "actions": {
-          "description": "Archive, trash, read, unread, star.",
+          "description": "The thread actions drawn as icons: archive, trash, read or unread, *Move…*, ….",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -184,6 +210,13 @@
           "$ref": "#/$defs/Button",
           "description": "Unchecks every thread."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "title": {
           "description": "`3 selected`.",
           "type": "string"
@@ -192,6 +225,7 @@
       "required": [
         "title",
         "actions",
+        "overflow",
         "close"
       ],
       "type": "object"
@@ -836,6 +870,15 @@
         "label": {
           "description": "The mailbox's name.",
           "type": "string"
+        },
+        "long_press": {
+          "description": "A long press: opens the folder's actions in `Frame::menu` (TCH-4). Only on a real\nmailbox; TalkBack offers it as the custom action *Folder actions*.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "selected": {
           "description": "Whether the list shows it.",
@@ -1574,7 +1617,7 @@
       "description": "The open thread.",
       "properties": {
         "actions": {
-          "description": "What can be done with it: archive, trash, star, read, *Move…*, reply.",
+          "description": "What can be done with it, drawn as icons: archive, trash, *Move…*, reply, ….",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -1613,6 +1656,13 @@
           ],
           "description": "The conversation below it in the list, if any: a pull past the end of the body turns to\nit (MISC-18; no button)."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "position": {
           "description": "Where it is in the list (`2 of 14`); not drawn since the pager went (MISC-5).",
           "type": [
@@ -1645,6 +1695,7 @@
         "subject",
         "close",
         "actions",
+        "overflow",
         "messages"
       ],
       "type": "object"
@@ -1654,7 +1705,7 @@
       "properties": {
         "actions": {
           "default": [],
-          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays. A tap is a `tap` of the button's action. Not drawn as a row:\na long press on the card lists them (MISC-44e).",
+          "description": "What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,\nreply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,\nand the conversation stays; archive comes before trash. A tap is a `tap` of the button's\naction. Not drawn as a row: a long press on the card lists them (MISC-44e). A card has no\nswipes: in the reader a horizontal drag closes the message or scrolls a wide block.",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -1732,28 +1783,6 @@
             "string",
             "null"
           ]
-        },
-        "swipe_end": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Button"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Swiped towards the end edge (MISC-44e): trash this message; a draft, discard."
-        },
-        "swipe_start": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Button"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Swiped towards the start edge, as a list row (MISC-44e): archive this message; a draft,\nedit. The icon is the one revealed under the card; send `swipe` with its action."
         },
         "to": {
           "description": "The recipients (`To` and `Cc`), in full.",
@@ -2135,6 +2164,43 @@
       ],
       "type": "object"
     },
+    "SettingsEntry": {
+      "description": "An entry of the settings root: a section, or *About*.",
+      "properties": {
+        "action": {
+          "description": "Opens it (`open_settings`, or the About screen).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "folded": {
+          "description": "Drawn subdued, as secondary: the keyboard's entry while none is attached.",
+          "type": "boolean"
+        },
+        "hint": {
+          "description": "A line under it (`2 account(s)`, `No keyboard attached`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "icon": {
+          "description": "Its glyph (`person`, `keyboard`).",
+          "type": "string"
+        },
+        "label": {
+          "description": "Its name (`Rules`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "icon",
+        "label",
+        "folded",
+        "action"
+      ],
+      "type": "object"
+    },
     "SettingsGroup": {
       "description": "Rows of the settings page under one caption.",
       "properties": {
@@ -2164,7 +2230,7 @@
       "type": "object"
     },
     "SettingsPage": {
-      "description": "The settings page: the sections as tabs, and the open one's rows in groups.",
+      "description": "The settings page (TCH-6): on a compact window the root lists the sections and a section\nshows its groups alone; wider windows show the sections as tabs above the open one's groups.",
       "properties": {
         "groups": {
           "description": "The open section's rows, under captions.",
@@ -2174,11 +2240,18 @@
           "type": "array"
         },
         "section": {
-          "description": "The open section (`appearance`, `keys`, `general`, `accounts`).",
+          "description": "The open section (`accounts`, `rules`, `appearance`, `general`, `notifications`,\n`keys`), or `index` at the root of a compact window.",
           "type": "string"
         },
+        "sections": {
+          "description": "The root's list of sections on a compact window (empty elsewhere and inside a section).",
+          "items": {
+            "$ref": "#/$defs/SettingsEntry"
+          },
+          "type": "array"
+        },
         "tabs": {
-          "description": "The sections; a tap opens one (`open_settings`).",
+          "description": "The sections as tabs on medium and expanded windows (empty on compact); a tap opens one\n(`open_settings`, or the About screen).",
           "items": {
             "$ref": "#/$defs/Choice"
           },
@@ -2188,6 +2261,7 @@
       "required": [
         "section",
         "tabs",
+        "sections",
         "groups"
       ],
       "type": "object"
@@ -2383,7 +2457,7 @@
       "description": "The top app bar.",
       "properties": {
         "actions": {
-          "description": "The buttons on the right.",
+          "description": "The buttons on the right (icons, or text without an icon).",
           "items": {
             "$ref": "#/$defs/Button"
           },
@@ -2400,6 +2474,13 @@
           ],
           "description": "The navigation button: the drawer, or back."
         },
+        "overflow": {
+          "description": "What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.\nIts trigger's name is the label `More actions`. The presenter splits `actions` and\n`overflow` by the window class; together they are the bar's whole list, in order.",
+          "items": {
+            "$ref": "#/$defs/Button"
+          },
+          "type": "array"
+        },
         "subtitle": {
           "description": "The sync state (`synced 2m ago`).",
           "type": [
@@ -2414,7 +2495,8 @@
       },
       "required": [
         "title",
-        "actions"
+        "actions",
+        "overflow"
       ],
       "type": "object"
     }
@@ -2524,6 +2606,17 @@
         }
       ],
       "description": "The thread list, while on screen."
+    },
+    "menu": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ActionSheet"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "A list of actions on one thing, while open: a folder's actions after a long press in the\ndrawer (TCH-4). A bottom sheet; a tap outside, Back or `close` dismisses it."
     },
     "palette": {
       "anyOf": [

@@ -42,10 +42,10 @@ import kotlin.math.roundToInt
 
 /**
  * The open message on a compact window: a page over the list and the top bar, below the status
- * bar (MISC-18). It slides in from the right. A drag to the right that starts in its left edge
- * zone (the system's back-gesture inset, or [EDGE]) follows the finger; elsewhere a horizontal
- * drag is the content's: a block's own horizontal scroll, a message card's swipes (MISC-44e), and
- * a vertical drag is the body's scroll. Released past
+ * bar (MISC-18). It slides in from the right. A drag to the right follows the finger, wherever it
+ * starts: in the left edge zone (the system's back-gesture inset, or [EDGE]) always, elsewhere
+ * unless the content takes it first (a wide block's own horizontal scroll). It is the page's only
+ * swipe: a message card has none. A vertical drag is the body's scroll. Released past
  * a third of the width, or flung right, it slides away and sends the reader's close
  * (`close_thread`); otherwise it springs back. A frame that drops it over the list (the ×, Back, a
  * thread that goes away) slides it out too; one that puts something else there removes it at once.
@@ -101,22 +101,22 @@ fun ReaderPage(
                 }
             }
         }
-        // The close drag starts only in the left edge zone (the system's back-gesture inset, or
-        // EDGE without one): elsewhere a card's own swipes take a horizontal drag (MISC-44e). In
-        // the zone the page sees the drag before its content (the initial pass) and, once it is
-        // a drag to the right, takes it.
+        // The close drag. In the left edge zone (the system's back-gesture inset, or EDGE without
+        // one) the page sees the drag before its content (the initial pass) and, once it is a drag
+        // to the right, takes it. Elsewhere it sees it after its content (the main pass) and takes
+        // it only if nothing there did: a wide block scrolls sideways under the finger instead.
         val zone = edgeZone(LocalDensity.current)
         val swipe =
             Modifier.pointerInput(width, zone) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    if (down.position.x > zone) return@awaitEachGesture
+                    var pass = if (down.position.x > zone) PointerEventPass.Main else PointerEventPass.Initial
                     val tracker = VelocityTracker()
                     var x = 0f
                     var dragging = false
                     var start = down.position
                     while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val event = awaitPointerEvent(pass)
                         val change = event.changes.firstOrNull { it.id == down.id }
                         if (change == null || event.changes.size > 1) {
                             // A second finger, or the finger gone without a release we saw.
@@ -128,11 +128,15 @@ fun ReaderPage(
                             return@awaitEachGesture
                         }
                         if (!dragging) {
+                            // The content took the drag (a block's scroll, a text selection).
+                            if (change.isConsumed) return@awaitEachGesture
                             val moved = change.position - start
                             if (moved.getDistance() < viewConfiguration.touchSlop) continue
                             // A drag to the left or a vertical one is the content's.
                             if (moved.x <= 0f || abs(moved.y) > abs(moved.x)) return@awaitEachGesture
                             dragging = true
+                            // From here the drag is the page's: before the body can scroll with it.
+                            pass = PointerEventPass.Initial
                             tracker.resetTracking()
                             start = change.position
                         }

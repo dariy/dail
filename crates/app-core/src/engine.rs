@@ -176,8 +176,13 @@ impl Engine {
     }
 
     /// Keeps `ViewState` consistent after every change: a composer whose draft is gone closes,
-    /// and the focus leaves a pane that is no longer shown.
+    /// the focus leaves a pane that is no longer shown, and a checked thread that left the list
+    /// (moved, archived, hidden by the filter) is unchecked.
     fn settle_view(&mut self) {
+        if !self.state.view.checked.is_empty() {
+            let shown = crate::listing::visible_threads(&self.state);
+            self.state.view.checked.retain(|id| shown.contains(id));
+        }
         let AppState {
             view,
             drafts,

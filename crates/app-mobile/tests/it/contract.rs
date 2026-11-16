@@ -48,12 +48,32 @@ fn frames() -> Vec<(String, Frame)> {
         text: "car".to_owned(),
     });
     out.push(("composer_reply".to_owned(), phone.frame()));
+    // The bulk bar of a phone: four icons and a ⋯ menu (TCH-2).
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::CheckThreads {
+        ids: vec![threads[0], threads[1]],
+    });
+    out.push(("bulk_360x800".to_owned(), phone.frame()));
     // The folder tree in the iPad's portrait overlay drawer (MISC-10).
     let mut phone = crate::drawer::nested(820, 1180);
     phone.dispatch(Command::FocusPane {
         pane: Pane::Sidebar,
     });
     out.push(("drawer_tree".to_owned(), phone.frame()));
+    // A folder's actions after a long press in a phone's drawer (TCH-4).
+    let mut phone = crate::drawer::nested(360, 800);
+    phone.dispatch(Command::FocusPane {
+        pane: Pane::Sidebar,
+    });
+    let work = phone.frame().drawer.unwrap().accounts[0]
+        .mailboxes
+        .iter()
+        .find(|m| m.label == "Work")
+        .unwrap()
+        .long_press
+        .unwrap();
+    phone.event(UiEvent::LongPress { action: work });
+    out.push(("folder_menu".to_owned(), phone.frame()));
     let mut phone = Phone::inbox(360, 800);
     phone.dispatch(Command::OpenPalette {});
     out.push(("palette".to_owned(), phone.frame()));
@@ -145,6 +165,38 @@ fn frames() -> Vec<(String, Frame)> {
         section: Some(app_core::SettingsSection::Rules),
     });
     out.push(("settings_rules".to_owned(), phone.frame()));
+    // General's *Synced settings* with a failed pull (TCH-7).
+    let mut phone = Phone::inbox(360, 800);
+    let account = *phone.state().accounts.keys().next().unwrap();
+    phone.dispatch(Command::PullSettings { account: None });
+    phone.ingest(app_core::Event::SettingsFailed {
+        account,
+        write: false,
+        error: "ERR023: the server refused the folder".to_owned(),
+    });
+    phone.dispatch(Command::OpenSettings {
+        section: Some(app_core::SettingsSection::General),
+    });
+    out.push(("settings_synced_error".to_owned(), phone.frame()));
+    // The settings root of a compact window (TCH-6), with and without a hardware keyboard.
+    for (name, keyboard) in [
+        ("settings_root", true),
+        ("settings_root_no_keyboard", false),
+    ] {
+        let mut phone = Phone::inbox(360, 800);
+        phone.event(UiEvent::Configure {
+            width_dp: 360,
+            height_dp: 800,
+            dark: false,
+            font_scale: 1.0,
+            locale: Some("en-US".to_owned()),
+            keyboard,
+        });
+        phone.dispatch(Command::OpenSettings {
+            section: Some(app_core::SettingsSection::Index),
+        });
+        out.push((name.to_owned(), phone.frame()));
+    }
     out
 }
 

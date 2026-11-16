@@ -5,6 +5,7 @@
 //! draws, and nothing talks to a session.
 
 pub mod a11y;
+pub mod actions;
 pub mod advance;
 pub mod alerts;
 pub mod approvals;
@@ -23,6 +24,7 @@ pub mod notice;
 pub mod palette;
 pub mod panes;
 pub mod providers;
+pub mod reach;
 pub mod result;
 pub mod rules;
 pub mod status;

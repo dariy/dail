@@ -60,10 +60,14 @@ impl Row {
     }
 }
 
-/// The section the TUI shows for `section` (appearance and about have none of their own).
+/// The section the TUI shows for `section` (appearance, about and the phone's notifications and
+/// root have none of their own).
 const fn shown(section: SettingsSection) -> SettingsSection {
     match section {
-        SettingsSection::Appearance | SettingsSection::About => SettingsSection::General,
+        SettingsSection::Appearance
+        | SettingsSection::About
+        | SettingsSection::Notifications
+        | SettingsSection::Index => SettingsSection::General,
         other => other,
     }
 }
@@ -117,41 +121,43 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
             });
             out
         }
-        SettingsSection::General | SettingsSection::Appearance | SettingsSection::About => {
-            update_rows(state)
-                .into_iter()
-                .chain(SettingKey::ALL.iter().map(|key| {
-                    Row {
-                        key: key.as_str().to_owned(),
-                        value: match key {
-                            SettingKey::Language => app_front::i18n::language_name(
-                                app_front::i18n::current(),
-                                key.get(settings),
-                            )
-                            .to_owned(),
-                            _ => key.get(settings).to_string(),
-                        },
-                        change: Some(CommandName::SetSetting),
-                        rule: None,
-                    }
-                }))
-                .chain([
-                    Row {
-                        key: "theme_light".to_owned(),
-                        value: clean(&settings.theme_light),
-                        change: Some(CommandName::SetTheme),
-                        rule: None,
+        SettingsSection::General
+        | SettingsSection::Appearance
+        | SettingsSection::About
+        | SettingsSection::Notifications
+        | SettingsSection::Index => update_rows(state)
+            .into_iter()
+            .chain(SettingKey::ALL.iter().map(|key| {
+                Row {
+                    key: key.as_str().to_owned(),
+                    value: match key {
+                        SettingKey::Language => app_front::i18n::language_name(
+                            app_front::i18n::current(),
+                            key.get(settings),
+                        )
+                        .to_owned(),
+                        _ => key.get(settings).to_string(),
                     },
-                    Row {
-                        key: "theme_dark".to_owned(),
-                        value: clean(&settings.theme_dark),
-                        change: Some(CommandName::SetTheme),
-                        rule: None,
-                    },
-                ])
-                .chain(synced_rows(state))
-                .collect()
-        }
+                    change: Some(CommandName::SetSetting),
+                    rule: None,
+                }
+            }))
+            .chain([
+                Row {
+                    key: "theme_light".to_owned(),
+                    value: clean(&settings.theme_light),
+                    change: Some(CommandName::SetTheme),
+                    rule: None,
+                },
+                Row {
+                    key: "theme_dark".to_owned(),
+                    value: clean(&settings.theme_dark),
+                    change: Some(CommandName::SetTheme),
+                    rule: None,
+                },
+            ])
+            .chain(synced_rows(state))
+            .collect(),
     }
 }
 

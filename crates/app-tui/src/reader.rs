@@ -187,6 +187,8 @@ fn actions_line(state: &AppState, message: MessageId) -> String {
     use app_front::message_actions::{MessageAction, message_actions};
     let items: Vec<String> = message_actions(state, message)
         .into_iter()
+        // *Make a rule…* has no key on a message (TCH-8): the palette offers it, not this line.
+        .filter(|item| item.action.key_command().is_some())
         .map(|item| {
             let key = match item.action {
                 MessageAction::Edit => Some("Enter".to_owned()),
@@ -194,7 +196,9 @@ fn actions_line(state: &AppState, message: MessageId) -> String {
                 MessageAction::Unstar => {
                     crate::keys::hint(&state.settings, app_core::CommandName::Star)
                 }
-                action => crate::keys::hint(&state.settings, action.key_command()),
+                action => action
+                    .key_command()
+                    .and_then(|name| crate::keys::hint(&state.settings, name)),
             };
             let label = s(item.action.label());
             key.map_or_else(|| label.to_owned(), |key| format!("{key} {label}"))

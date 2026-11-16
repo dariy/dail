@@ -15,27 +15,27 @@
             "actions": [],
             "choices": [
               {
-                "action": 8,
+                "action": 3,
                 "label": "Off",
                 "selected": false
               },
               {
-                "action": 9,
+                "action": 4,
                 "label": "5 s",
                 "selected": false
               },
               {
-                "action": 10,
+                "action": 5,
                 "label": "10 s",
                 "selected": true
               },
               {
-                "action": 11,
+                "action": 6,
                 "label": "20 s",
                 "selected": false
               },
               {
-                "action": 12,
+                "action": 7,
                 "label": "30 s",
                 "selected": false
               }
@@ -48,27 +48,27 @@
             "actions": [],
             "choices": [
               {
-                "action": 13,
+                "action": 8,
                 "label": "1 min",
                 "selected": false
               },
               {
-                "action": 14,
+                "action": 9,
                 "label": "2 min",
                 "selected": true
               },
               {
-                "action": 15,
+                "action": 10,
                 "label": "5 min",
                 "selected": false
               },
               {
-                "action": 16,
+                "action": 11,
                 "label": "15 min",
                 "selected": false
               },
               {
-                "action": 17,
+                "action": 12,
                 "label": "1 h",
                 "selected": false
               }
@@ -81,22 +81,22 @@
             "actions": [],
             "choices": [
               {
-                "action": 18,
+                "action": 13,
                 "label": "200",
                 "selected": false
               },
               {
-                "action": 19,
+                "action": 14,
                 "label": "500",
                 "selected": true
               },
               {
-                "action": 20,
+                "action": 15,
                 "label": "1000",
                 "selected": false
               },
               {
-                "action": 21,
+                "action": 16,
                 "label": "5000",
                 "selected": false
               }
@@ -109,22 +109,22 @@
             "actions": [],
             "choices": [
               {
-                "action": 22,
+                "action": 17,
                 "label": "Never",
                 "selected": false
               },
               {
-                "action": 23,
+                "action": 18,
                 "label": "Immediately",
                 "selected": false
               },
               {
-                "action": 24,
+                "action": 19,
                 "label": "After 2 s",
                 "selected": true
               },
               {
-                "action": 25,
+                "action": 20,
                 "label": "After 5 s",
                 "selected": false
               }
@@ -136,133 +136,51 @@
         "title": "General"
       },
       {
+        "hint": "Follow this account on every device: the theme, language, list density, mark-read delay, undo-send window and what shows after triage. The rest stays on this device.",
         "rows": [
           {
             "actions": [],
             "choices": [
               {
-                "action": 26,
-                "label": "Only while open",
-                "selected": false
-              },
-              {
-                "action": 27,
-                "label": "Periodic",
-                "selected": true
-              },
-              {
-                "action": 28,
-                "label": "Push",
-                "selected": false
-              }
-            ],
-            "hint": "Periodic checks wait for the phone's maintenance windows. Push keeps a silent notification while it watches the inboxes.",
-            "label": "Mail checks in the background",
-            "value": "Periodic"
-          },
-          {
-            "actions": [],
-            "choices": [
-              {
-                "action": 29,
-                "label": "15 min",
-                "selected": false
-              },
-              {
-                "action": 30,
-                "label": "30 min",
-                "selected": true
-              },
-              {
-                "action": 31,
-                "label": "1 h",
-                "selected": false
-              },
-              {
-                "action": 32,
-                "label": "2 h",
-                "selected": false
-              },
-              {
-                "action": 33,
-                "label": "6 h",
-                "selected": false
-              },
-              {
-                "action": 34,
-                "label": "12 h",
-                "selected": false
-              }
-            ],
-            "label": "Check every",
-            "value": "30 min"
-          },
-          {
-            "actions": [],
-            "choices": [
-              {
-                "action": 35,
-                "label": "Off",
-                "selected": false
-              },
-              {
-                "action": 36,
-                "label": "On",
+                "action": 21,
+                "label": "alice@example.com",
                 "selected": true
               }
             ],
-            "hint": "New mail and failed sends, while dail is off screen.",
-            "label": "Notifications",
-            "value": "On"
+            "hint": "Its hidden dail/Settings folder holds the settings shared by your devices",
+            "label": "Settings account",
+            "value": "alice@example.com (first account)"
           },
           {
             "actions": [
               {
-                "action": 37,
-                "label": "Battery optimization"
-              },
-              {
-                "action": 38,
-                "label": "Notification settings"
+                "action": 22,
+                "label": "Pull now"
               }
             ],
             "choices": [],
-            "hint": "Some phones stop background checks until dail is exempt from battery optimization.",
-            "label": "System settings",
-            "value": ""
+            "label": "Last pulled",
+            "value": "9h ago"
+          },
+          {
+            "actions": [],
+            "choices": [],
+            "label": "Last stored",
+            "value": "Never"
+          },
+          {
+            "actions": [],
+            "choices": [],
+            "label": "Settings sync",
+            "value": "Stored on the server"
           }
         ],
-        "title": "Background & notifications"
+        "title": "Settings on the server"
       }
     ],
     "section": "general",
-    "tabs": [
-      {
-        "action": 3,
-        "label": "Appearance",
-        "selected": false
-      },
-      {
-        "action": 4,
-        "label": "Keyboard",
-        "selected": false
-      },
-      {
-        "action": 5,
-        "label": "General",
-        "selected": true
-      },
-      {
-        "action": 6,
-        "label": "Accounts",
-        "selected": false
-      },
-      {
-        "action": 7,
-        "label": "Rules",
-        "selected": false
-      }
-    ]
+    "sections": [],
+    "tabs": []
   },
   "theme": {
     "chrome": {
@@ -528,8 +446,9 @@
       "icon": "arrow_back",
       "label": "Back"
     },
+    "overflow": [],
     "subtitle": "synced 9h ago",
-    "title": "Settings"
+    "title": "General"
   },
   "wants_tick": true
 }

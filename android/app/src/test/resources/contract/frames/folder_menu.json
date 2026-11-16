@@ -1,0 +1,260 @@
+{
+  "back": true,
+  "drawer": {
+    "accounts": [
+      {
+        "email": "alice@example.com",
+        "fold": {
+          "a11y": "alice@example.com folders",
+          "action": 50,
+          "collapsed": false
+        },
+        "mailboxes": [
+          {
+            "a11y": "Inbox, 1 unread",
+            "action": 34,
+            "icon": "inbox",
+            "label": "Inbox",
+            "long_press": 35,
+            "selected": true,
+            "unread": 1
+          },
+          {
+            "a11y": "Sent",
+            "action": 36,
+            "icon": "send",
+            "label": "Sent",
+            "long_press": 37,
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Drafts",
+            "action": 38,
+            "icon": "draft",
+            "label": "Drafts",
+            "long_press": 39,
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Archive",
+            "action": 40,
+            "icon": "archive",
+            "label": "Archive",
+            "long_press": 41,
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Lists",
+            "action": 42,
+            "fold": {
+              "a11y": "Lists subfolders",
+              "action": 42,
+              "collapsed": false
+            },
+            "icon": "folder",
+            "label": "Lists",
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "rust",
+            "action": 43,
+            "depth": 1,
+            "icon": "folder",
+            "label": "rust",
+            "long_press": 44,
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Work",
+            "action": 46,
+            "fold": {
+              "a11y": "Work subfolders",
+              "action": 45,
+              "collapsed": false
+            },
+            "icon": "folder",
+            "label": "Work",
+            "long_press": 47,
+            "selected": false,
+            "unread": 0
+          },
+          {
+            "a11y": "Clients",
+            "action": 48,
+            "depth": 1,
+            "icon": "folder",
+            "label": "Clients",
+            "long_press": 49,
+            "selected": false,
+            "unread": 0
+          }
+        ],
+        "name": "alice@example.com"
+      }
+    ],
+    "footer": [
+      {
+        "a11y": "Settings",
+        "action": 51,
+        "icon": "settings",
+        "label": "Settings",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "About",
+        "action": 52,
+        "icon": "info",
+        "label": "About",
+        "selected": false,
+        "unread": 0
+      },
+      {
+        "a11y": "Add account",
+        "action": 53,
+        "icon": "add",
+        "label": "Add account",
+        "selected": false,
+        "unread": 0
+      }
+    ],
+    "modal": true,
+    "rail": false
+  },
+  "fab": {
+    "action": 62,
+    "icon": "edit",
+    "label": "Compose"
+  },
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "offset": 0,
+    "refreshing": true,
+    "rows": [
+      {
+        "a11y": "unread, Carol, Lunch?, Nov 14",
+        "action": 54,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 55,
+        "messages": 1,
+        "selected": false,
+        "sender": "Carol",
+        "snippet": "Lunch at noon?",
+        "starred": false,
+        "subject": "Lunch?",
+        "swipe_end": 57,
+        "swipe_start": 56,
+        "thread": "00000000-0000-0007-0000-000000000002",
+        "unread": true
+      },
+      {
+        "a11y": "Bob, Q3 numbers, Nov 14",
+        "action": 58,
+        "attachments": false,
+        "checked": false,
+        "date": "Nov 14",
+        "long_press": 59,
+        "messages": 1,
+        "selected": false,
+        "sender": "Bob",
+        "snippet": "",
+        "starred": false,
+        "subject": "Q3 numbers",
+        "swipe_end": 61,
+        "swipe_start": 60,
+        "thread": "00000000-0000-0007-0000-000000000000",
+        "unread": false
+      }
+    ],
+    "title": "Inbox",
+    "total": 2
+  },
+  "menu": {
+    "close": {
+      "action": 72,
+      "icon": "close",
+      "label": "Close"
+    },
+    "items": [
+      {
+        "action": 63,
+        "icon": "add",
+        "label": "New subfolder…"
+      },
+      {
+        "action": 64,
+        "icon": "edit",
+        "label": "Rename…"
+      },
+      {
+        "action": 65,
+        "icon": "push_pin",
+        "label": "Pin to Favourites"
+      },
+      {
+        "action": 66,
+        "icon": "visibility_off",
+        "label": "Hide folder"
+      },
+      {
+        "action": 67,
+        "icon": "open_in_full",
+        "label": "Focus this mailbox"
+      },
+      {
+        "action": 68,
+        "icon": "mark_email_read",
+        "label": "Mark all as read"
+      },
+      {
+        "action": 69,
+        "icon": "drive_file_move",
+        "label": "Apply rules"
+      },
+      {
+        "action": 70,
+        "icon": "cloud_off",
+        "label": "Offline window…"
+      },
+      {
+        "action": 71,
+        "icon": "delete",
+        "label": "Delete…"
+      }
+    ],
+    "title": "Work"
+  },
+  "revision": 2,
+  "top_bar": {
+    "actions": [
+      {
+        "action": 33,
+        "icon": "search",
+        "label": "Search or run a command"
+      }
+    ],
+    "navigation": {
+      "action": 32,
+      "icon": "menu",
+      "label": "Mailboxes"
+    },
+    "overflow": [],
+    "subtitle": "⟳ syncing…",
+    "title": "Inbox"
+  },
+  "wants_tick": true
+}

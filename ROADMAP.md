@@ -1,10 +1,12 @@
 # dail — Roadmap
 
 Each checkbox is roughly one agent-sized change. A box is ticked only when all gates in `AGENTS.md §6` are green.
+An item that adds a control names where it appears on each front end (GUI, TUI, touch) or cites the reach table (`app_front::reach`, PAR-2).
 Command names refer to the catalogue in [`ARCHITECTURE.md §8`](ARCHITECTURE.md#8-initial-command-catalogue-mvp).
 
 Legend: **[core]** app-core · **[io]** app-io · **[sync]** app-sync · **[mcp]** · **[cli]** · **[gui]** · **[tk]** app-testkit · **[front]** app-front · **[tui]** app-tui
 · **[mobile]** app-mobile · **[android]** app-android · **[kt]** the Kotlin app (`android/`) · **[ios]** the SwiftUI app (`ios/`)
+· **[host]** app-host · **[tls]** app-tls · **[xtask]** · **[ci]** the workflows · **[packaging]** `packaging/` · **[docs]** · **[user]** a step only the user can do
 
 ---
 
@@ -524,7 +526,7 @@ encryption (SEC-1), 32-bit ARM.
   ARCHITECTURE §7.5; adjust the breakpoints and defaults
 
 ### Stretch
-- [ ] Home-screen widget (unread count) and app shortcuts (Compose, Search)
+- [ ] Home-screen widget (unread count) and app shortcuts (Compose, Search) *(now TCH-12, future waves, *Touch*)*
 - [ ] `dail` for Termux (`aarch64-linux-android`; app-cli with the GUI made optional): the TUI in the phone's terminal.
   Termux has no keyring, so it runs a demo on the memory backend until a secret store exists there
 
@@ -592,7 +594,7 @@ updates `AGENTS.md`/`ARCHITECTURE.md` where it touches them (plan §7).
   The steps that worked go into ARCHITECTURE §7.6
 - [ ] Device check: VoiceOver, Dynamic Type, dark mode, rotation, a hardware keyboard, being killed in the background
 - [ ] (Optional, paid account) A signed ad-hoc or TestFlight build from `release.yml`: the certificate and profile from
-  repository secrets in a temporary keychain (plan §6)
+  repository secrets in a temporary keychain (plan §6) *(required by IOS-3, Wave 17)*
 
 ---
 
@@ -888,6 +890,8 @@ text ships in English and French.
 - **Fuzzing.** `cargo-fuzz` in a `fuzz/` crate outside the workspace, run nightly. It compiles libFuzzer, so AGENTS.md
   §5 gets a one-line exception for tooling that never ships.
 - **iOS.** No new features until Android launches. The `ios` CI job stays green.
+- **Wave 14 first** (review of 2026-11-11, DIST-8). The P0 items of Wave 14 are done before STORE-18's screenshots and
+  STORE-24's closed test, so that testers do not spend 14 days reporting known gaps.
 - **Versions.** Closed-test builds are 0.9.x and production is 1.0.0. Merges keep releasing on GitHub and uploading to
   Play's internal track; promotion to users stays manual.
 
@@ -950,7 +954,7 @@ text ships in English and French.
 - [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
   `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an
-  emulator or device, with STORE-23)*
+  emulator or device, with STORE-23, and for Wave 14, whose items change the screens)*
 - [x] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
 - [x] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
@@ -965,9 +969,10 @@ text ships in English and French.
   16. Provisional budgets: first frame within 2 s on a mid-range phone, under 300 MiB at default settings. Push latency
   measured overnight (dail holds no wake lock, has no TCP keepalive and refreshes IDLE every 25 minutes). The provider
   matrix, with human testers: Gmail, Hostinger, Yahoo, iCloud, Fastmail, GMX and one Dovecot server. Results go into
-  ARCHITECTURE §7.5, and A7's box is ticked with this one
+  ARCHITECTURE §7.5, and A7's box is ticked with this one. QA-5 (Wave 14) adds a UX section: three journeys by hand
 - [ ] STORE-24 [user]: about 20 testers recruited so that at least 12 stay opted in, for 14 days or more (a tester who
-  opts out restarts their own count); weekly triage from Android vitals and diagnostics, and what comes up fixed
+  opts out restarts their own count); weekly triage from Android vitals and diagnostics, and what comes up fixed.
+  It starts after Wave 14
 
 ### F — Launch
 - [ ] STORE-25 [user]: 1.0.0 tagged, production requested (review usually takes up to 7 days), a staged rollout
@@ -1067,10 +1072,219 @@ English and French.
 - [x] MISC-49 [mobile][kt][ios]: the mobile About is a list of pages, one per licence, plus the privacy policy, as the
   desktop's About; Back returns from a page to the list; licence prose is reflowed to the screen width
   (`app_front::text::reflow`, desktop too) (requested 2026-11-07)
+- [x] MISC-50 [mobile][kt][ios]: in the reader a horizontal drag only closes the message (a drag to the right, from
+  anywhere on the page, with the slide) or scrolls a wide block; the cards' archive and trash swipes of MISC-44e are
+  gone, *Archive* (this message) joins the card's long-press menu (requested 2026-11-16)
+- [x] MISC-51 [gui][kt][ios]: copy text from the message pane: Ctrl+C reaches the system clipboard (eframe's
+  `clipboard` feature was off), a right click on the body offers *Copy* and *Copy all text*; on Android and iOS the
+  body's text is selectable (requested 2026-11-16)
+- [x] MISC-52 [mobile]: a tap on the frame on screen is not lost when a tick or a reply has made a newer one: the
+  presenter keeps the action tables of the four newest frames (found by QA-1's golden path)
+
+---
+
+## Wave 14 — Every action within reach: "what the desktop can do, a thumb can do"
+
+The P0 tasks of the review of 2026-11-11. Findings, code anchors and the table of where each action has a control are in
+[`docs/reviews/2026-11-11-ux-parity-and-distribution.md`](docs/reviews/2026-11-11-ux-parity-and-distribution.md); each
+item keeps its review ID. Each front end chose its own buttons, and on touch the palette, which is the fallback, could
+not be opened from an open message or from the bulk bar. This wave gives every front end one list of actions and puts
+the palette within reach of every touch state.
+
+**It runs before STORE-18's screenshots and STORE-24's closed test** (DIST-8). Testers would otherwise report these gaps
+for 14 days, and the store screenshots would show a UI that is about to change. Do the items in the order below: the
+touch items consume PAR-1. Each touch item changes the presenter and the frame contract first, then Kotlin; following
+Wave 11's decision, `ios/` takes the contract change and stays green, and its drawing is IOS-6 (Wave 17). All new text
+ships in English and French.
+
+**Exit criteria**
+- The desktop's bulk bar and the phone's bulk bar show the same actions, from one function in `app-front`.
+- On a phone the palette opens from the open message, the bulk bar, the maximized reader, the composer and settings.
+- On a phone, by touch alone: two checked threads move to a folder; a rule is made from the open message; *Rules* is one
+  tap from the settings root.
+- A new command does not compile without a reach decision for every front end.
+
+### R — Release
+- [x] REL-1 (S) [user]: merge `go/misc` into `main`, and from then on at least once per finished wave stage, so that an
+  item ticked here is on the user's phone within one merge *(merged; v0.1.8 of 2026-11-08 and v0.1.9 carry Waves 12 and
+  13. The rule stays)*
+- [x] REL-2 (S) [docs]: each roadmap item that adds a control says where it appears on each front end, or cites PAR-2's
+  table. AGENTS.md §3's sequence gets the step
+
+### P — One action model
+- [x] PAR-1 (M) [front][gui][tui][mobile]: `app_front::actions`, next to `message_actions`: `thread_actions(state, ids)`
+  for one or many threads (archive, trash, junk or not junk, read or unread by state, star or unstar by state, pin or
+  unpin, *Move…*, *Make a rule…* for one thread), `mailbox_actions(state, id)` (new subfolder, rename, delete, pin, hide,
+  focus, mark all read, empty for Trash and Junk, apply rules, offline window) and `account_actions(state, id)` (test,
+  password, servers, addresses, remove). An entry is a label key, an icon name, a `Command` or a palette `Flow`, and a
+  `primary` flag. The GUI's bulk bar and context menus, the TUI and the mobile presenter draw from these lists and keep
+  none of their own. A unit test pins each list *(done without the* Servers *entry: no flow sends `imap` or `smtp`
+  yet, PAR-5 adds it. The TUI has no thread or folder menus, so it draws nothing from the lists)*
+- [x] PAR-2 (S) [front][gui][tui][mobile]: a reach table, pinned by a test as `registry.rs` pins agent access: for every
+  `CommandName` and every front end, one of `Control`, `Flow`, `Palette` or `Never`, from an exhaustive `match`. The test
+  enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, and nothing is `Never` unless an ADR says
+  so. The table also shows the TUI's gaps, which the review did not check
+- [x] DSK-1 (S) [gui]: *Move…* in the desktop bulk bar (free with PAR-1); a row's context menu acts on every checked
+  thread when the clicked row is checked (check it first; the review did not)
+
+### T — Touch
+- [x] TCH-2 (M) [mobile][kt][ios]: overflow menus in the frame contract. `Reader.actions`, `Bulk.actions` and
+  `TopBar.actions` split by PAR-1's `primary` flag: at most four icons on a compact window, the rest under a ⋮ menu with
+  text labels. The presenter decides the split by window class; Kotlin draws it
+- [x] TCH-1 (S) [mobile][kt][ios]: the palette opens from every touch state, through TCH-2's overflow: the open message
+  on a phone, the bulk bar, the maximized reader, the composer and settings (AGENTS.md §1's Android rule). A presenter
+  test builds a frame for each state and asserts that some button runs `open_palette`
+- [x] TCH-3 (S) [mobile][kt][ios]: the bulk bar from `thread_actions`: adds *Move…*, Junk or Not junk and *Select all*,
+  and shows one read toggle and one star toggle by the state of the checked threads
+- [x] TCH-8 (S) [front][mobile][kt][ios]: *Make a rule from this message* in the message card's menu and in the reader's
+  overflow, through `message_actions` and `thread_actions`, so the desktop cards get it too
+- [x] TCH-4 (M) [mobile][kt][ios]: a folder's actions in the drawer: a long press on a folder (`DrawerItem` gets
+  `long_press`) opens a sheet of `mailbox_actions`. New names are typed in a text step; everything else is a tap
+- [x] TCH-6 (M) [mobile][kt][ios]: settings as a list of sections on a compact window, not five scrolling tabs:
+  *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*. *Keyboard* shows only
+  while a hardware keyboard is attached and is otherwise the last, folded entry. Medium and expanded windows keep tabs
+  or a two-pane layout
+- [x] TCH-7 (S) [mobile][kt][ios]: settings sync on the phone: the settings account as a row with a picker, *Pull now*,
+  when settings were last pulled and stored, and the last error with its ERR code
+
+### Q — Proof
+- [x] QA-2 (S) [mobile]: frame budgets as presenter tests at 360×640 dp: at most four primary icons per bar, a palette
+  entry in every state, and no settings section more than one tap from the settings root
+- [ ] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
+  message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off
+- [ ] QA-5 [user]: the three journeys of QA-1 by hand, one-handed, on the smallest phone at hand, as the UX section of
+  STORE-23's device check. It also confirms what the review read from code and did not see: the cramped bars and the
+  off-screen *Rules* tab
+
+---
+
+## Wave 15 — Forms, not prompts: "pick it, do not type it"
+
+The P1 tasks of the same review for the front ends. Chained palette prompts and typed answers become pickers and forms,
+with each model in `app-front` and drawn by every front end. It needs Wave 14's action lists and overflow menus. `ios/`
+stays green as above. All new text ships in English and French.
+
+**Exit criteria**
+- No palette step asks for typed text where the answers are a closed set; a test walks every flow.
+- An account's servers, its sending addresses and a rule with several conditions and actions can be edited in a form on
+  the desktop, in the TUI and on Android.
+- Frame times on a mid-range phone are measured and recorded, not assumed.
+
+- [ ] PAR-3 (M) [front]: closed sets become `AskKind::Options` or a list of the existing values: `set_key_preset`,
+  `set_theme`, `remove_identity`, `set_draft_from`, `set_mailbox_identity`, `set_update_policy`, and `set_sync_window`
+  as presets (200, 500, 1000, 5000, all). The test fails on an `AskKind::Text` whose command takes an enum or an existing
+  entity
+- [ ] PAR-4 (S) [front][mobile]: on mobile, `save_attachments` and `attach_file` lead to `External::SaveFiles` and
+  `External::PickFiles` instead of asking for an absolute path; the mobile parity walk fails on any path prompt
+- [ ] PAR-5 (M) [front][gui][tui][mobile][kt]: edit an account's servers: the wizard's server step reused as an *Edit
+  servers* form that sends `update_account`'s `imap` and `smtp`, then runs `test_account`. Today only the CLI can
+- [ ] PAR-6 (M) [front][gui][tui][mobile][kt]: a form for sending addresses: name, address and a multi-line signature. A
+  folder's sending address becomes a picker of the account's addresses
+- [ ] PAR-7 (L) [front][gui][tui][mobile][kt]: a rule editor as a form, with its model in `app-front` (a `RuleDraft`:
+  name, *all* or *any*, a list of conditions, a list of actions; validation from `app-core`). It replaces the chained
+  prompts for add and edit, opens compound rules (today JSON only), and shows a dry run before *Save*: "matches N
+  conversations in this mailbox". Split it when it is picked: model, then one front end per change
+- DSK-6 is the [gui][tui] drawing of PAR-5, PAR-6 and PAR-7; it is ticked with them
+- [ ] TCH-9 (M) [mobile][kt][ios]: draw PAR-7's rule editor: a full-screen form with add and remove rows for conditions
+  and actions
+- [ ] TCH-5 (S) [mobile][kt][ios]: the list header: the desktop's filter chips (unread, starred, attachments), and in the
+  list's overflow *Mark all read*, *Empty Trash* or *Empty Junk* in those folders, and *Select all*
+- [ ] PAR-8 (S) [front][gui][tui][mobile]: Redo and the undo history as visible entries (an *Edit* group in the palette's
+  first rows and in the phone's overflow menu)
+- [ ] QA-3 (M) [kt][mobile]: the time to build, serialize and decode a frame per event over the `large` fixture on a
+  mid-range phone, and dropped frames while scrolling the list and sliding the reader page. Budget 16 ms per frame;
+  results go into ARCHITECTURE §7.5 with STORE-23's
+- [ ] QA-4 (S) [kt][ios]: accessibility of the new controls: 48 dp touch targets, TalkBack and VoiceOver names for every
+  overflow entry, and the bars at font scales 1.3 and 2.0
+
+---
+
+## Wave 16 — Desktop distribution: "dail in the package managers"
+
+winget, an apt repository, Homebrew and, last, Flathub. Distribution stops at GitHub Releases today. The stages run in
+order: no package manager before DIST-1 and DIST-2. The review took the rules of winget, Homebrew and Flathub from prior
+knowledge: **read the current rules before DIST-3, DIST-5 and DIST-6.** It does not depend on Waves 14 and 15.
+
+**Exit criteria**
+- `winget install`, `apt install` from dail's own repository and `brew install` from the user's tap each install the
+  current release, and each release updates all three without a manual step.
+- A copy installed by a package manager never replaces its own files.
+- dail can be the system's default mail app on Linux and Windows.
+
+### A — Before any package manager
+- [ ] DIST-1 (M) [core][sync][cli]: an install channel fixed at build time (an environment variable read by `build.rs`)
+  that turns the updater into *notify only* or off for apt, Homebrew and Flatpak, as STORE-15 did for Android;
+  `InstallKind::Binary` would otherwise replace a managed file in place. An MSI installed through winget keeps updating
+  itself. ADR 0011 is amended
+- [ ] DIST-2 (M) [packaging][xtask]: AppStream metadata `net.darii.dail.metainfo.xml` (summary, description, releases
+  from `CHANGELOG.md`, screenshots, content rating), the desktop file under the same ID, and hicolor PNG icons beside
+  the SVG; `appstreamcli validate` joins the release script
+
+### B — A good desktop citizen
+- [ ] DSK-2 (M) [cli][gui][packaging]: dail as the default mail app: `dail gui <mailto-url>` (through the IPC attach
+  when an instance runs; `app_front::mailto` already parses the links), `MimeType=x-scheme-handler/mailto;` with `%u` in
+  `dail.desktop`, and the Windows registration in the MSI
+- [ ] DSK-3 (S) [packaging]: `dail` on `PATH` after the MSI, so that `dail mcp`, `dail exec` and `dail tui` are found in
+  a terminal and by an agent's MCP configuration
+- [ ] DSK-4 (M) [user][ci][packaging]: sign the Windows exe and MSI. The certificate or signing service is the user's
+  choice and cost
+
+### C — The package managers
+- [ ] DIST-3 (S) [packaging][ci]: winget: a manifest for the MSI (identifier, silent install, machine scope, SHA-256
+  from the release), submitted to `microsoft/winget-pkgs`, and a release step that opens the update PR. After DSK-3;
+  better after DSK-4
+- [ ] DIST-4 (M) [packaging][ci]: an apt repository: signed, built in `release.yml` from the `.deb`s and published on
+  static hosting, with a `dail.sources` file and its keyring, and install lines in the README. A Launchpad PPA or Debian
+  itself is not worth it before 1.0
+- [ ] DIST-5 (M) [packaging][ci]: Homebrew: the user's own tap with a formula that builds the tagged source, Linux only
+  until a macOS build exists. `homebrew-core` comes later
+- [ ] DIST-7 (S) [xtask]: one source for store text: a check keeps the `.deb` description, the metainfo, the winget
+  manifest, the Homebrew `desc` and the iOS metadata in step with `fastlane/metadata/android`, as `release versions`
+  does for the version
+
+### D — Wider reach
+- [ ] DSK-5 (M) [ci][packaging]: arm64 builds for Linux (`.deb`, AppImage, tarball) and Windows
+- [ ] DIST-6 (L) [packaging][ci]: Flathub. Needs DIST-2, an offline build (vendored crates, the git dependency of ADR
+  0012 pinned), the Secret Service for the keyring from inside the sandbox, and the notification portal. Decide with
+  the user whether it replaces the AppImage as the recommended download
+
+---
+
+## Wave 17 — The App Store: "dail on the iPhone and the iPad, from the store"
+
+It starts after the Android launch (Wave 11's iOS decision). The iOS app cannot write mail today, so it cannot pass App
+Review. There is still no Mac: every item is built and debugged through CI runs, so the sizes are less certain than
+elsewhere. The review took App Review's rules from prior knowledge: **read the current rules before IOS-4.**
+
+**Exit criteria**
+- A user can write, reply and forward with attachments on iOS, and is told of new mail as far as iOS allows without a
+  push server.
+- Every contract change of Waves 14 and 15 is drawn in SwiftUI.
+- A signed build is in TestFlight and the store submission is complete.
+
+- [ ] IOS-3 [user][ci]: a paid Apple Developer account, signing in `release.yml` and TestFlight. Wave 5's optional I4
+  item becomes required and is ticked with this one
+- [ ] IOS-1 (L) [ios]: the composer, in place of the placeholder (`FrameView.swift:90`): write, reply and forward, with
+  `pick_files`, `import_files` and the share sheet
+- [ ] IOS-6 (M) [ios]: draw the contract changes of Waves 14 and 15 (overflow menus, folder sheet, section list, rule
+  editor) and whatever `FrameView.swift:5` still lists as a title-only sheet
+- [ ] IOS-2 (M) [ios][host]: new-mail notifications and background refresh. Without a push server, iOS gives only
+  background app refresh, at times the system chooses; the listing must say so plainly
+- [ ] IOS-4 (S) [ios][docs]: `docs/store/app-store.md`, as `play-console.md`: App Privacy answers, the privacy manifest
+  (`PrivacyInfo.xcprivacy`) with the required-reason APIs the Rust code touches, the export-compliance answer (dail
+  ships its own TLS code from RustCrypto crates, not the system's), and a reviewer mailbox (STORE-22's)
+- [ ] IOS-5 (M) [ios][xtask]: `fastlane/metadata/ios` and iPhone and iPad screenshots from `DailDemo`
+- [ ] IOS-7 [user]: the device check, I4a to I4c of Wave 10.5, if it is still open then
 
 ---
 
 ## Roadmap — future waves (unordered within themes)
+
+**Touch** (review of 2026-11-11, P2)
+- TCH-10 (M) [mobile][kt][ios]: search apart from the palette: its own field with recent searches and the filter chips,
+  and the palette as its own entry. Decide with the user first: one entry is simpler, two are what phone users expect
+- TCH-11 (S) [core][mobile][kt][ios]: the two list swipes as settings (archive, trash, read or unread, move, none)
+- TCH-12 (S) [kt]: app shortcuts (Compose, Search) and the unread widget (Wave 4's stretch item)
 
 **Accounts & protocols**
 - OAuth2 XOAUTH2 for Gmail and Microsoft 365 (loopback redirect flow, token refresh in keyring)
@@ -1113,9 +1327,10 @@ English and French.
 
 **Platforms**
 - macOS build (Keychain via `keyring`)
-- iOS parity after Wave 5: compose with attachments, background refresh, notifications, iPad multi-column, keyboard
-  shortcuts, Share sheet and Files, the App Store
+- iOS parity after Wave 5: the composer, background refresh, notifications, the share sheet and the App Store are
+  Wave 17; iPad multi-column, keyboard shortcuts and Files stay here
 - Android releases on Google Play and F-Droid: Wave 11
+- winget, apt, Homebrew and Flathub: Wave 16
 - Android agent channel: AppFunctions for the system assistant once Gemini's integration opens; MCP on the phone only
   once a mobile MCP client can use a compact tool profile
 - `dail serve`: headless daemon exposing the command bus over WebSocket JSON-RPC + HTTP MCP

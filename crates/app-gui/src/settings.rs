@@ -21,8 +21,6 @@ use crate::ui;
 pub struct SettingsState {
     /// The key list's filter.
     filter: String,
-    /// The account whose *Remove…* was clicked once and waits for the confirmation.
-    confirm_remove: Option<AccountId>,
 }
 
 /// What the page asked for that is not a command.
@@ -59,6 +57,13 @@ impl SettingsState {
         now_ms: i64,
         queue: &mut Vec<Request>,
     ) -> SettingsActions {
+        // The phone's own sections (TCH-6): notifications are General's here, and the root
+        // shows the first tab.
+        let section = match section {
+            SettingsSection::Notifications => SettingsSection::General,
+            SettingsSection::Index => SettingsSection::Appearance,
+            other => other,
+        };
         let mut actions = SettingsActions::default();
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = t.m.space.sm;
@@ -112,7 +117,9 @@ impl SettingsState {
                     SettingsSection::Keys => {
                         actions.ask = keys(ui, t, state, &mut self.filter, queue);
                     }
-                    SettingsSection::General => {
+                    SettingsSection::General
+                    | SettingsSection::Notifications
+                    | SettingsSection::Index => {
                         general(ui, t, state, queue);
                         updates(ui, t, state, now_ms, &mut actions, queue);
                         synced(ui, t, state, &mut actions);
@@ -171,38 +178,16 @@ impl SettingsState {
                 });
                 ui.add_space(t.m.space.sm);
                 ui.horizontal_wrapped(|ui| {
-                    if ui::secondary(ui, t, t.s(Key::Test), None, true) {
-                        queue.push(Request::user(Command::TestAccount { id: account.id }));
-                    }
-                    if ui::secondary(ui, t, t.s(Key::ReEnterPassword), None, true) {
-                        actions.password = Some(account.id);
-                    }
-                    if self.confirm_remove == Some(account.id) {
-                        let remove = ui::text(
-                            &t.type_scale.body_md,
-                            t.f(Key::RemoveAccountCache, &[("email", &account.email)]),
-                            t.danger,
-                        );
-                        if ui::ghost(ui, t, remove).clicked() {
-                            queue.push(Request::user(Command::RemoveAccount {
-                                id: account.id,
-                                confirm: true,
-                            }));
-                            self.confirm_remove = None;
-                        }
-                        let keep =
-                            ui::text(&t.type_scale.body_md, t.s(Key::KeepIt), t.text_secondary);
-                        if ui::ghost(ui, t, keep).clicked() {
-                            self.confirm_remove = None;
-                        }
-                    } else {
-                        let remove = ui::text(
-                            &t.type_scale.body_md,
-                            t.s(Key::RemoveDots),
-                            t.text_secondary,
-                        );
-                        if ui::ghost(ui, t, remove).clicked() {
-                            self.confirm_remove = Some(account.id);
+                    // PAR-1: the account's actions; *Remove…* confirms in the palette.
+                    for entry in app_front::actions::account_actions(state, account.id) {
+                        if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                            match entry.run.flow(state) {
+                                Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                                Flow::Password(id) => actions.password = Some(id),
+                                Flow::Ask(step) => actions.ask = Some(step),
+                                Flow::Wizard => actions.wizard = true,
+                                Flow::Hidden => {}
+                            }
                         }
                     }
                 });

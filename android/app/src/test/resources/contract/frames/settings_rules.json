@@ -15,22 +15,22 @@
           {
             "actions": [
               {
-                "action": 10,
+                "action": 5,
                 "label": "Edit…"
               },
               {
-                "action": 11,
+                "action": 6,
                 "label": "Delete"
               }
             ],
             "choices": [
               {
-                "action": 8,
+                "action": 3,
                 "label": "On",
                 "selected": true
               },
               {
-                "action": 9,
+                "action": 4,
                 "label": "Off",
                 "selected": false
               }
@@ -42,11 +42,11 @@
           {
             "actions": [
               {
-                "action": 12,
+                "action": 7,
                 "label": "Add a rule…"
               },
               {
-                "action": 13,
+                "action": 8,
                 "label": "Apply to this mailbox"
               }
             ],
@@ -63,7 +63,7 @@
           {
             "actions": [
               {
-                "action": 14,
+                "action": 9,
                 "label": "Store on the server"
               }
             ],
@@ -76,33 +76,8 @@
       }
     ],
     "section": "rules",
-    "tabs": [
-      {
-        "action": 3,
-        "label": "Appearance",
-        "selected": false
-      },
-      {
-        "action": 4,
-        "label": "Keyboard",
-        "selected": false
-      },
-      {
-        "action": 5,
-        "label": "General",
-        "selected": false
-      },
-      {
-        "action": 6,
-        "label": "Accounts",
-        "selected": false
-      },
-      {
-        "action": 7,
-        "label": "Rules",
-        "selected": true
-      }
-    ]
+    "sections": [],
+    "tabs": []
   },
   "theme": {
     "chrome": {
@@ -368,8 +343,9 @@
       "icon": "arrow_back",
       "label": "Back"
     },
+    "overflow": [],
     "subtitle": "synced 9h ago",
-    "title": "Settings"
+    "title": "Rules"
   },
   "wants_tick": true
 }

@@ -106,9 +106,19 @@ GUI and the TUI share these rules and neither re-derives the other's. `app-gui` 
 other. Modules: `format` (dates in local time: the front end passes a `Zone`, the UTC offset at each instant, MISC-46; addresses, sizes), `body` (the reader's body tracking: which
 `get_thread {include_body: true}` to submit — `Bodies::rich()` adds `rich_body` for the GUI —, the bodies taken from its
 receipt with their `document`, `links`), `status` (sync text, problems,
-pending ops), `approvals` (the cards of agents' send requests), `message_actions` (MISC-44: one message's
-actions and the command each submits — Reply, Reply all, Forward, Read/Unread, Star/Unstar and Trash with
-`messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
+pending ops), `approvals` (the cards of agents' send requests), `actions` (PAR-1: `thread_actions(state, ids)`,
+`mailbox_actions(state, id)`, `account_actions(state, id)`, each a list of `Entry {label, icon, run, primary}` — an
+`i18n::Key`, an `app_theme::Icon` name, a `Run` (a `Command`, or plain data naming a palette flow and its target,
+resolved by `Run::flow`) and whether a short bar shows it as an icon (at most four); threads: Archive, Trash,
+Junk/Not junk, one read, star and pin toggle by the threads' state, *Move…*, and for one thread *Make a rule…*;
+mailboxes: *New subfolder…*, *Rename…* (not the Inbox), favourites pin, show/hide, focus, *Mark all read*, *Empty
+Trash*/*Empty Junk* (only those folders), *Apply rules*, *Offline window…*, *Delete…* (not the Inbox); accounts:
+*Test*, *Re-enter password*, *Sending addresses…*, *Remove…*, no *Servers…* yet (PAR-5); the GUI's bulk bar, row
+hover icons and context menu, folder menu and account buttons and the phone's bulk bar and reader toolbar draw
+from them), `message_actions` (MISC-44: one message's
+actions and what each runs (an `actions::Run`: a command, or a palette flow) — Reply, Reply all, Forward,
+Read/Unread, Star/Unstar, *Make a rule…* (TCH-8: `Run::RuleFrom` of that message, the palette's rule step; no key, so
+`key_command` is `None`) and Trash with `messages: [id]`; on a draft Edit (`edit_draft`) and Discard (`discard_draft` of its local draft, else a trash of the
 server copy); `for_key` maps a registry key onto them), `compose` (`parse_addr`, recipient fields, the draft's
 status, `sendable`), `fold` (`split`: a plain-text body's own text, `-- ` signature and trailing quoted part —
 `>` lines with their attribution, or an Outlook header block on), `mailbox` (labels), `notice` (the latest undo label, the send countdown, rejection texts),
@@ -268,9 +278,9 @@ the top level (servers such as Dovecot put every folder below `INBOX.`); the oth
 `unread_below` sums the folders below. `app_front::mailbox::visible_rows` drops what `view.collapsed` hides (UX-3):
 each account caption shows its sync state (`app_front::status::account_state`, UX-9: a busy dot while it syncs, a
 failed dot with the cleaned error on hover, `offline` while changes wait after failed attempts; the TUI writes `⟳`, `⚠`,
-`offline`); a folder row's context menu offers *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
-folder*, *Focus this mailbox*, *Mark all as read* and *Delete…* (the steps that ask go through the palette:
-`palette::new_subfolder`, `rename_folder`, `delete_folder`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
+`offline`); a folder row's context menu offers `app_front::actions::mailbox_actions` (PAR-1): *New subfolder…*, *Rename…*, *Pin to Favourites*/*Unpin*, *Hide folder*/*Show
+folder*, *Focus this mailbox*, *Mark all as read*, *Empty Trash*/*Empty Junk*, *Apply rules*, *Offline window…* and *Delete…* (the steps that ask go through the palette:
+`palette::new_subfolder`, `rename_folder`, `delete_folder`, `mark_mailbox_read`, `empty_folder`, `sync_window`; UX-14); the GUI draws a chevron on parents and account captions (click: fold; a click on a parent that can't be opened folds
 it too), a collapsed row shows `unread_below` faintly, and a collapsed account still shows the open mailbox. `Mailbox::parent_path()` / `depth()` give agents the same hierarchy in
 `list_mailboxes`.
 
@@ -348,8 +358,8 @@ finished pull, so a newer server copy is never overwritten unread; `WriteSetting
 `SettingsFailed{account, write, error}`; a diagnostic without an `ERR<code>: ` prefix is wrapped as `ERR023` (read) or
 `ERR024` (write), so `synced.error` always carries a code. The next successful pull or push clears it. The fake server
 (`app-testkit`) implements both. The settings screens show the account and the state through `app_front::synced::panel`
-(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the group under the Rules
-screen), with a short note of which settings follow the account and `Changes not stored on the server yet` while
+(GUI: *General → Settings on the server*; TUI: rows of the general section; mobile: the *Settings on the server*
+group of General, TCH-7, and a stored/not-stored row with *Store on the server* under Rules), with a short note of which settings follow the account and `Changes not stored on the server yet` while
 `synced.dirty`.
 
 Shared and local settings (SET-7). The local `Settings` (in `config.toml`) stay the effective values every front end
@@ -962,6 +972,21 @@ bracketed, so hard-coded and clipped strings show. Not translated: `app-core`'s 
 mail shows in logical order and the layout is not mirrored; bidi control characters from mail cannot reorder the UI
 (the TUI replaces them, `text::is_unsafe`; notifications drop them).
 
+**Reach table** (`app_front::reach`, PAR-2): for every `CommandName` and every front end (`FrontEnd::{Gui, Tui,
+Touch}`, touch being the presenter for Android and iOS), how the user reaches it: `Control` (a visible control runs
+it: button, menu entry, chip, settings row, a form's submit, a drag, a visible back or close button; not the system Back gesture), `Flow` (a control opens its
+palette step), `Palette` (only through the palette) or `Never`. It is an exhaustive `match` with no `_ =>` arm, so a
+new command does not compile without a decision per front end, and it describes the code as it is. Keys: on the TUI a
+default key counts as `Control` (keys are its controls); on the GUI a key alone does not (it is also used with a
+mouse); on touch keys never count. `app-front/tests/it/reach.rs` pins the `Palette`, `Never` and `Flow` lists per front end
+(the gaps, visible in review), and enforces two rules: on touch no `Mutation` of category *Mail* is `Palette`, but for
+`KNOWN_TOUCH_GAPS`, each naming the roadmap item that closes it (the list can only shrink); and nothing is `Never`
+unless `NEVER` names its ADR (today none: touch has no approvals screen, ADR 0009, but its palette offers them). It also checks that every
+command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`, `message_actions`) can return is
+`Control` or `Flow` where they are drawn (touch draws all but `account_actions`; `mailbox_actions` in the drawer's
+folder sheet, TCH-4), that every command with a default key is `Control` on the TUI, and that every
+`Palette` entry is offered by the palette.
+
 ### 7.1 GUI (`app-gui`)
 ```text
 ┌──────────────┬────────────────────────────────────────────────────────────────────┐
@@ -1040,20 +1065,21 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   phones, which have no such tab, show General (the phones have their own About screen).
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
   the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
-  runs `open_settings` with that section), then the section. Appearance: the mode as a segmented control and the
+  runs `open_settings` with that section; the phone's `notifications` shows General and `index` Appearance), then the section. Appearance: the mode as a segmented control and the
   light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
   and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
-  (a switch), undo history (`set_setting`). Accounts: a card per account with *Test*, *Re-enter password* and
-  *Remove…* (asks once more, then `remove_account {confirm: true}`), and *Add account*. Every control sends a
-  command; the page holds only a filter and the pending removal.
+  (a switch), undo history (`set_setting`). Accounts: a card per account with `app_front::actions::account_actions`
+  (PAR-1): *Test*, *Re-enter password*, *Sending addresses…* (the palette's `set_identity` step for that account) and
+  *Remove…* (the palette's confirmation, then `remove_account {confirm: true}`), and *Add account*. Every control
+  sends a command; the page holds only a filter.
 - **Rules** (SET-5, ADR 0015): `open_settings {section: "rules"}` on every front end, drawn from
   `app_front::rules::panel`: a row per live rule in `RuleId` order with its name and a summary in words
   (`sender contains “x” → move to Reading`), passed through `text::clean` and drawn as plain text, never markup or
   links (rule text is untrusted). GUI: a switch (`enable_rule`), *Edit…* and *Delete* (`delete_rule`, undoable) per
   rule, *Add a rule…*, *Apply to this mailbox* (`apply_rules` on the open mailbox; not the unified inbox) and
   *Store on the server* (`push_settings`, enabled while `synced.dirty`). TUI: the fourth section; `Enter` edits,
-  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the fifth tab, one settings row per rule
+  `Space` toggles, `d` deletes, `a` adds, `x` applies, `p` pushes. Phones: the second section (one tap from the compact root, TCH-6), one settings row per rule
   with On/Off choices and *Edit…*/*Delete* buttons (the frame types are unchanged). *Add a rule…* and *Edit…* are
   palette steps (`palette::new_rule`, `palette::edit_rule`: a test (sender, To, Cc, subject, mailing list,
   attachment) and its text, then an action (move to a folder, archive, mark read, star); editing replaces the name,
@@ -1114,6 +1140,8 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show a check mark (the `check` icon in the GUI, `✓` in the TUI).
   While threads are checked the list header shows *N checked* with *Archive*, *Trash*, *Mark read*, *Mark unread*,
   *Star* and *Uncheck all*, and every triage key or palette command acts on the checked threads (`palette::targets`).
+  A checked thread that leaves the list (archived, moved, hidden by the filter, another mailbox or search) is unchecked
+  (`Engine::settle_view`), so the bar closes after a bulk move; undo brings the threads back unchecked.
 - **Conversation:** messages oldest first. By default the unread ones and the newest are expanded and the others are
   one line (sender, age, the start of the text; `listing::is_expanded`); a click on a collapsed line sends
   `expand_messages {ids: [id]}`, a click on an expanded message's header `collapse_messages` (in a thread of more than
@@ -1139,6 +1167,11 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   and the texture is drawn in place of the alt text. A plain-text body (or a front-end without documents, like the TUI)
   shows the text. "Open original" writes
   a sanitized HTML file to temp and opens the system browser.
+  The body's text can be selected and copied (MISC-51): Ctrl+C copies the selection to the system clipboard (eframe's
+  `clipboard` feature; without it egui keeps the text inside the app), and a right click on the body opens *Copy* (the
+  selection) and *Copy all text* (`app_gui::selection`, which keeps the text egui reports when a selection settles: a
+  right click collapses the selection itself). On Android the body is a `SelectionContainer`, on iOS its texts have
+  `textSelection(.enabled)`: a long press selects, the system's toolbar copies.
   Below each body, *Links (N)* lists every `http(s)://` and `mailto:` target found in the text (`app_front::body::links`; HTML
   links arrive as numbered footnotes with their real targets), each shown in full and opened in the browser only when
   clicked. Each downloaded message has *Open original ↗*: `Session::open_original(blob)` renders the stored raw
@@ -1178,10 +1211,13 @@ mail shows in logical order and the layout is not mirrored; bidi control charact
   to a rail by `toggle_sidebar`), the thread list (`listing::visible_threads`: the `view.search` results, else the open
   mailbox, newest first; rows from `listing::ThreadSummary`, laid out only while visible), and the
   reader (toolbar acting on the open thread, one card per message with its own icon buttons from
-  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card —, body text). The list has a 48 px header (title, the
-  unread badge, *Clear* during a search, the checked-threads bar), hover actions on a row (UX-10: *Archive*, *Trash*, *Star*/*Unstar*, *Mark read*/*Mark unread* as icon buttons named
-  `<action> conversation`, also on the keyboard cursor's row; its context menu has the same plus *Move to…* — the
-  palette's target step, `palette::move_to` — and *Focus this mailbox*), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
+  `app_front::message_actions` — so a draft in a conversation is edited or discarded from its card, and *Make a rule…*
+  opens the palette at its step for that message (TCH-8) —, body text). The list has a 48 px header (title, the
+  unread badge, *Clear* during a search, the checked-threads bar: `app_front::actions::thread_actions` of the checked threads as text buttons, PAR-1, then
+  *Uncheck all*), hover actions on a row (UX-10, PAR-1: the entries of `thread_actions` of that row that run a command
+  at once — *Archive*, *Trash*, *Junk*/*Not junk*, *Mark read*/*Mark unread*, *Star*/*Unstar*, *Pin*/*Unpin* — as icon buttons named
+  `<action> conversation`, also on the keyboard cursor's row; its context menu has every entry, *Move…* and *Make a
+  rule…* continuing in the palette, and *Focus this mailbox*; on a checked row it acts on every checked thread, under a *N checked* line, DSK-1), rows drag onto the sidebar's folders (UX-11: the row's payload `list::Dragged{account, ids}` — every checked thread
   if the row is checked — and a folder of the same account outlines itself while hovered and takes it with
   `move_threads`; parents that can't be opened take nothing; dragging out to the OS stays unsupported), date group headers (UX-13: `app_front::format::date_group` — *Today*, *Yesterday*, *This week* since Monday, *Earlier
   this month*, then *November 2023*, local days — as heading rows that take one row slot each, so `show_rows` stays
@@ -1341,7 +1377,7 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
   focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local
   `n`/`p`, per open thread, like scrolling) marks one message `▶` with its `app_front::message_actions` and their keys
-  under it; the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
+  under it (not *Make a rule…*, which has no key on a message: the palette offers it, TCH-8); the keymap's `r a f u s #` then act on that message alone (`message_actions::for_key`), Enter edits a
   draft; `p` before the first message drops it. No browser and no "open original": over
   SSH they would open on the host.
 - **Keys** go through the shared keymap (`app_front::keymap`): `app_tui::keys::chord_of` maps crossterm's key events
@@ -1356,8 +1392,8 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   composer opens `$EDITOR`, and Enter on the empty first-run screen opens the account setup. A paste outside a text
   field is dropped, never run as keys.
 - **Settings** (`app_tui::settings`, `g ,`): while `view.settings` is set, the sections General, Keys, Accounts and Rules
-  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance` shows
-  General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
+  (SET-5, below the GUI's settings page) as lists of keys and values over the panes (no appearance: the TUI follows the terminal; `appearance`, and the phone's
+  `notifications` and `index`, show General). Tab moves between sections (`open_settings`), `j`/`k` between rows, Enter opens the palette at the step
   that changes the row (or tests the account), Esc runs `close_settings`.
 - **Palette** (`app_tui::palette`, Ctrl+K or `:`): the shared `app_front::palette::Palette` drawn over the panes — the
   whole body below 80 columns, a bordered box from 80 — with the prompt of a second step, the query and the rows
@@ -1466,26 +1502,70 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   does: `haptic`, `pick_files {draft}`, `import_files {draft, uris}`, `sending {draft}`, `open_url {url}`, `copy {text}`, `save_files {blob, files}`, `schedule {sync, interval_mins}`). `Reply` is `app_sync::Reply` with the runtime error as its message, so the crate needs no
   app-sync. The clock is injected (`Mobile::with_clock`); so is the time zone (`Mobile::with_zone`: `app-host` passes `app_sync::clock::local_offset_ms`, else UTC, MISC-46).
 - **Frames** (`app_mobile::frame`, `Serialize + JsonSchema`): `revision`, `layout` (window class and panes),
-  `top_bar` (title, sync state, the drawer or back button, search), `drawer` (*All inboxes* with two accounts or
+  `top_bar` (title, sync state, the drawer or back button, search, and an `overflow` that is empty today), `drawer` (*All inboxes* with two accounts or
   more, each account with its colour tag — an index into the theme's `tags` — and its mailboxes with role icons and
-  unread counts, and a footer: *Settings* = `open_settings`, *Add account* = `open_settings accounts`; `modal` on
-  compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`), `list`,
+  unread counts, and a footer: *Settings* = `open_settings index` (the root, TCH-6), *Add account* = `open_settings accounts`; `modal` on
+  compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
+  mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
   first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
-  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `back`
-  and `wants_tick`.
-- **Settings** (`mobile/settings.rs`). `settings` while `view.settings` is open: the five `open_settings` sections as
-  `tabs` (*Appearance*, *Keyboard*, *General*, *Accounts*, *Rules*; Rules: SET-5), then the open section's `groups` of rows. A row has a
+  rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `menu`
+  (below), `back` and `wants_tick`.
+- **Folder actions** (TCH-4). A long press on a folder in the drawer (`DrawerItem.long_press`, an optional action id,
+  omitted when absent) opens `menu`, an `ActionSheet { title, items: [Button], close }`: a generic list of actions on
+  one thing, today a folder's. `title` is the folder's name (`mailbox_name`, cleaned plain text), `items` are
+  `app_front::actions::mailbox_actions` in order, each with its icon and text label (the presenter adds, removes and
+  reorders nothing; the desktop's folder context menu draws the same list), `close` dismisses. The presenter holds the
+  open folder (`Mobile::menu`); the sheet closes on the next frame when the folder or the drawer is gone. A tap on an
+  item closes the sheet and runs it: a command at once (*Pin*, *Hide*, *Focus*, *Apply rules*, a small *Mark all as
+  read*), a flow at its palette step (`Run::flow`: a text step for *New subfolder…* and *Rename…*, a confirmation for
+  *Delete…*, *Empty Trash*/*Empty Junk* and a *Mark all as read* above 50 unread, a number for *Offline window…*). A
+  modal drawer stays under the open sheet and closes (`focus_pane list`, sent first) when an item is chosen, so the
+  palette step or the focused list is on screen; on an expanded window the drawer stays. Back, `close` and a tap
+  outside dismiss the sheet without a command. The drawer leaves hidden folders out and has no *Show hidden* toggle, so
+  *Show folder* never appears on touch (`show_mailbox` stays `Palette` there). TalkBack reaches the long press as the long click and the custom action
+  named by the label `Folder actions` (`labels`, `Actions sur le dossier`).
+- **Overflow menus** (TCH-2). `top_bar`, `bulk` and `reader` each carry `actions` (drawn as icons, or text for a
+  button without an icon) and `overflow` (drawn as a ⋯ button opening a menu of text labels, each `Button` keeping its
+  icon name for a leading glyph). Both are always present, `[]` when empty, as every `Vec` of the frame; the menu is
+  drawn only when `overflow` is not empty, and its trigger's accessible name is the label `More actions` (`labels`,
+  `Plus d’actions` in French). The presenter decides the split (`mobile::split`), never Kotlin or Swift: when a bar's
+  list does not fit its budget, the icons are its primary entries (`app_front::actions::Entry::primary`) in list order
+  up to the budget, then other entries in list order while room is left; the rest is `overflow`, in list order, so the
+  two together are the whole list. Budgets: the top bar and the bulk bar (full width) 4 on a compact window and all
+  on a medium or expanded one; the reader 4 on a compact window and in a medium window's detail pane beside the list,
+  6 in an expanded window's detail pane beside other panes, all when the message has a medium or expanded window to
+  itself. The menu trigger does not count, nor do `close`, `maximize` and `navigation`. The trigger is drawn with
+  the horizontal `more_horiz` glyph (SF Symbols `ellipsis` on iOS), hence ⋯.
+- **Settings** (`mobile/settings.rs`, TCH-6). `settings` while `view.settings` is open. One ordered list of sections
+  feeds both layouts: *Accounts*, *Rules*, *Appearance*, *General*, *Notifications & background*, *Keyboard*, *About*.
+  *Keyboard* stays before *About* while `configure`'s `keyboard` says a hardware keyboard is attached; otherwise it is
+  last, `folded` (drawn subdued, hint *No keyboard attached*), still one tap away. *About* opens the presenter's About
+  screen (MISC-3), not a section. On a compact window `open_settings index` is the root: `section` is `index`,
+  `sections` lists the entries (`SettingsEntry {icon, label, hint?, folded, action}`; hints count the accounts and the
+  rules) and `tabs` and `groups` are empty; an entry runs `open_settings <section>`, and inside a section `tabs` and
+  `sections` are empty, the top bar's title is the section's name, and Back (and the hardware Escape, which the presenter maps the same way) runs `open_settings index` (Back at the
+  root is the `Escape` binding, `close_settings`). The drawer's *Settings* runs `open_settings index`, and an
+  `open_settings` without a section sent while the settings are closed (the palette, `Ctrl+,`) is rewritten to
+  `index`. On medium and expanded windows the entries are `tabs` (*About* among them, unselected), `index` shows the
+  first tab, `sections` is empty and Back closes the settings as before. A section's `groups` of rows: a row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
   density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
-  delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47), and the phone's *Background &
-  notifications* group (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and
-  *Notification settings*: `External::SystemSettings`). It is a group under General and not a fifth section, so the
-  desktop's tabs stay as they are. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
+  delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47).
+  *Notifications & background* (`open_settings notifications`): the *Background & notifications* group
+  (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and *Notification settings*:
+  `External::SystemSettings`); the GUI and the TUI show General for `notifications` and their first section for
+  `index`. Accounts: each with its status and *Test* (`test_account`), *Password* (the setup's
   password form), *Remove* (the palette's confirmation step, `app_front::palette::remove_account`), then *Add an
-  account*. `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
+  account*. General ends with *Settings on the server* (TCH-7, as on the desktop), built from `app_front::synced::panel`
+  (`pulling`, `pulled_ms`, `pushed_ms`, `error` beside `status`): *Settings account* (the address, `(first account)`
+  when none was chosen, and a choice per account running `set_settings_account`; there is no "off": the command
+  needs an account), *Last pulled* (`app_front::format::age` or *Never*; *reading from the server…* while a pull
+  runs, else a *Pull now* button = `pull_settings` for that account), *Last stored*, *Settings sync* (stored / not
+  stored, *Store on the server* = `push_settings` while dirty and pushable) and, only after a failure, *Last error*
+  (the cleaned plain text, starting with its `ERR<code>: `). `text_scale`, `tui_colors` and `history_cap` are the desktop's and not shown.
 - **Account setup** (`mobile/setup.rs`), the GUI's wizard and the TUI's: provider → address (the servers for a custom
   one, *Find servers* = `discover_servers`, whose answer fills them through `status.discovery`) → password →
   `add_account` (purpose `Setup`) → `test_account` → *Sync now* (`sync_now` for the account). `setup` is a sheet over
@@ -1517,12 +1597,19 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   gesture; the text size never changes and the step stays across threads. Kotlin's drawer sheet and rail take no window
   insets of their own (the Scaffold's padding has them), which kept the landscape drawer too wide and misaligned.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
-  grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
+  grow, and the table holds those of the four newest frames (`KEPT_FRAMES`): a tick or a reply can make a frame the host
+  has not drawn yet, and a tap on the one on screen must not be lost. An older ID is ignored, never taken for another
+  action. An earlier frame's palette row, palette Back or setup button runs only while that frame showed the step and
+  rows the current one does (`steps`): once the step changed, it would mean something else.
   So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
   row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
-  threads are checked, `bulk` replaces the top bar: `N selected`, archive, trash, mark read, mark unread and star over
-  `palette::targets`, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
+  threads are checked, `bulk` replaces the top bar: `N selected`, the buttons of `app_front::actions::thread_actions`
+  over `palette::targets` (PAR-1: archive, trash, junk or not junk, one read, star and pin toggle, *Move…*, and for
+  one thread *Make a rule…*; a flow opens the palette at its step) split into `actions` and `overflow` (TCH-2: on a
+  phone, archive, trash, the read toggle and *Move…* as icons; junk, star and pin in the ⋯ menu), then *Select all*
+  (TCH-3, `app_front::actions::select_all`: `check_threads` without ids, the desktop's header checkbox; not offered
+  once every thread `listing::visible_threads` shows is checked) and the palette (TCH-1), both not primary, and a close button (`uncheck_threads`). Kotlin draws rows in a `SwipeToDismissBox` that springs
   back (the next frame drops the row) and a `combinedClickable` for the long press.
 - **The composer** (`app_mobile::composer`, the TUI's pattern). The typed subject and body stay in the presenter's
   buffers and go back as one `update_draft` when typing pauses for a second (`tick`), when the field loses the
@@ -1583,7 +1670,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   again by the `push` task the service runs once it is in the foreground. Its buttons: *Stop* (`NoteAct::StopPush` =
   `set_setting background_sync 1`, as the user, which stops the service through the next `schedule`) and *Battery*
   (the system's battery-optimization screen, a host action). The periodic check stays scheduled as the fallback.
-  Settings › General › *Background & notifications* turns push on and off.
+  Settings › *Notifications & background* turns push on and off.
 - **`mailto:` and the share sheet.** `MainActivity` takes `VIEW`/`SENDTO` with `mailto:` and `SEND`/`SEND_MULTIPLE`
   of any type, and Kotlin only reads the intent into `UiEvent::Share{mailto, to, subject, text, files}`. The presenter
   parses the link (`app_front::mailto`, RFC 6068: path and `to`, `cc`, `bcc`, `subject`, `body`), adds `EXTRA_EMAIL`,
@@ -1600,17 +1687,18 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   tapped (presenter state per message and kind, no command). *Links (N)* lists every target in full. A link's tap
   opens `link`, a dialog with the full target, *Open* and *Copy*: *Open* asks the host for `open_url` (`http`/`https`
   only, `ACTION_VIEW` with `CATEGORY_BROWSABLE`), and a `mailto:` link becomes a new draft (as a share does), never
-  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: archive, trash, star or unstar, mark read or unread, *Move…* (the
-  palette at `move_threads`' step) and reply.
+  another app; *Copy* is `copy`. A × beside the subject (`close`, `close_thread`, MISC-7) closes the message. The toolbar: `app_front::actions::thread_actions` of the open thread (PAR-1: archive,
+  trash, junk or not junk, read or unread, star or unstar, pin or unpin, *Move…* and *Make a rule…*, the last two
+  opening the palette at their step) and reply, split into `actions` and `overflow` (TCH-2). In the reader, reply is
+  primary and the read toggle is not (opening the message reads it), so a phone shows archive, trash, *Move…* and
+  reply as icons, and junk, the read, star and pin toggles and *Make a rule…* in the ⋯ menu.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
-    trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
-    button row (MISC-44e): a card swipes as a list row does, with `swipe_start` (archive the message,
-    `archive_threads{messages}`; a draft: edit) and `swipe_end` (trash it, `trash_threads{messages}`; a draft:
-    discard), `Button`s whose icon is revealed under the card, sent as `swipe` (a haptic follows). Android draws the
-    swipes with the list rows' `SwipeToDismissBox` (half-width threshold, colours of `SwipeRow`), and a long press
-    on the card's header opens a menu of `actions`; TalkBack gets `actions` and the start swipe as custom actions.
-    On the message page, a card swipes outside the page's left edge zone, where the swipe back starts. iOS decodes
+    *Make a rule…* from that message, which opens the palette at the rule step (TCH-8), then trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
+    button row (MISC-44e): a long press on the card's header opens a menu of `actions`, and TalkBack gets them as
+    custom actions. The presenter adds *Archive* (this message alone, `archive_threads{messages}`) before *Trash*. A
+    card has no swipes: in the reader a horizontal drag closes the message page (below) or scrolls a wide block.
+    iOS decodes
     them but does not draw them yet (Wave 11's iOS decision; the iOS reader is a `ScrollView`, not a `List` with `swipeActions`).
   - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
     `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
@@ -1653,11 +1741,21 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   `marks` (their subject and snippet cut at `app_front::highlight` words) and the list's `server` says *Searching the
   server…* or the newest server search's failure. `tests/it/palette.rs` walks every registry command through the sheet
   by taps (the parity walk).
+- **Where the palette opens on touch** (TCH-1, AGENTS.md §1's Android rule). Every state with a bar has exactly one
+  button that opens the palette at its root (icon `search`, label *Search or run a command*, `open_palette`): the
+  top bar's search where the top bar shows it (the list, two-pane readers, the composer and settings on every window
+  class); otherwise the last, non-primary entry of the bar that hides it, so on a compact window it is in the ⋯ menu:
+  the bulk bar (every class: it replaces the top bar; the palette then keeps the checked threads as its targets,
+  `palette::targets`), and the reader when it is a phone's page (it covers the top bar) or maximized (the top bar loses
+  its actions). The reader's entry is only for those two states, so no state shows two. Out of scope: the sheets that
+  take the whole screen and have their own close (the palette, the setup, a result, the link dialog, a preview,
+  About), and the no-accounts state, whose top bar keeps *Add account* and *About* (the palette is of no use without
+  an account). `tests/it/touch_palette.rs` taps every bar button of each state.
 - **Navigation is the `ViewState`.** The menu button is `focus_pane sidebar`. On compact and medium windows that
   opens the drawer modally over the panes `app_front::panes::behind_drawer` chooses (the frame keeps the list), and a
-  tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result or the palette
-  (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
-  settings), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
+  tap in it also sends `focus_pane list`, which closes it. Back closes the About screen, a query's result, the folder
+  sheet (`menu`), the link sheet, a preview or the palette (above) first, then a modal drawer (`focus_pane list`), else is the first `Escape` binding that resolves (`app_front::keymap`: close the composer, the thread, the search, the
+  settings; inside a section of a compact window's settings Back first returns to their root, TCH-6), else unchecks the checked threads. `frame.back` says whether Back is taken; otherwise Android handles it.
   `Refresh` (pull to refresh) is `sync_now`.
 - **Hardware keyboards** (`app_mobile::keys`). `MainActivity.onKeyDown` gets the keys that no view took (text fields
   take typing; Back, Home and volume stay the system's) and sends `KeyDown{code, unicode, ctrl, shift, alt, meta}`,
@@ -1678,11 +1776,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
     `layout.page = reader`. The top bar is the list's, there is no floating button, and Back closes the page.
   - **Drawing.** Hosts draw a page over the panes and the top bar, below the status bar (`ReaderPage.kt`, and
     `ReaderPage` in `ReaderPane.swift`). It slides in from the right in 250 ms.
-  - **The swipe back.** On Android a drag to the right that starts in the page's left edge zone follows the finger
-    (MISC-44e); on iOS, which draws no card swipes, a horizontal drag anywhere on the page does. On Android the zone is the system's back-gesture inset (`WindowInsets.systemGestures`), or 32 dp without one, and
-    the page takes such a drag before its content. Elsewhere a horizontal drag is the content's: a block's own
-    horizontal scroll, or a message card's swipes. The dominant axis decides against the body's scroll. Past a third of the width, or with a
-    fling, the page sends the reader's close (`close_thread`); otherwise it springs back.
+  - **The swipe back.** A drag to the right anywhere on the page follows the finger, on Android and on iOS. It is the
+    page's only swipe: a message card has none. On Android, in the left edge zone (the system's back-gesture inset,
+    `WindowInsets.systemGestures`, or 32 dp without one) the page takes the drag before its content; elsewhere it takes
+    it after its content, so a wide block (a table, code) scrolls sideways under the finger instead, and a text
+    selection keeps its drag. The dominant axis decides against the body's scroll. Past a third of the width, or with a
+    fling, the page slides away and sends the reader's close (`close_thread`); otherwise it springs back.
   - **Leaving.** A frame that drops the page over the list slides it out. One that puts something else there (the
     composer) removes it at once.
   - **The list beneath** keeps its scroll position and is hidden from TalkBack and VoiceOver. VoiceOver's escape
@@ -1705,6 +1804,11 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and types with `ESC`, C1 controls, `\r` and U+202E, and walks every string of the list, drawer, reader, link
   dialog, preview, palette, query result and reply frames at the three window sizes: none is left (a body keeps
   its line breaks), only U+FFFD.
+  A compact window narrower than 360 dp draws three icons per full-width bar, not four (`bar_budget`): with Close and
+  the ⋯ menu, four left the bulk bar's title 32 dp at 320 dp.
+  `tests/it/budgets.rs` (QA-2) states the phone's frame budgets once, over every touch state at 360×640 dp: at most four
+  icons per bar (each button labelled), exactly one palette entry per state (the exemptions, About and no accounts,
+  are listed with their reason and asserted to have none), and every settings section one tap from the root.
 - **Contract.** `tests/it/contract.rs` writes those frames, one of every `UiEvent` and `External`, and the JSON Schema
   of `Frame` and `UiEvent` into `android/app/src/test/resources/contract/{frames,events,externals,schema}/`, which the
   Kotlin types decode strictly. A stale, missing or extra fixture fails the test; `DAIL_UPDATE_CONTRACT=1` rewrites them.
@@ -1792,9 +1896,14 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `tick` every second while `wants_tick`, and Back through `BackHandler(frame.back)` (predictive back is on in the
   manifest). `ui/Frame.kt` holds the frame types (kotlinx.serialization), `ui/UiEvent.kt` the events, `ui/DrawerScreen.kt`
   the drawer (Material's `ModalNavigationDrawer` while `modal`, whose swipe or scrim closes it by sending Back; a
-  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
+  `PermanentDrawerSheet` pane, or a `NavigationRail` while `rail`; an item with `long_press` sends `LongPress`,
+  detected in the Initial pass so its release does not also open the folder, and offers it to TalkBack as long click
+  and custom action) and `ActionSheetView` (`menu` as a `ModalBottomSheet` over everything: the title, then 48 dp rows of
+  glyph and label; dismissal sends `close`), `ui/ListScreen.kt` the thread list (a `LazyColumn` of
   `total` items, placeholders outside the window, `scrolled` reports, `PullToRefreshBox`, the three densities),
-  `ui/DailScreen.kt` the banner card and the snackbar, `ui/SettingsScreen.kt` the settings (tabs, `FilterChip`
+  `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
+  `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (the compact root's
+  `sections` as 56 dp rows of glyph, label and hint, a folded one at reduced alpha; tabs only when `tabs` is not empty; `FilterChip`
   choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
@@ -1813,8 +1922,14 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   session if no activity has. With `uiautomator dump`, `screencap` and `input` an agent drives and reads the app.
   `app/src/androidTest` (`connectedDemoDebugAndroidTest`) calls it through the shell (`UiAutomation`), as adb does.
   `GoldenPathTest` (STORE-9b) drives the demo build with the window's accessibility tree (`UiAutomation`) and `input`, and checks the
-  bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. It needs no test
-  library beyond the runner; CI's `android-emulator` job runs it. On failure it saves a screenshot to
+  bridge's `state` and `frame`: open and read a conversation, archive and undo, compose, send and undo. QA-1 adds three
+  journeys, one `@Test` each, by touch: check two threads (a long press, then a tap) and move them with the bulk bar's
+  *Move…* (undone with the snackbar); open a message, open the palette from the reader's ⋯ and make a rule from it
+  (*Make a rule from this message*, then *Sender*, then *Star*); open *Settings* from the drawer, tap *Rules* in the
+  root list, add a rule with *Add a rule…*, switch it *Off* and *Delete* it. They share the app's process: each starts
+  from the inbox (system Back while the frame takes it) and leaves the demo mail and the rules as it found them; checks
+  of mailboxes and rules go through the bridge's `exec` (`list_mailboxes`, `list_threads`) and `state`. A ⋯ menu is a
+  popup window, so menu items are looked up in every window of the app. It needs no test library beyond the runner; CI's `android-emulator` job runs it. On failure it saves a screenshot to
   `/data/local/tmp/golden` and logs every window's node tree under the `GoldenPath` tag. `golden-path.yml` runs only
   this test, by hand on any branch (`gh workflow run golden-path.yml --ref <branch>`). It uses warm caches of its own
   (AVD snapshot, Rust, Gradle) and always uploads that evidence with logcat and `dumpsys window`.
@@ -1893,7 +2008,10 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `ContractTest` (`android/app/src/test/resources/contract`, a folder resource of the test bundle). Codable ignores
   unknown keys, so "strictly" means: each fixture decodes, and re-encoding the value gives back every key and value it
   had (`null` counts as absent). The events Swift builds equal Rust's fixtures. `HostTests` opens the demo host in the
-  simulator, decodes its frame strictly and sends a `configure`.
+  simulator, decodes its frame strictly and sends a `configure`. The bars' `overflow` (TCH-2) is drawn by a plain
+  SwiftUI `Menu` (`OverflowMenu` in `Views/Palette.swift`) after their icons; its final look is IOS-6. TCH-4's
+  `DrawerItem.longPress` and `Frame.menu` (`MenuSheet`, as `ActionSheet` would shadow SwiftUI's) are decoded but not
+  drawn yet: the long press and the sheet are IOS-6.
 - **The views** (`ios/Dail/Views`, as Kotlin's `ui/`). `Host.swift` runs every call on one serial queue ("dail-ui"),
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
@@ -1912,7 +2030,9 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `copy`, `open_url`, `haptic`, `system_settings` and `save_files` (each file read with `blob`'s `attachment`
   request into a private temporary folder, then `UIDocumentPickerViewController(forExporting:asCopy: true)`; the
   folder is removed when it closes); the other file ones wait for the compose wave.
-- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). Text fields are the presenter's
+- **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
+  when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
+  opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's
   (`FrameTextField`): typing goes back as `text`, and the frame's value replaces the field only when its `version`
   moves; leaving a field sends `blur`. Setup fields take their keyboard, autofill and capitalisation from `InputKind`,
   and the password is a `SecureField` that never comes back in a frame. Tests over the demo host: the parity walk
@@ -2009,7 +2129,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `cancel_send` | Mutation | `id` (only while scheduled; undo schedules the send again) | M4 |
 | `search` | Query | `query: String, account?, offset = 0, limit = 50 (1–500), server = true` → `{query (canonical), total, threads: [list_threads entry without in_mailbox + matches: [MessageId]], server: [{account, state: started\|searching\|done, hits, error}]}`, newest first; matches the cached envelopes (subject and addresses for text; `in:` uses `location()`) plus the server's hits for the query (§5.2 step 10); errors `error_002_invalid_argument` on `query` (with column) or empty query | M5 |
 | `set_search` / `clear_search` | View | `query` / — (`set_search` sets `view.search`, clears selection and reader, starts a server search round and returns the first 50 results like `search`; `clear_search` → `{cleared}`) | M5 |
-| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | accounts | rules | about` / — (the settings page in place of the list and the reader; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
+| `open_settings` / `close_settings` | View | `section?: appearance | keys | general | notifications | accounts | rules | about | index` / — (the settings page in place of the list and the reader; `notifications` and `index`, the list of sections, are the phones' (TCH-6), the desktop shows General and its first section; without a section the open one, else `appearance`; `get_view` reports `settings`); keys `Ctrl+,` and `g ,` / `Escape` (before the other `Escape` commands); agents allowed | UI-12 |
 | `open_composer` / `close_composer` | View | `id: DraftId` / — (shows the draft in the GUI composer and focuses it / closes it, keeping the draft; a composer whose draft is discarded or sent closes by itself) | M6 |
 | `collapse_folders` / `expand_folders` | View | `keys?: [{account, path}]` (an empty `path` is the whole account; none: every account and every folder with folders below it / all) → `{changed, collapsed}`; idempotent; `view.collapsed`, saved in `[view]`; error `error_004_not_found` for an unknown account, `error_002_invalid_argument` for a path that is no folder of the tree; keys `ArrowLeft` / `ArrowRight` (vim also `h` / `l`) fold the open mailbox's folder while the sidebar has the focus; agents allowed | UX-3 |
 | `focus_mailbox` / `clear_focus` | View | `id?` or `account?` (exactly one) / — → `{focused, mailbox}` / `{cleared}`; `view.focused` (`{mailbox: id}` or `{account: id}`, saved in `[view]`): the sidebar shows only that mailbox's subtree (`app_front::mailbox::sidebar_tree`) or account and a *Show all folders* chip, the unified inbox is hidden, new-mail notifications come only from it (`app_front::alerts`), the list title shows *Focus*. Focusing opens the mailbox (an account: its inbox unless one of its mailboxes is open); `open_mailbox` outside the focus and `open_unified_inbox` end it, and it ends with its mailbox or account. Keys `Ctrl+Shift+F`, `g f`; agents allowed | UX-4 |
@@ -2067,6 +2187,7 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | app-sync | `app-testkit` fake transport | effect execution, retries, reconciliation, UIDVALIDITY reset; compose & send (`app-testkit/tests/it/compose.rs`: draft saves, Sent copies, Gmail's own copy, failures); undo-send timing on the virtual clock (`app-testkit/tests/it/undo_send.rs`: undo inside the window cancels, after it the send is irreversible, the window follows `undo_send_ms`, closing inside the window never sends); search (`app-testkit/tests/it/search.rs`: hits outside the window and in bodies merged into the cache, rounds and offline failures in `status.searches`; the fake `UID SEARCH` and its translation in `app-sync/tests/it/live.rs`) |
 | app-tls | RFC 8439/7748/4231/5869 vectors, Wycheproof (`testdata/wycheproof/`), `proptest` | every primitive against published vectors (`valid` must pass, `invalid` and `acceptable` fail, except X25519 twist and non-canonical points, which RFC 7748 defines); cross-checks against RustCrypto (`chacha20poly1305`, `x25519-dalek`, `p256`, `p384`; dev-dependencies only); random input never panics a parser or verifier; the provider's algorithm set pinned (`src/tests.rs`); TLS 1.3 and 1.2 handshakes in memory between a rustls client and server on `provider()` with ECDSA and RSA test chains (`testdata/certs/`), 1 MiB each way, and refusals (unknown issuer, wrong name, expired, flipped bit, all-zero X25519 secret) |
 | parity | test in app-mcp/app-cli | registry ⇔ MCP tools ⇔ CLI ⇔ schema |
+| reach | `app-front/tests/it/reach.rs` | the reach table (§7): `Palette`, `Never` and `Flow` pinned per front end, no touch-only-palette Mail mutation but the listed ones, every `Never` backed by an ADR, the action lists and default keys agree with it |
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |

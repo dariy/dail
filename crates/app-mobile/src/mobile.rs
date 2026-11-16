@@ -11,8 +11,8 @@ use std::collections::HashSet;
 use app_core::document::FoldKind;
 use app_core::{
     AccountId, Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId, FolderKey,
-    MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, Thread, ThreadId, ThreadSummary,
-    listing,
+    MailboxId, MailboxRole, MessageId, Pane, QuoteStyle, SettingsSection, Thread, ThreadId,
+    ThreadSummary, listing,
 };
 use app_front::body::Bodies;
 use app_front::i18n::Lang;
@@ -27,9 +27,9 @@ use app_front::{a11y, compose, format, palette, updates};
 use crate::composer::Buffers;
 use crate::event::{External, Field, UiEvent};
 use crate::frame::{
-    ActionId, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer, DrawerAccount,
-    DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold, Recipients, Row,
-    Snackbar, TopBar,
+    ActionId, ActionSheet, Banner, Bulk, Button, Chip, Choice, Class, Composer, Density, Drawer,
+    DrawerAccount, DrawerItem, Fold, Frame, Layout, List, OutgoingFile, PaneKind, QuoteFold,
+    Recipients, Row, Snackbar, TopBar,
 };
 use crate::request::{Purpose, Reply, Request};
 
@@ -75,8 +75,10 @@ enum Act {
     Choose(palette::Target),
     /// Leave the palette's step, else close it.
     PaletteBack,
-    /// Open the palette at this command's step (*Move…*).
+    /// Open the palette at this command's step (a key binding's *Change…*).
     Flow(CommandName),
+    /// An action of `app_front::actions` (PAR-1): its command, or its palette step.
+    Action(app_front::actions::Run),
     /// Open or fold a message's quote or signature.
     Fold(MessageId, FoldKind),
     /// Show a link's full target (the link sheet).
@@ -105,6 +107,41 @@ enum Act {
     AddRule,
     /// *Edit…* of a sorting rule: the palette's steps (SET-5).
     EditRule(app_core::RuleId),
+    /// A long press on a folder in the drawer: open its actions (TCH-4).
+    Menu(MailboxId),
+    /// An entry of the open action sheet: close the sheet, then run it (its command, or its
+    /// palette step); `true` when a modal drawer closes first.
+    FromMenu(app_front::actions::Run, bool),
+    /// Dismiss the action sheet.
+    CloseMenu,
+}
+
+/// How many frames' action tables are kept: the current one and the three before it. A burst of
+/// replies makes a few frames before the host draws one.
+const KEPT_FRAMES: usize = 4;
+
+/// What the palette and the setup show, but for their action IDs and what is typed in a field:
+/// two frames with the same value show the same step and the same rows, so a row or a button of
+/// the one means the same in the other.
+fn steps(
+    palette: Option<&crate::frame::PaletteSheet>,
+    setup: Option<&crate::frame::SetupSheet>,
+) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    if let Some(palette) = palette {
+        (&palette.prompt, &palette.query.text).hash(&mut hasher);
+        for section in &palette.sections {
+            section.title.hash(&mut hasher);
+            for row in &section.rows {
+                (&row.title, &row.detail).hash(&mut hasher);
+            }
+        }
+    }
+    if let Some(setup) = setup {
+        (&setup.title, &setup.step).hash(&mut hasher);
+    }
+    hasher.finish()
 }
 
 /// The window, as the host last configured it.
@@ -185,8 +222,11 @@ pub struct Mobile {
     /// The first visible row and how many are visible (`scrolled`).
     scrolled: (usize, usize),
     rows: RowCache,
-    /// The action table of the last frame.
+    /// The action tables of the last [`KEPT_FRAMES`] frames, oldest first.
     actions: Vec<(ActionId, Act)>,
+    /// Where each kept frame's table starts in `actions`, and the step its palette and setup
+    /// were at ([`steps`]); the last is the current frame's.
+    frame_starts: Vec<(usize, u64)>,
     next_action: ActionId,
     revision: u64,
     bodies: Bodies,
@@ -201,6 +241,8 @@ pub struct Mobile {
     externals: Vec<External>,
     /// The system's dark mode (`configure`).
     dark: bool,
+    /// A hardware keyboard is attached (`configure`): places the settings' Keyboard (TCH-6).
+    keyboard: bool,
     /// The theme the host has, by slug.
     theme_sent: Option<String>,
     /// Whether the About screen is open.
@@ -230,6 +272,8 @@ pub struct Mobile {
     folds: HashSet<(MessageId, FoldKind)>,
     /// The tapped link, while its sheet is open.
     link: Option<String>,
+    /// The folder whose actions are open in the action sheet (TCH-4).
+    menu: Option<MailboxId>,
     /// The attachment shown in the app, by message and part.
     preview: Option<(MessageId, usize)>,
     /// The account setup, while open.
@@ -302,6 +346,7 @@ impl Mobile {
             scrolled: (0, FIRST_WINDOW),
             rows: RowCache::default(),
             actions: Vec::new(),
+            frame_starts: Vec::new(),
             next_action: 1,
             revision: 0,
             bodies: Bodies::rich(),
@@ -312,6 +357,7 @@ impl Mobile {
             sending: None,
             externals: Vec::new(),
             dark: false,
+            keyboard: false,
             theme_sent: None,
             about: false,
             about_page: None,
@@ -326,6 +372,7 @@ impl Mobile {
             result: None,
             folds: HashSet::new(),
             link: None,
+            menu: None,
             preview: None,
             setup: None,
             offered: false,
@@ -421,6 +468,16 @@ impl Mobile {
             Vec::new()
         };
         let mut out = self.handle(event, state);
+        // Settings opened without a section (the palette, a key) start at their root (TCH-6).
+        if state.view.settings.is_none() {
+            for request in &mut out {
+                if request.cmd == (Command::OpenSettings { section: None }) {
+                    request.cmd = Command::OpenSettings {
+                        section: Some(SettingsSection::Index),
+                    };
+                }
+            }
+        }
         if !flushed.is_empty() {
             out.splice(0..0, flushed);
         }
@@ -439,9 +496,11 @@ impl Mobile {
                 height_dp,
                 dark,
                 locale,
+                keyboard,
                 ..
             } => {
                 self.dark = dark;
+                self.keyboard = keyboard;
                 self.window = Window {
                     width_dp,
                     height_dp,
@@ -459,8 +518,9 @@ impl Mobile {
             }
             UiEvent::Tap { action } => self.act(action, state),
             UiEvent::LongPress { action } | UiEvent::Swipe { action } => {
+                let menu = self.menu;
                 let out = self.act(action, state);
-                if !out.is_empty() {
+                if !out.is_empty() || (self.menu.is_some() && self.menu != menu) {
                     self.externals.push(External::Haptic);
                 }
                 out
@@ -631,14 +691,24 @@ impl Mobile {
     }
 
     fn act(&mut self, action: ActionId, state: &AppState) -> Vec<Request> {
-        let Some(act) = self
-            .actions
-            .iter()
-            .find(|(id, _)| *id == action)
-            .map(|(_, act)| act.clone())
-        else {
+        let Some(at) = self.actions.iter().position(|(id, _)| *id == action) else {
             return Vec::new();
         };
+        let act = self.actions[at].1.clone();
+        // An earlier frame's action runs only if it names what it acts on. A step of the palette
+        // or of the setup means something else once the step has changed: it runs only while the
+        // frame it came from showed the step the current one does.
+        if matches!(act, Act::Choose(_) | Act::PaletteBack | Act::Setup(_)) {
+            let step = |(_, step): &(usize, u64)| *step;
+            let from = self
+                .frame_starts
+                .iter()
+                .rev()
+                .find(|(start, _)| at >= *start);
+            if from.map(step) != self.frame_starts.last().map(step) {
+                return Vec::new();
+            }
+        }
         // About is over everything: a command from elsewhere (a mailbox in the drawer) moves on
         // from it, or the panes would change unseen beneath it (MISC-12).
         if matches!(act, Act::Run(_) | Act::Many(_)) {
@@ -681,6 +751,7 @@ impl Mobile {
             Act::Choose(target) => self.palette_choose(target, state),
             Act::PaletteBack => self.palette_back(),
             Act::Flow(name) => self.palette_flow(name, state),
+            Act::Action(run) => self.ask(run.flow(state), state),
             Act::Fold(message, kind) => {
                 self.toggle_fold(message, kind);
                 Vec::new()
@@ -710,6 +781,25 @@ impl Mobile {
             Act::RemoveAccount(account) => self.ask(palette::remove_account(state, account), state),
             Act::AddRule => self.ask(palette::new_rule(), state),
             Act::EditRule(id) => self.ask(palette::edit_rule(state, id), state),
+            Act::Menu(id) => {
+                self.menu = Some(id);
+                Vec::new()
+            }
+            Act::CloseMenu => {
+                self.menu = None;
+                Vec::new()
+            }
+            Act::FromMenu(run, close_drawer) => {
+                self.menu = None;
+                let mut out = Vec::new();
+                // The modal drawer closes first, so what the entry leads to (the palette's
+                // step, the focused list) is on screen.
+                if close_drawer {
+                    out.push(Request::user(Command::FocusPane { pane: Pane::List }));
+                }
+                out.extend(self.ask(run.flow(state), state));
+                out
+            }
             Act::System(screen) => {
                 self.system(screen);
                 Vec::new()
@@ -800,6 +890,16 @@ impl Mobile {
         let now = self.now_ms();
         let typing = state.view.composer.is_some() && state.view.focus == Pane::Composer;
         match self.keys.press(chord, typing, state, now) {
+            // Escape inside a section of a compact window's settings goes to their root, as Back
+            // does (TCH-6).
+            Press::Done(Action::Run(Command::CloseSettings {}))
+                if self.settings_back(state).is_some() =>
+            {
+                self.settings_back(state)
+                    .into_iter()
+                    .map(Request::user)
+                    .collect()
+            }
             Press::Done(Action::Run(cmd)) => vec![Request::user(cmd)],
             Press::Done(Action::Ask(step)) => self.ask(palette::Flow::Ask(step), state),
             Press::Done(Action::Wizard) => self.ask(palette::Flow::Wizard, state),
@@ -825,6 +925,7 @@ impl Mobile {
             return Vec::new();
         }
         if self.result.take().is_some()
+            || self.menu.take().is_some()
             || self.link.take().is_some()
             || self.preview.take().is_some()
         {
@@ -836,6 +937,10 @@ impl Mobile {
         // A modal drawer closes before what it covers.
         if self.drawer_back(state) {
             return vec![Request::user(Command::FocusPane { pane: Pane::List })];
+        }
+        // Inside a section of a compact window, back to the settings root (TCH-6).
+        if let Some(cmd) = self.settings_back(state) {
+            return vec![Request::user(cmd)];
         }
         if let Some(cmd) = self.escape(state) {
             return vec![Request::user(cmd)];
@@ -955,6 +1060,21 @@ impl Mobile {
         id
     }
 
+    /// The button of an action of `app_front::actions` (PAR-1).
+    fn action_button(&mut self, entry: app_front::actions::Entry) -> Button {
+        self.button(entry.icon, i18n::s(entry.label), Act::Action(entry.run))
+    }
+
+    /// Opens the command palette: the top bar's search, and the entry of a bar that hides it
+    /// (TCH-1).
+    fn palette_button(&mut self) -> Button {
+        self.button(
+            "search",
+            i18n::s(Text::SearchOrRun),
+            Act::Run(Command::OpenPalette {}),
+        )
+    }
+
     fn button(&mut self, icon: &str, label: &str, act: Act) -> Button {
         Button {
             icon: Some(icon.to_owned()),
@@ -963,13 +1083,23 @@ impl Mobile {
         }
     }
 
-    /// The next screen. The action IDs of earlier frames stop working.
+    /// The next screen. The action IDs of the [`KEPT_FRAMES`] newest frames work: the host may
+    /// not have drawn this one yet when a finger lands on the one before (a tick or a reply made
+    /// it meanwhile), and that tap must not be lost. Older IDs stop working.
     pub fn frame(&mut self, state: &AppState) -> Frame {
         self.lang = Lang::resolve(state.settings.language, self.system_lang);
         i18n::set_current(self.lang);
         self.compose.sync(state);
         self.palette_sync(state);
-        self.actions.clear();
+        self.frame_starts.push((self.actions.len(), 0));
+        if self.frame_starts.len() > KEPT_FRAMES {
+            self.frame_starts.remove(0);
+            let cut = self.frame_starts.first().map_or(0, |(start, _)| *start);
+            self.actions.drain(..cut);
+            for (start, _) in &mut self.frame_starts {
+                *start -= cut;
+            }
+        }
         self.revision += 1;
         if !self.offered && state.accounts.is_empty() {
             self.offered = true;
@@ -989,6 +1119,7 @@ impl Mobile {
         if maximized {
             // Minimal: the message has the room; its own bar keeps its actions.
             top_bar.actions.clear();
+            top_bar.overflow.clear();
         }
         let chosen = crate::theme::chosen(&state.settings, self.dark);
         // A modal drawer gives way to the About screen it opened.
@@ -998,7 +1129,13 @@ impl Mobile {
             .contains(&PaneKind::List)
             .then(|| self.list(state, chosen.tags.len()));
         let mut reader = if kinds.contains(&PaneKind::Reader) || page.is_some() {
-            self.reader(state)
+            // TCH-1: the reader carries the palette only where the top bar's search is not on
+            // screen: a phone's page covers the top bar, a maximized message clears its actions.
+            self.reader(
+                state,
+                reader_budget(class, &kinds),
+                page.is_some() || maximized,
+            )
         } else {
             None
         };
@@ -1055,17 +1192,26 @@ impl Mobile {
             self.preview = None;
         }
         let link = self.link_sheet();
+        // The sheet goes with its drawer and its folder (deleted, account removed).
+        if drawer.is_none() {
+            self.menu = None;
+        }
+        let menu = self.menu_sheet(state, modal);
         let preview = self.preview_view(state);
         if preview.is_none() {
             self.preview = None;
         }
         // Nothing floats over a preview (its pages zoom under the whole screen).
         let fab = fab.filter(|_| preview.is_none());
+        if let Some((_, step)) = self.frame_starts.last_mut() {
+            *step = steps(palette.as_ref(), setup.as_ref());
+        }
         let back = self.about
             || setup.is_some()
             || palette.is_some()
             || result.is_some()
             || link.is_some()
+            || menu.is_some()
             || preview.is_some()
             || self.escape(state).is_some()
             || !state.view.checked.is_empty()
@@ -1095,9 +1241,37 @@ impl Mobile {
             result,
             link,
             preview,
+            menu,
             back,
             wants_tick: self.wants_tick(state),
         }
+    }
+
+    /// The open folder's actions (TCH-4): `app_front::actions::mailbox_actions`, as the desktop's
+    /// folder menu lists them, under the folder's name. Gone with its folder.
+    fn menu_sheet(&mut self, state: &AppState, modal: bool) -> Option<ActionSheet> {
+        let id = self.menu?;
+        let Some(mailbox) = state.mailboxes.get(&id) else {
+            self.menu = None;
+            return None;
+        };
+        let title = clean(&mailbox_name(mailbox));
+        let items = app_front::actions::mailbox_actions(state, id)
+            .into_iter()
+            .map(|entry| {
+                self.button(
+                    entry.icon,
+                    i18n::s(entry.label),
+                    Act::FromMenu(entry.run, modal),
+                )
+            })
+            .collect();
+        let close = self.button("close", i18n::s(Text::Close), Act::CloseMenu);
+        Some(ActionSheet {
+            title,
+            items,
+            close,
+        })
     }
 
     /// The About screen: a row per licence, or the open page's text.
@@ -1132,6 +1306,7 @@ impl Mobile {
                 subtitle: None,
                 navigation: Some(self.button("arrow_back", i18n::s(Text::Back), Act::Back)),
                 actions: Vec::new(),
+                overflow: Vec::new(),
             };
         }
         if self.about {
@@ -1142,6 +1317,7 @@ impl Mobile {
                 subtitle: None,
                 navigation: Some(self.button("close", i18n::s(Text::Close), Act::Back)),
                 actions: Vec::new(),
+                overflow: Vec::new(),
             };
         }
         let one = match kinds {
@@ -1152,7 +1328,7 @@ impl Mobile {
             Some(PaneKind::Drawer) => i18n::s(Text::Mailboxes).to_owned(),
             Some(PaneKind::Reader) => i18n::s(Text::Message).to_owned(),
             Some(PaneKind::Composer) => i18n::s(Text::Draft).to_owned(),
-            Some(PaneKind::Settings) => i18n::s(Text::Settings).to_owned(),
+            Some(PaneKind::Settings) => self.settings_title(state).to_owned(),
             Some(PaneKind::List) | None => list_title(state),
         };
         let subtitle = (!state.accounts.is_empty())
@@ -1174,11 +1350,7 @@ impl Mobile {
         };
         let mut actions = Vec::new();
         if !state.accounts.is_empty() {
-            actions.push(self.button(
-                "search",
-                i18n::s(Text::SearchOrRun),
-                Act::Run(Command::OpenPalette {}),
-            ));
+            actions.push(self.palette_button());
         }
         if state.accounts.is_empty() {
             actions.push(Button {
@@ -1195,11 +1367,17 @@ impl Mobile {
                 action: self.add(Act::About),
             });
         }
+        // Every button of the top bar is primary; TCH-1 adds what overflows.
+        let (actions, overflow) = split(
+            actions.into_iter().map(|b| (b, true)).collect(),
+            bar_budget(self.class(), self.window.width_dp),
+        );
         TopBar {
             title,
             subtitle,
             navigation,
             actions,
+            overflow,
         }
     }
 
@@ -1265,6 +1443,7 @@ impl Mobile {
                 unread,
                 selected: state.view.unified && browsing,
                 action: self.add(open(Command::OpenUnifiedInbox {})),
+                long_press: None,
             }
         });
         let mut accounts = Vec::new();
@@ -1302,6 +1481,7 @@ impl Mobile {
                         && state.view.mailbox == node.mailbox
                         && browsing,
                     action,
+                    long_press: node.mailbox.map(|id| self.add(Act::Menu(id))),
                 });
             }
             let key = FolderKey {
@@ -1320,14 +1500,19 @@ impl Mobile {
         }
         let mut footer = Vec::new();
         for (label, icon, section) in [
-            (i18n::s(Text::Settings), "settings", None),
+            (
+                i18n::s(Text::Settings),
+                "settings",
+                Some(SettingsSection::Index),
+            ),
             (
                 i18n::s(Text::AddAccount),
                 "add",
                 Some(SettingsSection::Accounts),
             ),
         ] {
-            let selected = section.is_none() && state.view.settings.is_some() && !self.about;
+            let root = section == Some(SettingsSection::Index);
+            let selected = root && state.view.settings.is_some() && !self.about;
             footer.push(DrawerItem {
                 a11y: label.to_owned(),
                 label: label.to_owned(),
@@ -1337,8 +1522,9 @@ impl Mobile {
                 unread: 0,
                 selected,
                 action: self.add(open(Command::OpenSettings { section })),
+                long_press: None,
             });
-            if section.is_none() {
+            if root {
                 // MISC-3: *About* right after *Settings* (no command: the screen is the
                 // presenter's).
                 footer.push(DrawerItem {
@@ -1350,6 +1536,7 @@ impl Mobile {
                     unread: 0,
                     selected: self.about,
                     action: self.add(Act::About),
+                    long_press: None,
                 });
             }
         }
@@ -1507,76 +1694,21 @@ impl Mobile {
             return None;
         }
         let ids = palette::targets(state);
-        let messages = Vec::new;
-        let all_pinned = ids
-            .iter()
-            .filter_map(|t| state.threads.get(t))
-            .all(|t| listing::is_pinned(state, t));
-        let actions = [
-            (
-                "archive",
-                i18n::s(Text::Archive),
-                Command::ArchiveThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "delete",
-                i18n::s(Text::Trash),
-                Command::TrashThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "mark_email_read",
-                i18n::s(Text::MarkRead),
-                Command::MarkRead {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "mark_email_unread",
-                i18n::s(Text::MarkUnread),
-                Command::MarkUnread {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            (
-                "star",
-                i18n::s(Text::Star),
-                Command::Star {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            ),
-            // MISC-4: unpin when every checked thread is pinned.
-            if all_pinned {
-                (
-                    "push_pin",
-                    i18n::s(Text::Unpin),
-                    Command::UnpinThreads {
-                        ids: ids.clone(),
-                        messages: messages(),
-                    },
-                )
-            } else {
-                (
-                    "push_pin",
-                    i18n::s(Text::Pin),
-                    Command::PinThreads {
-                        ids: ids.clone(),
-                        messages: messages(),
-                    },
-                )
-            },
-        ]
-        .into_iter()
-        .map(|(icon, label, cmd)| self.button(icon, label, Act::Run(cmd)))
-        .collect();
+        let mut items: Vec<_> = app_front::actions::thread_actions(state, &ids)
+            .into_iter()
+            .map(|entry| {
+                let primary = entry.primary;
+                (self.action_button(entry), primary)
+            })
+            .collect();
+        // TCH-3: *Select all* of the list, after the thread actions (not primary).
+        if let Some(entry) = app_front::actions::select_all(state) {
+            items.push((self.action_button(entry), false));
+        }
+        // TCH-1: the bulk bar replaces the top bar and its search: the palette, last and not
+        // primary (it keeps the checked threads as its targets).
+        items.push((self.palette_button(), false));
+        let (actions, overflow) = split(items, bar_budget(self.class(), self.window.width_dp));
         let close = self.button(
             "close",
             i18n::s(Text::UncheckAll),
@@ -1585,6 +1717,7 @@ impl Mobile {
         Some(Bulk {
             title: i18n::f(Text::Selected, &[("n", &ids.len().to_string())]),
             actions,
+            overflow,
             close,
         })
     }
@@ -1958,6 +2091,59 @@ fn list_title(state: &AppState) -> String {
         )
 }
 
+/// How many buttons a full-width bar (the top bar, the bulk bar) draws as icons (TCH-2): four on
+/// a compact window, three on one narrower than 360 dp (with Close and the ⋯ menu, four would
+/// leave the title 32 dp at 320 dp: *2 selected* wrapped a letter a line), all of them on a wider
+/// window (its whole list fits from 600 dp).
+const fn bar_budget(class: Class, width_dp: u32) -> usize {
+    match class {
+        Class::Compact if width_dp < 360 => 3,
+        Class::Compact => 4,
+        Class::Medium | Class::Expanded => usize::MAX,
+    }
+}
+
+/// How many buttons the reader's toolbar draws as icons (TCH-2): four on a compact window (the
+/// page is the window's width, and narrow) and in the detail pane of a medium window beside the
+/// list; six in the detail pane of an expanded window beside other panes; all of them when the
+/// message has a medium or expanded window to itself.
+fn reader_budget(class: Class, kinds: &[PaneKind]) -> usize {
+    let alone = kinds == [PaneKind::Reader];
+    match class {
+        Class::Compact => 4,
+        Class::Medium | Class::Expanded if alone => usize::MAX,
+        Class::Medium => 4,
+        Class::Expanded => 6,
+    }
+}
+
+/// Splits a bar's buttons into icons and a ⋯ menu (TCH-2): when they do not all fit in
+/// `budget`, the icons are the primary ones (`app_front::actions::Entry::primary`) in list order
+/// up to `budget`, then others in list order while room is left; the rest is the overflow. Both
+/// keep list order, so together they are the whole list.
+fn split(items: Vec<(Button, bool)>, budget: usize) -> (Vec<Button>, Vec<Button>) {
+    if items.len() <= budget {
+        return (items.into_iter().map(|(b, _)| b).collect(), Vec::new());
+    }
+    let primaries = items.iter().filter(|(_, p)| *p).count().min(budget);
+    let mut others = budget - primaries;
+    let mut taken = 0;
+    let mut actions = Vec::new();
+    let mut overflow = Vec::new();
+    for (button, primary) in items {
+        if primary && taken < primaries {
+            taken += 1;
+            actions.push(button);
+        } else if !primary && others > 0 {
+            others -= 1;
+            actions.push(button);
+        } else {
+            overflow.push(button);
+        }
+    }
+    (actions, overflow)
+}
+
 /// The texts Kotlin and Swift compose themselves.
 fn native_labels() -> std::collections::BTreeMap<String, String> {
     if i18n::current() == Lang::English {
@@ -1982,6 +2168,8 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
         Text::NativeFailed,
         Text::NativePassed,
         Text::NativePending,
+        Text::NativeMoreActions,
+        Text::NativeFolderActions,
         Text::Pinned,
         Text::ToNameLower,
         Text::Subject,
@@ -1991,4 +2179,67 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
     .into_iter()
     .map(|key| (i18n::english(key).to_owned(), i18n::s(key).to_owned()))
     .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Button, split};
+
+    fn items(spec: &[(&str, bool)]) -> Vec<(Button, bool)> {
+        spec.iter()
+            .zip(1..)
+            .map(|((label, primary), action)| {
+                (
+                    Button {
+                        icon: None,
+                        label: (*label).to_owned(),
+                        action,
+                    },
+                    *primary,
+                )
+            })
+            .collect()
+    }
+
+    fn labels(buttons: &[Button]) -> Vec<&str> {
+        buttons.iter().map(|b| b.label.as_str()).collect()
+    }
+
+    #[test]
+    fn everything_fits() {
+        let (icons, more) = split(items(&[("a", false), ("b", true), ("c", false)]), 3);
+        assert_eq!(labels(&icons), ["a", "b", "c"]);
+        assert!(more.is_empty());
+    }
+
+    #[test]
+    fn more_primaries_than_the_budget() {
+        let spec = [
+            ("a", true),
+            ("x", false),
+            ("b", true),
+            ("c", true),
+            ("d", true),
+        ];
+        let (icons, more) = split(items(&spec), 2);
+        assert_eq!(labels(&icons), ["a", "b"]);
+        assert_eq!(labels(&more), ["x", "c", "d"]);
+    }
+
+    #[test]
+    fn others_fill_what_primaries_leave() {
+        let spec = [
+            ("x", false),
+            ("a", true),
+            ("y", false),
+            ("z", false),
+            ("b", true),
+        ];
+        let (icons, more) = split(items(&spec), 3);
+        assert_eq!(labels(&icons), ["x", "a", "b"]);
+        assert_eq!(labels(&more), ["y", "z"]);
+        let mut all: Vec<u32> = icons.iter().chain(&more).map(|b| b.action).collect();
+        all.sort_unstable();
+        assert_eq!(all, [1, 2, 3, 4, 5], "nothing lost or duplicated");
+    }
 }

@@ -7,7 +7,7 @@
 //! through `app_front::text`.
 
 use app_core::document::{Block, FoldKind, Span};
-use app_core::{AppState, BodyState, Command, CommandName, MessageId, ThreadSummary, listing};
+use app_core::{AppState, BodyState, Command, MessageId, ThreadSummary, listing};
 use app_front::body::{self, Body};
 use app_front::i18n::{self, Key};
 use app_front::message_actions::{self, MessageAction};
@@ -270,91 +270,47 @@ fn openable(url: &str) -> bool {
 }
 
 impl Mobile {
-    pub(super) fn reader(&mut self, state: &AppState) -> Option<Reader> {
+    /// The open thread; its toolbar draws `budget` buttons as icons (TCH-2), and ends with the
+    /// palette when `palette` (the top bar's search is not on screen, TCH-1).
+    pub(super) fn reader(
+        &mut self,
+        state: &AppState,
+        budget: usize,
+        palette: bool,
+    ) -> Option<Reader> {
         let thread = state.view.thread.and_then(|id| state.threads.get(&id))?;
         let now = self.now_ms();
-        let ids = vec![thread.id];
         let envelopes: Vec<_> = thread
             .messages
             .iter()
             .filter_map(|id| state.messages.get(id))
             .collect();
-        let starred = envelopes.iter().any(|m| m.flags.flagged);
-        let unread = envelopes.iter().any(|m| !m.flags.seen);
-        let messages = Vec::new;
-        let (star_icon, star_label, star) = if starred {
-            (
-                "star",
-                i18n::s(Key::Unstar),
-                Command::Unstar {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        } else {
-            (
-                "star",
-                i18n::s(Key::Star),
-                Command::Star {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        };
-        let (read_icon, read_label, read) = if unread {
-            (
-                "mark_email_read",
-                i18n::s(Key::MarkRead),
-                Command::MarkRead {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        } else {
-            (
-                "mark_email_unread",
-                i18n::s(Key::MarkUnread),
-                Command::MarkUnread {
-                    ids: ids.clone(),
-                    messages: messages(),
-                },
-            )
-        };
-        let mut actions = vec![
-            self.button(
-                "archive",
-                i18n::s(Key::Archive),
-                Act::Run(Command::ArchiveThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                }),
-            ),
-            self.button(
-                "delete",
-                i18n::s(Key::Trash),
-                Act::Run(Command::TrashThreads {
-                    ids: ids.clone(),
-                    messages: messages(),
-                }),
-            ),
-            self.button(star_icon, star_label, Act::Run(star)),
-            self.button(read_icon, read_label, Act::Run(read)),
-            self.button(
-                "drive_file_move",
-                i18n::s(Key::Move),
-                Act::Flow(CommandName::MoveThreads),
-            ),
-        ];
+        // PAR-1: the thread's actions, then Reply. TCH-2: Reply is primary here, and the read
+        // toggle is not (opening the message reads it), so a phone's four icons are Archive,
+        // Trash, *Move…* and Reply.
+        let mut items: Vec<_> = app_front::actions::thread_actions(state, &[thread.id])
+            .into_iter()
+            .map(|entry| {
+                let primary =
+                    entry.primary && !matches!(entry.label, Key::MarkRead | Key::MarkUnread);
+                (self.action_button(entry), primary)
+            })
+            .collect();
         if let Some(message) = palette::newest_message(state, thread.id) {
-            actions.push(self.button(
+            let reply = self.button(
                 "reply",
                 i18n::s(Key::Reply),
                 Act::Run(Command::Reply {
                     message,
                     body: None,
                 }),
-            ));
+            );
+            items.push((reply, true));
         }
+        if palette {
+            items.push((self.palette_button(), false));
+        }
+        let (actions, overflow) = super::split(items, budget);
         let (previous, next, position) = self.neighbours(state, thread.id);
         let words = state
             .view
@@ -509,7 +465,7 @@ impl Mobile {
                 .chain(&message.cc)
                 .map(|a| clean(&format::full(a)))
                 .collect();
-            let (actions, swipe_start, swipe_end) = self.message_actions(state, message.id);
+            let actions = self.message_actions(state, message.id);
             out.push(ReaderMessage {
                 message: message.id,
                 from: message.from.first().map_or_else(
@@ -528,8 +484,6 @@ impl Mobile {
                 images,
                 links,
                 actions,
-                swipe_start,
-                swipe_end,
             });
         }
         let close = self.button(
@@ -546,6 +500,7 @@ impl Mobile {
                 s => clean(s),
             },
             actions,
+            overflow,
             previous,
             next,
             position,
@@ -553,28 +508,11 @@ impl Mobile {
         })
     }
 
-    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons,
-    /// and its two swipes (MISC-44e), as a list row's: towards the start edge archives the
-    /// message (a draft: edits it), towards the end edge trashes it (a draft: discards it).
-    fn message_actions(
-        &mut self,
-        state: &AppState,
-        message: MessageId,
-    ) -> (Vec<Button>, Option<Button>, Option<Button>) {
+    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons, and
+    /// *Archive* (this message alone) before *Trash*.
+    fn message_actions(&mut self, state: &AppState, message: MessageId) -> Vec<Button> {
         let items = message_actions::message_actions(state, message);
-        let mut swipe_start = None;
-        let mut swipe_end = None;
-        if items.iter().any(|i| i.action == MessageAction::Trash) {
-            swipe_start = Some(self.button(
-                "archive",
-                i18n::s(Key::Archive),
-                Act::Run(Command::ArchiveThreads {
-                    ids: Vec::new(),
-                    messages: vec![message],
-                }),
-            ));
-        }
-        let mut actions = Vec::with_capacity(items.len());
+        let mut actions = Vec::with_capacity(items.len() + 1);
         for item in items {
             let icon = match item.action {
                 MessageAction::Reply => "reply",
@@ -584,21 +522,22 @@ impl Mobile {
                 MessageAction::MarkUnread => "mark_email_unread",
                 MessageAction::Star | MessageAction::Unstar => "star",
                 MessageAction::Trash | MessageAction::Discard => "delete",
-                MessageAction::Edit => "edit",
+                MessageAction::Edit | MessageAction::MakeRule => "edit",
             };
-            let label = i18n::s(item.action.label());
-            match item.action {
-                MessageAction::Trash | MessageAction::Discard => {
-                    swipe_end = Some(self.button(icon, label, Act::Run(item.command.clone())));
-                }
-                MessageAction::Edit => {
-                    swipe_start = Some(self.button(icon, label, Act::Run(item.command.clone())));
-                }
-                _ => {}
+            if item.action == MessageAction::Trash {
+                actions.push(self.button(
+                    "archive",
+                    i18n::s(Key::Archive),
+                    Act::Run(Command::ArchiveThreads {
+                        ids: Vec::new(),
+                        messages: vec![message],
+                    }),
+                ));
             }
-            actions.push(self.button(icon, label, Act::Run(item.command)));
+            let label = i18n::s(item.action.label());
+            actions.push(self.button(icon, label, Act::Action(item.run)));
         }
-        (actions, swipe_start, swipe_end)
+        actions
     }
 
     /// The conversations above and below the open one in the list, and where it is.

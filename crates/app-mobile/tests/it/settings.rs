@@ -1,5 +1,6 @@
-//! The settings page and the account setup: tabs, choices that run the settings commands, the
-//! *Background & notifications* group, and setup from the first frame to *Sync now* (the
+//! The settings page and the account setup: the compact root's list of sections and the wider
+//! windows' tabs (TCH-6), choices that run the settings commands, the
+//! *Notifications & background* section, and setup from the first frame to *Sync now* (the
 //! password never in a frame).
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
@@ -10,7 +11,7 @@ use app_mobile::event::{Field, SystemScreen};
 use app_mobile::frame::{InputKind, SettingsPage, SetupSheet};
 use app_mobile::{External, UiEvent};
 
-use crate::support::Phone;
+use crate::support::{Phone, configure, from_drawer, requests_of};
 
 fn page(phone: &mut Phone, section: SettingsSection) -> SettingsPage {
     phone.dispatch(Command::OpenSettings {
@@ -54,21 +55,178 @@ fn sheet_button(sheet: &SetupSheet, label: &str) -> u32 {
 
 #[test]
 fn the_tabs_open_the_sections() {
+    for (w, h) in [(700, 1000), (1280, 800)] {
+        let mut phone = Phone::inbox(w, h);
+        let page = page(&mut phone, SettingsSection::Appearance);
+        let tabs: Vec<_> = page.tabs.iter().map(|t| t.label.as_str()).collect();
+        assert_eq!(
+            tabs,
+            [
+                "Accounts",
+                "Rules",
+                "Appearance",
+                "General",
+                "Notifications & background",
+                "About",
+                "Keyboard"
+            ],
+            "{w}x{h}: no keyboard, its tab last"
+        );
+        assert!(page.sections.is_empty());
+        assert!(page.tabs[2].selected);
+        assert_eq!(
+            phone.tap(page.tabs[3].action),
+            [Command::OpenSettings {
+                section: Some(SettingsSection::General)
+            }]
+        );
+        assert_eq!(phone.frame().settings.unwrap().section, "general");
+        // A keyboard puts its tab before About.
+        configure(&mut phone, w, h, true);
+        let page = phone.frame().settings.unwrap();
+        let tabs: Vec<_> = page.tabs.iter().map(|t| t.label.as_str()).collect();
+        assert_eq!(
+            &tabs[4..],
+            ["Notifications & background", "Keyboard", "About"]
+        );
+        // About opens the About screen; the drawer's Settings opens the first tab.
+        phone.tap(page.tabs[6].action);
+        assert!(phone.frame().about.is_some());
+        phone.event(UiEvent::Back);
+        phone.dispatch(Command::OpenSettings {
+            section: Some(SettingsSection::Index),
+        });
+        let page = phone.frame().settings.unwrap();
+        assert_eq!(page.section, "accounts");
+        assert!(page.tabs[0].selected && page.sections.is_empty());
+        // Back leaves the settings as before.
+        phone.event(UiEvent::Back);
+        assert_eq!(phone.state().view.settings, None, "{w}x{h}");
+    }
+}
+
+fn labels(page: &SettingsPage) -> Vec<(&str, bool)> {
+    page.sections
+        .iter()
+        .map(|e| (e.label.as_str(), e.folded))
+        .collect()
+}
+
+#[test]
+fn a_compact_window_opens_the_settings_at_a_list_of_sections() {
+    for (w, h) in [(360, 800), (360, 640)] {
+        let mut phone = Phone::inbox(w, h);
+        configure(&mut phone, w, h, true);
+        let frame = from_drawer(&mut phone);
+        assert_eq!(frame.top_bar.title, "Settings");
+        let root = frame.settings.expect("the settings root");
+        assert_eq!(root.section, "index");
+        assert!(root.tabs.is_empty() && root.groups.is_empty());
+        assert_eq!(
+            labels(&root),
+            [
+                ("Accounts", false),
+                ("Rules", false),
+                ("Appearance", false),
+                ("General", false),
+                ("Notifications & background", false),
+                ("Keyboard", false),
+                ("About", false)
+            ]
+        );
+        assert_eq!(root.sections[0].hint.as_deref(), Some("1 account(s)"));
+        assert_eq!(root.sections[1].hint.as_deref(), Some("0 rule(s)"));
+        assert_eq!(root.sections[0].icon, "person");
+
+        // Without a keyboard its entry is last, folded, with a hint; still one tap away.
+        configure(&mut phone, w, h, false);
+        let root = phone.frame().settings.unwrap();
+        assert_eq!(labels(&root)[5..], [("About", false), ("Keyboard", true)]);
+        assert_eq!(
+            root.sections[6].hint.as_deref(),
+            Some("No keyboard attached")
+        );
+
+        // Every entry is one tap from the root; Back returns to it.
+        let expected = [
+            (SettingsSection::Accounts, "accounts", "Accounts"),
+            (SettingsSection::Rules, "rules", "Rules"),
+            (SettingsSection::Appearance, "appearance", "Appearance"),
+            (SettingsSection::General, "general", "General"),
+            (
+                SettingsSection::Notifications,
+                "notifications",
+                "Notifications & background",
+            ),
+        ];
+        for (at, (section, name, title)) in expected.into_iter().enumerate() {
+            let root = phone.frame().settings.unwrap();
+            assert_eq!(
+                phone.tap(root.sections[at].action),
+                [Command::OpenSettings {
+                    section: Some(section)
+                }]
+            );
+            let frame = phone.frame();
+            assert_eq!(frame.top_bar.title, title);
+            let page = frame.settings.unwrap();
+            assert_eq!(page.section, name);
+            assert!(page.tabs.is_empty() && page.sections.is_empty());
+            assert!(!page.groups.is_empty(), "{name}");
+            assert!(frame.back);
+            assert_eq!(
+                requests_of(&phone.event(UiEvent::Back)),
+                [Command::OpenSettings {
+                    section: Some(SettingsSection::Index)
+                }]
+            );
+            assert_eq!(phone.frame().settings.unwrap().section, "index");
+        }
+        // The folded Keyboard opens its section.
+        let root = phone.frame().settings.unwrap();
+        phone.tap(root.sections[6].action);
+        let frame = phone.frame();
+        assert_eq!(frame.top_bar.title, "Keyboard");
+        assert_eq!(frame.settings.unwrap().groups[0].title, "Hardware keyboard");
+        phone.event(UiEvent::Back);
+        // About opens the About screen, and closes back to the root.
+        let root = phone.frame().settings.unwrap();
+        assert!(phone.tap(root.sections[5].action).is_empty());
+        assert!(phone.frame().about.is_some());
+        phone.event(UiEvent::Back);
+        let frame = phone.frame();
+        assert!(frame.about.is_none());
+        assert_eq!(frame.settings.unwrap().section, "index");
+        // Back from the root closes the settings.
+        phone.event(UiEvent::Back);
+        assert_eq!(phone.state().view.settings, None);
+        assert!(phone.frame().settings.is_none());
+    }
+}
+
+#[test]
+fn rules_are_one_tap_from_the_settings_root() {
+    let mut phone = Phone::inbox(360, 640);
+    let root = from_drawer(&mut phone).settings.unwrap();
+    let rules = root.sections.iter().find(|e| e.label == "Rules").unwrap();
+    phone.tap(rules.action);
+    let page = phone.frame().settings.unwrap();
+    assert_eq!(page.section, "rules");
+    assert_eq!(page.groups[0].title, "Sorting rules");
+}
+
+#[test]
+fn a_key_opens_the_settings_at_their_root() {
     let mut phone = Phone::inbox(360, 800);
-    let page = page(&mut phone, SettingsSection::Appearance);
-    let tabs: Vec<_> = page.tabs.iter().map(|t| t.label.as_str()).collect();
+    let requests = phone.event(UiEvent::Key {
+        chord: "Ctrl+,".to_owned(),
+    });
     assert_eq!(
-        tabs,
-        ["Appearance", "Keyboard", "General", "Accounts", "Rules"]
-    );
-    assert!(page.tabs[0].selected);
-    assert_eq!(
-        phone.tap(page.tabs[2].action),
+        requests_of(&requests),
         [Command::OpenSettings {
-            section: Some(SettingsSection::General)
+            section: Some(SettingsSection::Index)
         }]
     );
-    assert_eq!(phone.frame().settings.unwrap().section, "general");
 }
 
 #[test]
@@ -120,9 +278,22 @@ fn choices_run_the_settings_commands() {
 }
 
 #[test]
-fn background_and_notifications_live_under_general() {
+fn background_and_notifications_have_a_section_of_their_own() {
     let mut phone = Phone::inbox(360, 800);
-    let general = page(&mut phone, SettingsSection::General);
+    let only_general = page(&mut phone, SettingsSection::General);
+    assert_eq!(
+        only_general.groups.len(),
+        2,
+        "General, then the synced settings"
+    );
+    assert!(
+        !only_general
+            .groups
+            .iter()
+            .flat_map(|g| &g.rows)
+            .any(|r| r.label == "Notifications" || r.label == "Mail checks in the background")
+    );
+    let general = page(&mut phone, SettingsSection::Notifications);
     let group = general
         .groups
         .iter()
@@ -464,4 +635,191 @@ fn the_rules_section_drives_the_rule_commands() {
         .palette
         .expect("the palette at the first step");
     assert_eq!(sheet.prompt.as_deref(), Some("Match mail by what?"));
+}
+
+#[test]
+fn resizing_moves_between_the_root_and_the_tabs() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::Index),
+    });
+    assert_eq!(phone.frame().settings.unwrap().section, "index");
+    configure(&mut phone, 700, 1000, false);
+    let page = phone.frame().settings.unwrap();
+    assert_eq!(page.section, "accounts");
+    assert!(page.tabs[0].selected && page.tabs[0].label == "Accounts");
+    assert!(!page.groups.is_empty() && page.sections.is_empty());
+
+    let mut phone = Phone::inbox(700, 1000);
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::Rules),
+    });
+    assert!(!phone.frame().settings.unwrap().tabs.is_empty());
+    configure(&mut phone, 360, 800, false);
+    let frame = phone.frame();
+    assert_eq!(frame.top_bar.title, "Rules");
+    let page = frame.settings.unwrap();
+    assert_eq!(page.section, "rules");
+    assert!(page.tabs.is_empty() && page.sections.is_empty());
+    phone.event(UiEvent::Back);
+    assert_eq!(phone.frame().settings.unwrap().section, "index");
+}
+
+#[test]
+fn escape_agrees_with_back_in_the_compact_settings() {
+    let escape = || UiEvent::Key {
+        chord: "Escape".to_owned(),
+    };
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::Rules),
+    });
+    assert_eq!(
+        {
+            phone.take();
+            requests_of(&phone.event(escape()))
+        },
+        [Command::OpenSettings {
+            section: Some(SettingsSection::Index)
+        }]
+    );
+    assert_eq!(
+        {
+            phone.take();
+            requests_of(&phone.event(escape()))
+        },
+        [Command::CloseSettings {}]
+    );
+    assert_eq!(phone.state().view.settings, None);
+    // A medium window closes them from a tab, as before.
+    let mut phone = Phone::inbox(700, 1000);
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::Rules),
+    });
+    assert_eq!(
+        {
+            phone.take();
+            requests_of(&phone.event(escape()))
+        },
+        [Command::CloseSettings {}]
+    );
+}
+
+/// The *Synced settings* group of General (TCH-7).
+fn synced(phone: &mut Phone) -> app_mobile::frame::SettingsGroup {
+    phone.dispatch(Command::OpenSettings {
+        section: Some(SettingsSection::General),
+    });
+    phone
+        .frame()
+        .settings
+        .unwrap()
+        .groups
+        .into_iter()
+        .find(|g| g.title == "Settings on the server")
+        .expect("the synced settings group")
+}
+
+fn row<'a>(
+    group: &'a app_mobile::frame::SettingsGroup,
+    label: &str,
+) -> &'a app_mobile::frame::SettingRow {
+    group
+        .rows
+        .iter()
+        .find(|r| r.label == label)
+        .unwrap_or_else(|| panic!("no row {label}"))
+}
+
+#[test]
+fn settings_sync_has_its_rows_under_general() {
+    for (w, h) in [(360, 800), (1280, 800)] {
+        let mut phone = Phone::inbox(w, h);
+        let account = *phone.state().accounts.keys().next().unwrap();
+        let group = synced(&mut phone);
+        let labels: Vec<_> = group.rows.iter().map(|r| r.label.as_str()).collect();
+        assert_eq!(
+            labels,
+            [
+                "Settings account",
+                "Last pulled",
+                "Last stored",
+                "Settings sync"
+            ],
+            "{w}x{h}"
+        );
+        // No account chosen: the first one, marked so; a tap chooses it.
+        let picker = row(&group, "Settings account");
+        assert!(picker.value.contains("alice@example.com") && picker.value != "alice@example.com");
+        assert_eq!(picker.choices.len(), phone.state().accounts.len());
+        assert_eq!(
+            phone.tap(picker.choices[0].action),
+            [Command::SetSettingsAccount { account }]
+        );
+        let group = synced(&mut phone);
+        assert_eq!(row(&group, "Settings account").value, "alice@example.com");
+        assert_eq!(row(&group, "Last stored").value, "Never");
+
+        // A pull runs: the row says so and offers no second one.
+        let pulled = row(&group, "Last pulled");
+        if pulled.actions.is_empty() {
+            // `set_settings_account` pulls at once.
+            assert_eq!(pulled.value, "reading from the server…");
+        } else {
+            assert_eq!(
+                phone.tap(pulled.actions[0].action),
+                [Command::PullSettings {
+                    account: Some(account)
+                }]
+            );
+        }
+        let group = synced(&mut phone);
+        let pulled = row(&group, "Last pulled");
+        assert_eq!(pulled.value, "reading from the server…");
+        assert!(pulled.actions.is_empty());
+        phone.ingest(Event::SettingsRead {
+            account,
+            copy: None,
+            document: None,
+        });
+        let group = synced(&mut phone);
+        let pulled = row(&group, "Last pulled");
+        assert_eq!(pulled.value, "just now");
+        assert_eq!(pulled.actions[0].label, "Pull now");
+        assert_eq!(
+            phone.tap(pulled.actions[0].action),
+            [Command::PullSettings {
+                account: Some(account)
+            }]
+        );
+
+        // A failed pull shows its error with the code.
+        phone.ingest(Event::SettingsFailed {
+            account,
+            write: false,
+            error: "ERR023: the server said no".to_owned(),
+        });
+        let group = synced(&mut phone);
+        assert!(row(&group, "Last error").value.starts_with("ERR023: "));
+
+        // A rule change waits for a push; *Store on the server* pushes, and the push lands.
+        phone.dispatch(news_rule());
+        phone.dispatch(Command::PullSettings { account: None });
+        phone.ingest(Event::SettingsRead {
+            account,
+            copy: None,
+            document: None,
+        });
+        let group = synced(&mut phone);
+        let store = row(&group, "Settings sync");
+        assert_eq!(
+            phone.tap(store.actions[0].action),
+            [Command::PushSettings {}]
+        );
+        phone.ingest(Event::SettingsWritten { account });
+        let group = synced(&mut phone);
+        assert_eq!(row(&group, "Last stored").value, "just now");
+        assert!(row(&group, "Settings sync").actions.is_empty());
+        assert!(group.rows.iter().all(|r| r.label != "Last error"));
+    }
 }

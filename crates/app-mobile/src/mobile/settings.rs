@@ -1,6 +1,7 @@
-//! The settings page (`open_settings`): the sections as tabs, each a list of rows whose
-//! choices run `set_setting`, `set_theme` or `set_key_preset` directly. General also holds the
-//! phone's *Background & notifications* group. Settings that only the desktop reads
+//! The settings page (`open_settings`): on a compact window a root listing the sections
+//! (`index`), else the sections as tabs (TCH-6); each section a list of rows whose choices run
+//! `set_setting`, `set_theme` or `set_key_preset` directly. *Notifications & background* holds
+//! the phone's background checks and notifications. Settings that only the desktop reads
 //! (`text_scale`, `tui_colors`, `history_cap`) are not shown; the desktop and `config.toml`
 //! change them.
 
@@ -14,16 +15,46 @@ use app_theme::{Appearance, builtin};
 
 use super::{Act, Mobile};
 use crate::event::{External, SystemScreen};
-use crate::frame::{Button, Choice, SettingRow, SettingsGroup, SettingsPage};
+use crate::frame::Class;
+use crate::frame::{Button, Choice, SettingRow, SettingsEntry, SettingsGroup, SettingsPage};
 
-/// The tabs, in order.
-const TABS: [(SettingsSection, Key); 5] = [
-    (SettingsSection::Appearance, Key::Appearance),
-    (SettingsSection::Keys, Key::Keyboard),
-    (SettingsSection::General, Key::General),
-    (SettingsSection::Accounts, Key::Accounts),
-    (SettingsSection::Rules, Key::RulesTab),
+/// The sections, in order (TCH-6): the settings root of a compact window lists them, wider
+/// windows show them as tabs. `None` is *About*, the presenter's own screen (MISC-3). The
+/// keyboard's place depends on whether one is attached ([`Mobile::entries`]).
+const SECTIONS: [(Option<SettingsSection>, &str, Key); 7] = [
+    (Some(SettingsSection::Accounts), "person", Key::Accounts),
+    (
+        Some(SettingsSection::Rules),
+        "drive_file_move",
+        Key::RulesTab,
+    ),
+    (
+        Some(SettingsSection::Appearance),
+        "contrast",
+        Key::Appearance,
+    ),
+    (Some(SettingsSection::General), "settings", Key::General),
+    (
+        Some(SettingsSection::Notifications),
+        "sync",
+        Key::NotificationsBackground,
+    ),
+    (Some(SettingsSection::Keys), "keyboard", Key::Keyboard),
+    (None, "info", Key::About),
 ];
+
+/// The name of a section in the frame (its `open_settings` value).
+const fn name(section: SettingsSection) -> &'static str {
+    match section {
+        SettingsSection::Appearance => "appearance",
+        SettingsSection::Keys => "keys",
+        SettingsSection::General | SettingsSection::About => "general",
+        SettingsSection::Notifications => "notifications",
+        SettingsSection::Accounts => "accounts",
+        SettingsSection::Rules => "rules",
+        SettingsSection::Index => "index",
+    }
+}
 
 /// The values offered for a numeric setting, with their labels.
 fn presets(key: SettingKey) -> Vec<(u64, &'static str)> {
@@ -107,10 +138,7 @@ fn hint(key: SettingKey) -> Option<&'static str> {
     match key {
         SettingKey::UndoSendMs => Some(i18n::s(Key::HowLongASendCanStillBe)),
         SettingKey::PollSecs => Some(i18n::s(Key::WhileTheAppIsOpen)),
-        SettingKey::BackgroundSync => Some(
-            "Periodic checks wait for the phone's maintenance windows. Push keeps a silent \
-             notification while it watches the inboxes.",
-        ),
+        SettingKey::BackgroundSync => Some(i18n::s(Key::BackgroundSyncHint)),
         SettingKey::Notifications => Some(i18n::s(Key::NewMailAndFailedSendsWhileDail)),
         SettingKey::InitialWindow => Some(i18n::s(Key::PerMailboxOnItsFirstSync)),
         _ => None,
@@ -171,40 +199,150 @@ impl Mobile {
         }
     }
 
-    /// The settings page, while open.
-    pub(super) fn settings_page(&mut self, state: &AppState) -> Option<SettingsPage> {
-        // The phones have an About screen of their own (MISC-3): this section is the desktop's.
-        let section = match state.view.settings? {
-            SettingsSection::About => SettingsSection::General,
-            other => other,
-        };
-        let tabs = TABS
+    /// The sections in their order, each with whether it is folded: the keyboard's sits before
+    /// *About* while a hardware keyboard is attached (`configure`), else last and folded.
+    fn entries(&self) -> Vec<(Option<SettingsSection>, &'static str, Key, bool)> {
+        let mut out: Vec<_> = SECTIONS
             .iter()
-            .map(|(s, title)| {
-                self.choice(
-                    i18n::s(*title),
-                    *s == section,
-                    Command::OpenSettings { section: Some(*s) },
-                )
-            })
+            .filter(|(s, ..)| self.keyboard || *s != Some(SettingsSection::Keys))
+            .map(|&(s, icon, key)| (s, icon, key, false))
             .collect();
+        if !self.keyboard
+            && let Some(&(s, icon, key)) = SECTIONS
+                .iter()
+                .find(|(s, ..)| *s == Some(SettingsSection::Keys))
+        {
+            out.push((s, icon, key, true));
+        }
+        out
+    }
+
+    /// The section a settings page shows for the open one: `index` is the root on a compact
+    /// window and the first section elsewhere; `about` is the desktop's (phones have an About
+    /// screen of their own, MISC-3), shown as General. `None` at the root.
+    fn shown_section(&self, open: SettingsSection) -> Option<SettingsSection> {
+        match open {
+            SettingsSection::Index if self.class() == Class::Compact => None,
+            SettingsSection::Index => Some(
+                self.entries()
+                    .iter()
+                    .find_map(|e| e.0)
+                    .unwrap_or(SettingsSection::Accounts),
+            ),
+            SettingsSection::About => Some(SettingsSection::General),
+            other => Some(other),
+        }
+    }
+
+    /// The top bar's title over the settings page: the section's name inside a section of a
+    /// compact window, else *Settings*.
+    pub(super) fn settings_title(&self, state: &AppState) -> &'static str {
+        let section = state.view.settings.and_then(|s| self.shown_section(s));
+        match section {
+            Some(section) if self.class() == Class::Compact => SECTIONS
+                .iter()
+                .find(|(s, ..)| *s == Some(section))
+                .map_or(i18n::s(Key::Settings), |(_, _, key)| i18n::s(*key)),
+            _ => i18n::s(Key::Settings),
+        }
+    }
+
+    /// What Back submits inside a section of a compact window: back to the settings root.
+    pub(super) fn settings_back(&self, state: &AppState) -> Option<Command> {
+        let open = state.view.settings?;
+        (self.class() == Class::Compact
+            && !state.accounts.is_empty()
+            && self.shown_section(open).is_some())
+        .then_some(Command::OpenSettings {
+            section: Some(SettingsSection::Index),
+        })
+    }
+
+    /// The line under an entry of the root: how many accounts or rules, or that no keyboard is
+    /// attached.
+    fn entry_hint(
+        state: &AppState,
+        section: Option<SettingsSection>,
+        folded: bool,
+    ) -> Option<String> {
+        let count = |n: usize, key: Key| i18n::f(key, &[("n", &n.to_string())]);
+        match section {
+            _ if folded => Some(i18n::s(Key::NoKeyboardAttached).to_owned()),
+            Some(SettingsSection::Accounts) => {
+                Some(count(state.accounts.len(), Key::SettingsAccountCount))
+            }
+            Some(SettingsSection::Rules) => Some(count(
+                app_front::rules::panel(state).rows.len(),
+                Key::SettingsRuleCount,
+            )),
+            _ => None,
+        }
+    }
+
+    /// The settings page, while open: the root's list of sections on a compact window, else
+    /// the open section's groups (under tabs on wider windows).
+    pub(super) fn settings_page(&mut self, state: &AppState) -> Option<SettingsPage> {
+        let open = state.view.settings?;
+        let compact = self.class() == Class::Compact;
+        let entries = self.entries();
+        let Some(section) = self.shown_section(open) else {
+            let sections = entries
+                .into_iter()
+                .map(|(s, icon, key, folded)| {
+                    let act = s.map_or(Act::About, |section| {
+                        Act::Run(Command::OpenSettings {
+                            section: Some(section),
+                        })
+                    });
+                    SettingsEntry {
+                        icon: icon.to_owned(),
+                        label: i18n::s(key).to_owned(),
+                        hint: Self::entry_hint(state, s, folded),
+                        folded,
+                        action: self.add(act),
+                    }
+                })
+                .collect();
+            return Some(SettingsPage {
+                section: name(SettingsSection::Index).to_owned(),
+                tabs: Vec::new(),
+                sections,
+                groups: Vec::new(),
+            });
+        };
+        let tabs = if compact {
+            Vec::new()
+        } else {
+            entries
+                .into_iter()
+                .map(|(s, _, key, _)| match s {
+                    Some(s) => self.choice(
+                        i18n::s(key),
+                        s == section,
+                        Command::OpenSettings { section: Some(s) },
+                    ),
+                    None => Choice {
+                        label: i18n::s(key).to_owned(),
+                        selected: false,
+                        action: self.add(Act::About),
+                    },
+                })
+                .collect()
+        };
         let groups = match section {
             SettingsSection::Appearance => self.appearance(state),
             SettingsSection::Keys => self.keyboard(state),
-            SettingsSection::General | SettingsSection::About => self.general(state),
+            SettingsSection::General | SettingsSection::About | SettingsSection::Index => {
+                self.general(state)
+            }
+            SettingsSection::Notifications => self.background(state),
             SettingsSection::Accounts => self.accounts(state),
             SettingsSection::Rules => self.rules(state),
         };
-        let name = match section {
-            SettingsSection::Appearance => "appearance",
-            SettingsSection::Keys => "keys",
-            SettingsSection::General | SettingsSection::About => "general",
-            SettingsSection::Accounts => "accounts",
-            SettingsSection::Rules => "rules",
-        };
         Some(SettingsPage {
-            section: name.to_owned(),
+            section: name(section).to_owned(),
             tabs,
+            sections: Vec::new(),
             groups,
         })
     }
@@ -357,6 +495,114 @@ impl Mobile {
         .into_iter()
         .map(|key| self.setting_row(state, key))
         .collect();
+        let mut groups = vec![SettingsGroup {
+            title: i18n::s(Key::General).to_owned(),
+            hint: None,
+            rows: general,
+        }];
+        groups.extend(self.synced(state));
+        groups
+    }
+
+    /// *Synced settings* (TCH-7), under General as on the desktop: the settings account with a
+    /// picker, the last pull with *Pull now*, the last push, the stored state with *Store on
+    /// the server*, and the last error. Everything comes from `app_front::synced::panel`.
+    fn synced(&mut self, state: &AppState) -> Option<SettingsGroup> {
+        let panel = app_front::synced::panel(state)?;
+        let rules = app_front::rules::panel(state);
+        let now = self.now_ms();
+        let when = |ms: Option<i64>| {
+            ms.map_or_else(
+                || i18n::s(Key::Never).to_owned(),
+                |ms| app_front::format::age(ms, now),
+            )
+        };
+        let accounts: Vec<_> = state
+            .accounts
+            .values()
+            .map(|a| (a.id, clean(&a.email)))
+            .collect();
+        let choices = accounts
+            .into_iter()
+            .map(|(id, email)| {
+                self.choice(
+                    &email,
+                    id == panel.account,
+                    Command::SetSettingsAccount { account: id },
+                )
+            })
+            .collect();
+        let mut rows = vec![SettingRow {
+            label: i18n::s(Key::SettingsAccount).to_owned(),
+            value: panel.account_label.clone(),
+            hint: Some(i18n::s(Key::SettingsAccountHint).to_owned()),
+            choices,
+            actions: Vec::new(),
+        }];
+        let pull = if panel.pulling {
+            Vec::new()
+        } else {
+            vec![self.link(
+                i18n::s(Key::SettingsPullNow),
+                Act::Run(Command::PullSettings {
+                    account: Some(panel.account),
+                }),
+            )]
+        };
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsLastPulled).to_owned(),
+            value: if panel.pulling {
+                i18n::s(Key::SettingsReading).to_owned()
+            } else {
+                when(panel.pulled_ms)
+            },
+            hint: None,
+            choices: Vec::new(),
+            actions: pull,
+        });
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsLastStored).to_owned(),
+            value: when(panel.pushed_ms),
+            hint: None,
+            choices: Vec::new(),
+            actions: Vec::new(),
+        });
+        let store = if panel.pending.is_some() && rules.can_push {
+            vec![self.link(i18n::s(Key::RulesStore), Act::Run(Command::PushSettings {}))]
+        } else {
+            Vec::new()
+        };
+        rows.push(SettingRow {
+            label: i18n::s(Key::SettingsSyncState).to_owned(),
+            value: i18n::s(if panel.pending.is_some() {
+                Key::RulesNotStored
+            } else {
+                Key::RulesStored
+            })
+            .to_owned(),
+            hint: None,
+            choices: Vec::new(),
+            actions: store,
+        });
+        if let Some(error) = panel.error {
+            rows.push(SettingRow {
+                label: i18n::s(Key::SettingsLastError).to_owned(),
+                value: error,
+                hint: None,
+                choices: Vec::new(),
+                actions: Vec::new(),
+            });
+        }
+        Some(SettingsGroup {
+            title: i18n::s(Key::SyncedSettings).to_owned(),
+            hint: Some(panel.shared.to_owned()),
+            rows,
+        })
+    }
+
+    /// *Notifications & background* (TCH-6): background checks, their interval, notifications
+    /// and the system's battery and notification screens.
+    fn background(&mut self, state: &AppState) -> Vec<SettingsGroup> {
         let mut background: Vec<SettingRow> = [SettingKey::BackgroundSync]
             .into_iter()
             .map(|key| self.setting_row(state, key))
@@ -376,26 +622,15 @@ impl Mobile {
         background.push(SettingRow {
             label: i18n::s(Key::SystemSettings).to_owned(),
             value: String::new(),
-            hint: Some(
-                "Some phones stop background checks until dail is exempt from battery \
-                 optimization."
-                    .to_owned(),
-            ),
+            hint: Some(i18n::s(Key::BatteryExemptHint).to_owned()),
             choices: Vec::new(),
             actions: vec![battery, channels],
         });
-        vec![
-            SettingsGroup {
-                title: i18n::s(Key::General).to_owned(),
-                hint: None,
-                rows: general,
-            },
-            SettingsGroup {
-                title: i18n::s(Key::BackgroundNotifications).to_owned(),
-                hint: None,
-                rows: background,
-            },
-        ]
+        vec![SettingsGroup {
+            title: i18n::s(Key::BackgroundNotifications).to_owned(),
+            hint: None,
+            rows: background,
+        }]
     }
 
     fn accounts(&mut self, state: &AppState) -> Vec<SettingsGroup> {

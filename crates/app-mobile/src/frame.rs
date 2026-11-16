@@ -76,6 +76,10 @@ pub struct Frame {
     /// A received attachment shown in the app (over the panes; Back closes it).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preview: Option<Preview>,
+    /// A list of actions on one thing, while open: a folder's actions after a long press in the
+    /// drawer (TCH-4). A bottom sheet; a tap outside, Back or `close` dismisses it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub menu: Option<ActionSheet>,
     /// Whether system Back is taken (send `back`); otherwise Android handles it.
     pub back: bool,
     /// Whether to send `tick` every second (a countdown or an age is shown).
@@ -163,8 +167,12 @@ pub struct TopBar {
     /// The navigation button: the drawer, or back.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub navigation: Option<Button>,
-    /// The buttons on the right.
+    /// The buttons on the right (icons, or text without an icon).
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
 }
 
 /// Accounts and their mailboxes.
@@ -236,6 +244,10 @@ pub struct DrawerItem {
     pub selected: bool,
     /// Opens it; for a folder the server does not let us open, the same as `fold`'s action.
     pub action: ActionId,
+    /// A long press: opens the folder's actions in `Frame::menu` (TCH-4). Only on a real
+    /// mailbox; TalkBack offers it as the custom action *Folder actions*.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub long_press: Option<ActionId>,
     /// TalkBack's name.
     pub a11y: String,
 }
@@ -354,8 +366,12 @@ pub struct RowMarks {
 pub struct Bulk {
     /// `3 selected`.
     pub title: String,
-    /// Archive, trash, read, unread, star.
+    /// The thread actions drawn as icons: archive, trash, read or unread, *Move…*, ….
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
     /// Unchecks every thread.
     pub close: Button,
 }
@@ -374,8 +390,12 @@ pub struct Reader {
     /// the panes. Only while there is something to hide or it is maximized (MISC-14).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub maximize: Option<Button>,
-    /// What can be done with it: archive, trash, star, read, *Move…*, reply.
+    /// What can be done with it, drawn as icons: archive, trash, *Move…*, reply, ….
     pub actions: Vec<Button>,
+    /// What does not fit as an icon (TCH-2): a ⋯ menu of text labels, drawn only when not empty.
+    /// Its trigger's name is the label `More actions`. The presenter splits `actions` and
+    /// `overflow` by the window class; together they are the bar's whole list, in order.
+    pub overflow: Vec<Button>,
     /// The conversation above it in the list, if any: a pull past the top of the body turns to
     /// it (MISC-18; no button).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -442,17 +462,11 @@ pub struct ReaderMessage {
     pub links: Vec<Button>,
     /// What can be done with this message alone (MISC-44, `app_front::message_actions`): reply,
     /// reply all, forward, read or unread, star or unstar, trash; a draft has edit and discard,
-    /// and the conversation stays. A tap is a `tap` of the button's action. Not drawn as a row:
-    /// a long press on the card lists them (MISC-44e).
+    /// and the conversation stays; archive comes before trash. A tap is a `tap` of the button's
+    /// action. Not drawn as a row: a long press on the card lists them (MISC-44e). A card has no
+    /// swipes: in the reader a horizontal drag closes the message or scrolls a wide block.
     #[serde(default)]
     pub actions: Vec<Button>,
-    /// Swiped towards the start edge, as a list row (MISC-44e): archive this message; a draft,
-    /// edit. The icon is the one revealed under the card; send `swipe` with its action.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub swipe_start: Option<Button>,
-    /// Swiped towards the end edge (MISC-44e): trash this message; a draft, discard.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub swipe_end: Option<Button>,
 }
 
 /// A block of a message body (`app_core::document::Block`, cleaned, with action IDs).
@@ -566,6 +580,18 @@ pub struct LinkSheet {
     pub close: Button,
 }
 
+/// A list of actions on one thing, drawn as a bottom sheet (TCH-4): a folder's actions today.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ActionSheet {
+    /// What the actions act on (a folder's name): plain text, never interpreted.
+    pub title: String,
+    /// The actions in order, each with its icon and its text label; a tap closes the sheet and
+    /// runs it.
+    pub items: Vec<Button>,
+    /// Dismisses the sheet without running anything.
+    pub close: Button,
+}
+
 /// An attachment of a received message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Attachment {
@@ -644,15 +670,36 @@ pub struct Preview {
     pub close: Button,
 }
 
-/// The settings page: the sections as tabs, and the open one's rows in groups.
+/// The settings page (TCH-6): on a compact window the root lists the sections and a section
+/// shows its groups alone; wider windows show the sections as tabs above the open one's groups.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SettingsPage {
-    /// The open section (`appearance`, `keys`, `general`, `accounts`).
+    /// The open section (`accounts`, `rules`, `appearance`, `general`, `notifications`,
+    /// `keys`), or `index` at the root of a compact window.
     pub section: String,
-    /// The sections; a tap opens one (`open_settings`).
+    /// The sections as tabs on medium and expanded windows (empty on compact); a tap opens one
+    /// (`open_settings`, or the About screen).
     pub tabs: Vec<Choice>,
+    /// The root's list of sections on a compact window (empty elsewhere and inside a section).
+    pub sections: Vec<SettingsEntry>,
     /// The open section's rows, under captions.
     pub groups: Vec<SettingsGroup>,
+}
+
+/// An entry of the settings root: a section, or *About*.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SettingsEntry {
+    /// Its glyph (`person`, `keyboard`).
+    pub icon: String,
+    /// Its name (`Rules`).
+    pub label: String,
+    /// A line under it (`2 account(s)`, `No keyboard attached`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+    /// Drawn subdued, as secondary: the keyboard's entry while none is attached.
+    pub folded: bool,
+    /// Opens it (`open_settings`, or the About screen).
+    pub action: ActionId,
 }
 
 /// Rows of the settings page under one caption.

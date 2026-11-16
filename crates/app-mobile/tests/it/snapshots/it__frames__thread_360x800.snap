@@ -25,7 +25,8 @@ expression: phone.frame()
         "label": "Search or run a command",
         "action": 2
       }
-    ]
+    ],
+    "overflow": []
   },
   "list": {
     "title": "Inbox",
@@ -79,7 +80,7 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 27
+      "action": 31
     },
     "actions": [
       {
@@ -93,8 +94,20 @@ expression: phone.frame()
         "action": 12
       },
       {
-        "icon": "star",
-        "label": "Star",
+        "icon": "drive_file_move",
+        "label": "Move…",
+        "action": 17
+      },
+      {
+        "icon": "reply",
+        "label": "Reply",
+        "action": 19
+      }
+    ],
+    "overflow": [
+      {
+        "icon": "report",
+        "label": "Junk",
         "action": 13
       },
       {
@@ -103,21 +116,31 @@ expression: phone.frame()
         "action": 14
       },
       {
-        "icon": "drive_file_move",
-        "label": "Move…",
+        "icon": "star",
+        "label": "Star",
         "action": 15
       },
       {
-        "icon": "reply",
-        "label": "Reply",
+        "icon": "push_pin",
+        "label": "Pin",
         "action": 16
+      },
+      {
+        "icon": "edit",
+        "label": "Make a rule…",
+        "action": 18
+      },
+      {
+        "icon": "search",
+        "label": "Search or run a command",
+        "action": 20
       }
     ],
     "next": {
       "open": {
         "icon": "expand_more",
         "label": "Next conversation",
-        "action": 17
+        "action": 21
       },
       "sender": "Bob",
       "subject": "Q3 numbers",
@@ -131,7 +154,7 @@ expression: phone.frame()
         "to": "alice@example.com",
         "date": "Nov 14",
         "expanded": true,
-        "toggle": 18,
+        "toggle": 22,
         "snippet": "Lunch at noon?",
         "status": "Loading…",
         "attachments": [],
@@ -140,44 +163,44 @@ expression: phone.frame()
           {
             "icon": "reply",
             "label": "Reply",
-            "action": 20
+            "action": 23
           },
           {
             "icon": "reply_all",
             "label": "Reply all",
-            "action": 21
+            "action": 24
           },
           {
             "icon": "forward",
             "label": "Forward",
-            "action": 22
+            "action": 25
           },
           {
             "icon": "mark_email_read",
             "label": "Mark read",
-            "action": 23
+            "action": 26
           },
           {
             "icon": "star",
             "label": "Star",
-            "action": 24
+            "action": 27
+          },
+          {
+            "icon": "edit",
+            "label": "Make a rule…",
+            "action": 28
+          },
+          {
+            "icon": "archive",
+            "label": "Archive",
+            "action": 29
           },
           {
             "icon": "delete",
             "label": "Trash",
-            "action": 26
+            "action": 30
           }
-        ],
-        "swipe_start": {
-          "icon": "archive",
-          "label": "Archive",
-          "action": 19
-        },
-        "swipe_end": {
-          "icon": "delete",
-          "label": "Trash",
-          "action": 25
-        }
+        ]
       }
     ]
   },

@@ -60,3 +60,29 @@ fn the_palette_asks_for_the_account() {
     };
     assert_eq!(cmd, Command::SetSettingsAccount { account });
 }
+
+#[test]
+fn the_panel_carries_the_times_the_pull_and_the_error() {
+    let mut state = synced_state();
+    state.synced.pulled_ms = None;
+    let p = panel(&state).unwrap();
+    assert_eq!(
+        (p.pulled_ms, p.pushed_ms, p.pulling, p.error),
+        (None, None, false, None)
+    );
+    state.synced.pulled_ms = Some(5);
+    state.synced.pushed_ms = Some(7);
+    state.synced.pulling = true;
+    state.synced.error = Some(SyncIssue {
+        error: "ERR023: no".into(),
+        mailbox: None,
+        at_ms: 0,
+    });
+    let p = panel(&state).unwrap();
+    assert_eq!(
+        (p.pulled_ms, p.pushed_ms, p.pulling),
+        (Some(5), Some(7), true)
+    );
+    assert_eq!(p.error.as_deref(), Some("ERR023: no"));
+    assert!(!p.failed, "the pull in flight is the status");
+}

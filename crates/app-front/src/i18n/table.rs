@@ -1865,6 +1865,9 @@ strings! {
     Copy:
         "Copy",
         "Copier";
+    CopyAllText:
+        "Copy all text",
+        "Copier tout le texte";
     LinkCopied:
         "Link copied.",
         "Lien copié.";
@@ -2072,6 +2075,12 @@ strings! {
     NativePending:
         "Pending",
         "En attente";
+    NativeMoreActions:
+        "More actions",
+        "Plus d’actions";
+    NativeFolderActions:
+        "Folder actions",
+        "Actions sur le dossier";
     AboutDail:
         "About dail",
         "À propos de dail";
@@ -2447,4 +2456,46 @@ strings! {
     NewConversations:
         "{n} new conversations",
         "{n} nouvelles discussions";
+    MakeRule:
+        "Make a rule…",
+        "Créer une règle…";
+    ApplyRules:
+        "Apply rules",
+        "Appliquer les règles";
+    OfflineWindow:
+        "Offline window…",
+        "Copie hors ligne…";
+    SendingAddresses:
+        "Sending addresses…",
+        "Adresses d’envoi…";
+    NotificationsBackground:
+        "Notifications & background",
+        "Notifications et arrière-plan";
+    NoKeyboardAttached:
+        "No keyboard attached",
+        "Aucun clavier branché";
+    SettingsAccountCount:
+        "{n} account(s)",
+        "{n} compte(s)";
+    SettingsRuleCount:
+        "{n} rule(s)",
+        "{n} règle(s)";
+    BackgroundSyncHint:
+        "Periodic checks wait for the phone's maintenance windows. Push keeps a silent notification while it watches the inboxes.",
+        "Les vérifications périodiques attendent les fenêtres de maintenance du téléphone. Le mode push garde une notification silencieuse pendant qu’il surveille les boîtes de réception.";
+    BatteryExemptHint:
+        "Some phones stop background checks until dail is exempt from battery optimization.",
+        "Certains téléphones arrêtent les vérifications en arrière-plan tant que dail n’est pas exempté de l’optimisation de la batterie.";
+    SettingsLastPulled:
+        "Last pulled",
+        "Dernière lecture";
+    SettingsLastStored:
+        "Last stored",
+        "Dernier enregistrement";
+    SettingsPullNow:
+        "Pull now",
+        "Lire maintenant";
+    SettingsLastError:
+        "Last error",
+        "Dernière erreur";
 }

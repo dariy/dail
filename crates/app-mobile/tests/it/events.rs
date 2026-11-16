@@ -23,11 +23,45 @@ fn a_tap_on_a_row_opens_its_thread() {
     assert!(frame.list.is_some(), "the list under the page");
 }
 
+/// A tick or a reply makes a frame the host has not drawn yet: a tap on the one on screen counts.
+#[test]
+fn a_tap_on_the_frame_before_still_runs() {
+    let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    let drawn = phone.frame().list.unwrap().rows[0].action;
+    for _ in 0..3 {
+        let _ = phone.frame();
+    }
+    assert_eq!(phone.tap(drawn), [Command::OpenThread { id: threads[0] }]);
+}
+
+/// A palette row of the frame before runs while the palette shows the same step and rows, and
+/// not once the step has changed: there it means something else.
+#[test]
+fn a_palette_row_of_the_frame_before_runs_only_in_its_step() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenPalette {});
+    let prompt = |phone: &mut Phone| phone.frame().palette.unwrap().prompt;
+    let row = phone.frame().palette.unwrap().sections[0].rows[0].clone();
+    // A tick drew the same palette again: the row on screen still chooses.
+    let root = prompt(&mut phone);
+    phone.event(UiEvent::Tap { action: row.action });
+    let step = prompt(&mut phone);
+    assert_ne!(step, root, "the row chose its step");
+    // The same ID again, now from a frame of another step: nothing.
+    phone.event(UiEvent::Tap { action: row.action });
+    assert_eq!(prompt(&mut phone), step);
+    assert!(phone.frame().palette.is_some());
+}
+
 #[test]
 fn stale_actions_are_ignored() {
     let mut phone = Phone::inbox(360, 800);
     let old = phone.frame().list.unwrap().rows[0].action;
-    let _ = phone.frame();
+    // The table keeps four frames: this one and the three before it.
+    for _ in 0..4 {
+        let _ = phone.frame();
+    }
     assert!(phone.tap(old).is_empty());
     assert!(phone.tap(0).is_empty());
     assert!(phone.tap(u32::MAX).is_empty());
@@ -134,8 +168,10 @@ fn the_drawer_opens_from_the_menu_and_back_closes_it() {
         .action;
     phone.event(UiEvent::Back);
     assert_eq!(phone.state().view.focus, Pane::List);
-    // The drawer's IDs died with its frame.
-    let _ = phone.frame();
+    // The drawer's IDs die a few frames after it (the table keeps four frames).
+    for _ in 0..4 {
+        let _ = phone.frame();
+    }
     assert!(phone.tap(sent).is_empty());
 }
 
@@ -200,18 +236,14 @@ fn the_bulk_bar_acts_on_the_checked_threads() {
     let bulk = phone.frame().bulk.unwrap();
     assert_eq!(bulk.title, "2 selected");
     let labels: Vec<_> = bulk.actions.iter().map(|b| b.label.as_str()).collect();
-    assert_eq!(
-        labels,
-        [
-            "Archive",
-            "Trash",
-            "Mark read",
-            "Mark unread",
-            "Star",
-            "Pin"
-        ]
-    );
-    let sent = phone.tap(bulk.actions[4].action);
+    assert_eq!(labels, ["Archive", "Trash", "Mark read", "Move…"]);
+    // TCH-2: the rest is in the ⋯ menu of a phone.
+    let more: Vec<_> = bulk.overflow.iter().map(|b| b.label.as_str()).collect();
+    assert_eq!(more, ["Junk", "Star", "Pin", "Search or run a command"]);
+    // PAR-1: *Move…* of the checked threads asks for the folder in the palette.
+    assert_eq!(phone.tap(bulk.actions[3].action), [Command::OpenPalette {}]);
+    let bulk = phone.frame().bulk.unwrap();
+    let sent = phone.tap(bulk.overflow[1].action);
     let ids = match &sent[0] {
         Command::Star { ids, .. } => ids.clone(),
         _ => Vec::new(),

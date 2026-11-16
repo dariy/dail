@@ -51,6 +51,8 @@ data class Frame(
     val result: ResultView? = null,
     val link: LinkSheet? = null,
     val preview: Preview? = null,
+    /** TCH-4: a list of actions on one thing (a folder's, after a long press in the drawer), as a bottom sheet. */
+    val menu: ActionSheet? = null,
     val back: Boolean,
     @SerialName("wants_tick") val wantsTick: Boolean,
 )
@@ -106,6 +108,8 @@ data class TopBar(
     val subtitle: String? = null,
     val navigation: Button? = null,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋯ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
 )
 
 @Serializable
@@ -143,7 +147,17 @@ data class DrawerItem(
     val unread: Int,
     val selected: Boolean,
     val action: ActionId,
+    /** TCH-4: opens the folder's actions; only on a real mailbox. */
+    @SerialName("long_press") val longPress: ActionId? = null,
     val a11y: String,
+)
+
+/** A list of actions on one thing (TCH-4): its name as plain text, the actions in order, and its dismissal. */
+@Serializable
+data class ActionSheet(
+    val title: String,
+    val items: List<Button>,
+    val close: Button,
 )
 
 @Serializable
@@ -211,6 +225,8 @@ data class RowMarks(
 data class Bulk(
     val title: String,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋯ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
     val close: Button,
 )
 
@@ -221,6 +237,8 @@ data class Reader(
     val close: Button,
     val maximize: Button? = null,
     val actions: List<Button>,
+    /** What does not fit as an icon: a ⋯ menu of text labels (TCH-2). */
+    val overflow: List<Button>,
     val previous: Neighbour? = null,
     val next: Neighbour? = null,
     val position: String? = null,
@@ -253,9 +271,6 @@ data class ReaderMessage(
     val links: List<Button>,
     // MISC-44: this message's own actions (reply, forward, read, star, trash; a draft's edit, discard).
     val actions: List<Button> = emptyList(),
-    // MISC-44e: the card's swipes, as a list row's (start: archive or edit; end: trash or discard).
-    @SerialName("swipe_start") val swipeStart: Button? = null,
-    @SerialName("swipe_end") val swipeEnd: Button? = null,
 )
 
 @Serializable
@@ -400,7 +415,17 @@ data class Attachment(
 data class SettingsPage(
     val section: String,
     val tabs: List<Choice>,
+    val sections: List<SettingsEntry>,
     val groups: List<SettingsGroup>,
+)
+
+@Serializable
+data class SettingsEntry(
+    val icon: String,
+    val label: String,
+    val hint: String? = null,
+    val folded: Boolean,
+    val action: ActionId,
 )
 
 @Serializable

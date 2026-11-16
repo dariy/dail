@@ -51,7 +51,8 @@ final class HostTests: XCTestCase {
         let reader = try XCTUnwrap(frame.reader, "a tap on a row opens the thread")
         XCTAssertEqual(reader.thread, first.thread)
 
-        let star = try XCTUnwrap(reader.actions.first { $0.icon == "star" })
+        // TCH-2: on a wide window Star is in the reader's ⋯ menu.
+        let star = try XCTUnwrap((reader.actions + reader.overflow).first { $0.icon == "star" })
         frame = try demo.send(.tap(star.action)) { $0.list?.rows.first { $0.thread == first.thread }?.starred != first.starred }
         XCTAssertEqual(frame.list?.rows.first { $0.thread == first.thread }?.starred, !first.starred)
 

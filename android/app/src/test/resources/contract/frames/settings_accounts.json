@@ -14,15 +14,15 @@
           {
             "actions": [
               {
-                "action": 8,
+                "action": 3,
                 "label": "Test"
               },
               {
-                "action": 9,
+                "action": 4,
                 "label": "Password"
               },
               {
-                "action": 10,
+                "action": 5,
                 "label": "Remove"
               }
             ],
@@ -34,7 +34,7 @@
           {
             "actions": [
               {
-                "action": 11,
+                "action": 6,
                 "label": "Add an account"
               }
             ],
@@ -48,33 +48,8 @@
       }
     ],
     "section": "accounts",
-    "tabs": [
-      {
-        "action": 3,
-        "label": "Appearance",
-        "selected": false
-      },
-      {
-        "action": 4,
-        "label": "Keyboard",
-        "selected": false
-      },
-      {
-        "action": 5,
-        "label": "General",
-        "selected": false
-      },
-      {
-        "action": 6,
-        "label": "Accounts",
-        "selected": true
-      },
-      {
-        "action": 7,
-        "label": "Rules",
-        "selected": false
-      }
-    ]
+    "sections": [],
+    "tabs": []
   },
   "theme": {
     "chrome": {
@@ -340,8 +315,9 @@
       "icon": "arrow_back",
       "label": "Back"
     },
+    "overflow": [],
     "subtitle": "synced 9h ago",
-    "title": "Settings"
+    "title": "Accounts"
   },
   "wants_tick": true
 }

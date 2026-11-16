@@ -567,7 +567,7 @@ fn on_mailbox(
 pub const MARK_ALL_CONFIRM_ABOVE: u32 = 50;
 
 /// `mark_mailbox_read` for `id`, after a confirmation when much is unread.
-fn mark_mailbox_read(state: &AppState, id: MailboxId) -> Flow {
+pub fn mark_mailbox_read(state: &AppState, id: MailboxId) -> Flow {
     let unread = state.mailboxes.get(&id).map_or(0, |m| m.unread);
     if unread <= MARK_ALL_CONFIRM_ABOVE {
         return Flow::Run(Command::MarkMailboxRead { id });
@@ -965,8 +965,16 @@ pub fn rule_source(state: &AppState) -> Option<MessageId> {
 /// *Make a rule from this message*: a test pre-filled from the message's envelope (its sender,
 /// its mailing list, its subject), then the action; ends in `save_rule`.
 pub fn rule_from_message(state: &AppState) -> Flow {
+    match rule_source(state) {
+        Some(message) => rule_from(state, message),
+        None => Flow::Hidden,
+    }
+}
+
+/// [`rule_from_message`] from `message` (a thread's *Make a rule…*, PAR-1).
+pub fn rule_from(state: &AppState, message: MessageId) -> Flow {
     use app_core::Condition;
-    let Some(envelope) = rule_source(state).and_then(|m| state.messages.get(&m)) else {
+    let Some(envelope) = state.messages.get(&message) else {
         return Flow::Hidden;
     };
     let mut tests: Vec<(Key, Condition)> = Vec::new();
@@ -1016,6 +1024,50 @@ pub fn rule_from_message(state: &AppState) -> Flow {
             pick_action(Arc::new(move |_, then| {
                 Flow::Run(new_rule_command(when.clone(), then))
             }))
+        },
+    )
+}
+
+/// `set_sync_window` of `mailbox`: asks how many of the newest messages to keep offline.
+pub fn sync_window(mailbox: MailboxId) -> Flow {
+    ask(
+        crate::i18n::s(Key::KeepHowManyOfTheNewestMessages),
+        AskKind::Text(crate::i18n::s(Key::ANumber0KeepsAllOfIt).into()),
+        move |_, choice| match choice {
+            Choice::Text(text) => text.trim().parse::<u32>().map_or(Flow::Hidden, |n| {
+                Flow::Run(Command::SetSyncWindow {
+                    mailbox,
+                    window: Some(n),
+                })
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `set_identity` of `account`: asks for the address, then its signature.
+pub fn set_identity(account: AccountId) -> Flow {
+    ask(
+        crate::i18n::s(Key::WhichAddress),
+        AskKind::Text("sales@example.org".into()),
+        move |_, choice| match choice {
+            Choice::Text(email) if !email.trim().is_empty() => {
+                let email = email.trim().to_owned();
+                ask(
+                    crate::i18n::s(Key::ItsSignatureEmptyNone),
+                    AskKind::Text(crate::i18n::s(Key::NameCompany).into()),
+                    move |_, choice| match choice {
+                        Choice::Text(signature) => Flow::Run(Command::SetIdentity {
+                            account,
+                            email: email.clone(),
+                            name: None,
+                            signature: Some(signature.trim().to_owned()).filter(|s| !s.is_empty()),
+                        }),
+                        _ => Flow::Hidden,
+                    },
+                )
+            }
+            _ => Flow::Hidden,
         },
     )
 }
@@ -1154,66 +1206,22 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 }
             })
         }
-        CommandName::SetSyncWindow => {
-            let window = |mailbox| {
-                ask(
-                    crate::i18n::s(Key::KeepHowManyOfTheNewestMessages),
-                    AskKind::Text(crate::i18n::s(Key::ANumber0KeepsAllOfIt).into()),
-                    move |_, choice| match choice {
-                        Choice::Text(text) => {
-                            text.trim().parse::<u32>().map_or(Flow::Hidden, |n| {
-                                Flow::Run(Command::SetSyncWindow {
-                                    mailbox,
-                                    window: Some(n),
-                                })
-                            })
-                        }
-                        _ => Flow::Hidden,
-                    },
-                )
-            };
-            match state.view.mailbox {
-                Some(mailbox) => window(mailbox),
-                None => ask(
-                    crate::i18n::s(Key::WhichMailbox),
-                    AskKind::Mailboxes(None),
-                    move |_, choice| match choice {
-                        Choice::Mailbox(id) => window(id),
-                        _ => Flow::Hidden,
-                    },
-                ),
-            }
-        }
+        CommandName::SetSyncWindow => match state.view.mailbox {
+            Some(mailbox) => sync_window(mailbox),
+            None => ask(
+                crate::i18n::s(Key::WhichMailbox),
+                AskKind::Mailboxes(None),
+                move |_, choice| match choice {
+                    Choice::Mailbox(id) => sync_window(id),
+                    _ => Flow::Hidden,
+                },
+            ),
+        },
         CommandName::OpenUnifiedInbox => Flow::Run(Command::OpenUnifiedInbox {}),
         CommandName::OpenMailbox => pick_mailbox(crate::i18n::s(Key::GoToMailbox), None, |id| {
             Command::OpenMailbox { id }
         }),
-        CommandName::SetIdentity => pick_account(|_, account| {
-            ask(
-                crate::i18n::s(Key::WhichAddress),
-                AskKind::Text("sales@example.org".into()),
-                move |_, choice| match choice {
-                    Choice::Text(email) if !email.trim().is_empty() => {
-                        let email = email.trim().to_owned();
-                        ask(
-                            crate::i18n::s(Key::ItsSignatureEmptyNone),
-                            AskKind::Text(crate::i18n::s(Key::NameCompany).into()),
-                            move |_, choice| match choice {
-                                Choice::Text(signature) => Flow::Run(Command::SetIdentity {
-                                    account,
-                                    email: email.clone(),
-                                    name: None,
-                                    signature: Some(signature.trim().to_owned())
-                                        .filter(|s| !s.is_empty()),
-                                }),
-                                _ => Flow::Hidden,
-                            },
-                        )
-                    }
-                    _ => Flow::Hidden,
-                },
-            )
-        }),
+        CommandName::SetIdentity => pick_account(|_, account| set_identity(account)),
         CommandName::RemoveIdentity => pick_account(|_, account| {
             text(
                 crate::i18n::s(Key::RemoveWhichAddress),

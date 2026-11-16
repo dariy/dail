@@ -16,6 +16,7 @@ pub mod keymap;
 pub mod list;
 pub mod palette;
 pub mod reader;
+pub mod selection;
 pub mod settings;
 pub mod shell;
 pub mod sidebar;
