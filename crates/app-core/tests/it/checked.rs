@@ -66,3 +66,29 @@ fn another_list_unchecks_and_unknown_threads_are_refused() {
         Err(CoreError::NotFound { .. })
     ));
 }
+
+#[test]
+fn threads_that_leave_the_list_are_unchecked() {
+    let (mut m, t) = inbox();
+    m.run(Command::CheckThreads {
+        ids: vec![t[0], t[1]],
+    })
+    .unwrap();
+    m.run(Command::ArchiveThreads {
+        ids: vec![t[0]],
+        messages: Vec::new(),
+    })
+    .unwrap();
+    assert_eq!(checked(&m), [t[1]], "the archived thread left the inbox");
+    m.run(Command::Undo {}).unwrap();
+    assert_eq!(checked(&m), [t[1]], "back, but not checked again");
+    m.run(Command::ArchiveThreads {
+        ids: vec![t[1]],
+        messages: Vec::new(),
+    })
+    .unwrap();
+    assert!(
+        checked(&m).is_empty(),
+        "nothing checked: the bulk bar closes"
+    );
+}

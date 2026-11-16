@@ -434,9 +434,8 @@ impl Engine {
             filter.attachments = on;
         }
         let filter = *filter;
-        // Checked threads the filter hides stay checked only if they still show.
+        // Checked threads the filter hides are unchecked by `settle_view`.
         let shown = crate::listing::visible_threads(&self.state);
-        self.state.view.checked.retain(|id| shown.contains(id));
         Outcome::new(
             receipt
                 .affecting(EntityRef::View)

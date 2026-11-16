@@ -81,6 +81,11 @@ fn junk_or_not_junk_by_folder() {
     let junk = folder.id;
     state.mailboxes.insert(junk, folder);
     let mut phone = Phone::new(state, 360, 800);
+    // The thread is in Junk: only a thread the list shows stays checked.
+    phone.dispatch(Command::MarkJunk {
+        ids: vec![threads[0]],
+        messages: Vec::new(),
+    });
     phone.dispatch(Command::OpenMailbox { id: junk });
     phone.dispatch(Command::CheckThreads {
         ids: vec![threads[0]],

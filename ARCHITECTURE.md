@@ -1140,6 +1140,8 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   `x` toggles the cursor's thread, `* a` checks all that the list shows, `* n` none. Checked rows show a check mark (the `check` icon in the GUI, `✓` in the TUI).
   While threads are checked the list header shows *N checked* with *Archive*, *Trash*, *Mark read*, *Mark unread*,
   *Star* and *Uncheck all*, and every triage key or palette command acts on the checked threads (`palette::targets`).
+  A checked thread that leaves the list (archived, moved, hidden by the filter, another mailbox or search) is unchecked
+  (`Engine::settle_view`), so the bar closes after a bulk move; undo brings the threads back unchecked.
 - **Conversation:** messages oldest first. By default the unread ones and the newest are expanded and the others are
   one line (sender, age, the start of the text; `listing::is_expanded`); a click on a collapsed line sends
   `expand_messages {ids: [id]}`, a click on an expanded message's header `collapse_messages` (in a thread of more than
