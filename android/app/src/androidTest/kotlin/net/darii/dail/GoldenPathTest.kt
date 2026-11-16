@@ -300,6 +300,28 @@ class GoldenPathTest {
 
     private fun tap(label: String) = tap(await(label, find = labelled(label)))
 
+    /**
+     * Taps the node [find] matches, once it rests, until [done]: at most [TAP_TRIES] times, 5 s apart. A tap is lost
+     * when the app drew a newer frame meanwhile (a tick, a reply): the action IDs of the frame under the finger have
+     * stopped working. Only for a tap that is harmless twice.
+     */
+    private fun tapUntil(
+        what: String,
+        find: (Node) -> Boolean,
+        done: () -> Boolean,
+    ) {
+        repeat(TAP_TRIES) { attempt ->
+            tap(settled(what, find = find))
+            val deadline = System.currentTimeMillis() + 5_000L
+            while (System.currentTimeMillis() < deadline) {
+                if (done()) return
+                Thread.sleep(250)
+            }
+            Log.i(TAG, "$what: nothing after tap ${attempt + 1}")
+        }
+        error("never true after $TAP_TRIES taps: $what")
+    }
+
     /** The node labelled [label] once it stays put for half a second: a layout still moving would take a tap elsewhere. */
     private fun settled(label: String): Node = settled(label, find = labelled(label))
 
@@ -560,12 +582,11 @@ class GoldenPathTest {
         // Its row on the Rules screen: Off switches it off, Delete deletes it.
         val name = rule.getString("name")
         val label = await("the rule's row $name") { it.text == name }
-        tap(settled("the rule's Off") { it.text == "Off" && it.y > label.y })
-        awaitThat("the rule switched off") { rules()[id]?.optBoolean("enabled") == false }
-        // The row is drawn again with On in place of Off: a tap while it changes is lost.
-        val shown = await("the rule's row $name") { it.text == name }
-        tap(settled("the rule's Delete") { labelled("Delete")(it) && it.y > shown.y })
-        awaitThat("the rule deleted") { rules().isEmpty() }
+        tapUntil(
+            "the rule's Off",
+            { it.text == "Off" && it.y > label.y },
+        ) { rules()[id]?.optBoolean("enabled") == false }
+        tapUntil("the rule's Delete", { labelled("Delete")(it) && it.y > label.y }) { rules().isEmpty() }
     }
 
     @Test
@@ -651,5 +672,8 @@ class GoldenPathTest {
 
         /** Taps on the archive's Undo before the test gives up. */
         const val UNDO_TRIES = 3
+
+        /** Taps of [tapUntil] before the test gives up. */
+        const val TAP_TRIES = 3
     }
 }
