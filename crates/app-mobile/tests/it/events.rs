@@ -23,11 +23,41 @@ fn a_tap_on_a_row_opens_its_thread() {
     assert!(frame.list.is_some(), "the list under the page");
 }
 
+/// A tick or a reply makes a frame the host has not drawn yet: a tap on the one on screen counts.
+#[test]
+fn a_tap_on_the_frame_before_still_runs() {
+    let mut phone = Phone::inbox(360, 800);
+    let (_, threads) = inbox_of(phone.state());
+    let drawn = phone.frame().list.unwrap().rows[0].action;
+    for _ in 0..3 {
+        let _ = phone.frame();
+    }
+    assert_eq!(phone.tap(drawn), [Command::OpenThread { id: threads[0] }]);
+}
+
+/// But not a step of the palette: its rows mean something else once the step has changed.
+#[test]
+fn a_palette_row_of_the_frame_before_is_ignored() {
+    let mut phone = Phone::inbox(360, 800);
+    phone.dispatch(Command::OpenPalette {});
+    let row = phone.frame().palette.unwrap().sections[0].rows[0].clone();
+    let prompt = |phone: &mut Phone| phone.frame().palette.unwrap().prompt;
+    let before = prompt(&mut phone);
+    phone.event(UiEvent::Tap { action: row.action });
+    assert_eq!(prompt(&mut phone), before, "the row of two frames ago");
+    let row = phone.frame().palette.unwrap().sections[0].rows[0].clone();
+    phone.event(UiEvent::Tap { action: row.action });
+    assert_ne!(prompt(&mut phone), before, "the row on screen does");
+}
+
 #[test]
 fn stale_actions_are_ignored() {
     let mut phone = Phone::inbox(360, 800);
     let old = phone.frame().list.unwrap().rows[0].action;
-    let _ = phone.frame();
+    // The table keeps four frames: this one and the three before it.
+    for _ in 0..4 {
+        let _ = phone.frame();
+    }
     assert!(phone.tap(old).is_empty());
     assert!(phone.tap(0).is_empty());
     assert!(phone.tap(u32::MAX).is_empty());
@@ -134,8 +164,10 @@ fn the_drawer_opens_from_the_menu_and_back_closes_it() {
         .action;
     phone.event(UiEvent::Back);
     assert_eq!(phone.state().view.focus, Pane::List);
-    // The drawer's IDs died with its frame.
-    let _ = phone.frame();
+    // The drawer's IDs die a few frames after it (the table keeps four frames).
+    for _ in 0..4 {
+        let _ = phone.frame();
+    }
     assert!(phone.tap(sent).is_empty());
 }
 

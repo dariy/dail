@@ -465,7 +465,7 @@ impl Mobile {
                 .chain(&message.cc)
                 .map(|a| clean(&format::full(a)))
                 .collect();
-            let (actions, swipe_start, swipe_end) = self.message_actions(state, message.id);
+            let actions = self.message_actions(state, message.id);
             out.push(ReaderMessage {
                 message: message.id,
                 from: message.from.first().map_or_else(
@@ -484,8 +484,6 @@ impl Mobile {
                 images,
                 links,
                 actions,
-                swipe_start,
-                swipe_end,
             });
         }
         let close = self.button(
@@ -510,28 +508,11 @@ impl Mobile {
         })
     }
 
-    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons,
-    /// and its two swipes (MISC-44e), as a list row's: towards the start edge archives the
-    /// message (a draft: edits it), towards the end edge trashes it (a draft: discards it).
-    fn message_actions(
-        &mut self,
-        state: &AppState,
-        message: MessageId,
-    ) -> (Vec<Button>, Option<Button>, Option<Button>) {
+    /// The buttons of one message card (MISC-44): `app_front::message_actions`, with icons, and
+    /// *Archive* (this message alone) before *Trash*.
+    fn message_actions(&mut self, state: &AppState, message: MessageId) -> Vec<Button> {
         let items = message_actions::message_actions(state, message);
-        let mut swipe_start = None;
-        let mut swipe_end = None;
-        if items.iter().any(|i| i.action == MessageAction::Trash) {
-            swipe_start = Some(self.button(
-                "archive",
-                i18n::s(Key::Archive),
-                Act::Run(Command::ArchiveThreads {
-                    ids: Vec::new(),
-                    messages: vec![message],
-                }),
-            ));
-        }
-        let mut actions = Vec::with_capacity(items.len());
+        let mut actions = Vec::with_capacity(items.len() + 1);
         for item in items {
             let icon = match item.action {
                 MessageAction::Reply => "reply",
@@ -543,19 +524,20 @@ impl Mobile {
                 MessageAction::Trash | MessageAction::Discard => "delete",
                 MessageAction::Edit | MessageAction::MakeRule => "edit",
             };
-            let label = i18n::s(item.action.label());
-            match item.action {
-                MessageAction::Trash | MessageAction::Discard => {
-                    swipe_end = Some(self.button(icon, label, Act::Action(item.run.clone())));
-                }
-                MessageAction::Edit => {
-                    swipe_start = Some(self.button(icon, label, Act::Action(item.run.clone())));
-                }
-                _ => {}
+            if item.action == MessageAction::Trash {
+                actions.push(self.button(
+                    "archive",
+                    i18n::s(Key::Archive),
+                    Act::Run(Command::ArchiveThreads {
+                        ids: Vec::new(),
+                        messages: vec![message],
+                    }),
+                ));
             }
+            let label = i18n::s(item.action.label());
             actions.push(self.button(icon, label, Act::Action(item.run)));
         }
-        (actions, swipe_start, swipe_end)
+        actions
     }
 
     /// The conversations above and below the open one in the list, and where it is.

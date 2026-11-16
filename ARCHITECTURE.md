@@ -1167,6 +1167,11 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   and the texture is drawn in place of the alt text. A plain-text body (or a front-end without documents, like the TUI)
   shows the text. "Open original" writes
   a sanitized HTML file to temp and opens the system browser.
+  The body's text can be selected and copied (MISC-51): Ctrl+C copies the selection to the system clipboard (eframe's
+  `clipboard` feature; without it egui keeps the text inside the app), and a right click on the body opens *Copy* (the
+  selection) and *Copy all text* (`app_gui::selection`, which keeps the text egui reports when a selection settles: a
+  right click collapses the selection itself). On Android the body is a `SelectionContainer`, on iOS its texts have
+  `textSelection(.enabled)`: a long press selects, the system's toolbar copies.
   Below each body, *Links (N)* lists every `http(s)://` and `mailto:` target found in the text (`app_front::body::links`; HTML
   links arrive as numbered footnotes with their real targets), each shown in full and opened in the browser only when
   clicked. Each downloaded message has *Open original ↗*: `Session::open_original(blob)` renders the stored raw
@@ -1592,7 +1597,9 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   gesture; the text size never changes and the step stays across threads. Kotlin's drawer sheet and rail take no window
   insets of their own (the Scaffold's padding has them), which kept the landscape drawer too wide and misaligned.
 - **Actions.** Everything tappable carries an action ID from the frame's table (`Tap`, `LongPress`, `Swipe`). IDs only
-  grow, and the table holds the last frame's, so an ID from an older frame is ignored, never taken for another action.
+  grow, and the table holds those of the four newest frames (`KEPT_FRAMES`): a tick or a reply can make a frame the host
+  has not drawn yet, and a tap on the one on screen must not be lost. An older ID is ignored, never taken for another
+  action; so is an earlier frame's palette row, palette Back or setup button, which mean something else once the step changed.
   So a callback that outlives a frame (a remembered swipe state's `confirmValueChange`) must read the current frame's
   row through `rememberUpdatedState`, never the one it was created with (MISC-1). Kotlin never builds a command. A row's tap opens its thread (toggles its check while threads are checked), a long
   press checks it (with `haptic`), a swipe to the start archives and to the end trashes (with `haptic`). While
@@ -1687,12 +1694,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   - **Card actions** (MISC-44): every `ReaderMessage` carries `actions`, the buttons of
     `app_front::message_actions` for that message alone (reply, reply all, forward, read or unread, star or unstar,
     *Make a rule…* from that message, which opens the palette at the rule step (TCH-8), then trash; a draft's edit and discard, the conversation staying open), each a `tap` of its action ID. There is no
-    button row (MISC-44e): a card swipes as a list row does, with `swipe_start` (archive the message,
-    `archive_threads{messages}`; a draft: edit) and `swipe_end` (trash it, `trash_threads{messages}`; a draft:
-    discard), `Button`s whose icon is revealed under the card, sent as `swipe` (a haptic follows). Android draws the
-    swipes with the list rows' `SwipeToDismissBox` (half-width threshold, colours of `SwipeRow`), and a long press
-    on the card's header opens a menu of `actions`; TalkBack gets `actions` and the start swipe as custom actions.
-    On the message page, a card swipes outside the page's left edge zone, where the swipe back starts. iOS decodes
+    button row (MISC-44e): a long press on the card's header opens a menu of `actions`, and TalkBack gets them as
+    custom actions. The presenter adds *Archive* (this message alone, `archive_threads{messages}`) before *Trash*. A
+    card has no swipes: in the reader a horizontal drag closes the message page (below) or scrolls a wide block.
+    iOS decodes
     them but does not draw them yet (Wave 11's iOS decision; the iOS reader is a `ScrollView`, not a `List` with `swipeActions`).
   - **`previous`/`next`** (MISC-18) are the neighbouring conversations of the list. Each is a `Neighbour`: the
     `open_thread` button and a peek (sender, subject, date) that the list rows' own helper builds, so it is cleaned
@@ -1770,11 +1775,12 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
     `layout.page = reader`. The top bar is the list's, there is no floating button, and Back closes the page.
   - **Drawing.** Hosts draw a page over the panes and the top bar, below the status bar (`ReaderPage.kt`, and
     `ReaderPage` in `ReaderPane.swift`). It slides in from the right in 250 ms.
-  - **The swipe back.** On Android a drag to the right that starts in the page's left edge zone follows the finger
-    (MISC-44e); on iOS, which draws no card swipes, a horizontal drag anywhere on the page does. On Android the zone is the system's back-gesture inset (`WindowInsets.systemGestures`), or 32 dp without one, and
-    the page takes such a drag before its content. Elsewhere a horizontal drag is the content's: a block's own
-    horizontal scroll, or a message card's swipes. The dominant axis decides against the body's scroll. Past a third of the width, or with a
-    fling, the page sends the reader's close (`close_thread`); otherwise it springs back.
+  - **The swipe back.** A drag to the right anywhere on the page follows the finger, on Android and on iOS. It is the
+    page's only swipe: a message card has none. On Android, in the left edge zone (the system's back-gesture inset,
+    `WindowInsets.systemGestures`, or 32 dp without one) the page takes the drag before its content; elsewhere it takes
+    it after its content, so a wide block (a table, code) scrolls sideways under the finger instead, and a text
+    selection keeps its drag. The dominant axis decides against the body's scroll. Past a third of the width, or with a
+    fling, the page slides away and sends the reader's close (`close_thread`); otherwise it springs back.
   - **Leaving.** A frame that drops the page over the list slides it out. One that puts something else there (the
     composer) removes it at once.
   - **The list beneath** keeps its scroll position and is hidden from TalkBack and VoiceOver. VoiceOver's escape
@@ -1797,6 +1803,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   and types with `ESC`, C1 controls, `\r` and U+202E, and walks every string of the list, drawer, reader, link
   dialog, preview, palette, query result and reply frames at the three window sizes: none is left (a body keeps
   its line breaks), only U+FFFD.
+  A compact window narrower than 360 dp draws three icons per full-width bar, not four (`bar_budget`): with Close and
+  the ⋯ menu, four left the bulk bar's title 32 dp at 320 dp.
   `tests/it/budgets.rs` (QA-2) states the phone's frame budgets once, over every touch state at 360×640 dp: at most four
   icons per bar (each button labelled), exactly one palette entry per state (the exemptions, About and no accounts,
   are listed with their reason and asserted to have none), and every settings section one tap from the root.

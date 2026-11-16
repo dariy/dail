@@ -116,6 +116,10 @@ enum Act {
     CloseMenu,
 }
 
+/// How many frames' action tables are kept: the current one and the three before it. A burst of
+/// replies makes a few frames before the host draws one.
+const KEPT_FRAMES: usize = 4;
+
 /// The window, as the host last configured it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Window {
@@ -194,8 +198,10 @@ pub struct Mobile {
     /// The first visible row and how many are visible (`scrolled`).
     scrolled: (usize, usize),
     rows: RowCache,
-    /// The action table of the last frame.
+    /// The action tables of the last [`KEPT_FRAMES`] frames, oldest first.
     actions: Vec<(ActionId, Act)>,
+    /// Where each kept frame's table starts in `actions`; the last is the current frame's.
+    frame_starts: Vec<usize>,
     next_action: ActionId,
     revision: u64,
     bodies: Bodies,
@@ -315,6 +321,7 @@ impl Mobile {
             scrolled: (0, FIRST_WINDOW),
             rows: RowCache::default(),
             actions: Vec::new(),
+            frame_starts: Vec::new(),
             next_action: 1,
             revision: 0,
             bodies: Bodies::rich(),
@@ -659,14 +666,16 @@ impl Mobile {
     }
 
     fn act(&mut self, action: ActionId, state: &AppState) -> Vec<Request> {
-        let Some(act) = self
-            .actions
-            .iter()
-            .find(|(id, _)| *id == action)
-            .map(|(_, act)| act.clone())
-        else {
+        let Some(at) = self.actions.iter().position(|(id, _)| *id == action) else {
             return Vec::new();
         };
+        let act = self.actions[at].1.clone();
+        // An earlier frame's action runs only if it names what it acts on. A step of the palette
+        // or of the setup means something else once the step has changed.
+        let current = self.frame_starts.last().is_some_and(|start| at >= *start);
+        if !current && matches!(act, Act::Choose(_) | Act::PaletteBack | Act::Setup(_)) {
+            return Vec::new();
+        }
         // About is over everything: a command from elsewhere (a mailbox in the drawer) moves on
         // from it, or the panes would change unseen beneath it (MISC-12).
         if matches!(act, Act::Run(_) | Act::Many(_)) {
@@ -1041,13 +1050,23 @@ impl Mobile {
         }
     }
 
-    /// The next screen. The action IDs of earlier frames stop working.
+    /// The next screen. The action IDs of the [`KEPT_FRAMES`] newest frames work: the host may
+    /// not have drawn this one yet when a finger lands on the one before (a tick or a reply made
+    /// it meanwhile), and that tap must not be lost. Older IDs stop working.
     pub fn frame(&mut self, state: &AppState) -> Frame {
         self.lang = Lang::resolve(state.settings.language, self.system_lang);
         i18n::set_current(self.lang);
         self.compose.sync(state);
         self.palette_sync(state);
-        self.actions.clear();
+        self.frame_starts.push(self.actions.len());
+        if self.frame_starts.len() > KEPT_FRAMES {
+            self.frame_starts.remove(0);
+            let cut = self.frame_starts.first().copied().unwrap_or(0);
+            self.actions.drain(..cut);
+            for start in &mut self.frame_starts {
+                *start -= cut;
+            }
+        }
         self.revision += 1;
         if !self.offered && state.accounts.is_empty() {
             self.offered = true;
@@ -1315,7 +1334,7 @@ impl Mobile {
         // Every button of the top bar is primary; TCH-1 adds what overflows.
         let (actions, overflow) = split(
             actions.into_iter().map(|b| (b, true)).collect(),
-            bar_budget(self.class()),
+            bar_budget(self.class(), self.window.width_dp),
         );
         TopBar {
             title,
@@ -1653,7 +1672,7 @@ impl Mobile {
         // TCH-1: the bulk bar replaces the top bar and its search: the palette, last and not
         // primary (it keeps the checked threads as its targets).
         items.push((self.palette_button(), false));
-        let (actions, overflow) = split(items, bar_budget(self.class()));
+        let (actions, overflow) = split(items, bar_budget(self.class(), self.window.width_dp));
         let close = self.button(
             "close",
             i18n::s(Text::UncheckAll),
@@ -2037,9 +2056,12 @@ fn list_title(state: &AppState) -> String {
 }
 
 /// How many buttons a full-width bar (the top bar, the bulk bar) draws as icons (TCH-2): four on
-/// a compact window, all of them on a wider one (its whole list fits from 600 dp).
-const fn bar_budget(class: Class) -> usize {
+/// a compact window, three on one narrower than 360 dp (with Close and the ⋯ menu, four would
+/// leave the title 32 dp at 320 dp: *2 selected* wrapped a letter a line), all of them on a wider
+/// window (its whole list fits from 600 dp).
+const fn bar_budget(class: Class, width_dp: u32) -> usize {
     match class {
+        Class::Compact if width_dp < 360 => 3,
         Class::Compact => 4,
         Class::Medium | Class::Expanded => usize::MAX,
     }

@@ -80,7 +80,7 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 32
+      "action": 31
     },
     "actions": [
       {
@@ -163,49 +163,44 @@ expression: phone.frame()
           {
             "icon": "reply",
             "label": "Reply",
-            "action": 24
+            "action": 23
           },
           {
             "icon": "reply_all",
             "label": "Reply all",
-            "action": 25
+            "action": 24
           },
           {
             "icon": "forward",
             "label": "Forward",
-            "action": 26
+            "action": 25
           },
           {
             "icon": "mark_email_read",
             "label": "Mark read",
-            "action": 27
+            "action": 26
           },
           {
             "icon": "star",
             "label": "Star",
-            "action": 28
+            "action": 27
           },
           {
             "icon": "edit",
             "label": "Make a rule…",
+            "action": 28
+          },
+          {
+            "icon": "archive",
+            "label": "Archive",
             "action": 29
           },
           {
             "icon": "delete",
             "label": "Trash",
-            "action": 31
+            "action": 30
           }
-        ],
-        "swipe_start": {
-          "icon": "archive",
-          "label": "Archive",
-          "action": 23
-        },
-        "swipe_end": {
-          "icon": "delete",
-          "label": "Trash",
-          "action": 30
-        }
+        ]
       }
     ]
   },

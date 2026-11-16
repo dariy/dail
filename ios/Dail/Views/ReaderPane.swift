@@ -226,6 +226,7 @@ struct BlockView: View {
             Text(Self.text(spans)).textSelection(.enabled)
         case let .heading(level, spans):
             Text(Self.text(spans)).font(level <= 1 ? .title3 : .headline).accessibilityAddTraits(.isHeader)
+                .textSelection(.enabled)
         case let .list(ordered, start, items):
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, blocks in
@@ -253,6 +254,7 @@ struct BlockView: View {
                     GridRow {
                         ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                             Text(Self.text(cell.spans)).fontWeight(cell.header == true ? .semibold : .regular)
+                                .textSelection(.enabled)
                         }
                     }
                 }

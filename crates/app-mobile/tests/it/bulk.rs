@@ -163,3 +163,21 @@ fn select_all_checks_every_shown_thread_until_all_are() {
     let bar = bulk(&mut phone);
     assert!(!labels(&bar).contains(&"Select all".to_owned()));
 }
+
+/// At 320 dp four icons, Close and the ⋯ menu left the title 32 dp: three icons there.
+#[test]
+fn a_narrow_phone_draws_three_icons_so_the_title_fits() {
+    let mut phone = Phone::inbox(320, 640);
+    let (_, threads) = inbox_of(phone.state());
+    phone.dispatch(Command::CheckThreads {
+        ids: vec![threads[0], threads[1]],
+    });
+    let bar = bulk(&mut phone);
+    assert_eq!(bar.title, "2 selected");
+    assert_eq!(bar.actions.len(), 3, "{:?}", labels(&bar));
+    let mut phone = Phone::inbox(360, 640);
+    phone.dispatch(Command::CheckThreads {
+        ids: vec![threads[0], threads[1]],
+    });
+    assert_eq!(bulk(&mut phone).actions.len(), 4);
+}

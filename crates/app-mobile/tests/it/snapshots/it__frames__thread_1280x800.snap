@@ -160,12 +160,12 @@ expression: phone.frame()
     "close": {
       "icon": "close",
       "label": "Close message",
-      "action": 43
+      "action": 42
     },
     "maximize": {
       "icon": "open_in_full",
       "label": "Maximize message",
-      "action": 44
+      "action": 43
     },
     "actions": [
       {
@@ -243,56 +243,51 @@ expression: phone.frame()
           {
             "icon": "reply",
             "label": "Reply",
-            "action": 35
+            "action": 34
           },
           {
             "icon": "reply_all",
             "label": "Reply all",
-            "action": 36
+            "action": 35
           },
           {
             "icon": "forward",
             "label": "Forward",
-            "action": 37
+            "action": 36
           },
           {
             "icon": "mark_email_read",
             "label": "Mark read",
-            "action": 38
+            "action": 37
           },
           {
             "icon": "star",
             "label": "Star",
-            "action": 39
+            "action": 38
           },
           {
             "icon": "edit",
             "label": "Make a rule…",
+            "action": 39
+          },
+          {
+            "icon": "archive",
+            "label": "Archive",
             "action": 40
           },
           {
             "icon": "delete",
             "label": "Trash",
-            "action": 42
+            "action": 41
           }
-        ],
-        "swipe_start": {
-          "icon": "archive",
-          "label": "Archive",
-          "action": 34
-        },
-        "swipe_end": {
-          "icon": "delete",
-          "label": "Trash",
-          "action": 41
-        }
+        ]
       }
     ]
   },
   "fab": {
     "icon": "edit",
     "label": "Compose",
-    "action": 45
+    "action": 44
   },
   "theme": {
     "id": "dail-light",

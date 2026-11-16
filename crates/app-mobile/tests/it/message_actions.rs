@@ -7,10 +7,9 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use app_core::{Command, MessageId};
-use app_mobile::UiEvent;
 use app_mobile::frame::ReaderMessage;
 
-use crate::support::{Phone, inbox_of, requests_of, synced_state};
+use crate::support::{Phone, inbox_of, synced_state};
 
 fn labels(card: &ReaderMessage) -> Vec<&str> {
     card.actions.iter().map(|b| b.label.as_str()).collect()
@@ -143,95 +142,37 @@ fn a_server_only_draft_card_is_discarded_to_the_trash() {
     );
 }
 
-fn swipe(phone: &mut Phone, action: u32) -> Vec<Command> {
-    phone.take();
-    phone.event(UiEvent::Swipe { action });
-    requests_of(&phone.take())
-}
-
-fn draft_phone() -> (Phone, MessageId) {
-    let mut state = synced_state();
-    state.settings.stale_secs = 86_400;
-    let (inbox, threads) = inbox_of(&state);
-    let message = state.threads[&threads[0]].messages[0];
-    let envelope = state.messages.get_mut(&message).unwrap();
-    envelope.flags.draft = true;
-    envelope.message_id_hdr = Some("draft-1@example.com".to_owned());
-    let mut phone = Phone::new(state, 360, 800);
-    phone.dispatch(Command::OpenMailbox { id: inbox });
-    (phone, message)
-}
-
 #[test]
-fn a_card_swipes_as_a_list_row() {
+fn a_card_archives_its_message_alone_and_has_no_swipes() {
     let mut phone = Phone::inbox(360, 800);
     let card = first_card(&mut phone);
-    let start = card.swipe_start.clone().unwrap();
-    let end = card.swipe_end.clone().unwrap();
+    let all = labels(&card);
+    let at = |label: &str| all.iter().position(|l| *l == label).unwrap();
+    assert_eq!(at("Archive") + 1, at("Trash"), "{all:?}");
     assert_eq!(
-        (start.icon.as_deref(), start.label.as_str()),
-        (Some("archive"), "Archive")
-    );
-    assert_eq!(
-        (end.icon.as_deref(), end.label.as_str()),
-        (Some("delete"), "Trash")
-    );
-    assert_eq!(
-        swipe(&mut phone, start.action),
+        phone.tap(action(&card, "Archive")),
         vec![Command::ArchiveThreads {
             ids: Vec::new(),
             messages: vec![card.message],
         }]
     );
-    let card = first_card(&mut phone);
-    let end = card.swipe_end.unwrap();
-    assert_eq!(
-        swipe(&mut phone, end.action),
-        vec![Command::TrashThreads {
-            ids: Vec::new(),
-            messages: vec![card.message],
-        }]
-    );
-}
-
-#[test]
-fn a_draft_card_swipes_to_edit_and_to_discard() {
-    let (mut phone, message) = draft_phone();
-    let card = first_card(&mut phone);
-    let start = card.swipe_start.clone().unwrap();
-    assert_eq!(start.label, "Edit");
-    let end = card.swipe_end.clone().unwrap();
-    assert_eq!(end.label, "Discard");
-    // A server-only draft is discarded to the Trash.
-    assert_eq!(
-        swipe(&mut phone, end.action),
-        vec![Command::TrashThreads {
-            ids: Vec::new(),
-            messages: vec![message],
-        }]
-    );
-    let (mut phone, message) = draft_phone();
-    let card = first_card(&mut phone);
-    assert_eq!(
-        swipe(&mut phone, card.swipe_start.unwrap().action),
-        vec![Command::EditDraft { message }]
-    );
-    let card = first_card(&mut phone);
-    let sent = swipe(&mut phone, card.swipe_end.unwrap().action);
-    assert!(
-        matches!(sent.as_slice(), [Command::DiscardDraft { .. }]),
-        "{sent:?}"
-    );
+    // The reader's horizontal drag closes the message: no card of any frame swipes.
+    let json = serde_json::to_string(&phone.frame().reader).unwrap();
+    assert!(!json.contains("swipe"), "{json}");
 }
 
 #[test]
 fn a_card_makes_a_rule_from_its_message() {
-    // TCH-8: once in the card's menu, before Trash; a tap opens the palette at the rule step.
+    // TCH-8: once in the card's menu, before Archive and Trash; a tap opens the palette at the
+    // rule step.
     let mut phone = Phone::inbox(360, 800);
     let card = first_card(&mut phone);
     let labels = labels(&card);
     assert_eq!(labels.iter().filter(|l| **l == "Make a rule…").count(), 1);
-    assert_eq!(labels[labels.len() - 2..], ["Make a rule…", "Trash"]);
+    assert_eq!(
+        labels[labels.len() - 3..],
+        ["Make a rule…", "Archive", "Trash"]
+    );
     let tap = action(&card, "Make a rule…");
     assert_eq!(phone.tap(tap), [Command::OpenPalette {}]);
     let sheet = phone.frame().palette.unwrap();

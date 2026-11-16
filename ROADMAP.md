@@ -1072,6 +1072,14 @@ English and French.
 - [x] MISC-49 [mobile][kt][ios]: the mobile About is a list of pages, one per licence, plus the privacy policy, as the
   desktop's About; Back returns from a page to the list; licence prose is reflowed to the screen width
   (`app_front::text::reflow`, desktop too) (requested 2026-11-07)
+- [x] MISC-50 [mobile][kt][ios]: in the reader a horizontal drag only closes the message (a drag to the right, from
+  anywhere on the page, with the slide) or scrolls a wide block; the cards' archive and trash swipes of MISC-44e are
+  gone, *Archive* (this message) joins the card's long-press menu (requested 2026-11-16)
+- [x] MISC-51 [gui][kt][ios]: copy text from the message pane: Ctrl+C reaches the system clipboard (eframe's
+  `clipboard` feature was off), a right click on the body offers *Copy* and *Copy all text*; on Android and iOS the
+  body's text is selectable (requested 2026-11-16)
+- [x] MISC-52 [mobile]: a tap on the frame on screen is not lost when a tick or a reply has made a newer one: the
+  presenter keeps the action tables of the four newest frames (found by QA-1's golden path)
 
 ---
 

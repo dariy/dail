@@ -25,16 +25,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -228,7 +226,7 @@ fun ReaderPane(
             }
             item(key = "toolbar") { Toolbar(reader, send) }
             items(reader.messages, key = { it.message }) { message ->
-                SwipeCard(message, send) { MessageCard(message, send) }
+                MessageCard(message, send)
                 HorizontalDivider()
             }
         }
@@ -305,9 +303,10 @@ private fun MessageCard(
 ) {
     var menu by remember { mutableStateOf(false) }
     // MISC-44e: a long press lists the message's own actions (the buttons of MISC-44); TalkBack
-    // offers them, and the start swipe's, as custom actions. Each button's label is its name.
+    // offers them as custom actions. Each button's label is its name. A card has no swipes: a
+    // horizontal drag is the page's (it closes the message) or a wide block's scroll.
     val named =
-        (message.actions + listOfNotNull(message.swipeStart)).distinctBy { it.label }.map { button ->
+        message.actions.distinctBy { it.label }.map { button ->
             CustomAccessibilityAction(button.label) {
                 send(UiEvent.Tap(button.action))
                 true
@@ -352,7 +351,8 @@ private fun MessageCard(
                 TextButton(onClick = { send(UiEvent.Tap(images.toggle.action)) }) { Text(images.toggle.label) }
             }
         }
-        message.body?.let { Blocks(it, send) }
+        // The body's text can be selected and copied (a long press, then the system's toolbar).
+        message.body?.let { SelectionContainer { Blocks(it, send) } }
         message.attachments.forEach { file ->
             Row(
                 Modifier.fillMaxWidth().clickable { send(UiEvent.Tap(file.open)) },
@@ -387,67 +387,6 @@ private fun MessageCard(
             }
         }
     }
-}
-
-/**
- * A message card that swipes as a list row does (MISC-44e, `SwipeRow`): towards the start edge
- * (left) its `swipe_start`, towards the end edge (right) its `swipe_end`, each revealing the
- * button's icon. The action runs once the finger is lifted past half the card; the card springs
- * back. The callback reads the card of the current frame, since action IDs are per frame (MISC-1).
- * A card without a swipe on a side does not move that way.
- */
-@Composable
-private fun SwipeCard(
-    message: ReaderMessage,
-    send: (UiEvent) -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val current by rememberUpdatedState(message)
-    val sendNow by rememberUpdatedState(send)
-    val scope = rememberCoroutineScope()
-    val state = rememberSwipeToDismissBoxState()
-    SwipeToDismissBox(
-        state = state,
-        enableDismissFromStartToEnd = message.swipeEnd != null,
-        enableDismissFromEndToStart = message.swipeStart != null,
-        backgroundContent = { CardSwipeBackground(state.dismissDirection, message) },
-        onDismiss = { value ->
-            when (value) {
-                SwipeToDismissBoxValue.EndToStart -> current.swipeStart?.let { sendNow(UiEvent.Swipe(it.action)) }
-                SwipeToDismissBoxValue.StartToEnd -> current.swipeEnd?.let { sendNow(UiEvent.Swipe(it.action)) }
-                SwipeToDismissBoxValue.Settled -> Unit
-            }
-            scope.launch { state.reset() }
-        },
-        content = { content() },
-    )
-}
-
-/** The list rows' swipe colours; the icon sits at the card's top, where its header is. */
-@Composable
-private fun CardSwipeBackground(
-    direction: SwipeToDismissBoxValue,
-    message: ReaderMessage,
-) {
-    val colors = MaterialTheme.colorScheme
-    val (icon, color, alignment) =
-        when (direction) {
-            SwipeToDismissBoxValue.EndToStart -> {
-                Triple(message.swipeStart?.icon, colors.secondaryContainer, Alignment.TopEnd)
-            }
-
-            SwipeToDismissBoxValue.StartToEnd -> {
-                Triple(message.swipeEnd?.icon, colors.errorContainer, Alignment.TopStart)
-            }
-
-            SwipeToDismissBoxValue.Settled -> {
-                Triple(null, Color.Transparent, Alignment.Center)
-            }
-        }
-    Box(
-        Modifier.fillMaxSize().background(color).padding(horizontal = 24.dp, vertical = 16.dp),
-        contentAlignment = alignment,
-    ) { icon?.let { Glyph(it) } }
 }
 
 @Composable

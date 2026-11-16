@@ -124,7 +124,8 @@ private fun FrameScaffold(
         topBar = {
             frame.bulk?.let { bulk ->
                 TopAppBar(
-                    title = { Text(bulk.title) },
+                    // One line: a title squeezed by the icons must not grow the bar a letter a line.
+                    title = { Text(bulk.title, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = { ActionButton(bulk.close, send) },
                     actions = {
                         bulk.actions.forEach { ActionButton(it, send) }
