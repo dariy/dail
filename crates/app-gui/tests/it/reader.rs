@@ -491,3 +491,63 @@ fn a_message_card_makes_a_rule_from_its_message() {
     h.run();
     assert_eq!(h.state_mut().take(), [Command::OpenPalette {}]);
 }
+
+/// The body's context menu: *Copy* needs a selection; *Copy all text* copies the message's text.
+#[test]
+fn a_right_click_on_the_body_offers_to_copy_its_text() {
+    let state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let message = state.threads[&threads[0]].messages[0];
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(&mut h, Command::OpenThread { id: threads[0] });
+    h.state_mut().out.clear();
+    h.state_mut().replies.push(Reply {
+        purpose: Purpose::Background(Background::ReaderBodies(threads[0])),
+        name: CommandName::GetThread,
+        result: Ok(Ok(CommandReceipt {
+            ok: true,
+            name: "get_thread".into(),
+            kind: Some(CommandKind::Query),
+            affected: Vec::new(),
+            data: json!({ "messages": [{
+                "id": message,
+                "untrusted_content": { "body": {
+                    "text": "See you at the usual place.",
+                    "text_source": "plain",
+                    "attachments": [],
+                }},
+            }]}),
+            undo_label: None,
+        })),
+    });
+    h.run();
+    assert!(h.query_by_label("Copy all text").is_none());
+    h.get_by_label_contains("See you at the usual place.")
+        .click_secondary();
+    h.run();
+    // Nothing is selected.
+    {
+        use egui_kittest::kittest::NodeT as _;
+        assert!(h.get_by_label("Copy").accesskit_node().is_disabled());
+    }
+    h.get_by_label("Copy all text").click();
+    // One frame: the copy is in the output of the frame that saw the click.
+    h.step();
+    let copied: Vec<_> = h
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .filter_map(|command| match command {
+            egui::OutputCommand::CopyText(text) => Some(text.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(copied, ["See you at the usual place."]);
+    h.run();
+    assert!(
+        h.query_by_label("Copy all text").is_none(),
+        "the menu closed"
+    );
+}

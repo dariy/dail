@@ -728,7 +728,9 @@ fn message_body(ui: &mut Ui, t: &Tokens, card: &Card<'_>, io: BodyIo<'_>) {
                 externals: &mut *externals,
                 marks: &marks,
             };
-            body_text(ui, t, body, io);
+            let text = ui.scope(|ui| body_text(ui, t, body, io)).response.rect;
+            // Ctrl+C copies the selection (egui); the right click offers it too, and the whole text.
+            crate::selection::context_menu(ui, t, text, message.id, &body.text);
             let io = AttachIo {
                 saver,
                 previews,

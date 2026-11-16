@@ -1865,6 +1865,9 @@ strings! {
     Copy:
         "Copy",
         "Copier";
+    CopyAllText:
+        "Copy all text",
+        "Copier tout le texte";
     LinkCopied:
         "Link copied.",
         "Lien copié.";
