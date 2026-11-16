@@ -275,8 +275,8 @@ class GoldenPathTest {
         what: String,
         undone: () -> Boolean,
     ) {
-        awaitThat("the undo offer before: $what (it lasts 6 s)") { offer() != null }
-        val offered = offer()
+        var offered: String? = null
+        awaitThat("the undo offer before: $what (it lasts 6 s)") { offer().also { offered = it } != null }
         repeat(UNDO_TRIES) { attempt ->
             val undo =
                 nodes().filter(labelled("Undo")).maxByOrNull { it.y }
@@ -472,14 +472,16 @@ class GoldenPathTest {
         answer("Move to…", ARCHIVE_FOLDER)
         awaitThat("both in $ARCHIVE_FOLDER") { subjects(archive).containsAll(listOf(SUBJECT, SECOND)) }
         val left = subjects(inbox)
-        assertTrue("still in the inbox: $left", SUBJECT !in left && SECOND !in left)
-        awaitThat("the bulk bar gone") { bridge("frame").optJSONObject("bulk") == null }
-        assertTrue(palette() == null)
 
-        // The snackbar's Undo moves them back.
+        // The snackbar's Undo moves them back. It comes first: the offer lasts 6 s and every look through the bridge
+        // takes some of them; once it is gone, Compose sits where Undo was.
         undoUntil("both back in the inbox") { subjects(inbox).containsAll(listOf(SUBJECT, SECOND)) }
+        assertTrue("still in the inbox after the move: $left", SUBJECT !in left && SECOND !in left)
         val after = subjects(archive)
         assertTrue("still in $ARCHIVE_FOLDER: $after", SUBJECT !in after && SECOND !in after)
+        // The moved threads left the list, so they are no longer checked, nor checked again by the undo.
+        awaitThat("the bulk bar gone") { bridge("frame").optJSONObject("bulk") == null }
+        assertTrue(palette() == null)
     }
 
     /** QA-1: open a message, open the palette from it, and make a rule from it; the rule is deleted afterwards. */
