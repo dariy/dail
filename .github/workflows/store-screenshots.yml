@@ -1,5 +1,6 @@
 # The store listing's screenshots (STORE-18), by hand, on any branch:
 #   gh workflow run store-screenshots.yml --ref <branch>
+# and on a push that changes this file or the test (a workflow must be on main before it can be run by hand).
 # StoreScreenshotsTest drives the demo build through the debug bridge in English and French, once with the window of a
 # phone (1080x1920, 420 dpi) and once with a 10-inch tablet's (1600x2560, 320 dpi); the artifact `store-screenshots`
 # holds `<lang>/images/{phoneScreenshots,tenInchScreenshots}/<n>.png`, laid out as fastlane/metadata/android wants them.
@@ -8,6 +9,10 @@ name: store-screenshots
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/store-screenshots.yml
+      - android/app/src/androidTest/kotlin/net/darii/dail/StoreScreenshotsTest.kt
 
 permissions:
   contents: read
