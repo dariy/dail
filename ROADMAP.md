@@ -951,10 +951,11 @@ text ships in English and French.
   into the AAB while the APK stays stripped
 - [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
   feature graphic *(made from the desktop logo, `packaging/store/`; waits for the user's approval of the art)*
-- [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
+- [x] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
-  `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an
-  emulator or device, with STORE-23, and for Wave 14, whose items change the screens)*
+  `changelogs/<versionCode>.txt` (500 characters at most) *(the screenshots come from `store-screenshots.yml`:
+  `StoreScreenshotsTest` reaches five screens by command in English and French, on a phone and a Pixel Tablet AVD;
+  run it again and commit its artifact when the screens change)*
 - [x] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
 - [x] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the

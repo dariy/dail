@@ -2228,7 +2228,11 @@ re-rendered by `icons.yml` only when the SVG changes (MISC-39). `release.yml` ru
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the
-single source for Google Play and F-Droid (STORE-18); `release bump` also writes each language's
+single source for Google Play and F-Droid (STORE-18). Their `phoneScreenshots` and `tenInchScreenshots` come from
+`store-screenshots.yml` (by hand, or on a push that changes it, `StoreScreenshotsTest` or
+`scripts/android-store-shots.sh`): the test, off unless the runner gets `store=true`, reaches the inbox, the reader,
+the palette, the composer and the Appearance settings by command through the debug bridge, in English then French,
+with SystemUI's demo mode on; the artifact is laid out as `fastlane/metadata/android` and is committed by hand. `release bump` also writes each language's
 `changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters. `PRIVACY.md` is the privacy
 policy, linked from the phone's About (`About.privacy`) and the listings; `docs/store/play-console.md` drafts the
 Play declarations (Data safety, foreground services, content rating, target audience; STORE-19). A tag's `play` job
