@@ -176,11 +176,15 @@ class StoreScreenshotsTest {
             runCatching { thread(mailbox("inbox"), SUBJECT).isNotEmpty() }.getOrDefault(false)
         }
         shell("rm -rf $STORE")
+        // No automatic mark-read: its snackbar would come up in the reader's shot, and the inbox keeps its unread rows.
+        val markRead = bridge("state").getJSONObject("settings").optLong("mark_read_after_ms", 2_000)
+        exec("set_setting", JSONObject().put("key", "mark_read_after_ms").put("value", 0))
         try {
             screens(language = 1, folder = "en-US")
             screens(language = 2, folder = "fr-FR")
         } finally {
             exec("set_setting", JSONObject().put("key", "language").put("value", 0))
+            exec("set_setting", JSONObject().put("key", "mark_read_after_ms").put("value", markRead))
         }
     }
 
