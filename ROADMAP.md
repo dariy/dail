@@ -1150,8 +1150,9 @@ ships in English and French.
 ### Q — Proof
 - [x] QA-2 (S) [mobile]: frame budgets as presenter tests at 360×640 dp: at most four primary icons per bar, a palette
   entry in every state, and no settings section more than one tap from the settings root
-- [ ] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
-  message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off
+- [x] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
+  message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off *(one
+  `@Test` each in `GoldenPathTest`; green at 519c5e3 in CI's `android-emulator` job and in four `golden-path` runs)*
 - [ ] QA-5 [user]: the three journeys of QA-1 by hand, one-handed, on the smallest phone at hand, as the UX section of
   STORE-23's device check. It also confirms what the review read from code and did not see: the cramped bars and the
   off-screen *Rules* tab
