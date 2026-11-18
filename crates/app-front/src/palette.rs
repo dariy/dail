@@ -1759,6 +1759,11 @@ pub enum Target {
 
 /// The first-step rows: available commands, mailboxes and recent threads.
 pub fn root_rows(state: &AppState) -> Vec<Row> {
+    root_rows_in(state, crate::i18n::current())
+}
+
+/// [`root_rows`] with the commands' titles and categories in `lang`.
+pub fn root_rows_in(state: &AppState, lang: crate::i18n::Lang) -> Vec<Row> {
     let mut rows = Vec::new();
     let mut specs = app_core::Command::specs();
     // Everyday commands first; the sort is stable, so the catalogue order holds within a group.
@@ -1776,8 +1781,9 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
         if offered(name) && (spec.available)(state) {
             rows.push(Row {
                 target: Target::Command(name),
-                title: spec.title.to_owned(),
-                detail: format!("{:?}", spec.category),
+                title: crate::i18n::title_in(lang, name).to_owned(),
+                detail: crate::i18n::text(lang, crate::i18n::category_key(spec.category))
+                    .to_owned(),
                 keys: crate::keymap::keys_for(&state.settings, name)
                     .into_iter()
                     .next(),
@@ -1796,8 +1802,9 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
             at,
             Row {
                 target: Target::RuleFromMessage,
-                title: crate::i18n::s(Key::MakeRuleFromMessage).to_owned(),
-                detail: format!("{:?}", Category::Mail),
+                title: crate::i18n::text(lang, Key::MakeRuleFromMessage).to_owned(),
+                detail: crate::i18n::text(lang, crate::i18n::category_key(Category::Mail))
+                    .to_owned(),
                 keys: None,
             },
         );
@@ -1815,7 +1822,7 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
             .map(|(letter, _)| format!("g {letter}"));
         rows.push(Row {
             target: Target::Mailbox(mailbox.id),
-            title: crate::i18n::f(Key::GoTo, &[("name", &mailbox_name(mailbox))]),
+            title: crate::i18n::tr(lang, Key::GoTo, &[("name", &mailbox_name(mailbox))]),
             detail: account,
             keys,
         });

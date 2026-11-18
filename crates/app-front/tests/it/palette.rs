@@ -452,3 +452,34 @@ fn empty_junk_confirms_with_the_count() {
         Flow::Run(Command::EmptyJunk { account: a, confirm: true }) if a == account
     ));
 }
+
+#[test]
+fn the_command_rows_are_in_the_language_of_the_session() {
+    use app_core::CommandName;
+    use app_front::i18n::Lang;
+    let state = rich_state();
+    let rows = palette::root_rows_in(&state, Lang::French);
+    let sync = rows
+        .iter()
+        .find(|r| r.target == Target::Command(CommandName::SyncNow))
+        .expect("sync_now is offered");
+    assert_eq!(sync.title, "Synchroniser");
+    assert_eq!(sync.detail, "Courrier");
+    // No row keeps the registry's English title, and every command row names its category in French.
+    let categories: Vec<&str> = [
+        app_core::Category::Mail,
+        app_core::Category::Navigation,
+        app_core::Category::Compose,
+        app_core::Category::Account,
+        app_core::Category::App,
+    ]
+    .into_iter()
+    .map(|c| app_front::i18n::text(Lang::French, app_front::i18n::category_key(c)))
+    .collect();
+    for row in &rows {
+        if let Target::Command(name) = row.target {
+            assert_eq!(row.title, app_front::i18n::title_in(Lang::French, name));
+            assert!(categories.contains(&row.detail.as_str()), "{row:?}");
+        }
+    }
+}
