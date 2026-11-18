@@ -2,7 +2,7 @@
 #   gh workflow run store-screenshots.yml --ref <branch>
 # and on a push that changes this file or the test (a workflow must be on main before it can be run by hand).
 # StoreScreenshotsTest drives the demo build through the debug bridge in English and French, once with the window of a
-# phone (1080x1920, 420 dpi) and once with a 10-inch tablet's (1600x2560, 320 dpi); the artifact `store-screenshots`
+# phone (1080x1920, 420 dpi) and once on a Pixel Tablet AVD (2560x1600, 320 dpi); the artifact `store-screenshots`
 # holds `<lang>/images/{phoneScreenshots,tenInchScreenshots}/<n>.png`, laid out as fastlane/metadata/android wants them.
 # Copy it there and commit. It reads golden-path.yml's caches (AVD snapshot, Rust) and writes none.
 name: store-screenshots
@@ -13,6 +13,7 @@ on:
     paths:
       - .github/workflows/store-screenshots.yml
       - android/app/src/androidTest/kotlin/net/darii/dail/StoreScreenshotsTest.kt
+      - scripts/android-store-shots.sh
 
 permissions:
   contents: read
@@ -74,8 +75,8 @@ jobs:
             ~/.android/avd/*
             ~/.android/adb*
           key: avd-${{ env.API_LEVEL }}-x86_64-default
-      # One script line per shell. Each window size runs the test once; the screenshots are pulled after each.
-      - name: Screenshots
+      # The phone: the default AVD (golden-path.yml's snapshot) at 1080x1920, 420 dpi.
+      - name: Phone screenshots
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ env.API_LEVEL }}
@@ -84,14 +85,19 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save ${{ env.EMULATOR_OPTIONS }}
           disable-animations: true
-          script: |
-            adb shell wm size 1080x1920 && adb shell wm density 420
-            ./android/gradlew -p android connectedDemoDebugAndroidTest -Pdail.abis=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=net.darii.dail.StoreScreenshotsTest -Pandroid.testInstrumentationRunnerArguments.store=true
-            mkdir -p shots/phone && adb pull /data/local/tmp/store/. shots/phone
-            adb shell wm size 1600x2560 && adb shell wm density 320
-            ./android/gradlew -p android connectedDemoDebugAndroidTest -Pdail.abis=x86_64 -Pandroid.testInstrumentationRunnerArguments.class=net.darii.dail.StoreScreenshotsTest -Pandroid.testInstrumentationRunnerArguments.store=true
-            mkdir -p shots/tablet && adb pull /data/local/tmp/store/. shots/tablet
-            adb shell wm size reset && adb shell wm density reset
+          script: scripts/android-store-shots.sh shots/phone 1080x1920 420
+      # The tablet: an AVD of its own with the Pixel Tablet's hardware (2560x1600, 320 dpi), booted cold.
+      - name: Tablet screenshots
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          target: default
+          profile: pixel_tablet
+          avd-name: dail-store-tablet
+          emulator-options: -no-snapshot ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: true
+          script: scripts/android-store-shots.sh shots/tablet
       - name: Lay out as fastlane wants
         run: |
           for lang in en-US fr-FR; do

@@ -73,7 +73,8 @@ class StoreScreenshotsTest {
         what: String,
         holds: (JSONObject) -> Boolean,
     ) {
-        awaitThat(what) { holds(frame()) }
+        // A snackbar (the reader's automatic mark-read, say) passes after a few seconds: wait it out.
+        awaitThat(what) { frame().let { holds(it) && it.optJSONObject("snackbar") == null } }
         // The frame is drawn; its slide and fade take up to a few hundred milliseconds more.
         Thread.sleep(SETTLE_MS)
         shell("screencap -p $dir/$n.png")
