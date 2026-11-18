@@ -16,12 +16,16 @@ fi
 
 demo() { adb shell am broadcast -a com.android.systemui.demo -e command "$@" > /dev/null; }
 adb shell settings put global sysui_demo_allowed 1
-demo enter
-demo clock -e hhmm 0941
-demo battery -e level 100 -e plugged false
-demo network -e wifi show -e level 4
-demo network -e mobile show -e datatype none -e level 4
-demo notifications -e visible false
+# A cold-booted SystemUI can drop the first broadcasts: send them twice, a little apart.
+for _ in 1 2; do
+  demo enter
+  demo clock -e hhmm 0941
+  demo battery -e level 100 -e plugged false
+  demo network -e wifi show -e level 4 -e fully true
+  demo network -e mobile show -e datatype none -e level 4 -e fully true
+  demo notifications -e visible false
+  sleep 10
+done
 
 status=0
 ./android/gradlew -p android connectedDemoDebugAndroidTest -Pdail.abis=x86_64 \

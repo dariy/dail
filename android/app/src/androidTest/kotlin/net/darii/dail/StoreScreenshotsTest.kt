@@ -75,10 +75,17 @@ class StoreScreenshotsTest {
     ) {
         // A snackbar (the reader's automatic mark-read, say) passes after a few seconds: wait it out.
         awaitThat(what) { frame().let { holds(it) && it.optJSONObject("snackbar") == null } }
+        // Compose keeps a snackbar on screen for its own timeout after the frame drops it: wait until no Undo shows.
+        awaitThat("$what without a snackbar") { !undoShown() }
         // The frame is drawn; its slide and fade take up to a few hundred milliseconds more.
         Thread.sleep(SETTLE_MS)
         shell("screencap -p $dir/$n.png")
         Log.i(TAG, "shot $dir/$n.png: $what")
+    }
+
+    private fun undoShown(): Boolean {
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
+        return listOf("Undo", "Annuler").any { root.findAccessibilityNodeInfosByText(it).isNotEmpty() }
     }
 
     private fun mailbox(role: String): String {
