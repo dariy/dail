@@ -2024,7 +2024,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
   and the app `visible` on scene changes. `FrameView` draws the top or bulk bar, the banner, the layout's panes in a
-  row (drawer, list, reader), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
+  row (drawer, list, reader, composer: `ComposerView.swift`, MISC-30, whose fields reload only on a new `version`),
+  the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
   whose dismissal is Back. `ListPane` keeps Android's window (`total` rows, placeholders outside `offset…`), reports
   `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
   `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a

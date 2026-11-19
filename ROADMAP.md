@@ -776,7 +776,10 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [x] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches *(no control: the
   engine pre-loads on `View` navigation from every front end; window fixed at 3 ahead, 1 behind, 8 messages; none
   while metered)*
-- [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
+- [x] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane *(`ComposerView.swift`:
+  title, state and actions, problems, *From*, recipients with chips and suggestions, subject, body, files, quote; a
+  field reloads only on a new `version`. A list row tapped beside the composer closes it and opens the thread, the
+  draft kept, on every touch front end. Not yet seen on a device: CI builds and tests it, I4a checks it)*
 - [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
   auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
 - MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers.
@@ -1269,10 +1272,10 @@ elsewhere. The review took App Review's rules from prior knowledge: **read the c
 
 - [ ] IOS-3 [user][ci]: a paid Apple Developer account, signing in `release.yml` and TestFlight. Wave 5's optional I4
   item becomes required and is ticked with this one
-- [ ] IOS-1 (L) [ios]: the composer, in place of the placeholder (`FrameView.swift:90`): write, reply and forward, with
-  `pick_files`, `import_files` and the share sheet
+- [ ] IOS-1 (L) [ios]: the composer's files: `pick_files`, `import_files` and the share sheet (the editor itself, for
+  write, reply and forward, is MISC-30's `ComposerView.swift`)
 - [ ] IOS-6 (M) [ios]: draw the contract changes of Waves 14 and 15 (overflow menus, folder sheet, section list, rule
-  editor) and whatever `FrameView.swift:5` still lists as a title-only sheet
+  editor) and any sheet still drawn as a title only (none since MISC-30)
 - [ ] IOS-2 (M) [ios][host]: new-mail notifications and background refresh. Without a push server, iOS gives only
   background app refresh, at times the system chooses; the listing must say so plainly
 - [ ] IOS-4 (S) [ios][docs]: `docs/store/app-store.md`, as `play-console.md`: App Privacy answers, the privacy manifest

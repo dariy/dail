@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Draws a frame as it is, as Kotlin's `DailScreen.kt`: the top bar (or the bulk bar), the banner,
 /// the panes the layout names, the snackbar and the floating button, under the modal drawer of
-/// compact windows. Sheets a later wave draws (about, preview, composer) show their title for now.
+/// compact windows. The composer is `ComposerView.swift` (MISC-30).
 struct FrameView: View {
     let frame: Frame
     let palette: Palette
@@ -87,7 +87,7 @@ struct FrameView: View {
         case .reader:
             if let reader = frame.reader { ReaderPane(reader: reader, send: send) }
         case .composer:
-            if let composer = frame.composer { Placeholder(title: composer.title, text: composer.status) }
+            if let composer = frame.composer { ComposerPane(composer: composer, send: send) }
         case .settings:
             if let settings = frame.settings { SettingsPane(page: settings, send: send) }
         }
@@ -272,20 +272,6 @@ struct ResultPane: View {
         .onTapGesture { if let action = row.action { send(.tap(action)) } }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(row.action == nil ? [] : .isButton)
-    }
-}
-
-/// A sheet a later wave draws (ROADMAP Wave 5 §8): its title, so that the frame is never blank.
-struct Placeholder: View {
-    let title: String
-    let text: String
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text(title).font(.title3)
-            Text(verbatim: text).font(.footnote)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
