@@ -17,6 +17,9 @@ ignore = [
     # pin-utils: unmaintained (not vulnerable), a few pinning macros. It comes in only through
     # async-imap, whose newest release (0.12.0) still depends on it. Drop this once async-imap does.
     { id = "RUSTSEC-2026-0441", reason = "pin-utils: unmaintained, not vulnerable; async-imap 0.12.0 (newest) still uses it" },
+    # chrono: unmaintained (not vulnerable). Besides app-sync's local UTC offset (clock.rs), it
+    # comes in through async-imap, rmcp and schemars. Drop this once they move to jiff or time.
+    { id = "RUSTSEC-2026-0543", reason = "chrono: unmaintained, not vulnerable; async-imap, rmcp and schemars still use it" },
 ]
 
 [licenses]
