@@ -862,6 +862,7 @@ async fn resync_flags_and_fetch_body_into_the_blob_store() {
         imap: login.clone(),
         uid_validity,
         uid,
+        background: false,
     };
     let events = backend.execute(body(5, 7)).await.unwrap();
     let [
@@ -2039,6 +2040,7 @@ async fn fetched_bodies_are_indexed_searched_and_dropped() {
             imap: login,
             uid_validity: 7,
             uid: 5,
+            background: false,
         })
         .await
         .unwrap();

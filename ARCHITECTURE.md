@@ -611,7 +611,11 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not
    repeated) and as a prefetch of the newest 20 unread INBOX messages
-   without a body after each INBOX `EnvelopesFetched`. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
+   without a body after each INBOX `EnvelopesFetched`. Navigation pre-loads too (MISC-29, `engine/preload.rs`): after
+   `select_threads` and `open_thread`, the selected thread, the 3 rows ahead in the direction of travel and the 1 row
+   behind; after `open_mailbox` and `open_unified_inbox`, the first 3 rows; at most 8 messages per navigation, newest
+   message of a thread first. Prefetch and pre-load effects carry `background: true`: each account's worker in
+   `app-sync` runs them only when nothing else is queued on its lane, so a body the user opens goes first. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
    `RFC822.SIZE`), and neither it nor history backfill runs while `status.metered` (STORE-8): Android reports the
    default network's metered state as `UiEvent::Network`, which the host ingests as `Event::NetworkChanged`, and
    before each background job; the next fetch after the network is unmetered catches up. `status.bodies_in_flight` prevents duplicate requests. The runtime

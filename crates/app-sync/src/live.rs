@@ -602,6 +602,7 @@ impl LiveBackend {
                 imap,
                 uid_validity,
                 uid,
+                background: _,
             } => {
                 let raw = self
                     .with_imap(account, &imap, move |session| {

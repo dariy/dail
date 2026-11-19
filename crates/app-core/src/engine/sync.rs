@@ -902,7 +902,7 @@ impl Engine {
                 self.state.messages.get(&id).is_some_and(|m| {
                     m.body == BodyState::NotFetched && m.size <= PREFETCH_MAX_BYTES
                 });
-            if wanted && let Some(fetch) = self.start_body_fetch(id) {
+            if wanted && let Some(fetch) = self.start_background_fetch(id) {
                 effects.push(fetch);
             }
         }
@@ -916,6 +916,15 @@ impl Engine {
         }
         let effect = self.body_fetch_effect(message)?;
         self.state.status.bodies_in_flight.insert(message);
+        Some(effect)
+    }
+
+    /// As [`Self::start_body_fetch`], marked as a background pre-load (MISC-29).
+    pub(super) fn start_background_fetch(&mut self, message: MessageId) -> Option<Effect> {
+        let mut effect = self.start_body_fetch(message)?;
+        if let Effect::FetchBody { background, .. } = &mut effect {
+            *background = true;
+        }
         Some(effect)
     }
 
@@ -934,6 +943,7 @@ impl Engine {
             imap: account.imap_login(),
             uid_validity: mailbox.uid_validity?,
             uid: envelope.uid,
+            background: false,
         })
     }
 

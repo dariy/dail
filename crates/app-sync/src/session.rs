@@ -542,17 +542,103 @@ impl Lanes {
     }
 }
 
-/// Runs one lane's effects one at a time, in order.
+/// Runs one lane's effects one at a time, in order, except that a background body fetch
+/// (`FetchBody { background: true }`, MISC-29) waits until nothing else is queued.
 async fn worker(
     backend: Arc<dyn Backend>,
     clock: Arc<dyn Clock>,
     mut work: mpsc::UnboundedReceiver<Effect>,
     done: mpsc::UnboundedSender<Vec<Event>>,
 ) {
-    while let Some(effect) = work.recv().await {
+    let mut queue = LaneQueue::default();
+    loop {
+        while let Ok(effect) = work.try_recv() {
+            queue.push(effect);
+        }
+        let effect = match queue.pop() {
+            Some(effect) => effect,
+            None => match work.recv().await {
+                Some(effect) => effect,
+                None => break,
+            },
+        };
         let events = run_effect(backend.as_ref(), clock.as_ref(), effect).await;
         if done.send(events).is_err() {
             break;
         }
+    }
+}
+
+/// A lane's waiting effects: background body fetches behind everything else.
+#[derive(Default)]
+struct LaneQueue {
+    urgent: std::collections::VecDeque<Effect>,
+    background: std::collections::VecDeque<Effect>,
+}
+
+impl LaneQueue {
+    fn push(&mut self, effect: Effect) {
+        if matches!(
+            effect,
+            Effect::FetchBody {
+                background: true,
+                ..
+            }
+        ) {
+            self.background.push_back(effect);
+        } else {
+            self.urgent.push_back(effect);
+        }
+    }
+
+    fn pop(&mut self) -> Option<Effect> {
+        self.urgent
+            .pop_front()
+            .or_else(|| self.background.pop_front())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LaneQueue;
+    use app_core::{AccountId, Effect, Endpoint, ImapLogin, MessageId, SecretRef, Security};
+
+    fn body(uid: u32, background: bool) -> Effect {
+        let account = AccountId::from_uuid(uuid::Uuid::from_u128(1));
+        Effect::FetchBody {
+            account,
+            message: MessageId::from_uuid(uuid::Uuid::from_u128(u128::from(uid))),
+            path: "INBOX".into(),
+            imap: ImapLogin {
+                login: "me@example.com".into(),
+                server: Endpoint {
+                    host: "imap.example.com".into(),
+                    port: 993,
+                    security: Security::Tls,
+                },
+                secret: SecretRef::for_account(account),
+            },
+            uid_validity: 1,
+            uid,
+            background,
+        }
+    }
+
+    fn uid(effect: Option<Effect>) -> Option<u32> {
+        match effect {
+            Some(Effect::FetchBody { uid, .. }) => Some(uid),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn background_fetches_wait_behind_every_other_effect_in_order() {
+        let mut queue = LaneQueue::default();
+        queue.push(body(1, true));
+        queue.push(body(2, false));
+        queue.push(body(3, true));
+        queue.push(body(4, false));
+        let order: Vec<_> = std::iter::from_fn(|| uid(queue.pop())).collect();
+        assert_eq!(order, vec![2, 4, 1, 3]);
     }
 }

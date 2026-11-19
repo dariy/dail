@@ -56,16 +56,17 @@ impl Engine {
                 .is_none_or(|at| now_ms.saturating_sub(at) >= stale_ms)
         });
         let fetch = if stale { self.refresh(id) } else { None };
+        let preload = self.preload_around(None);
         let mut receipt = receipt
             .affecting(EntityRef::View)
             .affecting(EntityRef::Mailbox(id));
-        if fetch.is_some() {
+        if fetch.is_some() || !preload.is_empty() {
             receipt = receipt.affecting(EntityRef::Status);
         }
         Ok(Outcome {
             receipt: receipt
                 .with_data(serde_json::json!({ "mailbox": id, "fetching": fetch.is_some() })),
-            effects: fetch.into_iter().collect(),
+            effects: fetch.into_iter().chain(preload).collect(),
         })
     }
 
@@ -88,8 +89,16 @@ impl Engine {
             receipt = receipt.affecting(EntityRef::Thread(*id));
         }
         let data = serde_json::json!({ "selected": selected });
+        let previous = self.state.view.selected.first().copied();
         self.state.view.selected = selected;
-        Ok(Outcome::new(receipt.with_data(data)))
+        let effects = self.preload_around(previous);
+        if !effects.is_empty() {
+            receipt = receipt.affecting(EntityRef::Status);
+        }
+        Ok(Outcome {
+            receipt: receipt.with_data(data),
+            effects,
+        })
     }
 
     pub(super) fn open_unified_inbox(&mut self, receipt: CommandReceipt) -> Outcome {
@@ -100,13 +109,17 @@ impl Engine {
         view.selected.clear();
         view.checked.clear();
         view.thread = None;
-        Outcome::new(
-            receipt
-                .affecting(EntityRef::View)
-                .with_data(serde_json::json!({
-                    "threads": crate::listing::unified_threads(&self.state).len(),
-                })),
-        )
+        let effects = self.preload_around(None);
+        let mut receipt = receipt.affecting(EntityRef::View);
+        if !effects.is_empty() {
+            receipt = receipt.affecting(EntityRef::Status);
+        }
+        Outcome {
+            receipt: receipt.with_data(serde_json::json!({
+                "threads": crate::listing::unified_threads(&self.state).len(),
+            })),
+            effects,
+        }
     }
 
     pub(super) fn check_threads(
@@ -169,6 +182,7 @@ impl Engine {
             }
         }
         let view = &mut self.state.view;
+        let previous = view.thread.or_else(|| view.selected.first().copied());
         if view.thread != Some(id) {
             view.expanded.clear();
         }
@@ -176,10 +190,11 @@ impl Engine {
         if !view.selected.contains(&id) {
             view.selected = vec![id];
         }
+        effects.extend(self.preload_around(previous));
         let mut receipt = receipt
             .affecting(EntityRef::View)
             .affecting(EntityRef::Thread(id));
-        if !fetching.is_empty() {
+        if !effects.is_empty() {
             receipt = receipt.affecting(EntityRef::Status);
         }
         Ok(Outcome {

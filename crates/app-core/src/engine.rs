@@ -13,6 +13,7 @@ mod mailbox_prefs;
 mod moves;
 mod outbox;
 mod pending;
+mod preload;
 mod preview;
 mod queries;
 mod rules;

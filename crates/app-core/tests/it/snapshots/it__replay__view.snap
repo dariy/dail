@@ -478,6 +478,7 @@ expression: first
             {
               "args": {
                 "account": "00000000-0000-0003-0000-000000000000",
+                "background": true,
                 "imap": {
                   "login": "me@example.com",
                   "secret": {
@@ -548,7 +549,31 @@ expression: first
       "line": 6,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "background": true,
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0003-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0005-0000-000000000001",
+                "path": "INBOX",
+                "uid": 1,
+                "uid_validity": 3
+              },
+              "effect": "fetch_body"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -557,6 +582,9 @@ expression: first
               {
                 "entity": "mailbox",
                 "id": "00000000-0000-0004-0000-000000000000"
+              },
+              {
+                "entity": "status"
               }
             ],
             "data": {
@@ -603,30 +631,7 @@ expression: first
       "line": 8,
       "result": {
         "ok": {
-          "effects": [
-            {
-              "args": {
-                "account": "00000000-0000-0003-0000-000000000000",
-                "imap": {
-                  "login": "me@example.com",
-                  "secret": {
-                    "service": "dail",
-                    "user": "account/00000000-0000-0003-0000-000000000000"
-                  },
-                  "server": {
-                    "host": "imap.hostinger.com",
-                    "port": 993,
-                    "security": "tls"
-                  }
-                },
-                "message": "00000000-0000-0005-0000-000000000001",
-                "path": "INBOX",
-                "uid": 1,
-                "uid_validity": 3
-              },
-              "effect": "fetch_body"
-            }
-          ],
+          "effects": [],
           "receipt": {
             "affected": [
               {
@@ -635,15 +640,10 @@ expression: first
               {
                 "entity": "thread",
                 "id": "00000000-0000-0005-0000-000000000000"
-              },
-              {
-                "entity": "status"
               }
             ],
             "data": {
-              "fetching_bodies": [
-                "00000000-0000-0005-0000-000000000001"
-              ],
+              "fetching_bodies": [],
               "thread": "00000000-0000-0005-0000-000000000000"
             },
             "kind": "view",

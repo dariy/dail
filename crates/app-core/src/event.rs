@@ -656,6 +656,10 @@ pub enum Effect {
         uid_validity: u32,
         /// The message's UID.
         uid: u32,
+        /// A pre-load nobody waits on (unread prefetch, the selection's neighbours, MISC-29):
+        /// the runtime runs it after every other effect queued for the account.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        background: bool,
     },
     /// Send a draft: render `message` (Bcc only in the envelope), submit it over SMTP to every
     /// `To`/`Cc`/`Bcc` recipient, then `APPEND` the copy (with Bcc) to `sent_copy` if given.

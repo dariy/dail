@@ -773,7 +773,9 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
   main view, mailbox, thread and search, in the engine)
 - [x] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
 - [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
-- [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
+- [x] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches *(no control: the
+  engine pre-loads on `View` navigation from every front end; window fixed at 3 ahead, 1 behind, 8 messages; none
+  while metered)*
 - [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
 - [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
   auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
