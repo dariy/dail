@@ -784,8 +784,9 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
   - [x] MISC-28a [io][core][front][gui][mobile][kt]: plain-text bodies as documents (reflowed paragraphs, one gap for a
     run of blank lines, headings by Markdown, underline, capitals and guess, safe Markdown, folds), links numbered in
     HTML and plain text alike; the GUI and Android draw the raised markers and the numbered *Links* list
-  - [ ] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
-    (after the Android launch, as Wave 11 decides for iOS)
+  - [x] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
+    (after the Android launch, as Wave 11 decides for iOS) *(TUI: `app_tui::document`, rich bodies; iOS: raised
+    markers and the *Links* list in `ReaderPane.swift`)*
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [x] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 - [x] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;

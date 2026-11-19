@@ -210,6 +210,18 @@ struct MessageView: View {
                     }
                 }
                 if let saveAll = message.saveAll { FrameButton(button: saveAll, send: send) }
+                // The numbered links (MISC-28b): `¹ url — title`, the presenter's labels; a tap opens the link sheet.
+                if !message.links.isEmpty {
+                    Text(tr("Links ({n})", ["n": String(message.links.count)]))
+                        .font(.subheadline.weight(.medium)).padding(.top, 12)
+                    ForEach(Array(message.links.enumerated()), id: \.offset) { _, link in
+                        SwiftUI.Button { send(.tap(link.action)) } label: {
+                            Text(verbatim: link.label).font(.footnote).underline()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
             }
         }
     }
@@ -273,10 +285,21 @@ struct BlockView: View {
         }
     }
 
-    /// The spans as one attributed string. A link span points at its action, never at its URL; an
-    /// inline image is a placeholder (images are off until the user shows them, I3 scope).
+    /// The spans as one attributed string. A link span points at its action, never at its URL; a
+    /// numbered link's marker is a raised number; an inline image is a placeholder (images are off until the user shows them, I3 scope).
     static func text(_ spans: [DocSpan]) -> AttributedString {
         spans.reduce(into: AttributedString()) { text, span in
+            if let note = span.note {
+                // A link's marker (MISC-28b): its number, small and raised in the link colour, a span of its own so
+                // that nothing in the sender's text can pass for one. It opens the link like the text does.
+                var marker = AttributedString(String(note))
+                marker.font = .caption2
+                marker.baselineOffset = 6
+                marker.foregroundColor = .accentColor
+                if let link = span.link { marker.link = URL(string: "dail-action:\(link)") }
+                text += marker
+                return
+            }
             var piece = AttributedString(span.image == nil ? span.text : "[\(span.text.isEmpty ? "image" : span.text)]")
             var intent: InlinePresentationIntent = []
             if span.bold == true { intent.insert(.stronglyEmphasized) }

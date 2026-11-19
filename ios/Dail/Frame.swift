@@ -426,7 +426,7 @@ struct DocSpan: Codable {
     let hit: Bool?
     let link: ActionId?
     let image: InlineImage?
-    /// A link's marker (MISC-28a); decoded, drawn by MISC-28b.
+    /// A link's marker (MISC-28): its number in *Links*, drawn raised; the span has no text.
     let note: Int?
 }
 

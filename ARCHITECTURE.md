@@ -793,9 +793,12 @@ quotes, fenced and indented code, rules, `**strong**`, `*em*`, `` `code` ``, `~~
 the signature and quoted text with `app_core::fold`. `Document::number_links` gives each target a number at its first
 appearance and puts it on the last span of each link as `Span::note`; a link whose text is its target (a bare URL)
 loses the text. Readers draw the note as a marker of its own, never text, so a sender's `(1)` cannot pass for one: the
-GUI as a raised label, Android as a superscript span (`DocSpan::note`). *Links* lists `Document::notes()`: `¹ url —
-title`. The CLI and MCP keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the
-number in `note`.
+GUI as a raised label, Android as a superscript span (`DocSpan::note`), iOS as a raised run of the attributed text
+(MISC-28b), the TUI as a run `[n]` of its own, bold and underlined (the link colour once `tui_colors` is on; the link's
+text is underlined). *Links* lists `Document::notes()`: `¹ url — title` (the TUI: `[n] url — title`). The TUI asks for
+documents too (`Bodies::rich`) and draws them with `app_tui::document`: blocks one blank row apart, paragraphs wrapped
+to the pane, lists and quotes hanging, folds shown dimmed below their label (it has no fold toggle). The CLI and MCP
+keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the number in `note`.
 
 ### 5.4 Single instance & IPC attach
 One process owns a profile at a time: it holds `profile_dir/lock` (`ProfileLock`, an exclusive `File::try_lock`, released by
@@ -1375,8 +1378,9 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   keep it visible.
 - **Reader** (`app_tui::reader`): the open thread, oldest message first; a collapsed message (`listing::is_expanded`,
   §7.1) is one line `▸ From · age · text`, the others come with `From`, `To`, `Cc`, `Date` (and the
-  folder outside the inbox), the text, *Attachments (N)* and *Links (N)* with their full targets — wrapped, never cut
-  (`text::wrap`, by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
+  folder outside the inbox), the text (the body's `Document`, §5.3 *Reading bodies*; plain text when it has none),
+  *Attachments (N)* and *Links (N)* with their full targets — wrapped, never cut (`text::wrap`, `document::wrap_row`,
+  by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
   the background `get_thread {include_body: true}` (`Purpose::Bodies`) when the open thread or a body state changed.
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
   focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local

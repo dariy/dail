@@ -8,6 +8,7 @@
 pub mod approvals;
 pub mod colors;
 pub mod composer;
+pub mod document;
 pub mod editor;
 pub mod keys;
 pub mod layout;
