@@ -308,6 +308,7 @@ impl Mobile {
                 tabs: Vec::new(),
                 sections,
                 groups: Vec::new(),
+                preview: None,
             });
         };
         let tabs = if compact {
@@ -339,11 +340,13 @@ impl Mobile {
             SettingsSection::Accounts => self.accounts(state),
             SettingsSection::Rules => self.rules(state),
         };
+        let preview = (section == SettingsSection::Appearance).then(|| self.list_preview(state));
         Some(SettingsPage {
             section: name(section).to_owned(),
             tabs,
             sections: Vec::new(),
             groups,
+            preview,
         })
     }
 
@@ -434,6 +437,56 @@ impl Mobile {
             hint: Some(i18n::s(Key::TextSizeFollowsAndroidSFontSize).to_owned()),
             rows,
         }]
+    }
+
+    /// The Appearance preview (MISC-25): `app_front::sample`'s threads as list rows, in the
+    /// list's density; the system's font size scales them as it scales the list.
+    fn list_preview(&mut self, state: &AppState) -> crate::frame::ListPreview {
+        let now = self.now_ms();
+        let sample = app_front::sample::state(state, now);
+        let mut rows = Vec::new();
+        for thread in app_front::sample::threads(&sample)
+            .iter()
+            .filter_map(|id| sample.threads.get(id))
+        {
+            let summary = app_core::ThreadSummary::of(&sample, thread);
+            let text = super::RowText::of(&summary, thread, now, self.zone);
+            let snippet = summary
+                .messages
+                .last()
+                .and_then(|m| m.snippet.as_deref())
+                .unwrap_or_default();
+            // Inert: a sample row opens, checks and swipes nothing.
+            let inert = self.add(Act::Many(Vec::new()));
+            rows.push(crate::frame::Row {
+                thread: thread.id,
+                action: inert,
+                long_press: inert,
+                swipe_start: inert,
+                swipe_end: inert,
+                sender: text.sender,
+                subject: text.subject,
+                snippet: clean(snippet),
+                date: text.date,
+                unread: summary.unread > 0,
+                starred: summary.flagged,
+                pinned: summary.pinned,
+                attachments: summary.has_attachments,
+                messages: summary.messages.len(),
+                tag: None,
+                selected: false,
+                checked: false,
+                marks: None,
+                a11y: clean(&app_front::a11y::thread_row(
+                    &summary, false, now, self.zone,
+                )),
+            });
+        }
+        crate::frame::ListPreview {
+            title: i18n::s(Key::AppearancePreview).to_owned(),
+            density: super::density_of(state),
+            rows,
+        }
     }
 
     fn keyboard(&mut self, state: &AppState) -> Vec<SettingsGroup> {

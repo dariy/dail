@@ -482,6 +482,27 @@ strings! {
     PreviewDensity:
         "Preview 72",
         "Aperçu 72";
+    AppearancePreview:
+        "Preview",
+        "Aperçu";
+    SampleSubject1:
+        "Photos from Saturday",
+        "Les photos de samedi";
+    SampleSnippet1:
+        "Here are the best ones; the rest are in the shared album.",
+        "Voici les meilleures ; les autres sont dans l’album partagé.";
+    SampleSubject2:
+        "Your trip to Lisbon is confirmed",
+        "Votre voyage à Lisbonne est confirmé";
+    SampleSnippet2:
+        "Booking reference and check-in times inside.",
+        "Référence de réservation et horaires d’enregistrement à l’intérieur.";
+    SampleSubject3:
+        "Notes from the planning meeting",
+        "Notes de la réunion de planification";
+    SampleSnippet3:
+        "Thanks, I added the dates we agreed on.",
+        "Merci, j’ai ajouté les dates convenues.";
     TextSize:
         "Text size",
         "Taille du texte";

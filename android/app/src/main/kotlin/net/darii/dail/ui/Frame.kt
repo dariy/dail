@@ -417,6 +417,16 @@ data class SettingsPage(
     val tabs: List<Choice>,
     val sections: List<SettingsEntry>,
     val groups: List<SettingsGroup>,
+    /** Under *Appearance*: sample list rows in the chosen density (MISC-25). */
+    val preview: ListPreview? = null,
+)
+
+/** Sample rows of the message list (MISC-25): no one's mail, drawn as the list draws its rows. */
+@Serializable
+data class ListPreview(
+    val title: String,
+    val density: Density,
+    val rows: List<Row>,
 )
 
 @Serializable

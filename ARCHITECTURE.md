@@ -1073,7 +1073,9 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
   the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
   runs `open_settings` with that section; the phone's `notifications` shows General and `index` Appearance), then the section. Appearance: the mode as a segmented control and the
-  light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
+  light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`), then a
+  preview: the sample threads of `app_front::sample` (a state of their own, no one's mail) drawn by the list's `row`,
+  inert, in the density and text size chosen (MISC-25).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
   and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
   (a switch), undo history (`set_setting`). Accounts: a card per account with `app_front::actions::account_actions`
@@ -1560,7 +1562,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   first tab, `sections` is empty and Back closes the settings as before. A section's `groups` of rows: a row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
-  density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
+  density, and `preview` (MISC-25): `app_front::sample`'s threads as list `Row`s with no-op actions, in the list's
+  density; Kotlin and Swift draw them with their list-row views. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
   delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47).
   *Notifications & background* (`open_settings notifications`): the *Background & notifications* group
   (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and *Notification settings*:
@@ -2024,8 +2027,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
   and the app `visible` on scene changes. `FrameView` draws the top or bulk bar, the banner, the layout's panes in a
-  row (drawer, list, reader, composer: `ComposerView.swift`, MISC-30, whose fields reload only on a new `version`),
-  the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
+  row (drawer, list, reader, composer: `ComposerView.swift`, MISC-30, whose fields reload only on a new `version`,
+  settings with the Appearance preview), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
   whose dismissal is Back. `ListPane` keeps Android's window (`total` rows, placeholders outside `offset…`), reports
   `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
   `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a

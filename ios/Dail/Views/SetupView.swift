@@ -132,6 +132,19 @@ struct SettingsPane: View {
                     if let hint = group.hint { Text(verbatim: hint).listRowInsets(Self.rowInsets) }
                 }
             }
+            // The Appearance preview (MISC-25): sample rows drawn by the list's own row view in the chosen
+            // density, so a change shows here at once. They are samples: nothing to tap.
+            if let preview = page.preview {
+                Section {
+                    ForEach(Array(preview.rows.enumerated()), id: \.offset) { _, row in
+                        ThreadRowView(row: row, density: preview.density)
+                            .listRowInsets(EdgeInsets())
+                            .accessibilityElement(children: .combine)
+                    }
+                } header: {
+                    Text(verbatim: preview.title).listRowInsets(Self.rowInsets)
+                }
+            }
         }
         .listStyle(.plain)
     }

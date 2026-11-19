@@ -684,6 +684,21 @@ pub struct SettingsPage {
     pub sections: Vec<SettingsEntry>,
     /// The open section's rows, under captions.
     pub groups: Vec<SettingsGroup>,
+    /// Under *Appearance*: sample rows of the message list in the chosen density (MISC-25).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<ListPreview>,
+}
+
+/// Sample rows of the message list (MISC-25), drawn as the list draws its rows. They are no
+/// one's mail and do nothing: every action of theirs is a no-op.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ListPreview {
+    /// The caption (`Preview`).
+    pub title: String,
+    /// The list's density, as `List::density`.
+    pub density: Density,
+    /// The rows.
+    pub rows: Vec<Row>,
 }
 
 /// An entry of the settings root: a section, or *About*.

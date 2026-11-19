@@ -27,6 +27,7 @@ pub mod providers;
 pub mod reach;
 pub mod result;
 pub mod rules;
+pub mod sample;
 pub mod status;
 pub mod synced;
 pub mod text;

@@ -772,7 +772,10 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [x] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
   main view, mailbox, thread and search, in the engine)
 - [x] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
-- [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
+- [x] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
+  *(`app_front::sample`: three threads in a state of their own, in the UI language; the GUI draws them with its list's
+  `row` below *Text size*, the touch frame sends them as `SettingsPage::preview` and Android and iOS draw them with
+  their list-row views; on the phones text size follows the system's font size, which scales the preview as well)*
 - [x] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches *(no control: the
   engine pre-loads on `View` navigation from every front end; window fixed at 3 ahead, 1 behind, 8 messages; none
   while metered)*

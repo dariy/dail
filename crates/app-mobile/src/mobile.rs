@@ -1561,11 +1561,7 @@ impl Mobile {
 
     fn list(&mut self, state: &AppState, tags: usize) -> List {
         let title = list_title(state);
-        let density = match state.settings.list_density {
-            1 => Density::Compact,
-            2 => Density::Preview,
-            _ => Density::Cozy,
-        };
+        let density = density_of(state);
         if state.accounts.is_empty() {
             return List {
                 title,
@@ -2150,6 +2146,15 @@ fn split(items: Vec<(Button, bool)>, budget: usize) -> (Vec<Button>, Vec<Button>
         }
     }
     (actions, overflow)
+}
+
+/// The list's density (`list_density`).
+fn density_of(state: &AppState) -> Density {
+    match state.settings.list_density {
+        1 => Density::Compact,
+        2 => Density::Preview,
+        _ => Density::Cozy,
+    }
 }
 
 /// The texts Kotlin and Swift compose themselves.

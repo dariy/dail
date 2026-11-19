@@ -352,7 +352,7 @@ impl Shell {
                 )
                 .show(ui, |ui| {
                     self.settings
-                        .show(ui, &t, state, section, now_ms, &mut queue)
+                        .show(ui, &t, state, section, (now_ms, self.zone), &mut queue)
                 })
                 .inner;
             if page.wizard {
