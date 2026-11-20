@@ -21,7 +21,7 @@ use crate::synced::Rule;
 /// `"args": {}` (or omit `args`, see [`Command::from_value`]).
 // Doc comments on variants and fields become JSON-Schema descriptions and therefore MCP tool
 // descriptions: write them for agents.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "cmd", content = "args", rename_all = "snake_case")]
 pub enum Command {
     /// Return the current user settings. Read-only.
@@ -1065,6 +1065,32 @@ impl SettingKey {
         )
     }
 
+    /// Where `set_setting` of this key runs when the profile mirrors a dail server (ADR 0017):
+    /// on the device for its own appearance and hardware (theme, text size, notifications, TUI
+    /// colours, Android background checks), on the server for the rest: what the server's
+    /// engine uses (undo-send window, polling, sync windows, history) and the settings shared
+    /// by every device ([`SettingKey::is_shared`]).
+    pub const fn placement(self) -> crate::link::Placement {
+        match self {
+            Self::Theme
+            | Self::TextScale
+            | Self::Notifications
+            | Self::TuiColors
+            | Self::BackgroundSync
+            | Self::BackgroundIntervalMins => crate::link::Placement::Client,
+            Self::UndoSendMs
+            | Self::PollSecs
+            | Self::InitialWindow
+            | Self::HistoryCap
+            | Self::ListDensity
+            | Self::MarkReadAfterMs
+            | Self::StaleSecs
+            | Self::FullSyncSecs
+            | Self::AfterTriage
+            | Self::Language => crate::link::Placement::Server,
+        }
+    }
+
     /// The key named `name`, if any.
     pub fn from_name(name: &str) -> Option<Self> {
         Self::ALL.iter().copied().find(|key| key.as_str() == name)
@@ -1485,6 +1511,16 @@ impl Command {
     /// The command's kind.
     pub const fn kind(&self) -> CommandKind {
         self.command_name().kind()
+    }
+
+    /// Where the command runs when the profile mirrors a dail server (ADR 0017): the name's
+    /// placement, except that `set_setting` follows its key ([`SettingKey::placement`]).
+    pub const fn placement(&self) -> crate::link::Placement {
+        if let Self::SetSetting { key, .. } = self {
+            key.placement()
+        } else {
+            self.command_name().placement()
+        }
     }
 
     /// The registry: one spec per command, in catalogue order.

@@ -8,6 +8,7 @@ pub mod approval;
 pub mod command;
 pub mod ctx;
 pub mod date;
+pub mod diff;
 pub mod document;
 pub mod draft;
 pub mod engine;
@@ -16,6 +17,7 @@ pub mod event;
 pub mod fold;
 pub mod history;
 pub mod ids;
+pub mod link;
 pub mod listing;
 pub mod mailbox;
 pub mod message;
@@ -37,6 +39,7 @@ pub use account::{
 pub use approval::ApprovalRequest;
 pub use command::{Command, CommandKind, SettingKey, ThemeMode};
 pub use ctx::{Ctx, Origin};
+pub use diff::{MapDiff, StateDiff};
 pub use draft::{
     AttachmentRef, AttachmentState, Draft, OutgoingMessage, Quote, QuoteSource, QuoteStyle,
 };
@@ -45,8 +48,9 @@ pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
 pub use ids::{
-    AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, RuleId, ThreadId,
+    AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, RequestId, RuleId, ThreadId,
 };
+pub use link::{LinkState, LinkStatus, OfflineRejection, Placement, QueuedCommand};
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{
@@ -57,7 +61,7 @@ pub use ops::{CopyRef, FlagKind, OpState, PendingOp, RemoteOp, RemoteStep};
 pub use receipt::{CommandReceipt, EntityRef, Outcome};
 pub use registry::{AgentAccess, Category, CommandName, CommandSpec};
 pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
-pub use rules::{Placement, RulePlan, Scope};
+pub use rules::{Placement as RulePlacement, RulePlan, Scope};
 pub use search::{Query, SearchOrder};
 pub use state::{
     AppState, AttachmentSave, CertOffer, Compaction, DiscoveredServers, Discovery, FocusTarget,

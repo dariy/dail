@@ -10,6 +10,7 @@ mod folders;
 mod identities;
 mod images;
 mod keys;
+mod link;
 mod mailbox_prefs;
 mod moves;
 mod outbox;
@@ -158,12 +159,18 @@ impl Engine {
 
     /// User/agent intent. Validates, mutates, records history and returns the effects to run. A
     /// rejected command leaves the state and the history untouched.
+    ///
+    /// In mirror mode (`state.link` set, ADR 0017) the command applies locally as usual, but only
+    /// the effects that stay on the device are returned, and a server command dispatched while
+    /// the link is not online is queued in `link.queued` (see [`crate::link`]).
     pub fn dispatch(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
         let prefs = self.state.view.prefs();
+        let queued = self.to_queue(&cmd);
         let mut outcome = self.dispatch_unsettled(cmd, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
+        self.mirror(&mut outcome, queued, ctx);
         Ok(outcome)
     }
 
@@ -230,12 +237,14 @@ impl Engine {
     }
 
     /// Fact from the outside world (the result of an `Effect`). Never recorded in history.
+    /// In mirror mode only the effects that stay on the device are returned.
     pub fn ingest(&mut self, event: Event, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
         let prefs = self.state.view.prefs();
         let mut outcome = self.ingest_unsettled(event, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
+        self.mirror(&mut outcome, None, ctx);
         Ok(outcome)
     }
 
@@ -353,6 +362,12 @@ impl Engine {
                 Ok(Outcome::new(receipt.affecting(EntityRef::Status)))
             }
             Event::Closing {} => Ok(self.ingest_closing(ctx, receipt)),
+            Event::LinkChanged { status } => Ok(self.ingest_link_changed(status, receipt)),
+            Event::RemoteSynced {
+                revision,
+                diff,
+                snapshot,
+            } => Ok(self.ingest_remote_synced(revision, &diff, snapshot, receipt)),
             Event::DraftSaved { draft, revision } => {
                 Ok(self.ingest_draft_saved(draft, Ok(revision), ctx, receipt))
             }

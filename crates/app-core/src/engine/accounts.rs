@@ -353,7 +353,9 @@ impl Engine {
             | Event::MessageSent { .. }
             | Event::SendFailed { .. }
             | Event::SearchResults { .. }
-            | Event::SearchFailed { .. } => {
+            | Event::SearchFailed { .. }
+            | Event::LinkChanged { .. }
+            | Event::RemoteSynced { .. } => {
                 return Outcome::new(receipt);
             }
         };

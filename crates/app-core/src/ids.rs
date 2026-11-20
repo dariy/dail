@@ -78,6 +78,12 @@ typed_id!(
     RuleId
 );
 
+typed_id!(
+    /// One submission of a command to a dail server (ADR 0017): a resend with the same ID is
+    /// answered, not run again.
+    RequestId
+);
+
 /// Deterministic ID generator seeded from [`Ctx::id_seed`](crate::Ctx).
 ///
 /// The n-th ID of a dispatch is `seed + n`, so one seed yields a stream of distinct IDs.

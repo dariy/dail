@@ -116,4 +116,6 @@ pub enum EntityRef {
     Status,
     /// The update state (`update`).
     Update,
+    /// The link to a dail server (`link`, ADR 0017).
+    Link,
 }

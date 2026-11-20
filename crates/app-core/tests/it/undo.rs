@@ -13,7 +13,7 @@ use proptest::prelude::*;
 use serde_json::json;
 
 /// Hostinger with INBOX (UIDs 1–4; 1 and 2 form a thread), Archive and Trash.
-fn mailbox() -> Mail {
+pub(crate) fn mailbox() -> Mail {
     let mut m = Mail::hostinger();
     m.fetch(
         "INBOX",
@@ -246,7 +246,7 @@ fn undo_cancels_an_unsent_copy_out_of_all_mail() {
 
 /// One step of a random triage session.
 #[derive(Debug, Clone)]
-enum Action {
+pub(crate) enum Action {
     MarkRead(usize),
     MarkUnread(usize),
     Star(usize),
@@ -260,7 +260,7 @@ enum Action {
     Fail,
 }
 
-fn action() -> impl Strategy<Value = Action> {
+pub(crate) fn action() -> impl Strategy<Value = Action> {
     prop_oneof![
         (0..4_usize).prop_map(Action::MarkRead),
         (0..4_usize).prop_map(Action::MarkUnread),
@@ -294,7 +294,7 @@ fn view(m: &Mail) -> Vec<(String, app_core::MailboxId, bool, bool)> {
     seen
 }
 
-fn apply(m: &mut Mail, action: &Action, messages: &[MessageId], threads: &[ThreadId]) {
+pub(crate) fn apply(m: &mut Mail, action: &Action, messages: &[MessageId], threads: &[ThreadId]) {
     let one = |i: usize| vec![messages[i]];
     let thread = |i: usize| vec![threads[i]];
     let result = match action {

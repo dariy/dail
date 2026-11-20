@@ -28,6 +28,7 @@ mod identities;
 mod images;
 mod junk;
 mod keys;
+mod link;
 mod listbar;
 mod mailboxes;
 mod moves;

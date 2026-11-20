@@ -48,6 +48,11 @@ pub struct AppState {
     /// The settings that follow the user across devices, stored on the mail server (ADR 0015).
     #[serde(default, skip_serializing_if = "crate::synced::SyncedState::is_empty")]
     pub synced: crate::synced::SyncedState,
+    /// The link to a dail server (ADR 0017), present only on a device that mirrors one (mirror
+    /// mode: no network effects, server commands queued while offline). Device-local: never
+    /// part of a [`crate::diff::StateDiff`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<crate::link::LinkState>,
     /// Counts the engine's inputs, so that a front-end can keep what it derived from a state
     /// until the next one (`listing` projections are O(n) per call). Not part of the state's
     /// value: never serialized, and equal in every comparison.
@@ -486,6 +491,53 @@ impl KeyPreset {
 }
 
 impl Settings {
+    /// Puts back the fields that belong to this device when the profile mirrors a dail server
+    /// (ADR 0017): those set by `Client`-placed commands and setting keys (theme, text size,
+    /// notifications, TUI colours, Android background checks, key bindings, the update policy).
+    /// The rest is the server's: what its engine uses, the shared settings, the image senders,
+    /// pinned and hidden folders and the settings account. A `StateDiff` never overwrites the
+    /// device's fields. Every field is named, so a new one has to be classified here.
+    pub fn keep_device_local(&mut self, device: &Self) {
+        let Self {
+            undo_send_ms: _,
+            poll_secs: _,
+            initial_window: _,
+            history_cap: _,
+            theme,
+            theme_light,
+            theme_dark,
+            list_density: _,
+            language: _,
+            tui_colors,
+            text_scale,
+            notifications,
+            background_sync,
+            background_interval_mins,
+            mark_read_after_ms: _,
+            stale_secs: _,
+            full_sync_secs: _,
+            after_triage: _,
+            images_from: _,
+            key_preset,
+            keys,
+            pinned_mailboxes: _,
+            hidden_mailboxes: _,
+            updates,
+            settings_account: _,
+        } = device;
+        self.theme = *theme;
+        self.theme_light.clone_from(theme_light);
+        self.theme_dark.clone_from(theme_dark);
+        self.tui_colors = *tui_colors;
+        self.text_scale = *text_scale;
+        self.notifications = *notifications;
+        self.background_sync = *background_sync;
+        self.background_interval_mins = *background_interval_mins;
+        self.key_preset = *key_preset;
+        self.keys.clone_from(keys);
+        self.updates = updates.clone();
+    }
+
     /// Whether messages from `sender` show their inline images (`show_images_from`).
     pub fn shows_images_from(&self, sender: &str) -> bool {
         self.images_from.contains(&sender.trim().to_lowercase())
@@ -521,6 +573,40 @@ impl Default for Settings {
             updates: crate::update::UpdatePolicy::default(),
             settings_account: None,
         }
+    }
+}
+
+impl StatusState {
+    /// Puts back the fields that describe this device when the profile mirrors a dail server
+    /// (ADR 0017): its own store (`persist_error`, `quarantined`, `compaction`), its own network
+    /// (`metered`) and the attachments it saved (`saves`, from the `client_with_blob`
+    /// `save_attachments`). The rest is the server's: its keyring, sync, polls, fetches,
+    /// searches, discovery and certificate offers. A `StateDiff` never overwrites the device's
+    /// fields. Every field is named, so a new one has to be classified here.
+    pub fn keep_device_local(&mut self, device: &Self) {
+        let Self {
+            persist_error,
+            keyring_error: _,
+            sync: _,
+            next_poll_ms: _,
+            bodies_in_flight: _,
+            drafts_saving: _,
+            searches: _,
+            backfilling: _,
+            fetching: _,
+            index_searches: _,
+            discovery: _,
+            compaction,
+            saves,
+            quarantined,
+            metered,
+            cert_offers: _,
+        } = device;
+        self.persist_error.clone_from(persist_error);
+        self.compaction.clone_from(compaction);
+        self.saves.clone_from(saves);
+        self.quarantined.clone_from(quarantined);
+        self.metered = *metered;
     }
 }
 

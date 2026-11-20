@@ -493,6 +493,26 @@ pub enum Event {
         /// Whether the network is metered.
         metered: bool,
     },
+    /// The connection to the dail server changed (ADR 0017). Turns mirror mode on
+    /// (`AppState::link`) if it was off.
+    LinkChanged {
+        /// The connection now.
+        status: crate::link::LinkStatus,
+    },
+    /// The dail server's state changed (ADR 0017): `diff` is applied to the mirror, overwriting
+    /// what the device applied optimistically, and `revision` is recorded in `link.revision`.
+    /// Turns mirror mode on if it was off. A diff whose revision is not newer than the mirror's
+    /// is ignored, unless it is a `snapshot`.
+    RemoteSynced {
+        /// The server's revision after the change.
+        revision: u64,
+        /// The change since the mirror's revision (or, for a snapshot, since an empty state).
+        diff: Box<crate::diff::StateDiff>,
+        /// The diff is a whole snapshot (a `resync`): the mirror's shared state is cleared before
+        /// it is applied.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        snapshot: bool,
+    },
 }
 
 impl Event {
@@ -501,6 +521,8 @@ impl Event {
         match self {
             Self::Tick { .. } => "tick",
             Self::NetworkChanged { .. } => "network_changed",
+            Self::LinkChanged { .. } => "link_changed",
+            Self::RemoteSynced { .. } => "remote_synced",
             Self::CertificateOffered { .. } => "certificate_offered",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",
@@ -949,6 +971,45 @@ impl Effect {
             Self::CheckForUpdates { .. } => "check_for_updates",
             Self::DownloadUpdate { .. } => "download_update",
             Self::InstallUpdate { .. } => "install_update",
+        }
+    }
+
+    /// Whether the effect stays on the device, so that a mirror of a dail server still runs it
+    /// (mirror mode, ADR 0017): writing the mirror to the local store, timers, inspecting a
+    /// file to upload, writing attachments into a local folder, compacting the local store and
+    /// updating the device's own dail. Everything else talks to mail servers, the keyring of
+    /// account passwords, or works on mail the server owns (its full-text index, reading a
+    /// server draft), and only the server runs it.
+    pub const fn is_device_local(&self) -> bool {
+        match self {
+            Self::PersistState { .. }
+            | Self::ScheduleTick { .. }
+            | Self::InspectAttachment { .. }
+            | Self::SaveAttachments { .. }
+            | Self::CompactStore { .. }
+            | Self::CheckForUpdates { .. }
+            | Self::DownloadUpdate { .. }
+            | Self::InstallUpdate { .. } => true,
+            Self::StoreSecret { .. }
+            | Self::DeleteSecret { .. }
+            | Self::VerifyAccount { .. }
+            | Self::ListMailboxes { .. }
+            | Self::FetchEnvelopes { .. }
+            | Self::ResyncFlags { .. }
+            | Self::FetchBody { .. }
+            | Self::SmtpSend { .. }
+            | Self::SaveDraft { .. }
+            | Self::DeleteDraft { .. }
+            | Self::ManageFolder { .. }
+            | Self::ReadSettingsBlob { .. }
+            | Self::WriteSettingsBlob { .. }
+            | Self::ReadDraft { .. }
+            | Self::DiscoverServers { .. }
+            | Self::SearchIndex { .. }
+            | Self::FetchOlder { .. }
+            | Self::WatchMailbox { .. }
+            | Self::RunRemoteOp { .. }
+            | Self::SearchMailbox { .. } => false,
         }
     }
 

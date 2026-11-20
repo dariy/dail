@@ -1317,7 +1317,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - Passwords exist only on the server. Revoking a device ends its access at once.
 
 - [x] SRV-0 (S) [docs]: ADR 0017 and this wave *(ADR 0017 proposed 2026-11-20)*
-- [ ] SRV-1 (M) [core]: `Command::placement()` (exhaustive; `Server`, `Client`, `ServerWithUpload`, `ClientWithBlob`),
+- [x] SRV-1 (M) [core]: `Command::placement()` (exhaustive; `Server`, `Client`, `ServerWithUpload`, `ClientWithBlob`),
   `StateDiff` (`diff`/`apply` without `view`, a proptest round trip), `Event::RemoteSynced`, `state.link` (status, queue,
   rejections) and mirror mode (no network effects); a replay fixture `remote_offline.jsonl`
 - [ ] SRV-2 (S) [core][front]: `list_devices`, `start_pairing` (code in the receipt only), `revoke_device`,

@@ -12,6 +12,7 @@ use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
 use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, RuleId, ThreadId};
+use crate::link::Placement;
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
@@ -906,6 +907,126 @@ impl CommandName {
             | Self::SkipUpdateVersion
             | Self::SetUpdatePolicy
             | Self::ListApprovals => AgentAccess::Allowed,
+        }
+    }
+
+    /// Where the command runs when the profile mirrors a dail server (ADR 0017). `Server`:
+    /// mutations, sends, destructive, account, certificate, folder and rule commands, undo/redo
+    /// (the server keeps the history), the synced settings, and queries over mail (they may
+    /// search the server). `Client`: every `View` command, the device's appearance (theme, key
+    /// bindings), its own store (`compact_store`) and updates of its own dail. `set_setting` is
+    /// `Server` here; [`crate::Command::placement`] refines it by key
+    /// ([`crate::SettingKey::placement`]).
+    pub const fn placement(self) -> Placement {
+        match self {
+            Self::AttachFile => Placement::ServerWithUpload,
+            Self::SaveAttachments => Placement::ClientWithBlob,
+            Self::GetView
+            | Self::GetSettings
+            | Self::SetKeybinding
+            | Self::SetKeyPreset
+            | Self::SetTheme
+            | Self::CompactStore
+            | Self::CheckForUpdates
+            | Self::DownloadUpdate
+            | Self::InstallUpdate
+            | Self::SkipUpdateVersion
+            | Self::SetUpdatePolicy
+            | Self::OpenPalette
+            | Self::ClosePalette
+            | Self::OpenSettings
+            | Self::CloseSettings
+            | Self::OpenMailbox
+            | Self::OpenUnifiedInbox
+            | Self::SelectThreads
+            | Self::CheckThreads
+            | Self::UncheckThreads
+            | Self::OpenThread
+            | Self::CloseThread
+            | Self::ExpandMessages
+            | Self::CollapseMessages
+            | Self::SetSearch
+            | Self::ClearSearch
+            | Self::OpenComposer
+            | Self::CloseComposer
+            | Self::FocusPane
+            | Self::SetListFilter
+            | Self::FocusMailbox
+            | Self::ClearFocus
+            | Self::CollapseFolders
+            | Self::ExpandFolders
+            | Self::ToggleSidebar => Placement::Client,
+            Self::SetSetting
+            | Self::SetSettingsAccount
+            | Self::PullSettings
+            | Self::PushSettings
+            | Self::Undo
+            | Self::Redo
+            | Self::TestAccount
+            | Self::DiscoverServers
+            | Self::AddAccount
+            | Self::UpdateAccount
+            | Self::SetPassword
+            | Self::RemoveAccount
+            | Self::SetIdentity
+            | Self::RemoveIdentity
+            | Self::TrustCertificate
+            | Self::ForgetCertificate
+            | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
+            | Self::DeleteFolder
+            | Self::EmptyTrash
+            | Self::EmptyJunk
+            | Self::SetDraftFrom
+            | Self::SyncNow
+            | Self::SetSyncWindow
+            | Self::ListRules
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
+            | Self::ListMailboxes
+            | Self::ListThreads
+            | Self::GetThread
+            | Self::GetMessage
+            | Self::ListPendingOps
+            | Self::ListApprovals
+            | Self::Search
+            | Self::ListContacts
+            | Self::ShowImagesFrom
+            | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
+            | Self::MarkRead
+            | Self::MarkMailboxRead
+            | Self::MarkUnread
+            | Self::Star
+            | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
+            | Self::ArchiveThreads
+            | Self::TrashThreads
+            | Self::MarkJunk
+            | Self::MarkNotJunk
+            | Self::MoveThreads
+            | Self::RetryPendingOps
+            | Self::DiscardPendingOp
+            | Self::CreateDraft
+            | Self::Reply
+            | Self::ReplyAll
+            | Self::Forward
+            | Self::UpdateDraft
+            | Self::DiscardDraft
+            | Self::EditDraft
+            | Self::RestoreDraft
+            | Self::RemoveAttachment
+            | Self::SendDraft
+            | Self::CancelSend
+            | Self::ApproveRequest
+            | Self::RejectRequest => Placement::Server,
         }
     }
 

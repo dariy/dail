@@ -184,7 +184,7 @@ one `tokio::mpsc` queue, so the engine needs no locks.
 
 ```rust
 // ids.rs — newtypes over Uuid / u64; all Copy + Ord + Serialize + JsonSchema
-AccountId, MailboxId, MessageId, ThreadId, DraftId, OpId, ApprovalId
+AccountId, MailboxId, MessageId, ThreadId, DraftId, OpId, ApprovalId, RuleId, RequestId /* a submission to a dail server */
 
 // state.rs
 pub struct AppState {
@@ -203,6 +203,8 @@ pub struct AppState {
     pub update:    UpdateState,                        // updates of dail (Wave 7, update.rs): host {version, target, install},
                                                        // status: idle|checking|available|downloading|ready|installing|installed|failed,
                                                        // last_check_ms, next_check_ms; the policy is settings.updates
+    pub synced:    SyncedState,                        // the settings document (ADR 0015)
+    pub link:      Option<LinkState>,                  // a mirror of a dail server only (ADR 0017, §4.7); device-local
     pub revision:  Revision,                           // counts engine inputs; not serialized, always compares equal:
                                                        // front-ends keep projections until it moves
 }
@@ -436,6 +438,8 @@ messages shown in a mailbox as one undo step; redo plans again over the restored
   recorded in history or written to the audit log. Sessions run it in their loop (`SessionClient::preview`, IPC method
   `preview`).
 - **IDs** — newtypes over `Uuid`, derived from `Ctx::id_seed` through `IdGen` (the n-th ID of a call is `seed + n`).
+- **Mirror events** (ADR 0017, §4.7): `LinkChanged{status}` and `RemoteSynced{revision, diff: StateDiff, snapshot?}`.
+  `Effect::is_device_local()` (exhaustive) says which effects a mirror still runs.
 
 ### 4.4 Undo / redo semantics
 
@@ -463,6 +467,43 @@ when its draft is discarded, sent by the user directly or its account removed, a
 user never approves text they haven't seen; the user's own edits keep it. An agent's undo of a `cancel_send` asks too.
 `dail mcp --allow-send` submits as `Origin::McpAllowSend`, whose sends leave without approval. Requests persist in the
 `approvals` table (`MailDelta.approvals` / `removed_approvals`); a snapshot drops requests whose draft is gone.
+
+### 4.7 Mirror mode (ADR 0017, SRV-1)
+A device with a remote profile runs its own engine over a *mirror* of a dail server's state. Three pure pieces:
+
+- **`Command::placement()`** (`link.rs`): `server` | `client` | `server_with_upload` | `client_with_blob`, from the
+  exhaustive `CommandName::placement()`. `server`: mutations, sends, destructive, account, certificate, folder and rule
+  commands, undo/redo, the synced settings and queries over mail. `client`: every `View` command, `get_view`,
+  `get_settings`, the device's appearance (`set_theme`, `set_keybinding`, `set_key_preset`), `compact_store` (its own
+  store) and the update commands (its own binary). `attach_file` is `server_with_upload`, `save_attachments`
+  `client_with_blob`. `set_setting` follows its key (`SettingKey::placement()`): theme, text size, notifications, TUI
+  colours and the Android background checks stay on the device; the rest (what the server's engine uses and the shared
+  settings) goes to the server. `app-core/tests/it/link.rs` pins the table.
+- **`StateDiff`** (`diff.rs`): `diff(old, new)`, `apply`, `snapshot`, `is_empty`. Keyed collections (`accounts` …
+  `approvals`) change entry by entry (`MapDiff{upsert, remove, order?}`, `order` only when removing and upserting alone
+  would not give the new key order); `settings`, `status` and `synced` are replaced whole when they changed. The
+  device-local `view`, `update` (each device updates its own dail) and `link` are never part of it. Nor are the
+  device's own fields of `settings` and `status`: `Settings::keep_device_local` and `StatusState::keep_device_local`
+  (exhaustive destructuring) put them back in `apply` and in `clear` before a snapshot, and `diff` compares only the
+  server fields. Device settings are those of `client` commands and keys: `theme`, `theme_light`, `theme_dark`,
+  `text_scale`, `notifications`, `tui_colors`, `background_sync`, `background_interval_mins`, `key_preset`, `keys`,
+  `updates`; `images_from`, `pinned_mailboxes`, `hidden_mailboxes`, `settings_account` and the engine and shared keys
+  are the server's (a test pins each field's side to its command's placement). Device status: `persist_error`,
+  `quarantined`, `compaction` (its own store), `metered` (its own network) and `saves` (`save_attachments`); the rest
+  (keyring, sync, polls, fetches, searches, discovery, certificate offers) is the server's. `diff(a, b).apply(a)` gives
+  `b` on every other field, order included (a proptest over random triage sessions).
+- **`state.link: Option<LinkState{status: connecting|online|offline, revision, queued, rejected}>`**: present only in
+  mirror mode. While it is set, every input still applies locally (optimistic), but `dispatch` and `ingest` return only
+  the effects for which `Effect::is_device_local()` holds: `persist_state`, `schedule_tick`, `inspect_attachment`,
+  `save_attachments`, `compact_store` and the update effects. Mail-server, keyring, discovery, full-text-index and
+  `read_draft` effects belong to the server, so a mirror never polls, syncs, runs rules or sends. A successful
+  `server`/`server_with_upload` command that is not a query, dispatched while the link is not `online`, is appended to
+  `link.queued` as `QueuedCommand{request_id, seed /* the call's id_seed, as a decimal string */, origin, command,
+  queued_at_ms}` (the receipt lists `link`); while online it is not queued, as the runtime forwards it (SRV-5).
+  `OfflineRejection{request_id, command, code, error, at_ms}` records a queued command the server refused (SRV-5b).
+  `LinkChanged{status}` sets the status and turns mirror mode on. `RemoteSynced{revision, diff, snapshot}` applies the
+  diff (a `snapshot` first clears the shared state) and records `revision`; a non-snapshot diff whose revision is not
+  newer is ignored (`data.stale`). Neither is recorded in history. Fixture: `tests/replay/remote_offline.jsonl`.
 
 ### 4.5 Command registry
 
