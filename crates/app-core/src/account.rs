@@ -37,6 +37,32 @@ pub struct Account {
     /// 4190 with STARTTLS. Unset: the preset's default, if any ([`Account::managesieve`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managesieve: Option<Endpoint>,
+    /// Certificates the user trusts for this account's servers, besides the usual roots
+    /// (`trust_certificate`, ADR 0016): a self-signed certificate or a private CA.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trusted_certs: Vec<TrustedCert>,
+}
+
+/// A certificate a server sent that no trusted root vouches for (ADR 0016). Read by the runtime;
+/// the engine keeps it as opaque data.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+pub struct TrustedCert {
+    /// The certificate, DER as lower-case hex.
+    pub der: String,
+    /// SHA-256 of the DER, lower-case hex: the certificate's fingerprint.
+    pub sha256: String,
+    /// The subject's distinguished name, e.g. `CN=mail.example.org`. Untrusted text.
+    #[serde(default)]
+    pub subject: String,
+    /// The issuer's distinguished name. Equal to the subject for a self-signed certificate.
+    #[serde(default)]
+    pub issuer: String,
+    /// Start of validity, in Unix milliseconds.
+    #[serde(default)]
+    pub not_before_ms: i64,
+    /// End of validity, in Unix milliseconds.
+    #[serde(default)]
+    pub not_after_ms: i64,
 }
 
 /// An address an account sends from, with its name and signature.
@@ -90,6 +116,7 @@ impl Account {
             login: self.email.clone(),
             server: self.imap.clone(),
             secret: self.secret.clone(),
+            trusted: self.trusted_certs.iter().map(|c| c.der.clone()).collect(),
         }
     }
 }
@@ -109,6 +136,7 @@ impl Account {
             login: self.email.clone(),
             server: self.smtp.clone(),
             secret: self.secret.clone(),
+            trusted: self.trusted_certs.iter().map(|c| c.der.clone()).collect(),
         }
     }
 }
@@ -122,6 +150,9 @@ pub struct SmtpLogin {
     pub server: Endpoint,
     /// Keyring entry of the password.
     pub secret: SecretRef,
+    /// Certificates trusted for this account besides the usual roots, DER as hex (ADR 0016).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trusted: Vec<String>,
 }
 
 /// IMAP connection parameters carried by mail effects. Holds no secret: the runtime reads the
@@ -134,6 +165,9 @@ pub struct ImapLogin {
     pub server: Endpoint,
     /// Keyring entry of the password.
     pub secret: SecretRef,
+    /// Certificates trusted for this account besides the usual roots, DER as hex (ADR 0016).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub trusted: Vec<String>,
 }
 
 /// Result of the last `test_account` run.

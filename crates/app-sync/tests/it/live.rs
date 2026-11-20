@@ -63,6 +63,7 @@ impl AccountVerifier for TestVerifier {
         password: &'a Secret,
         imap: &'a Endpoint,
         _smtp: &'a Endpoint,
+        _trusted: &'a [String],
     ) -> BoxFuture<'a, Result<(), String>> {
         Box::pin(async move {
             self.calls
@@ -192,6 +193,7 @@ async fn verify_without_password_or_with_wrong_one_fails_in_state() {
         imap: endpoint.clone(),
         smtp: endpoint,
         secret: secret.clone(),
+        trusted: Vec::new(),
     };
 
     let events = backend.execute(verify.clone()).await.unwrap();
@@ -296,7 +298,7 @@ async fn connection_refused_is_reported_per_protocol() {
     let password = Secret::new("pw");
     let port = closed_port().await;
     let err = net()
-        .verify_imap(&local(port, Security::Tls), "me", &password)
+        .verify_imap(&local(port, Security::Tls), "me", &password, &[])
         .await
         .unwrap_err();
     assert!(
@@ -304,7 +306,7 @@ async fn connection_refused_is_reported_per_protocol() {
         "{err}"
     );
     let err = net()
-        .verify_smtp(&local(port, Security::Tls), "me", &password)
+        .verify_smtp(&local(port, Security::Tls), "me", &password, &[])
         .await
         .unwrap_err();
     assert!(err.starts_with("SMTP 127.0.0.1:"), "{err}");
@@ -315,6 +317,7 @@ async fn connection_refused_is_reported_per_protocol() {
             &password,
             &local(port, Security::Tls),
             &local(port, Security::Tls),
+            &[],
         )
         .await
         .unwrap_err();
@@ -332,7 +335,7 @@ async fn plaintext_server_on_a_tls_port_fails_the_handshake() {
     })
     .await;
     let err = net()
-        .verify_imap(&local(port, Security::Tls), "me", &Secret::new("pw"))
+        .verify_imap(&local(port, Security::Tls), "me", &Secret::new("pw"), &[])
         .await
         .unwrap_err();
     assert!(err.contains("TLS handshake failed"), "{err}");
@@ -363,7 +366,12 @@ async fn imap_starttls_refusal_never_sends_credentials() {
     })
     .await;
     let err = net()
-        .verify_imap(&local(port, Security::StartTls), "me", &Secret::new("pw"))
+        .verify_imap(
+            &local(port, Security::StartTls),
+            "me",
+            &Secret::new("pw"),
+            &[],
+        )
         .await
         .unwrap_err();
     assert!(err.contains("STARTTLS refused"), "{err}");
@@ -397,7 +405,12 @@ async fn smtp_without_starttls_support_never_sends_credentials() {
     })
     .await;
     let err = net()
-        .verify_smtp(&local(port, Security::StartTls), "me", &Secret::new("pw"))
+        .verify_smtp(
+            &local(port, Security::StartTls),
+            "me",
+            &Secret::new("pw"),
+            &[],
+        )
         .await
         .unwrap_err();
     assert!(err.contains("STARTTLS failed"), "{err}");
@@ -415,7 +428,12 @@ async fn silent_server_times_out() {
     .await;
     let err = net()
         .with_timeout(Duration::from_millis(200))
-        .verify_imap(&local(port, Security::StartTls), "me", &Secret::new("pw"))
+        .verify_imap(
+            &local(port, Security::StartTls),
+            "me",
+            &Secret::new("pw"),
+            &[],
+        )
         .await
         .unwrap_err();
     assert!(err.contains("timed out"), "{err}");
@@ -454,6 +472,7 @@ fn mail_backend(dir: &std::path::Path, password: &str, imap: &FakeImap) -> (Live
                 security: Security::Tls,
             },
             secret,
+            trusted: Vec::new(),
         },
     };
     (backend, effect)
@@ -526,6 +545,7 @@ fn fetch(path: &str, uid_validity: Option<u32>, since_uid: Option<u32>, limit: u
                 security: Security::Tls,
             },
             secret: SecretRef::for_account(id),
+            trusted: Vec::new(),
         },
         uid_validity,
         since_uid,
@@ -1399,6 +1419,7 @@ fn smtp_send(login: &ImapLogin, account: AccountId, sent_copy: Option<&str>) -> 
             login: login.login.clone(),
             server: local(465, Security::Tls),
             secret: login.secret.clone(),
+            trusted: Vec::new(),
         },
         message: Box::new(message),
         sent_copy: sent_copy.map(|path| app_core::SentCopy {
@@ -1507,6 +1528,7 @@ async fn net_smtp_reports_an_unreachable_server_without_the_password() {
         login: "me@example.com".into(),
         server: local(port, Security::Tls),
         secret: SecretRef::for_account(AccountId::from_uuid(uuid::Uuid::from_u128(1))),
+        trusted: Vec::new(),
     };
     let recipients = ["bob@example.org".to_owned()];
     let result = app_sync::NetSmtp::default()

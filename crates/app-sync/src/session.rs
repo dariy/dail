@@ -617,6 +617,7 @@ mod tests {
                     security: Security::Tls,
                 },
                 secret: SecretRef::for_account(account),
+                trusted: Vec::new(),
             },
             uid_validity: 1,
             uid,

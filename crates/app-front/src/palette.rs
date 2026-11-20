@@ -284,6 +284,45 @@ fn pick_mailbox(
     )
 }
 
+/// A step that picks one of `certs` (with their accounts) and runs `make` on it.
+fn pick_cert(
+    prompt: &str,
+    certs: Vec<(AccountId, String, &app_core::TrustedCert)>,
+    make: fn(AccountId, String) -> Command,
+) -> Flow {
+    let lang = crate::i18n::current();
+    let options = certs
+        .iter()
+        .map(|(_, email, cert)| {
+            let subject = crate::certs::title(cert);
+            (
+                crate::i18n::tr(
+                    lang,
+                    Key::CertForAccount,
+                    &[("subject", &subject), ("email", email)],
+                ),
+                crate::certs::detail(cert, lang).replace('\n', " · "),
+            )
+        })
+        .collect();
+    let picks: Vec<(AccountId, String)> = certs
+        .into_iter()
+        .map(|(account, _, cert)| (account, cert.sha256.clone()))
+        .collect();
+    ask(
+        prompt,
+        AskKind::Options(options),
+        move |_, choice| match choice {
+            Choice::Index(i) => picks
+                .get(i as usize)
+                .map_or(Flow::Hidden, |(account, sha)| {
+                    Flow::Run(make(*account, sha.clone()))
+                }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'static) -> Flow {
     ask(
         crate::i18n::s(Key::WhichAccount),
@@ -1229,6 +1268,16 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 move |email| Command::RemoveIdentity { account, email },
             )
         }),
+        CommandName::TrustCertificate => pick_cert(
+            crate::i18n::s(Key::TrustWhichCertificate),
+            crate::certs::all_offers(state),
+            |account, sha256| Command::TrustCertificate { account, sha256 },
+        ),
+        CommandName::ForgetCertificate => pick_cert(
+            crate::i18n::s(Key::ForgetWhichCertificate),
+            crate::certs::all_trusted(state),
+            |account, sha256| Command::ForgetCertificate { account, sha256 },
+        ),
         CommandName::SetMailboxIdentity => {
             let email = |mailbox| {
                 ask(

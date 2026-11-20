@@ -571,6 +571,20 @@ pub struct StatusState {
     /// and history backfill wait while it is.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub metered: bool,
+    /// Certificates the user may trust for an account (ADR 0016): offered by its servers
+    /// (`Event::CertificateOffered`) or forgotten in this session, newest last (at most
+    /// `MAX_CERT_OFFERS`). `trust_certificate` takes one from here by fingerprint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cert_offers: Vec<CertOffer>,
+}
+
+/// A certificate that `trust_certificate` may add to an account (ADR 0016).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CertOffer {
+    /// The account.
+    pub account: AccountId,
+    /// The certificate.
+    pub cert: crate::account::TrustedCert,
 }
 
 /// A stored row this version could not read, kept aside instead of dropped (STORE-6).

@@ -33,7 +33,8 @@ and tell the user when a draft is waiting for approval. Attaching a file (`attac
 its path to the user on the approval card.\n\n\
 Some tools are for the user only and answer `error_008_origin_not_allowed`: adding or changing accounts, \
 their passwords and sending addresses (`add_account`, `update_account`, `set_password`, \
-`set_identity`, `remove_identity`), saving attachments to disk (`save_attachments`), \
+`set_identity`, `remove_identity`), trusting a server's certificate (`trust_certificate`; you may \
+`forget_certificate`), saving attachments to disk (`save_attachments`), \
 `restore_draft` (use `undo` to bring back a discarded draft), installing an update of dail \
 (`install_update`; you may check for and download one), pushing the settings to the mail server \
 (`push_settings`; you may `pull_settings`), choosing the account that holds them \

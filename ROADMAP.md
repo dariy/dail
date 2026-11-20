@@ -997,7 +997,7 @@ text ships in English and French.
 2. System and user CA trust, plus per-account certificate trust for self-hosters (ADR 0016)
    - [x] CA-1 (S) [sync][host][kt]: one root set in `app_sync::tls`: Mozilla, the OS store (`rustls-native-certs`,
      desktop), and Android's `AndroidCAStore` passed in `Config.ca_certs`; SMTP gets the same roots
-   - [ ] CA-2 (M) [core][io][sync][tk]: `Event::CertificateOffered` from a capturing verifier (and an SMTP probe);
+   - [x] CA-2 (M) [core][io][sync][tk]: `Event::CertificateOffered` from a capturing verifier (SMTP runs over dail's own TLS, so no probe);
      `trust_certificate` (user only) and `forget_certificate`; `Account.trusted_certs` in `config.toml`; extra anchors
      per account in `ImapLogin` / `SmtpLogin`
    - [ ] CA-3 (M) [front][gui][tui][mobile][kt][ios]: the certificate problem's *Trust…* fix: a confirmation with the

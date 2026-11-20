@@ -164,6 +164,24 @@ pub enum Command {
         /// The address.
         email: String,
     },
+    /// Trust a certificate for an account's servers (ADR 0016): the self-signed certificate or
+    /// private CA a server of the account sent when its connection failed (`status.cert_offers`),
+    /// chosen by its SHA-256 fingerprint. The host name and the dates are still checked. Undoable.
+    /// Only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
+    TrustCertificate {
+        /// The account.
+        account: AccountId,
+        /// The certificate's SHA-256 fingerprint, hex (colons and case ignored).
+        sha256: String,
+    },
+    /// Stop trusting a certificate the user trusted for an account (`trust_certificate`).
+    /// Undoable.
+    ForgetCertificate {
+        /// The account.
+        account: AccountId,
+        /// The certificate's SHA-256 fingerprint, hex (colons and case ignored).
+        sha256: String,
+    },
     /// Choose the address new drafts written from a mailbox are sent from (one of its
     /// account's identities); omit `email` for the account's own. Undoable.
     SetMailboxIdentity {
@@ -1258,6 +1276,8 @@ impl Command {
             | Self::SetPassword { .. }
             | Self::SetIdentity { .. }
             | Self::RemoveIdentity { .. }
+            | Self::TrustCertificate { .. }
+            | Self::ForgetCertificate { .. }
             | Self::SetMailboxIdentity { .. }
             | Self::CreateFolder { .. }
             | Self::RenameFolder { .. }
@@ -1361,6 +1381,8 @@ impl Command {
             Self::SetPassword { .. } => CommandName::SetPassword,
             Self::SetIdentity { .. } => CommandName::SetIdentity,
             Self::RemoveIdentity { .. } => CommandName::RemoveIdentity,
+            Self::TrustCertificate { .. } => CommandName::TrustCertificate,
+            Self::ForgetCertificate { .. } => CommandName::ForgetCertificate,
             Self::SetMailboxIdentity { .. } => CommandName::SetMailboxIdentity,
             Self::CreateFolder { .. } => CommandName::CreateFolder,
             Self::RenameFolder { .. } => CommandName::RenameFolder,

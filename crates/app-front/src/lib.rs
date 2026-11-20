@@ -11,6 +11,7 @@ pub mod alerts;
 pub mod approvals;
 pub mod autoread;
 pub mod body;
+pub mod certs;
 pub mod compose;
 pub mod fold;
 pub mod format;

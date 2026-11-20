@@ -89,6 +89,36 @@ pub(crate) fn rich_state() -> AppState {
     );
     dispatch(&mut engine, 508, Command::OpenComposer { id: open });
     dispatch(&mut engine, 509, Command::FocusPane { pane: Pane::List });
+    // Two certificates offered by the account's server; one of them trusted (ADR 0016).
+    let imap = engine.state().accounts[&account].imap.clone();
+    for (seed, sha) in [(513u128, "a"), (514, "b")] {
+        let event = app_core::Event::CertificateOffered {
+            host: imap.host.clone(),
+            port: imap.port,
+            cert: app_core::TrustedCert {
+                der: "3082".into(),
+                sha256: sha.repeat(64),
+                subject: "CN=mail.example.org".into(),
+                issuer: "CN=mail.example.org".into(),
+                not_before_ms: 0,
+                not_after_ms: 1,
+            },
+        };
+        let ctx = Ctx {
+            now_ms: support::NOW,
+            id_seed: seed << 64,
+            origin: Origin::Runtime,
+        };
+        engine.ingest(event, &ctx).unwrap();
+    }
+    dispatch(
+        &mut engine,
+        515,
+        Command::TrustCertificate {
+            account,
+            sha256: "a".repeat(64),
+        },
+    );
     dispatch(
         &mut engine,
         512,

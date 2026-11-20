@@ -126,6 +126,8 @@ const fn row(name: CommandName) -> Row {
         N::GetSettings
         | N::UpdateAccount
         | N::RemoveIdentity
+        | N::ForgetCertificate
+        | N::TrustCertificate
         | N::SetMailboxIdentity
         | N::ListRules
         | N::ListMailboxes

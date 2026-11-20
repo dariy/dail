@@ -9,6 +9,7 @@ mod approvals;
 mod attachments;
 mod backfill;
 mod bodies;
+mod certificates;
 mod checked;
 mod condstore;
 mod contacts;

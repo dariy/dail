@@ -1,7 +1,7 @@
 //! TLS client configuration: rustls with the `app-tls` crypto provider (ADR 0003). The trusted roots (ADR 0016) are the
 //! Mozilla roots from `webpki-roots`, the OS store on the desktop (`rustls-native-certs`), the certificates the host
 //! passes in ([`set_host_roots`]: Android's `AndroidCAStore`), and per connection the account's own trusted
-//! certificates. There is no option to accept invalid certificates (`ARCHITECTURE.md §9`).
+//! certificates ([`crate::trust`]). There is no option to accept invalid certificates (`ARCHITECTURE.md §9`).
 //!
 //! app-tls implements TLS 1.3 and 1.2 with ChaCha20-Poly1305 and X25519 only. A server that offers none of these
 //! fails the handshake; [`incompatible_server_hint`] turns that failure into a message that says why.
@@ -10,7 +10,6 @@ use std::error::Error as StdError;
 use std::io;
 use std::sync::{Arc, OnceLock};
 
-use lettre::transport::smtp::client::{Certificate, CertificateStore, TlsParameters};
 use rustls::pki_types::CertificateDer;
 use rustls::{AlertDescription, ClientConfig, RootCertStore};
 
@@ -77,7 +76,7 @@ pub fn decode_certs(hex_ders: &[String]) -> Vec<CertificateDer<'static>> {
 }
 
 /// The roots of every connection: Mozilla's, then [`extra_roots`]. A root that rustls cannot parse is skipped.
-fn root_store(account: &[CertificateDer<'static>]) -> RootCertStore {
+pub(crate) fn root_store(account: &[CertificateDer<'static>]) -> RootCertStore {
     let mut roots = RootCertStore {
         roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
     };
@@ -109,30 +108,13 @@ pub fn client_config_with_roots(roots: RootCertStore) -> Result<Arc<ClientConfig
     Ok(Arc::new(config))
 }
 
-/// Installs `app_tls::provider()` as rustls's process-wide default, once. lettre (with `rustls-no-provider`) takes
-/// its provider from there, and would panic without one.
+/// Installs `app_tls::provider()` as rustls's process-wide default, once, for code that asks rustls for the default
+/// provider. dail's own connections name app-tls explicitly; lettre gets an encrypted stream (`smtp::connect`).
 pub fn install_default_provider() {
     // `Err` means a provider is already installed: by an earlier call, which is the same provider.
     if app_tls::provider().install_default().is_err() {
         tracing::trace!("rustls default crypto provider already installed");
     }
-}
-
-/// lettre's TLS parameters for `host`: app-tls and the roots of [`account_config`], with `trusted` among them.
-pub fn smtp_parameters(
-    host: &str,
-    trusted: &[CertificateDer<'static>],
-) -> Result<TlsParameters, lettre::transport::smtp::Error> {
-    install_default_provider();
-    let mut builder =
-        TlsParameters::builder(host.to_owned()).certificate_store(CertificateStore::WebpkiRoots);
-    for der in extra_roots().iter().chain(trusted) {
-        match Certificate::from_der(der.to_vec()) {
-            Ok(cert) => builder = builder.add_root_certificate(cert),
-            Err(err) => tracing::debug!("root skipped for SMTP: {err}"),
-        }
-    }
-    builder.build_rustls()
 }
 
 /// Lower-case hex of `bytes`.
@@ -289,24 +271,5 @@ mod tests {
         assert_eq!(decode_hex("0"), None);
         assert_eq!(decode_hex("zz"), None);
         assert_eq!(decode_hex("é0"), None);
-    }
-
-    #[test]
-    fn smtp_parameters_install_the_default_provider() {
-        smtp_parameters("smtp.example.com", &[]).unwrap();
-        let installed = rustls::crypto::CryptoProvider::get_default().unwrap();
-        let suites: Vec<_> = installed
-            .cipher_suites
-            .iter()
-            .map(|suite| suite.suite())
-            .collect();
-        let ours: Vec<_> = app_tls::provider()
-            .cipher_suites
-            .iter()
-            .map(|suite| suite.suite())
-            .collect();
-        assert_eq!(suites, ours);
-        // A second call finds the provider installed and still works.
-        smtp_parameters("smtp.example.com", &[]).unwrap();
     }
 }

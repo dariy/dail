@@ -54,6 +54,13 @@ pub struct AccountConfig {
     /// port 4190. Absent: the preset's default, if any (SET-8).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managesieve: Option<Endpoint>,
+    /// Certificates the user trusts for its servers (`[[account.trusted_cert]]`, ADR 0016).
+    #[serde(
+        default,
+        rename = "trusted_cert",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub trusted_certs: Vec<app_core::TrustedCert>,
 }
 
 impl From<&Account> for AccountConfig {
@@ -68,6 +75,7 @@ impl From<&Account> for AccountConfig {
             secret: account.secret.clone(),
             identities: account.identities.clone(),
             managesieve: account.managesieve.clone(),
+            trusted_certs: account.trusted_certs.clone(),
         }
     }
 }
@@ -86,6 +94,7 @@ impl AccountConfig {
             status: AccountStatus::Unverified,
             identities: self.identities.clone(),
             managesieve: self.managesieve.clone(),
+            trusted_certs: self.trusted_certs.clone(),
         }
     }
 }

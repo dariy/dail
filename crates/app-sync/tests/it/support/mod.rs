@@ -192,6 +192,7 @@ impl ImapConnector for FakeImap {
         _server: &'a Endpoint,
         login: &'a str,
         password: &'a Secret,
+        _trusted: &'a [String],
     ) -> BoxFuture<'a, Result<ImapSession, String>> {
         Box::pin(async move {
             self.connects.fetch_add(1, Ordering::SeqCst);

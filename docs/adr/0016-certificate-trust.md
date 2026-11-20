@@ -36,13 +36,15 @@ trust (AGENTS.md §4, agent policy), and `app-core` stays sans-IO (it cannot par
   an offer, so no certificate can be supplied through arguments. `forget_certificate { account, sha256 }` removes one.
   Both are undoable mutations. The trusted certificates travel in the account's `ImapLogin` and `SmtpLogin` and are
   added as extra trust anchors for that account's connections only.
-- **Still checked.** A trusted certificate is a trust anchor, not an exception: the host name, the validity dates and
-  the signatures are verified as for any other chain. A server whose certificate does not name its host, or has
+- **Still checked.** A trusted certificate is an extra trust anchor (for a private CA) and, for the server's own
+  certificate, an exact SHA-256 match, because a self-signed certificate is usually marked as a CA and webpki refuses a
+  CA as an end entity. Either way the host name and the validity dates are verified as for any other chain. A server whose certificate does not name its host, or has
   expired, still fails, and no fix is offered.
 - **Agents.** `trust_certificate` is `user_only` (it decides whom dail talks to). `forget_certificate` only narrows
   trust and is `allowed`.
-- **SMTP.** lettre builds its own verifier, so it cannot report the chain. When an SMTP handshake fails on the
-  certificate, the runtime probes the server once with its own verifier (TLS, or `EHLO` + `STARTTLS`) to make the offer.
+- **SMTP.** lettre builds its own verifier, which cannot report the chain or match a fingerprint. dail runs the TLS
+  itself (for `starttls` it sends `EHLO` and `STARTTLS` first) and hands lettre the encrypted stream through its public
+  `AsyncTokioStream` trait, so IMAP and SMTP share one verifier.
 
 ## Consequences
 

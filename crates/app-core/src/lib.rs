@@ -32,7 +32,7 @@ pub mod update;
 
 pub use account::{
     Account, AccountStatus, Endpoint, Identity, ImapLogin, PresetProfile, ProviderPreset, Secret,
-    SecretRef, Security, ServerDefault, SmtpLogin,
+    SecretRef, Security, ServerDefault, SmtpLogin, TrustedCert,
 };
 pub use approval::ApprovalRequest;
 pub use command::{Command, CommandKind, SettingKey, ThemeMode};

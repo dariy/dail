@@ -538,7 +538,8 @@ into ranges (`1:3,7`); `create` first sends `CREATE` and ignores its failure (us
 retried on a fresh session once, like every mail effect).
 `SmtpSend` renders the message twice (`app_sync::outgoing::render`: quoted blob from the store, attachments read from disk):
 without `Bcc` for submission and with it for the Sent copy. Submission goes through an `SmtpSender` (`NetSmtp` by default,
-`LiveBackend::with_smtp` for tests): lettre over rustls with webpki roots, `tls` = TLS wrapper, `starttls` = STARTTLS required,
+`LiveBackend::with_smtp` for tests): lettre's SMTP dialogue over dail's own TLS stream (`app_sync::smtp::connect`, verified
+like IMAP, ADR 0016; for `starttls` dail sends `EHLO` and `STARTTLS` itself before the handshake), `tls` = TLS wrapper, `starttls` = STARTTLS required,
 AUTH PLAIN/LOGIN with the keyring password, `MAIL FROM` the account address and `RCPT TO` every To/Cc/Bcc address once,
 120 s timeout; errors read `SMTP host:port: …` and never contain the password. A refused or failed submission is
 `SendFailed` (nothing is stored). After acceptance the copy is `APPEND`ed to `sent_copy` with `(\Seen)`; its failure becomes
@@ -758,8 +759,11 @@ Dovecot; `Account::managesieve()` returns that, else the preset's. Absent from o
 TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`). The roots (ADR 0016) are
 `webpki-roots`, the OS store on the desktop (`rustls-native-certs`, read once per process), and the certificates the
 host passes in `Config.ca_certs` (Android's `AndroidCAStore`, with the user's CAs; iOS lists none)
-(`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
-lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
+(`app_sync::tls::client_config`). Account connections (IMAP, SMTP) verify through `app_sync::trust`: the roots plus the
+account's `trusted_certs` as extra anchors, else a trusted certificate's exact SHA-256 with its host name and dates still
+checked (a self-signed certificate is often marked as a CA, so it cannot be its own anchor); a chain no root vouches for
+leaves its top certificate as `Event::CertificateOffered`, which `LiveBackend::execute` appends to the effect's events and
+the engine keeps in `status.cert_offers` for the accounts on that server. Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
 the build compiles C: `deny.toml` bans `ring`, and `cc` only appears under crates that build nothing with it.
 
 app-tls is the glue a TLS client needs, in safe Rust, over audited or widely used crates (ADR 0014:
@@ -2107,6 +2111,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
+| `trust_certificate` / `forget_certificate` | Mutation (trust: user only, §9) | `account, sha256`: trust a certificate of `status.cert_offers` for the account (saved with it, `[[account.trusted_cert]]`; then `VerifyAccount`) / stop trusting one (it goes back to the offers); undoable (ADR 0016) | CA-2 |
 | `set_identity` / `remove_identity` | Mutation (user only, §9) | `account, email, name?, signature?` / `account, email`: the addresses the account sends from (saved with it, `[[account.identity]]`); undoable | Wave 2 |
 | `set_mailbox_identity` | Mutation | `mailbox, email?`: the From of new drafts written from it | Wave 2 |
 | `set_draft_from` | Mutation | `id, email` (an identity of any connected account, the draft's own account first; the own address clears `draft.from`; another account's address moves the draft there with its threading and quote, and its server copy moves too, MISC-36); an agent's change withdraws its send request | Wave 2 |

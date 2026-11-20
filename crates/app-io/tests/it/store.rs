@@ -43,6 +43,7 @@ pub(super) fn account(n: u128) -> Account {
         status: AccountStatus::Unverified,
         identities: Vec::new(),
         managesieve: None,
+        trusted_certs: Vec::new(),
     }
 }
 

@@ -1,0 +1,510 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {
+      "00000000-0000-0003-0000-000000000000": {
+        "display_name": "me@example.org",
+        "email": "me@example.org",
+        "id": "00000000-0000-0003-0000-000000000000",
+        "imap": {
+          "host": "mail.example.org",
+          "port": 993,
+          "security": "tls"
+        },
+        "preset": "custom",
+        "secret": {
+          "service": "dail",
+          "user": "account/00000000-0000-0003-0000-000000000000"
+        },
+        "smtp": {
+          "host": "mail.example.org",
+          "port": 465,
+          "security": "tls"
+        },
+        "status": {
+          "state": "unverified"
+        }
+      }
+    },
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "after_triage": 0,
+      "background_interval_mins": 30,
+      "background_sync": 1,
+      "full_sync_secs": 900,
+      "history_cap": 200,
+      "initial_window": 500,
+      "language": 0,
+      "list_density": 0,
+      "mark_read_after_ms": 2000,
+      "notifications": 1,
+      "poll_secs": 120,
+      "stale_secs": 60,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "cert_offers": [
+        {
+          "account": "00000000-0000-0003-0000-000000000000",
+          "cert": {
+            "der": "3082",
+            "issuer": "CN=mail.example.org",
+            "not_after_ms": 1790000000000,
+            "not_before_ms": 1690000000000,
+            "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a",
+            "subject": "CN=mail.example.org"
+          }
+        }
+      ],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "update": {
+      "status": {
+        "state": "idle"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.org",
+                    "email": "me@example.org",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              }
+            ],
+            "data": {
+              "display_name": "me@example.org",
+              "email": "me@example.org",
+              "id": "00000000-0000-0003-0000-000000000000",
+              "imap": {
+                "host": "mail.example.org",
+                "port": 993,
+                "security": "tls"
+              },
+              "preset": "custom",
+              "secret": {
+                "service": "dail",
+                "user": "account/00000000-0000-0003-0000-000000000000"
+              },
+              "smtp": {
+                "host": "mail.example.org",
+                "port": 465,
+                "security": "tls"
+              },
+              "status": {
+                "state": "unverified"
+              }
+            },
+            "kind": "mutation",
+            "name": "add_account",
+            "ok": true,
+            "undo_label": "Add account me@example.org"
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "certificate_offered",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "err": {
+          "command": "trust_certificate",
+          "error": "error_008_origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.org",
+                    "email": "me@example.org",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    },
+                    "trusted_certs": [
+                      {
+                        "der": "3082",
+                        "issuer": "CN=mail.example.org",
+                        "not_after_ms": 1790000000000,
+                        "not_before_ms": 1690000000000,
+                        "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a",
+                        "subject": "CN=mail.example.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "imap": {
+                  "host": "mail.example.org",
+                  "port": 993,
+                  "security": "tls"
+                },
+                "login": "me@example.org",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0003-0000-000000000000"
+                },
+                "smtp": {
+                  "host": "mail.example.org",
+                  "port": 465,
+                  "security": "tls"
+                },
+                "trusted": [
+                  "3082"
+                ]
+              },
+              "effect": "verify_account"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a"
+            },
+            "kind": "mutation",
+            "name": "trust_certificate",
+            "ok": true,
+            "undo_label": "Trust the certificate"
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.org",
+                    "email": "me@example.org",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "undone": "Trust the certificate"
+            },
+            "kind": "mutation",
+            "name": "undo",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.org",
+                    "email": "me@example.org",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    },
+                    "trusted_certs": [
+                      {
+                        "der": "3082",
+                        "issuer": "CN=mail.example.org",
+                        "not_after_ms": 1790000000000,
+                        "not_before_ms": 1690000000000,
+                        "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a",
+                        "subject": "CN=mail.example.org"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "account": "00000000-0000-0003-0000-000000000000",
+                "imap": {
+                  "host": "mail.example.org",
+                  "port": 993,
+                  "security": "tls"
+                },
+                "login": "me@example.org",
+                "secret": {
+                  "service": "dail",
+                  "user": "account/00000000-0000-0003-0000-000000000000"
+                },
+                "smtp": {
+                  "host": "mail.example.org",
+                  "port": 465,
+                  "security": "tls"
+                },
+                "trusted": [
+                  "3082"
+                ]
+              },
+              "effect": "verify_account"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "redone": "Trust the certificate"
+            },
+            "kind": "mutation",
+            "name": "redo",
+            "ok": true,
+            "undo_label": "Trust the certificate"
+          }
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "account",
+                  "value": {
+                    "display_name": "me@example.org",
+                    "email": "me@example.org",
+                    "id": "00000000-0000-0003-0000-000000000000",
+                    "imap": {
+                      "host": "mail.example.org",
+                      "port": 993,
+                      "security": "tls"
+                    },
+                    "preset": "custom",
+                    "secret": {
+                      "service": "dail",
+                      "user": "account/00000000-0000-0003-0000-000000000000"
+                    },
+                    "smtp": {
+                      "host": "mail.example.org",
+                      "port": 465,
+                      "security": "tls"
+                    },
+                    "status": {
+                      "state": "unverified"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "account",
+                "id": "00000000-0000-0003-0000-000000000000"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": {
+              "account": "00000000-0000-0003-0000-000000000000",
+              "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a"
+            },
+            "kind": "mutation",
+            "name": "forget_certificate",
+            "ok": true,
+            "undo_label": "Forget the certificate"
+          }
+        }
+      }
+    }
+  ]
+}

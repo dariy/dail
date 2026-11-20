@@ -118,6 +118,10 @@ pub enum CommandName {
     SetIdentity,
     /// See [`Command::RemoveIdentity`].
     RemoveIdentity,
+    /// See [`Command::TrustCertificate`].
+    TrustCertificate,
+    /// See [`Command::ForgetCertificate`].
+    ForgetCertificate,
     /// See [`Command::SetMailboxIdentity`].
     SetMailboxIdentity,
     /// See [`Command::CreateFolder`].
@@ -377,6 +381,8 @@ fn has_attachments(state: &AppState) -> bool {
 }
 
 /// The account ID used by examples.
+/// A fingerprint for the examples.
+const EXAMPLE_SHA256: &str = "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a";
 const EXAMPLE_ACCOUNT: AccountId = AccountId::from_uuid(uuid::Uuid::from_u128(1));
 
 /// The mailbox ID used by examples.
@@ -457,6 +463,8 @@ impl CommandName {
         Self::SetPassword,
         Self::SetIdentity,
         Self::RemoveIdentity,
+        Self::TrustCertificate,
+        Self::ForgetCertificate,
         Self::SetMailboxIdentity,
         Self::CreateFolder,
         Self::RenameFolder,
@@ -568,6 +576,8 @@ impl CommandName {
             Self::SetPassword => "set_password",
             Self::SetIdentity => "set_identity",
             Self::RemoveIdentity => "remove_identity",
+            Self::TrustCertificate => "trust_certificate",
+            Self::ForgetCertificate => "forget_certificate",
             Self::SetMailboxIdentity => "set_mailbox_identity",
             Self::CreateFolder => "create_folder",
             Self::RenameFolder => "rename_folder",
@@ -698,6 +708,8 @@ impl CommandName {
             | Self::SetPassword
             | Self::SetIdentity
             | Self::RemoveIdentity
+            | Self::TrustCertificate
+            | Self::ForgetCertificate
             | Self::SetMailboxIdentity
             | Self::CreateFolder
             | Self::RenameFolder
@@ -782,7 +794,8 @@ impl CommandName {
     /// data or credentials off the machine without the user: account servers (the password goes
     /// to them, and so do saved drafts with their attachments), restoring a draft from arguments
     /// (a forged attachment check or header) and deciding approval requests. Also user-only:
-    /// writing files (`save_attachments`), which could plant a file where it gets run.
+    /// writing files (`save_attachments`), which could plant a file where it gets run, and
+    /// trusting a certificate (`trust_certificate`), which decides whom dail talks to.
     pub const fn agent_access(self) -> AgentAccess {
         match self {
             Self::AddAccount
@@ -790,6 +803,7 @@ impl CommandName {
             | Self::SetPassword
             | Self::SetIdentity
             | Self::RemoveIdentity
+            | Self::TrustCertificate
             | Self::RestoreDraft
             | Self::SaveAttachments
             | Self::ApproveRequest
@@ -810,6 +824,7 @@ impl CommandName {
             | Self::TestAccount
             | Self::DiscoverServers
             | Self::RemoveAccount
+            | Self::ForgetCertificate
             | Self::SetMailboxIdentity
             | Self::CreateFolder
             | Self::RenameFolder
@@ -959,6 +974,14 @@ impl CommandName {
             Self::RemoveIdentity => CommandSpec {
                 available: |state| state.accounts.values().any(|a| !a.identities.is_empty()),
                 ..base("Remove a sending address", Category::Account, &[])
+            },
+            Self::TrustCertificate => CommandSpec {
+                available: |state| !state.status.cert_offers.is_empty(),
+                ..base("Trust a server's certificate", Category::Account, &[])
+            },
+            Self::ForgetCertificate => CommandSpec {
+                available: |state| state.accounts.values().any(|a| !a.trusted_certs.is_empty()),
+                ..base("Forget a trusted certificate", Category::Account, &[])
             },
             Self::DeleteFolder => CommandSpec {
                 available: has_mailboxes,
@@ -1397,6 +1420,14 @@ impl CommandName {
             Self::RemoveIdentity => Command::RemoveIdentity {
                 account: EXAMPLE_ACCOUNT,
                 email: "sales@example.org".to_owned(),
+            },
+            Self::TrustCertificate => Command::TrustCertificate {
+                account: EXAMPLE_ACCOUNT,
+                sha256: EXAMPLE_SHA256.to_owned(),
+            },
+            Self::ForgetCertificate => Command::ForgetCertificate {
+                account: EXAMPLE_ACCOUNT,
+                sha256: EXAMPLE_SHA256.to_owned(),
             },
             Self::DeleteFolder => Command::DeleteFolder {
                 id: EXAMPLE_MAILBOX,

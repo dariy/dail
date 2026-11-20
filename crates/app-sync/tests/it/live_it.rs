@@ -20,8 +20,6 @@ use std::time::Duration;
 
 use app_core::{AccountId, ProviderPreset, Secret, SecretRef};
 use app_sync::{AccountVerifier, KeyringSecrets, NetVerifier, SecretStore, tls};
-use lettre::transport::smtp::client::AsyncSmtpConnection;
-use lettre::transport::smtp::extension::ClientId;
 use rustls::pki_types::ServerName;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
@@ -48,7 +46,7 @@ async fn verify_preset(preset: ProviderPreset, prefix: &str) {
     let smtp = profile.smtp.unwrap().to_endpoint();
     let verifier = NetVerifier::new().unwrap();
 
-    let result = verifier.verify(&email, &password, &imap, &smtp).await;
+    let result = verifier.verify(&email, &password, &imap, &smtp, &[]).await;
     assert!(
         result.is_ok(),
         "{} login failed: {result:?}",
@@ -58,7 +56,7 @@ async fn verify_preset(preset: ProviderPreset, prefix: &str) {
     // A wrong password must be detected by both protocols.
     let wrong = Secret::new(format!("{}-wrong", password.expose()));
     let err = verifier
-        .verify(&email, &wrong, &imap, &smtp)
+        .verify(&email, &wrong, &imap, &smtp, &[])
         .await
         .unwrap_err();
     assert!(err.contains("IMAP LOGIN failed"), "{err}");
@@ -137,18 +135,18 @@ async fn tls_handshake(host: &str, port: u16) -> (String, String) {
     )
 }
 
-/// STARTTLS on submission port 587 through lettre (the default provider app-tls installs), then QUIT, no AUTH.
+/// STARTTLS on submission port 587 through `smtp::connect` (our TLS under lettre), then QUIT, no AUTH.
 async fn smtp_starttls(host: &str) {
-    let hello = ClientId::default();
-    let timeout = Some(Duration::from_secs(20));
-    let mut conn = AsyncSmtpConnection::connect_tokio1((host, 587), timeout, &hello, None, None)
+    let server = app_core::Endpoint {
+        host: host.to_owned(),
+        port: 587,
+        security: app_core::Security::StartTls,
+    };
+    let connect = app_sync::smtp::connect(&server, &[]);
+    let mut conn = tokio::time::timeout(Duration::from_secs(20), connect)
         .await
+        .unwrap()
         .unwrap();
-    conn.starttls(tls::smtp_parameters(host, &[]).unwrap(), &hello)
-        .await
-        .map_err(|err| tls::with_hint(format!("{host}:587: {err}"), &err))
-        .unwrap();
-    assert!(conn.is_encrypted(), "{host}:587");
     conn.quit().await.unwrap();
 }
 

@@ -40,6 +40,7 @@ fn account(n: u128, email: &str) -> Account {
         status: AccountStatus::Verified { at_ms: 5 },
         identities: Vec::new(),
         managesieve: None,
+        trusted_certs: Vec::new(),
     }
 }
 

@@ -24,6 +24,8 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::SetPassword => "Changer le mot de passe du compte",
         CommandName::SetIdentity => "Ajouter ou modifier une adresse d’envoi",
         CommandName::RemoveIdentity => "Retirer une adresse d’envoi",
+        CommandName::TrustCertificate => "Faire confiance au certificat d’un serveur",
+        CommandName::ForgetCertificate => "Oublier un certificat de confiance",
         CommandName::SetMailboxIdentity => "Envoyer depuis une adresse pour ce dossier",
         CommandName::CreateFolder => "Nouveau dossier",
         CommandName::RenameFolder => "Renommer le dossier",
@@ -147,6 +149,12 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         }
         CommandName::RemoveIdentity => {
             "Retirer un alias, ou le nom et la signature de l’adresse du compte."
+        }
+        CommandName::TrustCertificate => {
+            "Faire confiance, pour un compte, au certificat auto-signé ou à l’autorité privée qu’un de ses serveurs a présenté."
+        }
+        CommandName::ForgetCertificate => {
+            "Ne plus faire confiance à un certificat accepté pour un compte."
         }
         CommandName::SetMailboxIdentity => {
             "Choisir l’adresse d’envoi des nouveaux brouillons écrits depuis un dossier."

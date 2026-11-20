@@ -1464,6 +1464,68 @@ expression: command_schema()
       "type": "object"
     },
     {
+      "description": "Trust a certificate for an account's servers (ADR 0016): the self-signed certificate or\nprivate CA a server of the account sent when its connection failed (`status.cert_offers`),\nchosen by its SHA-256 fingerprint. The host name and the dates are still checked. Undoable.\nOnly the user can do this; agents (MCP) get `error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account."
+            },
+            "sha256": {
+              "description": "The certificate's SHA-256 fingerprint, hex (colons and case ignored).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "account",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "trust_certificate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Stop trusting a certificate the user trusted for an account (`trust_certificate`).\nUndoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "account": {
+              "$ref": "#/$defs/AccountId",
+              "description": "The account."
+            },
+            "sha256": {
+              "description": "The certificate's SHA-256 fingerprint, hex (colons and case ignored).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "account",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "forget_certificate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Choose the address new drafts written from a mailbox are sent from (one of its\naccount's identities); omit `email` for the account's own. Undoable.",
       "properties": {
         "args": {

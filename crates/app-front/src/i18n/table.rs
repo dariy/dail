@@ -1403,6 +1403,27 @@ strings! {
     RemoveWhichAddress:
         "Remove which address?",
         "Retirer quelle adresse ?";
+    TrustWhichCertificate:
+        "Trust which certificate?",
+        "Faire confiance à quel certificat ?";
+    ForgetWhichCertificate:
+        "Forget which certificate?",
+        "Oublier quel certificat ?";
+    CertForAccount:
+        "{subject} — for {email}",
+        "{subject} — pour {email}";
+    CertSelfSigned:
+        "Self-signed",
+        "Auto-signé";
+    CertIssuer:
+        "Issued by {issuer}",
+        "Émis par {issuer}";
+    CertValidity:
+        "Valid from {from} to {until}",
+        "Valide du {from} au {until}";
+    CertFingerprint:
+        "SHA-256 {sha256}",
+        "SHA-256 {sha256}";
     SendFromWhichAddressEmptyTheAccount:
         "Send from which address? (empty: the account's own)",
         "Envoyer depuis quelle adresse ? (vide : celle du compte)";

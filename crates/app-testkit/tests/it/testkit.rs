@@ -308,6 +308,7 @@ async fn backend_lists_fixture_mailboxes_after_checking_the_login() {
                 security: Security::Tls,
             },
             secret: secret.clone(),
+            trusted: Vec::new(),
         },
     };
     let events = backend.execute(list.clone()).await.unwrap();
@@ -371,6 +372,7 @@ async fn backend_fetches_fixture_envelopes_with_window_rules() {
                 security: Security::Tls,
             },
             secret: secret.clone(),
+            trusted: Vec::new(),
         },
         uid_validity,
         since_uid,
