@@ -426,7 +426,7 @@ struct DocSpan: Codable {
     let hit: Bool?
     let link: ActionId?
     let image: InlineImage?
-    /// A link's marker (MISC-28a); decoded, drawn by MISC-28b.
+    /// A link's marker (MISC-28): its number in *Links*, drawn raised; the span has no text.
     let note: Int?
 }
 
@@ -459,6 +459,15 @@ struct SettingsPage: Codable {
     let tabs: [Choice]
     let sections: [SettingsEntry]
     let groups: [SettingsGroup]
+    /// Under *Appearance*: sample list rows in the chosen density (MISC-25).
+    let preview: ListPreview?
+}
+
+/// Sample rows of the message list (`app_mobile::frame::ListPreview`, MISC-25): no one's mail.
+struct ListPreview: Codable {
+    let title: String
+    let density: Density
+    let rows: [Row]
 }
 
 /// An entry of the settings root (`app_mobile::frame::SettingsEntry`, TCH-6).

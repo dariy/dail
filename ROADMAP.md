@@ -252,7 +252,9 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] i18n: command titles, shared `app_front` texts, the mobile apps' labels; `language` setting in Settings
 - [x] i18n: engine texts (`app-core` errors and undo labels, translated for display in `app_front::i18n`)
 - [x] i18n: the TUI's named language choice
-- [ ] i18n: Spanish, then Romanian
+- [x] i18n: Spanish, then Romanian (both in one change: every table gained two columns; `language` 3 and 4)
+- [x] i18n: Brazilian and European Portuguese, and Latin (`language` 5, 6 and 7; `values-pt`, `values-pt-rPT`,
+  `values-la`)
 - [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub
@@ -403,7 +405,7 @@ encryption (SEC-1), 32-bit ARM.
   and the app says so in a notification.
 - Agents work on the desktop: their triage reaches the phone through the servers, and their send requests are approved
   on the desktop.
-- User-installed CA certificates are not trusted (webpki roots, as on the desktop).
+- User-installed CA certificates are not trusted (webpki roots, as on the desktop). *(Since CA-1, ADR 0016, they are.)*
 - No in-app updates: Obtainium can follow the GitHub releases.
 
 ### A0 — Groundwork (no Android app yet; the desktop works as before)
@@ -772,9 +774,17 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
 - [x] MISC-26 [core][gui][tui][mobile]: navigation closes the settings page (decided: every command that changes the
   main view, mailbox, thread and search, in the engine)
 - [x] MISC-27 [front][gui]: the app title opens *About* (decided: a page in the main pane, like *Settings*)
-- [ ] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
-- [ ] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches
-- [ ] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane
+- [x] MISC-25 [gui][mobile][kt][ios]: Appearance previews density and text size (decided: all apps, sample rows only)
+  *(`app_front::sample`: three threads in a state of their own, in the UI language; the GUI draws them with its list's
+  `row` below *Text size*, the touch frame sends them as `SettingsPage::preview` and Android and iOS draw them with
+  their list-row views; on the phones text size follows the system's font size, which scales the preview as well)*
+- [x] MISC-29 [core][sync][tk]: pre-load bodies around the selection, bounded, behind user fetches *(no control: the
+  engine pre-loads on `View` navigation from every front end; window fixed at 3 ahead, 1 behind, 8 messages; none
+  while metered)*
+- [x] MISC-30 [ios][mobile]: the iOS composer draws its editor and lets go of the content pane *(`ComposerView.swift`:
+  title, state and actions, problems, *From*, recipients with chips and suggestions, subject, body, files, quote; a
+  field reloads only on a new `version`. A list row tapped beside the composer closes it and opens the thread, the
+  draft kept, on every touch front end. Not yet seen on a device: CI builds and tests it, I4a checks it)*
 - [x] MISC-31 [kt]: the Android composer scrolls, keeps the caret above the keyboard, ignores auto-saves *(the
   auto-save race is fixed and tested in `app-mobile`; the keyboard insets are not yet seen on a device, STORE-23)*
 - MISC-28 [io][core][front][gui][tui][mobile][kt][ios]: message bodies normalised for reading; numbered link markers.
@@ -782,8 +792,9 @@ MISC-29, MISC-25 and MISC-30 wait until after the launch.
   - [x] MISC-28a [io][core][front][gui][mobile][kt]: plain-text bodies as documents (reflowed paragraphs, one gap for a
     run of blank lines, headings by Markdown, underline, capitals and guess, safe Markdown, folds), links numbered in
     HTML and plain text alike; the GUI and Android draw the raised markers and the numbered *Links* list
-  - [ ] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
-    (after the Android launch, as Wave 11 decides for iOS)
+  - [x] MISC-28b [tui][ios]: the TUI draws documents with `[n]` markers in the link colour; iOS draws the markers
+    (after the Android launch, as Wave 11 decides for iOS) *(TUI: `app_tui::document`, rich bodies; iOS: raised
+    markers and the *Links* list in `ReaderPane.swift`)*
 - [x] MISC-32 [core][front][gui][tui][mobile]: translate every remaining UI string, settings tips and engine texts included
 - [x] MISC-34 [android][ios][xtask][kt]: fix the `libdail.rlib` output filename collision
 - [x] MISC-35 [core][io][sync][mcp][cli][front][gui][tui][mobile]: stable error codes, independent of the UI language;
@@ -951,10 +962,11 @@ text ships in English and French.
   into the AAB while the APK stays stripped
 - [ ] STORE-17 (M) [user][kt]: adaptive and monochrome launcher icon, dail's own notification icon, 512 px store icon,
   feature graphic *(made from the desktop logo, `packaging/store/`; waits for the user's approval of the art)*
-- [ ] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
+- [x] STORE-18 (M): `fastlane/metadata/android/{en-US,fr-FR}` as the single source for both stores: title, descriptions,
   and phone and tablet screenshots from the demo build. `cargo xtask release bump` writes a user-facing
-  `changelogs/<versionCode>.txt` (500 characters at most) *(text and changelogs done; the screenshots wait for an
-  emulator or device, with STORE-23, and for Wave 14, whose items change the screens)*
+  `changelogs/<versionCode>.txt` (500 characters at most) *(the screenshots come from `store-screenshots.yml`:
+  `StoreScreenshotsTest` reaches five screens by command in English and French, on a phone and a Pixel Tablet AVD;
+  run it again and commit its artifact when the screens change)*
 - [x] STORE-19 (S): `PRIVACY.md`, linked from About and the listing; `docs/store/play-console.md` with drafted answers
   (Data safety, foreground services, content rating, target audience)
 - [x] STORE-20 (S) [ci]: `release.yml` uploads the AAB to Play's internal track from the `release` environment, with the
@@ -984,7 +996,16 @@ text ships in English and French.
 
 ### After launch, in this order
 1. Microsoft OAuth2 (needs STORE-11)
-2. System and user CA trust, plus per-account certificate trust for self-hosters
+2. System and user CA trust, plus per-account certificate trust for self-hosters (ADR 0016)
+   - [x] CA-1 (S) [sync][host][kt]: one root set in `app_sync::tls`: Mozilla, the OS store (`rustls-native-certs`,
+     desktop), and Android's `AndroidCAStore` passed in `Config.ca_certs`; SMTP gets the same roots
+   - [x] CA-2 (M) [core][io][sync][tk]: `Event::CertificateOffered` from a capturing verifier (SMTP runs over dail's own TLS, so no probe);
+     `trust_certificate` (user only) and `forget_certificate`; `Account.trusted_certs` in `config.toml`; extra anchors
+     per account in `ImapLogin` / `SmtpLogin`
+   - [x] CA-3 (M) [front][gui][tui][mobile]: the certificate problem's *trust…* fix opens a step whose option shows the
+     subject, issuer, dates and SHA-256 (choosing it is the confirmation); the account's actions gain *Trust
+     certificate…* while a server offers one and *Forget certificate…* while it trusts one (GUI account settings, touch
+     account sheet; the TUI names the palette command). Kotlin and SwiftUI draw them from the frame unchanged
 3. MISC-29 pre-loading, then MISC-25 previews and MISC-30 on iOS
 4. Spanish, then Romanian
 5. targetSdk 37, before the deadline expected in August 2027
@@ -1150,8 +1171,9 @@ ships in English and French.
 ### Q — Proof
 - [x] QA-2 (S) [mobile]: frame budgets as presenter tests at 360×640 dp: at most four primary icons per bar, a palette
   entry in every state, and no settings section more than one tap from the settings root
-- [ ] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
-  message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off
+- [x] QA-1 (M) [kt]: the golden-path test (STORE-9b) grows three journeys: check two threads and move them; open a
+  message, open the palette, make a rule from it; open settings, find *Rules*, add a rule and switch it off *(one
+  `@Test` each in `GoldenPathTest`; green at 519c5e3 in CI's `android-emulator` job and in four `golden-path` runs)*
 - [ ] QA-5 [user]: the three journeys of QA-1 by hand, one-handed, on the smallest phone at hand, as the UX section of
   STORE-23's device check. It also confirms what the review read from code and did not see: the cramped bars and the
   off-screen *Rules* tab
@@ -1264,10 +1286,10 @@ elsewhere. The review took App Review's rules from prior knowledge: **read the c
 
 - [ ] IOS-3 [user][ci]: a paid Apple Developer account, signing in `release.yml` and TestFlight. Wave 5's optional I4
   item becomes required and is ticked with this one
-- [ ] IOS-1 (L) [ios]: the composer, in place of the placeholder (`FrameView.swift:90`): write, reply and forward, with
-  `pick_files`, `import_files` and the share sheet
+- [ ] IOS-1 (L) [ios]: the composer's files: `pick_files`, `import_files` and the share sheet (the editor itself, for
+  write, reply and forward, is MISC-30's `ComposerView.swift`)
 - [ ] IOS-6 (M) [ios]: draw the contract changes of Waves 14 and 15 (overflow menus, folder sheet, section list, rule
-  editor) and whatever `FrameView.swift:5` still lists as a title-only sheet
+  editor) and any sheet still drawn as a title only (none since MISC-30)
 - [ ] IOS-2 (M) [ios][host]: new-mail notifications and background refresh. Without a push server, iOS gives only
   background app refresh, at times the system chooses; the listing must say so plainly
 - [ ] IOS-4 (S) [ios][docs]: `docs/store/app-store.md`, as `play-console.md`: App Privacy answers, the privacy manifest

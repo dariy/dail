@@ -164,6 +164,24 @@ pub enum Command {
         /// The address.
         email: String,
     },
+    /// Trust a certificate for an account's servers (ADR 0016): the self-signed certificate or
+    /// private CA a server of the account sent when its connection failed (`status.cert_offers`),
+    /// chosen by its SHA-256 fingerprint. The host name and the dates are still checked. Undoable.
+    /// Only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
+    TrustCertificate {
+        /// The account.
+        account: AccountId,
+        /// The certificate's SHA-256 fingerprint, hex (colons and case ignored).
+        sha256: String,
+    },
+    /// Stop trusting a certificate the user trusted for an account (`trust_certificate`).
+    /// Undoable.
+    ForgetCertificate {
+        /// The account.
+        account: AccountId,
+        /// The certificate's SHA-256 fingerprint, hex (colons and case ignored).
+        sha256: String,
+    },
     /// Choose the address new drafts written from a mailbox are sent from (one of its
     /// account's identities); omit `email` for the account's own. Undoable.
     SetMailboxIdentity {
@@ -1007,7 +1025,8 @@ pub enum SettingKey {
     /// What the GUI and the TUI show after the open conversation is archived, trashed or moved:
     /// 0 = the next one (default), 1 = the previous one, 2 = the list.
     AfterTriage,
-    /// UI language: 0 = follow the system, 1 = English, 2 = French.
+    /// UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian,
+    /// 5 = Brazilian Portuguese, 6 = European Portuguese, 7 = Latin.
     Language,
 }
 
@@ -1117,7 +1136,7 @@ impl SettingKey {
             Self::MarkReadAfterMs => (0, 60_000),
             Self::StaleSecs | Self::FullSyncSecs => (0, 86_400),
             Self::AfterTriage => (0, 2),
-            Self::Language => (0, 2),
+            Self::Language => (0, 7),
         }
     }
 
@@ -1258,6 +1277,8 @@ impl Command {
             | Self::SetPassword { .. }
             | Self::SetIdentity { .. }
             | Self::RemoveIdentity { .. }
+            | Self::TrustCertificate { .. }
+            | Self::ForgetCertificate { .. }
             | Self::SetMailboxIdentity { .. }
             | Self::CreateFolder { .. }
             | Self::RenameFolder { .. }
@@ -1361,6 +1382,8 @@ impl Command {
             Self::SetPassword { .. } => CommandName::SetPassword,
             Self::SetIdentity { .. } => CommandName::SetIdentity,
             Self::RemoveIdentity { .. } => CommandName::RemoveIdentity,
+            Self::TrustCertificate { .. } => CommandName::TrustCertificate,
+            Self::ForgetCertificate { .. } => CommandName::ForgetCertificate,
             Self::SetMailboxIdentity { .. } => CommandName::SetMailboxIdentity,
             Self::CreateFolder { .. } => CommandName::CreateFolder,
             Self::RenameFolder { .. } => CommandName::RenameFolder,

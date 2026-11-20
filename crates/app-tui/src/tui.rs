@@ -149,7 +149,7 @@ impl Default for Tui {
             list_cursor: None,
             hits: Vec::new(),
             mouse: true,
-            bodies: Bodies::default(),
+            bodies: Bodies::rich(),
             reader: Reader::default(),
             slots: Vec::new(),
             keys: KeyState::default(),

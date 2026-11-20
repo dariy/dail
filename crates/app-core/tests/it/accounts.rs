@@ -298,6 +298,7 @@ fn test_account_emits_verify_effect_without_mutating() {
             imap: endpoint("imap.gmail.com", 993, Security::Tls),
             smtp: endpoint("smtp.gmail.com", 465, Security::Tls),
             secret: SecretRef::for_account(id),
+            trusted: Vec::new(),
         }]
     );
     assert_eq!(engine.state(), &before);

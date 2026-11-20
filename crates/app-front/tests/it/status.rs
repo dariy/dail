@@ -180,3 +180,73 @@ fn the_language_setting_beats_the_system() {
     let title = app_front::i18n::title_in(Lang::French, app_core::CommandName::SyncNow);
     assert_eq!(title, "Synchroniser");
 }
+
+#[test]
+fn a_certificate_failure_with_an_offer_is_fixed_by_trusting_it() {
+    let mut state = synced_state();
+    let id = *state.accounts.keys().next().unwrap();
+    state.accounts[&id].status = AccountStatus::Failed {
+        error: "IMAP mail.example.org:993: TLS handshake failed: invalid peer certificate: UnknownIssuer".into(),
+        at_ms: 0,
+    };
+    // No offer yet: test again.
+    assert_eq!(problems(&state, Lang::English)[0].fix, Some(Fix::Test(id)));
+    let cert = app_core::TrustedCert {
+        der: "3082".into(),
+        sha256: "ab".repeat(32),
+        subject: "CN=mail.example.org\u{1b}[2J".into(),
+        issuer: "CN=Private CA".into(),
+        not_before_ms: 0,
+        not_after_ms: 86_400_000,
+    };
+    state.status.cert_offers.push(app_core::CertOffer {
+        account: id,
+        cert: cert.clone(),
+    });
+    assert_eq!(problems(&state, Lang::English)[0].fix, Some(Fix::Trust(id)));
+    assert_eq!(Fix::Trust(id).label(Lang::French), "faire confiance…");
+
+    // The step shows the certificate, cleaned, and choosing it trusts it.
+    let actions = app_front::actions::account_actions(&state, id);
+    let trust = actions
+        .iter()
+        .find(|e| e.label == app_front::i18n::Key::TrustCertificateDots)
+        .unwrap();
+    let app_front::palette::Flow::Ask(step) = trust.run.flow(&state) else {
+        panic!("a step");
+    };
+    let app_front::palette::AskKind::Options(options) = &step.kind else {
+        panic!("options");
+    };
+    assert!(!options[0].0.contains('\u{1b}'), "{:?}", options[0]);
+    assert!(
+        options[0].1.contains("Issued by CN=Private CA"),
+        "{:?}",
+        options[0]
+    );
+    assert!(options[0].1.contains("AB:AB:AB"), "{:?}", options[0]);
+    let done = step.answer(&state, app_front::palette::Choice::Index(0));
+    let app_front::palette::Flow::Run(cmd) = done else {
+        panic!("a command");
+    };
+    assert_eq!(
+        cmd,
+        app_core::Command::TrustCertificate {
+            account: id,
+            sha256: "ab".repeat(32),
+        }
+    );
+    assert!(
+        !actions
+            .iter()
+            .any(|e| e.label == app_front::i18n::Key::ForgetCertificateDots)
+    );
+    state.status.cert_offers.clear();
+    state.accounts[&id].trusted_certs.push(cert);
+    let actions = app_front::actions::account_actions(&state, id);
+    assert!(
+        actions
+            .iter()
+            .any(|e| e.label == app_front::i18n::Key::ForgetCertificateDots)
+    );
+}

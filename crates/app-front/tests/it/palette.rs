@@ -89,6 +89,36 @@ pub(crate) fn rich_state() -> AppState {
     );
     dispatch(&mut engine, 508, Command::OpenComposer { id: open });
     dispatch(&mut engine, 509, Command::FocusPane { pane: Pane::List });
+    // Two certificates offered by the account's server; one of them trusted (ADR 0016).
+    let imap = engine.state().accounts[&account].imap.clone();
+    for (seed, sha) in [(513u128, "a"), (514, "b")] {
+        let event = app_core::Event::CertificateOffered {
+            host: imap.host.clone(),
+            port: imap.port,
+            cert: app_core::TrustedCert {
+                der: "3082".into(),
+                sha256: sha.repeat(64),
+                subject: "CN=mail.example.org".into(),
+                issuer: "CN=mail.example.org".into(),
+                not_before_ms: 0,
+                not_after_ms: 1,
+            },
+        };
+        let ctx = Ctx {
+            now_ms: support::NOW,
+            id_seed: seed << 64,
+            origin: Origin::Runtime,
+        };
+        engine.ingest(event, &ctx).unwrap();
+    }
+    dispatch(
+        &mut engine,
+        515,
+        Command::TrustCertificate {
+            account,
+            sha256: "a".repeat(64),
+        },
+    );
     dispatch(
         &mut engine,
         512,
@@ -151,13 +181,25 @@ fn the_language_setting_offers_names_and_submits_the_value() {
     assert_eq!(step.kind, AskKind::Languages);
     let rows = palette::ask_rows(&state, &step.kind, "");
     let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
-    assert_eq!(titles, ["System", "English", "Français"]);
+    assert_eq!(
+        titles,
+        [
+            "System",
+            "English",
+            "Français",
+            "Español",
+            "Română",
+            "Português (Brasil)",
+            "Português (Portugal)",
+            "Latina"
+        ]
+    );
     let Some(Target::Choice(choice)) = rows.last().map(|r| r.target.clone()) else {
         panic!("no choice");
     };
     assert!(matches!(
         step.answer(&state, choice),
-        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 2
+        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 7
     ));
 }
 
@@ -451,4 +493,35 @@ fn empty_junk_confirms_with_the_count() {
         step.answer(&state, Choice::Yes),
         Flow::Run(Command::EmptyJunk { account: a, confirm: true }) if a == account
     ));
+}
+
+#[test]
+fn the_command_rows_are_in_the_language_of_the_session() {
+    use app_core::CommandName;
+    use app_front::i18n::Lang;
+    let state = rich_state();
+    let rows = palette::root_rows_in(&state, Lang::French);
+    let sync = rows
+        .iter()
+        .find(|r| r.target == Target::Command(CommandName::SyncNow))
+        .expect("sync_now is offered");
+    assert_eq!(sync.title, "Synchroniser");
+    assert_eq!(sync.detail, "Courrier");
+    // No row keeps the registry's English title, and every command row names its category in French.
+    let categories: Vec<&str> = [
+        app_core::Category::Mail,
+        app_core::Category::Navigation,
+        app_core::Category::Compose,
+        app_core::Category::Account,
+        app_core::Category::App,
+    ]
+    .into_iter()
+    .map(|c| app_front::i18n::text(Lang::French, app_front::i18n::category_key(c)))
+    .collect();
+    for row in &rows {
+        if let Target::Command(name) = row.target {
+            assert_eq!(row.title, app_front::i18n::title_in(Lang::French, name));
+            assert!(categories.contains(&row.detail.as_str()), "{row:?}");
+        }
+    }
 }

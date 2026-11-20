@@ -3,6 +3,7 @@
 mod accounts;
 mod approvals;
 mod backfill;
+mod certificates;
 mod draft_saves;
 mod drafts;
 mod folders;
@@ -13,6 +14,7 @@ mod mailbox_prefs;
 mod moves;
 mod outbox;
 mod pending;
+mod preload;
 mod preview;
 mod queries;
 mod rules;
@@ -343,6 +345,9 @@ impl Engine {
                 permanent,
             } => Ok(self.ingest_op_failed(op, error, permanent, ctx, receipt)),
             Event::Tick { now_ms } => Ok(self.ingest_tick(now_ms, receipt)),
+            Event::CertificateOffered { host, port, cert } => {
+                Ok(self.ingest_certificate_offered(&host, port, cert, receipt))
+            }
             Event::NetworkChanged { metered } => {
                 self.state.status.metered = metered;
                 Ok(Outcome::new(receipt.affecting(EntityRef::Status)))
@@ -707,6 +712,12 @@ impl Engine {
             ),
             Command::RemoveIdentity { account, email } => {
                 self.remove_identity(account, &email, receipt)
+            }
+            Command::TrustCertificate { account, sha256 } => {
+                self.trust_certificate(account, &sha256, receipt)
+            }
+            Command::ForgetCertificate { account, sha256 } => {
+                self.forget_certificate(account, &sha256, receipt)
             }
             Command::SetMailboxIdentity { mailbox, email } => {
                 self.set_mailbox_identity(mailbox, email, receipt)

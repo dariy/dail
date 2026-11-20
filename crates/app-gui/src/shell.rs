@@ -339,8 +339,17 @@ impl Shell {
                 ui.style_mut().visuals = theme::chrome_visuals(&t);
                 topbar::show(ui, &chrome, state, now_ms, self.lang, &mut queue)
             });
-        if let Some(account) = top.inner {
-            self.wizard.reenter(state, account);
+        match top.inner {
+            Some(app_front::status::Fix::Password(account)) => self.wizard.reenter(state, account),
+            Some(app_front::status::Fix::Trust(account)) => {
+                if let app_front::palette::Flow::Ask(step) =
+                    app_front::palette::trust_certificate(state, Some(account))
+                {
+                    self.palette.open_at(step);
+                    queue.push(Request::user(Command::OpenPalette {}));
+                }
+            }
+            _ => {}
         }
         if let Some(section) = state.view.settings {
             // The settings page takes the place of the list and the reader (UI-12).
@@ -352,7 +361,7 @@ impl Shell {
                 )
                 .show(ui, |ui| {
                     self.settings
-                        .show(ui, &t, state, section, now_ms, &mut queue)
+                        .show(ui, &t, state, section, (now_ms, self.zone), &mut queue)
                 })
                 .inner;
             if page.wizard {

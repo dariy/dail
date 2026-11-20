@@ -96,6 +96,14 @@ impl Host {
         alert: Alert,
     ) -> Result<Self, HostError> {
         let runtime = runtime()?;
+        if !config.ca_certs.is_empty() {
+            let taken = app_sync::tls::set_host_roots(&config.ca_certs);
+            tracing::info!(
+                taken,
+                offered = config.ca_certs.len(),
+                "host root certificates"
+            );
+        }
         let (session, lock) = match &config.backend {
             BackendChoice::Live => {
                 let dirs = ProfileDirs::at(&config.profile_dir);

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_sending">Envio</string>
+    <string name="sending">A enviar correio…</string>
+    <string name="channel_new_mail">Correio novo</string>
+    <string name="channel_not_sent">Não enviados</string>
+    <string name="channel_background">Segundo plano</string>
+    <string name="push_starting">A ligar às suas caixas de entrada</string>
+    <string name="failed_title">O dail deixou de funcionar</string>
+    <string name="failed_body">O seu correio e os seus rascunhos estão guardados neste dispositivo. Reinicie o dail para continuar. Para comunicar o problema, copie os diagnósticos: a versão, o dispositivo e as últimas linhas do registo. Nada é enviado automaticamente.</string>
+    <string name="failed_restart">Reiniciar</string>
+    <string name="failed_copy">Copiar diagnósticos</string>
+    <string name="failed_copied">Diagnósticos copiados</string>
+</resources>

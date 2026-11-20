@@ -404,6 +404,17 @@ pub enum Event {
         /// Diagnostic.
         error: String,
     },
+    /// A TLS handshake with `host:port` failed because no trusted root vouches for the server's
+    /// chain; `cert` is the top of the chain it sent (a self-signed certificate or a private CA),
+    /// which the user may trust for the accounts on that server (`trust_certificate`, ADR 0016).
+    CertificateOffered {
+        /// The server's host name.
+        host: String,
+        /// The server's port.
+        port: u16,
+        /// The certificate.
+        cert: crate::account::TrustedCert,
+    },
     /// A sync effect (listing, fetching) failed.
     SyncFailed {
         /// The account being synced.
@@ -490,6 +501,7 @@ impl Event {
         match self {
             Self::Tick { .. } => "tick",
             Self::NetworkChanged { .. } => "network_changed",
+            Self::CertificateOffered { .. } => "certificate_offered",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",
             Self::AccountVerified { .. } => "account_verified",
@@ -590,6 +602,9 @@ pub enum Effect {
         smtp: Endpoint,
         /// Keyring entry of the password.
         secret: SecretRef,
+        /// Certificates trusted for this account besides the usual roots, DER as hex (ADR 0016).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        trusted: Vec<String>,
     },
     /// List the account's mailboxes (IMAP `LIST` with SPECIAL-USE attributes).
     ListMailboxes {
@@ -656,6 +671,10 @@ pub enum Effect {
         uid_validity: u32,
         /// The message's UID.
         uid: u32,
+        /// A pre-load nobody waits on (unread prefetch, the selection's neighbours, MISC-29):
+        /// the runtime runs it after every other effect queued for the account.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        background: bool,
     },
     /// Send a draft: render `message` (Bcc only in the envelope), submit it over SMTP to every
     /// `To`/`Cc`/`Bcc` recipient, then `APPEND` the copy (with Bcc) to `sent_copy` if given.

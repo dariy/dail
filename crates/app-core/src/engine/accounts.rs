@@ -81,6 +81,7 @@ impl Engine {
             status: AccountStatus::Unverified,
             identities: Vec::new(),
             managesieve: None,
+            trusted_certs: Vec::new(),
         };
         self.state.accounts.insert(id, account.clone());
 
@@ -123,6 +124,7 @@ impl Engine {
             imap: account.imap.clone(),
             smtp: account.smtp.clone(),
             secret: account.secret.clone(),
+            trusted: account.imap_login().trusted,
         }))
     }
 
@@ -160,6 +162,7 @@ impl Engine {
             login: tested.email.clone(),
             imap: tested.imap.clone(),
             smtp: tested.smtp.clone(),
+            trusted: tested.imap_login().trusted,
             secret: tested.secret,
         }))
     }
@@ -304,6 +307,7 @@ impl Engine {
             }
             Event::Tick { .. }
             | Event::NetworkChanged { .. }
+            | Event::CertificateOffered { .. }
             | Event::UpdateHostDetected { .. }
             | Event::UpdateChecked { .. }
             | Event::UpdateDownloaded { .. }

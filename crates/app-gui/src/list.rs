@@ -135,6 +135,7 @@ pub fn show(
                 let checked = state.view.checked.contains(id);
                 let actions = app_front::actions::thread_actions(state, &[*id]);
                 let look = RowLook {
+                    sample: false,
                     selected,
                     open,
                     checked,
@@ -559,6 +560,8 @@ fn span_of(rows: &[ThreadId], cursor: Option<ThreadId>, to: ThreadId) -> Vec<Thr
 
 /// How a row is drawn: selection, the open thread, the keyboard cursor and the search words.
 struct RowLook<'a> {
+    /// A sample row (MISC-25): drawn, never clicked, dragged or opened.
+    sample: bool,
     selected: bool,
     checked: bool,
     tag: Option<egui::Color32>,
@@ -599,20 +602,25 @@ fn row(
     (now_ms, zone): (i64, format::Zone),
 ) -> Option<Click> {
     let (selected, open, cursor) = (look.selected, look.open, look.cursor);
-    let (rect, response) = ui.allocate_exact_size(
-        Vec2::new(ui.available_width(), density.height(t)),
-        Sense::click_and_drag(),
-    );
+    let sense = if look.sample {
+        Sense::hover()
+    } else {
+        Sense::click_and_drag()
+    };
+    let (rect, response) =
+        ui.allocate_exact_size(Vec2::new(ui.available_width(), density.height(t)), sense);
     // UX-11: dragged onto a sidebar folder, the row moves there (with the other checked rows
     // if it is checked).
-    response.dnd_set_drag_payload(Dragged {
-        account: summary.thread.account,
-        ids: if look.checked {
-            look.checked_ids.to_vec()
-        } else {
-            vec![summary.thread.id]
-        },
-    });
+    if !look.sample {
+        response.dnd_set_drag_payload(Dragged {
+            account: summary.thread.account,
+            ids: if look.checked {
+                look.checked_ids.to_vec()
+            } else {
+                vec![summary.thread.id]
+            },
+        });
+    }
     let name = a11y::thread_row(summary, look.checked, now_ms, zone);
     response.widget_info(|| {
         egui::WidgetInfo::selected(egui::Role::Button, true, selected || open, &name)
@@ -622,7 +630,7 @@ fn row(
         t,
         rect,
         ui::RowState {
-            hovered: response.contains_pointer(),
+            hovered: !look.sample && response.contains_pointer(),
             selected: open || selected || look.checked,
             cursor,
             hairline: true,
@@ -794,6 +802,9 @@ fn row(
     // cursor), and the same in its context menu. MISC-40: `contains_pointer`, not `hovered`:
     // with the pointer on an icon the icon hovers, not the row, and the icons must still be
     // drawn in that frame for the click to land.
+    if look.sample {
+        return None;
+    }
     let mut action = None;
     if response.contains_pointer() || cursor {
         action = hover_actions(ui, t, rect, look.actions);
@@ -838,6 +849,48 @@ fn row(
     } else {
         Click::Open
     })
+}
+
+/// The Appearance preview (MISC-25): the sample threads of `app_front::sample` as list rows,
+/// in the density and text size of `state`'s settings, under a caption. They do nothing.
+pub fn sample(ui: &mut Ui, t: &Tokens, state: &AppState, now: (i64, format::Zone)) {
+    let sample = app_front::sample::state(state, now.0);
+    ui.add_space(t.m.space.md);
+    ui::caption(ui, t, t.s(Key::AppearancePreview));
+    ui.add_space(t.m.space.xs);
+    let density = Density::of(state);
+    let width = ui.available_width().min(t.m.frame.sidebar * 2.5);
+    ui.allocate_ui_with_layout(Vec2::new(width, 0.0), Layout::top_down(Align::Min), |ui| {
+        ui.set_width(width);
+        ui.spacing_mut().item_spacing.y = 0.0;
+        for id in app_front::sample::threads(&sample) {
+            let Some(thread) = sample.threads.get(&id) else {
+                continue;
+            };
+            let summary = ThreadSummary::of(&sample, thread);
+            let look = RowLook {
+                sample: true,
+                selected: false,
+                checked: false,
+                tag: None,
+                open: false,
+                cursor: false,
+                marks: &[],
+                snippet: thread
+                    .messages
+                    .iter()
+                    .rev()
+                    .filter_map(|m| sample.messages.get(m))
+                    .find_map(|m| m.snippet.as_deref()),
+                mailbox: None,
+                checked_ids: &[],
+                actions: &[],
+                menu: &[],
+                menu_count: 1,
+            };
+            row(ui, t, &summary, &look, density, now);
+        }
+    });
 }
 
 /// The rows of the list and how many of them are unread.

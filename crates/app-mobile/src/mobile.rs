@@ -1561,11 +1561,7 @@ impl Mobile {
 
     fn list(&mut self, state: &AppState, tags: usize) -> List {
         let title = list_title(state);
-        let density = match state.settings.list_density {
-            1 => Density::Compact,
-            2 => Density::Preview,
-            _ => Density::Cozy,
-        };
+        let density = density_of(state);
         if state.accounts.is_empty() {
             return List {
                 title,
@@ -1590,6 +1586,7 @@ impl Mobile {
         let now = self.now_ms();
         let cursor = state.view.selected.last().copied().or(state.view.thread);
         let checking = !state.view.checked.is_empty();
+        let composing = app_front::panes::composer_open(state);
         let words = state
             .view
             .search
@@ -1614,12 +1611,19 @@ impl Mobile {
                     ids: vec![thread.id],
                 }
             };
+            // A row shows its thread even from the composer (MISC-30): the draft is kept
+            // (typed text is flushed before any tap) and the composer gives the pane back.
             let tap = if checking {
-                toggle.clone()
+                Act::Run(toggle.clone())
+            } else if composing {
+                Act::Many(vec![
+                    Command::CloseComposer {},
+                    Command::OpenThread { id: thread.id },
+                ])
             } else {
-                Command::OpenThread { id: thread.id }
+                Act::Run(Command::OpenThread { id: thread.id })
             };
-            let action = self.add(Act::Run(tap));
+            let action = self.add(tap);
             let long_press = self.add(Act::Run(toggle));
             let swipe_start = self.add(Act::Run(Command::ArchiveThreads {
                 ids: vec![thread.id],
@@ -1948,6 +1952,9 @@ impl Mobile {
                 }),
                 Fix::Test(id) => Act::Run(Command::TestAccount { id }),
                 Fix::Password(account) => Act::Reenter(account),
+                Fix::Trust(account) => {
+                    Act::Action(app_front::actions::Run::TrustCertificate(account))
+                }
             };
             Button {
                 icon: None,
@@ -2142,6 +2149,15 @@ fn split(items: Vec<(Button, bool)>, budget: usize) -> (Vec<Button>, Vec<Button>
         }
     }
     (actions, overflow)
+}
+
+/// The list's density (`list_density`).
+fn density_of(state: &AppState) -> Density {
+    match state.settings.list_density {
+        1 => Density::Compact,
+        2 => Density::Preview,
+        _ => Density::Cozy,
+    }
 }
 
 /// The texts Kotlin and Swift compose themselves.

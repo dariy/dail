@@ -3,7 +3,7 @@
 //!
 //! The texts come from the shared status projections (`app_front::status`).
 
-use app_core::{AccountId, AppState, Command, CommandName};
+use app_core::{AppState, Command, CommandName};
 use app_front::i18n::Key;
 use app_front::i18n::{self, Lang};
 use app_front::status::{self, Fix, problems, sync_text};
@@ -19,8 +19,8 @@ fn popover_id() -> egui::Id {
     egui::Id::unique("dail-status-popover")
 }
 
-/// Renders the bar with the chrome group's tokens. Returns the account whose password the user
-/// wants to enter again (a problem's fix).
+/// Renders the bar with the chrome group's tokens. Returns the problem's fix the shell runs: the
+/// password form, or the certificate step.
 pub fn show(
     ui: &mut Ui,
     t: &Tokens,
@@ -28,7 +28,7 @@ pub fn show(
     now_ms: i64,
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<AccountId> {
+) -> Option<Fix> {
     let mut password = None;
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = t.m.space.md;
@@ -140,7 +140,7 @@ fn status_chip(
     state: &AppState,
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<AccountId> {
+) -> Option<Fix> {
     let (text, alarming) = chip_text(state, lang)?;
     let color = if alarming { t.danger } else { t.text_secondary };
     let icon = if alarming {
@@ -189,7 +189,7 @@ fn details(
     state: &AppState,
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<AccountId> {
+) -> Option<Fix> {
     let mut password = None;
     let small = |text: String, color| ui::text(&t.type_scale.label_md, text, color);
     if let Some((text, failed)) = status::pending_text(state, lang) {
@@ -222,7 +222,7 @@ fn details(
                 && ui::ghost(ui, t, small(fix.label(lang), t.text_strong)).clicked()
             {
                 match fix {
-                    Fix::Password(account) => password = Some(account),
+                    Fix::Password(_) | Fix::Trust(_) => password = Some(fix),
                     Fix::Retry(account) => queue.push(Request::user(Command::SyncNow {
                         account: Some(account),
                     })),

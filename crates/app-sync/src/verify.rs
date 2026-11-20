@@ -7,16 +7,13 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use app_core::{Endpoint, Secret, Security};
+use app_core::{Endpoint, Secret};
 use lettre::transport::smtp::authentication::{Credentials, Mechanism};
-use lettre::transport::smtp::client::AsyncSmtpConnection;
-use lettre::transport::smtp::extension::ClientId;
 use rustls::ClientConfig;
 
 use crate::backend::BoxFuture;
 use crate::error::SyncError;
 use crate::imap::{self, address};
-use crate::tls;
 
 /// Default limit for one protocol check (connect + TLS + login).
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -31,13 +28,15 @@ pub trait AccountVerifier: Send + Sync + 'static {
         password: &'a Secret,
         imap: &'a Endpoint,
         smtp: &'a Endpoint,
+        trusted: &'a [String],
     ) -> BoxFuture<'a, Result<(), String>>;
 }
 
 /// Verifies against the real servers.
 #[derive(Clone)]
 pub struct NetVerifier {
-    tls: Arc<ClientConfig>,
+    /// A config for every IMAP connection instead of the account's (tests).
+    tls: Option<Arc<ClientConfig>>,
     timeout: Duration,
 }
 
@@ -50,10 +49,11 @@ impl fmt::Debug for NetVerifier {
 }
 
 impl NetVerifier {
-    /// Uses the Mozilla root certificates and [`DEFAULT_TIMEOUT`].
+    /// Verifies through [`crate::trust`] with the account's certificates, and uses
+    /// [`DEFAULT_TIMEOUT`].
     pub fn new() -> Result<Self, SyncError> {
         Ok(Self {
-            tls: tls::client_config()?,
+            tls: None,
             timeout: DEFAULT_TIMEOUT,
         })
     }
@@ -71,8 +71,10 @@ impl NetVerifier {
         endpoint: &Endpoint,
         login: &str,
         password: &Secret,
+        trusted: &[String],
     ) -> Result<(), String> {
-        let check = imap_login(&self.tls, endpoint, login, password);
+        let tls = imap::config_for(self.tls.as_ref(), endpoint, trusted)?;
+        let check = imap_login(&tls, endpoint, login, password);
         match tokio::time::timeout(self.timeout, check).await {
             Ok(result) => result,
             Err(_) => Err(format!("IMAP {}: timed out", address(endpoint))),
@@ -85,8 +87,9 @@ impl NetVerifier {
         endpoint: &Endpoint,
         login: &str,
         password: &Secret,
+        trusted: &[String],
     ) -> Result<(), String> {
-        let check = smtp_auth(endpoint, login, password, self.timeout);
+        let check = smtp_auth(endpoint, login, password, trusted);
         match tokio::time::timeout(self.timeout, check).await {
             Ok(result) => result,
             Err(_) => Err(format!("SMTP {}: timed out", address(endpoint))),
@@ -101,11 +104,12 @@ impl AccountVerifier for NetVerifier {
         password: &'a Secret,
         imap: &'a Endpoint,
         smtp: &'a Endpoint,
+        trusted: &'a [String],
     ) -> BoxFuture<'a, Result<(), String>> {
         Box::pin(async move {
             let (imap, smtp) = tokio::join!(
-                self.verify_imap(imap, login, password),
-                self.verify_smtp(smtp, login, password)
+                self.verify_imap(imap, login, password, trusted),
+                self.verify_smtp(smtp, login, password, trusted)
             );
             match (imap, smtp) {
                 (Ok(()), Ok(())) => Ok(()),
@@ -133,36 +137,9 @@ async fn smtp_auth(
     endpoint: &Endpoint,
     login: &str,
     password: &Secret,
-    timeout: Duration,
+    trusted: &[String],
 ) -> Result<(), String> {
-    let at = address(endpoint);
-    let tls = tls::smtp_parameters(&endpoint.host)
-        .map_err(|err| format!("SMTP {at}: TLS setup failed: {err}"))?;
-    let hello = ClientId::default();
-    let server = (endpoint.host.as_str(), endpoint.port);
-    let mut conn = match endpoint.security {
-        Security::Tls => {
-            AsyncSmtpConnection::connect_tokio1(server, Some(timeout), &hello, Some(tls), None)
-                .await
-                .map_err(|err| tls::with_hint(format!("SMTP {at}: connect failed: {err}"), &err))?
-        }
-        Security::StartTls => {
-            let mut conn =
-                AsyncSmtpConnection::connect_tokio1(server, Some(timeout), &hello, None, None)
-                    .await
-                    .map_err(|err| {
-                        tls::with_hint(format!("SMTP {at}: connect failed: {err}"), &err)
-                    })?;
-            conn.starttls(tls, &hello).await.map_err(|err| {
-                tls::with_hint(format!("SMTP {at}: STARTTLS failed: {err}"), &err)
-            })?;
-            conn
-        }
-    };
-    if !conn.is_encrypted() {
-        conn.abort().await;
-        return Err(format!("SMTP {at}: connection is not encrypted"));
-    }
+    let mut conn = crate::smtp::connect(endpoint, trusted).await?;
     let credentials = Credentials::new(login.to_owned(), password.expose().to_owned());
     let result = conn
         .auth(&[Mechanism::Plain, Mechanism::Login], &credentials)

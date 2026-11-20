@@ -163,6 +163,9 @@ const fn row(name: CommandName) -> Row {
         N::SetListFilter | N::RetryPendingOps | N::ClearFocus => Row(C, P, P),
         N::FocusMailbox => Row(C, C, C),
         N::RemoveAccount => Row(F, P, F),
+        // The account's actions while a server offers or the account trusts a certificate, and
+        // the certificate problem's *trust…* (ADR 0016); the TUI names the palette command.
+        N::TrustCertificate | N::ForgetCertificate => Row(F, P, F),
         // The phone's *Synced settings* group under General (TCH-7).
         N::PullSettings => Row(P, C, C),
         N::SetSettingsAccount => Row(F, F, C),

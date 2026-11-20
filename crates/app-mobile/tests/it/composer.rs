@@ -386,3 +386,43 @@ fn a_write_back_in_flight_does_not_reload_the_field() {
     assert_eq!(reloaded.text, "Lunch at one");
     assert!(reloaded.version > shown.version);
 }
+
+#[test]
+fn a_row_tapped_beside_the_composer_shows_its_thread_and_keeps_the_draft() {
+    // A tablet: the list beside the composer (MISC-30).
+    let mut phone = Phone::inbox(1000, 800);
+    let fab = phone.frame().fab.unwrap();
+    phone.tap(fab.action);
+    let id = phone.state().view.composer.unwrap();
+    text(&mut phone, Field::Subject, "Kept");
+    let frame = phone.frame();
+    assert!(
+        frame
+            .layout
+            .panes
+            .contains(&app_mobile::frame::PaneKind::Composer)
+    );
+    let row = frame.list.unwrap().rows[0].clone();
+    let commands = phone.tap(row.action);
+    assert!(
+        matches!(commands[0], Command::UpdateDraft { .. }),
+        "{commands:?}"
+    );
+    assert_eq!(
+        commands[1..],
+        [
+            Command::CloseComposer {},
+            Command::OpenThread { id: row.thread }
+        ]
+    );
+    let frame = phone.frame();
+    assert!(frame.composer.is_none());
+    assert!(
+        frame
+            .layout
+            .panes
+            .contains(&app_mobile::frame::PaneKind::Reader)
+    );
+    assert_eq!(phone.state().view.thread, Some(row.thread));
+    assert_eq!(&*phone.state().drafts[&id].subject, "Kept");
+}

@@ -414,7 +414,8 @@ pub struct Settings {
     /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px), 2 = preview
     /// (three lines with the snippet, 72 px).
     pub list_density: u64,
-    /// UI language: 0 = follow the system, 1 = English, 2 = French.
+    /// UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian,
+    /// 5 = Brazilian Portuguese, 6 = European Portuguese, 7 = Latin.
     pub language: u64,
     /// TUI colours: 0 = the terminal's own (default, ADR 0004), 1 = the active theme's roles in
     /// truecolor (UI-16).
@@ -571,6 +572,20 @@ pub struct StatusState {
     /// and history backfill wait while it is.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub metered: bool,
+    /// Certificates the user may trust for an account (ADR 0016): offered by its servers
+    /// (`Event::CertificateOffered`) or forgotten in this session, newest last (at most
+    /// `MAX_CERT_OFFERS`). `trust_certificate` takes one from here by fingerprint.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cert_offers: Vec<CertOffer>,
+}
+
+/// A certificate that `trust_certificate` may add to an account (ADR 0016).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CertOffer {
+    /// The account.
+    pub account: AccountId,
+    /// The certificate.
+    pub cert: crate::account::TrustedCert,
 }
 
 /// A stored row this version could not read, kept aside instead of dropped (STORE-6).

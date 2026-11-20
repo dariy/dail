@@ -1263,6 +1263,32 @@
       ],
       "type": "object"
     },
+    "ListPreview": {
+      "description": "Sample rows of the message list (MISC-25), drawn as the list draws its rows. They are no\none's mail and do nothing: every action of theirs is a no-op.",
+      "properties": {
+        "density": {
+          "$ref": "#/$defs/Density",
+          "description": "The list's density, as `List::density`."
+        },
+        "rows": {
+          "description": "The rows.",
+          "items": {
+            "$ref": "#/$defs/Row"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "The caption (`Preview`).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "density",
+        "rows"
+      ],
+      "type": "object"
+    },
     "MessageId": {
       "description": "One message copy, i.e. one `(mailbox, uid)` pair.",
       "format": "uuid",
@@ -2238,6 +2264,17 @@
             "$ref": "#/$defs/SettingsGroup"
           },
           "type": "array"
+        },
+        "preview": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListPreview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Under *Appearance*: sample rows of the message list in the chosen density (MISC-25)."
         },
         "section": {
           "description": "The open section (`accounts`, `rules`, `appearance`, `general`, `notifications`,\n`keys`), or `index` at the root of a compact window.",

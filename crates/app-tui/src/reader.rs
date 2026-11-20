@@ -16,6 +16,7 @@ use app_front::{fold, format, format::Zone, mailbox::mailbox_name};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 
+use crate::document::{self, Row, wrap_row};
 use crate::text::{clean, clean_lines, wrap};
 use crate::view::{bold, dim};
 
@@ -131,18 +132,18 @@ fn wrapped(
         );
     };
     let mut marked = None;
-    let mut out: Vec<(String, Style)> = Vec::new();
+    let mut out: Vec<Row> = Vec::new();
     let subject = match thread.subject.trim() {
         "" => s(Key::NoSubject).to_owned(),
         s => clean(s),
     };
-    out.push((subject, bold()));
+    out.push(Row::plain(subject, bold()));
     for message in thread
         .messages
         .iter()
         .filter_map(|id| state.messages.get(id))
     {
-        out.push((String::new(), Style::default()));
+        out.push(Row::plain(String::new(), Style::default()));
         let start = out.len();
         if listing::is_expanded(state, thread, message) {
             message_lines(
@@ -153,31 +154,44 @@ fn wrapped(
                 &mut out,
             );
         } else {
-            out.push((
+            out.push(Row::plain(
                 collapsed_line(message, bodies.get(message.id), now_ms),
                 dim(),
             ));
         }
         if cursor == Some(message.id) {
             marked = Some(start);
-            if let Some((text, style)) = out.get_mut(start) {
+            if let Some((text, style)) = out.get_mut(start).and_then(|r| r.runs.first_mut()) {
                 *text = format!("▶ {}", text.trim_start_matches("▸ "));
                 *style = bold();
             }
-            out.insert(start + 1, (actions_line(state, message.id), bold()));
+            out.insert(
+                start + 1,
+                Row::plain(actions_line(state, message.id), bold()),
+            );
         }
     }
     let mut row = None;
     let mut lines = Vec::new();
-    for (index, (text, style)) in out.into_iter().enumerate() {
+    for (index, line) in out.into_iter().enumerate() {
         if marked == Some(index) {
             row = Some(lines.len());
         }
-        lines.extend(
-            wrap(&text, width)
-                .into_iter()
-                .map(|piece| Line::from(Span::styled(piece, style))),
-        );
+        match line.runs.as_slice() {
+            [(text, style)] if line.hang.is_empty() => lines.extend(
+                wrap(text, width)
+                    .into_iter()
+                    .map(|piece| Line::from(Span::styled(piece, *style))),
+            ),
+            [] => lines.push(Line::default()),
+            _ => lines.extend(wrap_row(&line, width).into_iter().map(|runs| {
+                Line::from(
+                    runs.into_iter()
+                        .map(|(text, style)| Span::styled(text, style))
+                        .collect::<Vec<_>>(),
+                )
+            })),
+        }
     }
     (lines, row)
 }
@@ -230,20 +244,20 @@ fn message_lines(
     message: &Envelope,
     body: Option<&Body>,
     (now_ms, zone): (i64, Zone),
-    out: &mut Vec<(String, Style)>,
+    out: &mut Vec<Row>,
 ) {
     let from = message
         .from
         .first()
         .map_or_else(|| s(Key::NoSender).to_owned(), |a| clean(&format::full(a)));
-    out.push((f(Key::FromHeader, &[("from", &from)]), bold()));
+    out.push(Row::plain(f(Key::FromHeader, &[("from", &from)]), bold()));
     for (label, addrs) in [(s(Key::ToLabel), &message.to), ("Cc", &message.cc)] {
         if !addrs.is_empty() {
             let list: Vec<String> = addrs.iter().map(|a| clean(&format::full(a))).collect();
-            out.push((format!("{label}: {}", list.join(", ")), dim()));
+            out.push(Row::plain(format!("{label}: {}", list.join(", ")), dim()));
         }
     }
-    out.push((
+    out.push(Row::plain(
         f(
             Key::DateLabel,
             &[
@@ -256,7 +270,7 @@ fn message_lines(
     if let Some(mailbox) = state.mailboxes.get(&message.location())
         && mailbox.role != Some(MailboxRole::Inbox)
     {
-        out.push((
+        out.push(Row::plain(
             f(
                 Key::DateLine,
                 &[("mailbox", &clean(&mailbox_name(mailbox)))],
@@ -264,26 +278,30 @@ fn message_lines(
             dim(),
         ));
     }
-    out.push((String::new(), Style::default()));
+    out.push(Row::plain(String::new(), Style::default()));
     match (&message.body, body) {
         (_, Some(body)) => body_lines(body, out),
-        (BodyState::Failed { error }, None) => {
-            out.push((f(Key::BodyFailed, &[("error", &clean(error))]), bold()))
-        }
-        _ => out.push((s(Key::Loading).to_owned(), dim())),
+        (BodyState::Failed { error }, None) => out.push(Row::plain(
+            f(Key::BodyFailed, &[("error", &clean(error))]),
+            bold(),
+        )),
+        _ => out.push(Row::plain(s(Key::Loading).to_owned(), dim())),
     }
 }
 
-fn body_lines(body: &Body, out: &mut Vec<(String, Style)>) {
-    if body.text.trim().is_empty() {
-        out.push((s(Key::NoText).to_owned(), dim()));
-    } else {
-        let lines = clean_lines(body.text.trim_end());
-        out.extend(lines.into_iter().map(|l| (l, Style::default())));
+fn body_lines(body: &Body, out: &mut Vec<Row>) {
+    match &body.document {
+        // A body read as a document (MISC-28b): reflowed blocks, links numbered `[n]`.
+        Some(doc) if !doc.blocks.is_empty() => out.extend(document::rows(doc)),
+        _ if body.text.trim().is_empty() => out.push(Row::plain(s(Key::NoText).to_owned(), dim())),
+        _ => {
+            let lines = clean_lines(body.text.trim_end());
+            out.extend(lines.into_iter().map(|l| Row::plain(l, Style::default())));
+        }
     }
     if !body.attachments.is_empty() {
-        out.push((String::new(), Style::default()));
-        out.push((
+        out.push(Row::plain(String::new(), Style::default()));
+        out.push(Row::plain(
             f(
                 Key::AttachmentsCount,
                 &[("n", &body.attachments.len().to_string())],
@@ -291,7 +309,7 @@ fn body_lines(body: &Body, out: &mut Vec<(String, Style)>) {
             bold(),
         ));
         for a in &body.attachments {
-            out.push((
+            out.push(Row::plain(
                 format!(
                     "  {} · {} · {}",
                     clean(&a.name),
@@ -302,18 +320,48 @@ fn body_lines(body: &Body, out: &mut Vec<(String, Style)>) {
             ));
         }
     }
-    let links = links(&body.text);
+    let links = link_rows(body);
     if !links.is_empty() {
-        out.push((String::new(), Style::default()));
-        out.push((
+        out.push(Row::plain(String::new(), Style::default()));
+        out.push(Row::plain(
             f(Key::LinksCount, &[("n", &links.len().to_string())]),
             bold(),
         ));
-        // The full target, wrapped rather than cut: what you see is where it goes.
-        out.extend(
-            links
-                .into_iter()
-                .map(|url| (format!("  {}", clean(&url)), dim())),
-        );
+        out.extend(links);
     }
+}
+
+/// The *Links* rows: a document's numbered links as `[n] url — title`, else the targets found
+/// in the text. The full target, wrapped rather than cut: what you see is where it goes.
+fn link_rows(body: &Body) -> Vec<Row> {
+    let notes = body
+        .document
+        .as_ref()
+        .map(app_core::document::Document::notes)
+        .unwrap_or_default();
+    if notes.is_empty() {
+        return links(&body.text)
+            .into_iter()
+            .map(|url| Row::plain(format!("  {}", clean(&url)), dim()))
+            .collect();
+    }
+    notes
+        .into_iter()
+        .map(|note| {
+            let marker = format!("[{}]", note.number);
+            let indent = " ".repeat(crate::text::width(&marker) + 3);
+            let mut runs = vec![
+                ("  ".to_owned(), Style::default()),
+                (marker, document::marker_style(Style::default())),
+                (format!(" {}", clean(&note.url)), dim()),
+            ];
+            if !note.title.is_empty() {
+                runs.push((format!(" — {}", clean(&note.title)), dim()));
+            }
+            Row {
+                runs,
+                hang: vec![(indent, Style::default())],
+            }
+        })
+        .collect()
 }

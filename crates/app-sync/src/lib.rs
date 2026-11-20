@@ -25,6 +25,7 @@ pub mod session;
 pub mod settings;
 pub mod smtp;
 pub mod tls;
+pub mod trust;
 pub mod verify;
 
 /// Image decoding with the shared limits (`app_io::images`), for the front-ends that reach

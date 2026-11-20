@@ -299,7 +299,7 @@ impl LiveBackend {
     async fn open_imap(&self, login: &ImapLogin) -> Result<ImapSession, String> {
         let password = self.password(login.secret.clone()).await?;
         self.imap
-            .connect(&login.server, &login.login, &password)
+            .connect(&login.server, &login.login, &password, &login.trusted)
             .await
     }
 
@@ -442,9 +442,14 @@ impl LiveBackend {
                 imap,
                 smtp,
                 secret,
+                trusted,
             } => {
                 let result = match self.password(secret).await {
-                    Ok(password) => self.verifier.verify(&login, &password, &imap, &smtp).await,
+                    Ok(password) => {
+                        self.verifier
+                            .verify(&login, &password, &imap, &smtp, &trusted)
+                            .await
+                    }
                     Err(err) => Err(err),
                 };
                 Ok(vec![match result {
@@ -602,6 +607,7 @@ impl LiveBackend {
                 imap,
                 uid_validity,
                 uid,
+                background: _,
             } => {
                 let raw = self
                     .with_imap(account, &imap, move |session| {
@@ -1015,7 +1021,19 @@ impl Backend for LiveBackend {
     }
 
     fn execute(&self, effect: Effect) -> BoxFuture<'_, Result<Vec<Event>, SyncError>> {
-        Box::pin(self.run(effect))
+        Box::pin(async move {
+            let result = self.run(effect).await;
+            // Certificates the servers offered on the way (ADR 0016), reported even when the
+            // effect failed.
+            let offers = crate::trust::take_offers();
+            if offers.is_empty() {
+                return result;
+            }
+            result.map(|mut events| {
+                events.extend(offers);
+                events
+            })
+        })
     }
 
     fn get_blob<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Vec<u8>>, SyncError>> {

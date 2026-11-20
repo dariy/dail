@@ -32,7 +32,7 @@ pub mod update;
 
 pub use account::{
     Account, AccountStatus, Endpoint, Identity, ImapLogin, PresetProfile, ProviderPreset, Secret,
-    SecretRef, Security, ServerDefault, SmtpLogin,
+    SecretRef, Security, ServerDefault, SmtpLogin, TrustedCert,
 };
 pub use approval::ApprovalRequest;
 pub use command::{Command, CommandKind, SettingKey, ThemeMode};
@@ -60,9 +60,10 @@ pub use replay::{ReplayInput, ReplayRecord, ReplayStep, StepResult};
 pub use rules::{Placement, RulePlan, Scope};
 pub use search::{Query, SearchOrder};
 pub use state::{
-    AppState, AttachmentSave, Compaction, DiscoveredServers, Discovery, FocusTarget, IndexSearch,
-    KeyPreset, ListFilter, Pane, QuarantinedRow, Revision, SaveState, ServerSearch, Settings,
-    SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState, WatchState,
+    AppState, AttachmentSave, CertOffer, Compaction, DiscoveredServers, Discovery, FocusTarget,
+    IndexSearch, KeyPreset, ListFilter, Pane, QuarantinedRow, Revision, SaveState, ServerSearch,
+    Settings, SettingsSection, StatusState, SyncIssue, SyncStatus, ViewPrefs, ViewState,
+    WatchState,
 };
 pub use synced::{
     Condition, LocalSettings, Rule, RuleAction, RuleEntry, SETTINGS_MAX_BYTES, SETTINGS_SCHEMA,

@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import net.darii.dail.ui.Answer
 import net.darii.dail.ui.External
@@ -19,6 +21,7 @@ import net.darii.dail.ui.Frame
 import net.darii.dail.ui.FrameTheme
 import net.darii.dail.ui.UiEvent
 import net.darii.dail.ui.contract
+import java.security.KeyStore
 import java.util.concurrent.Executors
 
 /**
@@ -68,6 +71,7 @@ class Host(
                             .toLanguageTag(),
                     )
                     put("version", BuildConfig.VERSION_NAME)
+                    putJsonArray("ca_certs") { caCertificates().forEach { add(it) } }
                 }
             val answer = contract.parseToJsonElement(Native.open(config.toString(), listener, context)).jsonObject
             val opened = (answer["handle"] as? JsonPrimitive)?.content?.toIntOrNull()
@@ -187,6 +191,18 @@ class Host(
             }
         }
     }
+
+    /**
+     * The certificates of `AndroidCAStore` as hex DER: the system's roots and the CAs the user installed (ADR 0016).
+     * Empty if the store cannot be read.
+     */
+    private fun caCertificates(): List<String> =
+        runCatching {
+            val store = KeyStore.getInstance("AndroidCAStore").apply { load(null) }
+            store.aliases().toList().mapNotNull { alias ->
+                store.getCertificate(alias)?.encoded?.joinToString("") { "%02x".format(it) }
+            }
+        }.getOrDefault(emptyList())
 
     private fun error(answer: JsonObject) = (answer["error"] as? JsonPrimitive)?.content ?: answer.toString()
 }

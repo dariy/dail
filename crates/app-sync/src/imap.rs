@@ -43,13 +43,15 @@ pub trait ImapConnector: Send + Sync + 'static {
         server: &'a Endpoint,
         login: &'a str,
         password: &'a Secret,
+        trusted: &'a [String],
     ) -> BoxFuture<'a, Result<ImapSession, String>>;
 }
 
-/// Connects to real servers over TLS (or STARTTLS) with the Mozilla roots.
+/// Connects to real servers over TLS (or STARTTLS), verified by [`crate::trust`].
 #[derive(Clone)]
 pub struct NetImap {
-    tls: Arc<ClientConfig>,
+    /// A config for every connection instead of each account's (tests).
+    tls: Option<Arc<ClientConfig>>,
     timeout: Duration,
 }
 
@@ -62,15 +64,19 @@ impl fmt::Debug for NetImap {
 }
 
 impl NetImap {
-    /// Uses the Mozilla root certificates and [`CONNECT_TIMEOUT`].
+    /// Verifies through [`crate::trust`] with each account's certificates, and uses
+    /// [`CONNECT_TIMEOUT`].
     pub fn new() -> Result<Self, SyncError> {
-        Ok(Self::with_tls(tls::client_config()?))
+        Ok(Self {
+            tls: None,
+            timeout: CONNECT_TIMEOUT,
+        })
     }
 
-    /// Uses the given TLS configuration.
+    /// Uses the given TLS configuration for every connection (tests).
     pub fn with_tls(tls: Arc<ClientConfig>) -> Self {
         Self {
-            tls,
+            tls: Some(tls),
             timeout: CONNECT_TIMEOUT,
         }
     }
@@ -83,15 +89,30 @@ impl NetImap {
     }
 }
 
+/// The config of a connection to `server` for an account that trusts `trusted`, unless `fixed`.
+pub fn config_for(
+    fixed: Option<&Arc<ClientConfig>>,
+    server: &Endpoint,
+    trusted: &[String],
+) -> Result<Arc<ClientConfig>, String> {
+    match fixed {
+        Some(tls) => Ok(Arc::clone(tls)),
+        None => crate::trust::account_config(server.port, trusted)
+            .map_err(|err| format!("IMAP {}: TLS setup failed: {err}", address(server))),
+    }
+}
+
 impl ImapConnector for NetImap {
     fn connect<'a>(
         &'a self,
         server: &'a Endpoint,
         login: &'a str,
         password: &'a Secret,
+        trusted: &'a [String],
     ) -> BoxFuture<'a, Result<ImapSession, String>> {
         Box::pin(async move {
-            let open = connect_login(&self.tls, server, login, password);
+            let tls = config_for(self.tls.as_ref(), server, trusted)?;
+            let open = connect_login(&tls, server, login, password);
             match tokio::time::timeout(self.timeout, open).await {
                 Ok(result) => result,
                 Err(_) => Err(format!("IMAP {}: timed out", address(server))),

@@ -402,3 +402,128 @@ fn stale_or_foreign_flag_resyncs_are_ignored() {
         Event::SyncFailed { mailbox: Some(m), .. } if m == archive
     ));
 }
+
+/// Ten read INBOX threads (no unread prefetch), the mailbox open; the rows newest first.
+fn read_inbox() -> (Engine, Vec<app_core::ThreadId>) {
+    let (mut engine, account, inbox, _) = setup();
+    let envelopes = (1..=10).map(|uid| remote(uid, true)).collect();
+    engine
+        .ingest(fetched(account, inbox, envelopes), &ctx(3))
+        .unwrap();
+    let user = Ctx {
+        origin: Origin::Cli,
+        ..ctx(4)
+    };
+    let out = engine
+        .dispatch(Command::OpenMailbox { id: inbox }, &user)
+        .unwrap();
+    // Opening the mailbox pre-loads its first three rows: UIDs 10, 9, 8.
+    let uids: Vec<u32> = of_kind(&out.effects, "fetch_body")
+        .iter()
+        .map(|e| match e {
+            Effect::FetchBody {
+                uid, background, ..
+            } => {
+                assert!(*background);
+                *uid
+            }
+            _ => unreachable!(),
+        })
+        .collect();
+    assert_eq!(uids, vec![10, 9, 8]);
+    let rows = app_core::listing::visible_threads(engine.state());
+    (engine, rows)
+}
+
+fn preloaded(effects: &[Effect]) -> Vec<u32> {
+    effects
+        .iter()
+        .filter_map(|e| match e {
+            Effect::FetchBody {
+                uid,
+                background: true,
+                ..
+            } => Some(*uid),
+            _ => None,
+        })
+        .collect()
+}
+
+fn select(engine: &mut Engine, thread: app_core::ThreadId) -> Vec<Effect> {
+    let user = Ctx {
+        origin: Origin::Cli,
+        ..ctx(5)
+    };
+    engine
+        .dispatch(Command::SelectThreads { ids: vec![thread] }, &user)
+        .unwrap()
+        .effects
+}
+
+#[test]
+fn moving_down_preloads_three_rows_below_and_one_above() {
+    let (mut engine, rows) = read_inbox();
+    // Row 4 is UID 6 itself; below are 5, 4, 3, above is 7 (8 is in flight already).
+    let effects = select(&mut engine, rows[4]);
+    assert_eq!(preloaded(&effects), vec![6, 5, 7, 4, 3]);
+    // The next row down: only UID 2 is new.
+    assert_eq!(preloaded(&select(&mut engine, rows[5])), vec![2]);
+}
+
+#[test]
+fn moving_up_preloads_the_rows_above() {
+    let (mut engine, rows) = read_inbox();
+    // The last row, UID 1: nothing below, UID 2 behind.
+    assert_eq!(preloaded(&select(&mut engine, rows[9])), vec![1, 2]);
+    // Up to UID 4 (row 6): ahead are UIDs 5, 6, 7 (above), behind is UID 3.
+    let effects = select(&mut engine, rows[6]);
+    assert_eq!(preloaded(&effects), vec![4, 5, 3, 6, 7]);
+}
+
+#[test]
+fn nothing_is_preloaded_while_metered() {
+    let (mut engine, account, inbox, _) = setup();
+    engine
+        .ingest(Event::NetworkChanged { metered: true }, &ctx(3))
+        .unwrap();
+    let envelopes = (1..=10).map(|uid| remote(uid, true)).collect();
+    engine
+        .ingest(fetched(account, inbox, envelopes), &ctx(4))
+        .unwrap();
+    let user = Ctx {
+        origin: Origin::Cli,
+        ..ctx(5)
+    };
+    let out = engine
+        .dispatch(Command::OpenMailbox { id: inbox }, &user)
+        .unwrap();
+    assert!(preloaded(&out.effects).is_empty());
+    let rows = app_core::listing::visible_threads(engine.state());
+    assert!(preloaded(&select(&mut engine, rows[3])).is_empty());
+}
+
+#[test]
+fn opening_a_thread_fetches_it_in_front_and_its_neighbours_behind() {
+    let (mut engine, rows) = read_inbox();
+    let user = Ctx {
+        origin: Origin::Cli,
+        ..ctx(6)
+    };
+    let out = engine
+        .dispatch(Command::OpenThread { id: rows[5] }, &user)
+        .unwrap();
+    let all: Vec<(u32, bool)> = out
+        .effects
+        .iter()
+        .filter_map(|e| match e {
+            Effect::FetchBody {
+                uid, background, ..
+            } => Some((*uid, *background)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        all,
+        vec![(5, false), (4, true), (6, true), (3, true), (2, true)]
+    );
+}

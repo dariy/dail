@@ -54,7 +54,7 @@ impl SettingsState {
         t: &Tokens,
         state: &AppState,
         section: SettingsSection,
-        now_ms: i64,
+        (now_ms, zone): (i64, app_front::format::Zone),
         queue: &mut Vec<Request>,
     ) -> SettingsActions {
         // The phone's own sections (TCH-6): notifications are General's here, and the root
@@ -113,7 +113,10 @@ impl SettingsState {
             .show(ui, |ui| {
                 ui.set_max_width(t.m.frame.text_width_max + t.m.frame.sidebar);
                 match section {
-                    SettingsSection::Appearance => appearance(ui, t, state, queue),
+                    SettingsSection::Appearance => {
+                        appearance(ui, t, state, queue);
+                        crate::list::sample(ui, t, state, (now_ms, zone));
+                    }
                     SettingsSection::Keys => {
                         actions.ask = keys(ui, t, state, &mut self.filter, queue);
                     }

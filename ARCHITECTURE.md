@@ -538,7 +538,8 @@ into ranges (`1:3,7`); `create` first sends `CREATE` and ignores its failure (us
 retried on a fresh session once, like every mail effect).
 `SmtpSend` renders the message twice (`app_sync::outgoing::render`: quoted blob from the store, attachments read from disk):
 without `Bcc` for submission and with it for the Sent copy. Submission goes through an `SmtpSender` (`NetSmtp` by default,
-`LiveBackend::with_smtp` for tests): lettre over rustls with webpki roots, `tls` = TLS wrapper, `starttls` = STARTTLS required,
+`LiveBackend::with_smtp` for tests): lettre's SMTP dialogue over dail's own TLS stream (`app_sync::smtp::connect`, verified
+like IMAP, ADR 0016; for `starttls` dail sends `EHLO` and `STARTTLS` itself before the handshake), `tls` = TLS wrapper, `starttls` = STARTTLS required,
 AUTH PLAIN/LOGIN with the keyring password, `MAIL FROM` the account address and `RCPT TO` every To/Cc/Bcc address once,
 120 s timeout; errors read `SMTP host:port: …` and never contain the password. A refused or failed submission is
 `SendFailed` (nothing is stored). After acceptance the copy is `APPEND`ed to `sent_copy` with `(\Seen)`; its failure becomes
@@ -611,7 +612,11 @@ first value is the engine's state after `Engine::new` (which re-queues running o
 4. Bodies are lazy: `FetchBody` runs when a thread is opened (`open_thread`, which records it in `status.bodies_in_flight`), for
    `get_thread`/`get_message` with `include_body` (a Query: the download is not recorded, but one already in flight is not
    repeated) and as a prefetch of the newest 20 unread INBOX messages
-   without a body after each INBOX `EnvelopesFetched`. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
+   without a body after each INBOX `EnvelopesFetched`. Navigation pre-loads too (MISC-29, `engine/preload.rs`): after
+   `select_threads` and `open_thread`, the selected thread, the 3 rows ahead in the direction of travel and the 1 row
+   behind; after `open_mailbox` and `open_unified_inbox`, the first 3 rows; at most 8 messages per navigation, newest
+   message of a thread first. Prefetch and pre-load effects carry `background: true`: each account's worker in
+   `app-sync` runs them only when nothing else is queued on its lane, so a body the user opens goes first. The prefetch skips bodies over 1 MiB (`PREFETCH_MAX_BYTES`, by
    `RFC822.SIZE`), and neither it nor history backfill runs while `status.metered` (STORE-8): Android reports the
    default network's metered state as `UiEvent::Network`, which the host ingests as `Event::NetworkChanged`, and
    before each background job; the next fetch after the network is unmetered catches up. `status.bodies_in_flight` prevents duplicate requests. The runtime
@@ -751,9 +756,14 @@ ManageSieve (RFC 5804, SET-8): `PresetProfile::managesieve` is the preset's defa
 `config.toml` (`[account.managesieve]` with `host`, `port` (usually 4190), `security = "starttls"`), e.g. a self-hosted
 Dovecot; `Account::managesieve()` returns that, else the preset's. Absent from older configs and golden profiles: `None`.
 
-TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
-(`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
-lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
+TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`). The roots (ADR 0016) are
+`webpki-roots`, the OS store on the desktop (`rustls-native-certs`, read once per process), and the certificates the
+host passes in `Config.ca_certs` (Android's `AndroidCAStore`, with the user's CAs; iOS lists none)
+(`app_sync::tls::client_config`). Account connections (IMAP, SMTP) verify through `app_sync::trust`: the roots plus the
+account's `trusted_certs` as extra anchors, else a trusted certificate's exact SHA-256 with its host name and dates still
+checked (a self-signed certificate is often marked as a CA, so it cannot be its own anchor); a chain no root vouches for
+leaves its top certificate as `Event::CertificateOffered`, which `LiveBackend::execute` appends to the effect's events and
+the engine keeps in `status.cert_offers` for the accounts on that server. Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
 the build compiles C: `deny.toml` bans `ring`, and `cc` only appears under crates that build nothing with it.
 
 app-tls is the glue a TLS client needs, in safe Rust, over audited or widely used crates (ADR 0014:
@@ -789,9 +799,12 @@ quotes, fenced and indented code, rules, `**strong**`, `*em*`, `` `code` ``, `~~
 the signature and quoted text with `app_core::fold`. `Document::number_links` gives each target a number at its first
 appearance and puts it on the last span of each link as `Span::note`; a link whose text is its target (a bare URL)
 loses the text. Readers draw the note as a marker of its own, never text, so a sender's `(1)` cannot pass for one: the
-GUI as a raised label, Android as a superscript span (`DocSpan::note`). *Links* lists `Document::notes()`: `¹ url —
-title`. The CLI and MCP keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the
-number in `note`.
+GUI as a raised label, Android as a superscript span (`DocSpan::note`), iOS as a raised run of the attributed text
+(MISC-28b), the TUI as a run `[n]` of its own, bold and underlined (the link colour once `tui_colors` is on; the link's
+text is underlined). *Links* lists `Document::notes()`: `¹ url — title` (the TUI: `[n] url — title`). The TUI asks for
+documents too (`Bodies::rich`) and draws them with `app_tui::document`: blocks one blank row apart, paragraphs wrapped
+to the pane, lists and quotes hanging, folds shown dimmed below their label (it has no fold toggle). The CLI and MCP
+keep the text as it was, and a `rich_body` document keeps the real URL in `link` with the number in `note`.
 
 ### 5.4 Single instance & IPC attach
 One process owns a profile at a time: it holds `profile_dir/lock` (`ProfileLock`, an exclusive `File::try_lock`, released by
@@ -961,9 +974,16 @@ steps + final state with `insta` and checks that replaying twice is identical.
 ## 7. Front-ends
 
 **Strings and languages** (`app_front::i18n`): the texts of the front-ends are keys of a strings table
-(`i18n/table.rs`: one row per `i18n::Key` with its English and French templates, `{name}` placeholders filled by
+(`i18n/table.rs`: one row per `i18n::Key` with its English, French, Spanish, Romanian, Brazilian Portuguese, European Portuguese and Latin templates, `{name}` placeholders filled by
 `i18n::tr`; `i18n::text` is the plain `&'static str` lookup). Command titles have an exhaustive table
-(`i18n/commands.rs`, read through `i18n::title`). The `language` setting (0 = system, 1 = English, 2 = French; every front-end offers these by name, from `i18n::languages`) picks
+(`i18n/commands.rs`, read through `i18n::title`; the one-sentence help there too). Engine errors and undo labels are
+translated in `i18n/engine.rs`, one column per language. Spanish uses the informal *tú* of most Spanish mail apps,
+Romanian the formal imperative and the comma-below letters ș ț (a test refuses the cedilla forms). Brazilian
+Portuguese uses *você*; European Portuguese the Portugal norm (*ficheiro*, *ecrã*, "A enviar…"); a bare `pt` tag is
+Brazilian. Latin is Neo-Latin UI vocabulary (*epistula*, *capsa*, *ratio*). Android's own strings are in `values-fr`,
+`values-es`, `values-ro`, `values-pt` (Brazilian), `values-pt-rPT` and `values-la`. The `language` setting (0 =
+system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian, 5 = Brazilian Portuguese, 6 = European Portuguese, 7 =
+Latin; every front-end offers these by name, from `i18n::languages`) picks
 the language: each front-end resolves it per frame (`Lang::resolve`, the system being `$DAIL_LANG`, the POSIX locale
 variables, or the device's locale) and calls `i18n::set_current`; code with no `Lang` at hand uses `i18n::s`/`f`.
 The GUI also carries it on `Tokens` (`t.s`, `t.f`). Kotlin and Swift compose a few texts themselves and read them
@@ -1066,7 +1086,9 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
 - **Settings page** (UI-12, `app_gui::settings`): while `view.settings` is set it replaces the list and the reader;
   the sidebar and the top bar stay. A title with the version, tabs (Appearance, Keyboard, General, Accounts, Rules, About; a click
   runs `open_settings` with that section; the phone's `notifications` shows General and `index` Appearance), then the section. Appearance: the mode as a segmented control and the
-  light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`).
+  light and dark themes as cards with a small preview (`set_theme`), density and text size (`set_setting`), then a
+  preview: the sample threads of `app_front::sample` (a state of their own, no one's mail) drawn by the list's `row`,
+  inert, in the density and text size chosen (MISC-25).
   Keyboard: the preset (`set_key_preset`), a filter, and every bound command by category with its first doc sentence
   and key caps; *Change…* opens the palette at `set_keybinding`. General: undo-send window, polling, notifications
   (a switch), undo history (`set_setting`). Accounts: a card per account with `app_front::actions::account_actions`
@@ -1371,8 +1393,9 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   keep it visible.
 - **Reader** (`app_tui::reader`): the open thread, oldest message first; a collapsed message (`listing::is_expanded`,
   §7.1) is one line `▸ From · age · text`, the others come with `From`, `To`, `Cc`, `Date` (and the
-  folder outside the inbox), the text, *Attachments (N)* and *Links (N)* with their full targets — wrapped, never cut
-  (`text::wrap`, by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
+  folder outside the inbox), the text (the body's `Document`, §5.3 *Reading bodies*; plain text when it has none),
+  *Attachments (N)* and *Links (N)* with their full targets — wrapped, never cut (`text::wrap`, `document::wrap_row`,
+  by display width). Bodies come from the shared body tracking: before each frame `Tui::refresh` returns
   the background `get_thread {include_body: true}` (`Purpose::Bodies`) when the open thread or a body state changed.
   Space/PageDown and `b`/PageUp page (one screen less a line), ↑/↓ scroll when the reader is the only pane or has the
   focus; `j`/`k` still move between threads. A new thread starts at the top. The message cursor (MISC-44, TUI-local
@@ -1552,7 +1575,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   first tab, `sections` is empty and Back closes the settings as before. A section's `groups` of rows: a row has a
   label, its value and `choices` (segmented buttons: a tap is `set_setting`, `set_theme` or `set_key_preset`, so no
   number is typed) or `actions`. Appearance: the mode, the light and dark themes of `app_theme::builtin`, the list
-  density. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
+  density, and `preview` (MISC-25): `app_front::sample`'s threads as list `Row`s with no-op actions, in the list's
+  density; Kotlin and Swift draw them with their list-row views. Keyboard: the key preset, *Change a key…* (the palette at `set_keybinding`), and every binding that Android
   delivers. General: the undo window, the poll interval, the first fetch and *Mark as read after* (`mark_read_after_ms`: never, immediately, 2 s, 5 s; MISC-47).
   *Notifications & background* (`open_settings notifications`): the *Background & notifications* group
   (`background_sync`, the interval unless 0, `notifications`, and *Battery optimization* and *Notification settings*:
@@ -2016,7 +2040,8 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   as Android's thread, and publishes `Screen` (opening / ready / failed) on the main actor; a wake takes the frame.
   `RootView` sends `configure` (points as dp; the Dynamic Type size as the font scale) on every size or look change,
   and the app `visible` on scene changes. `FrameView` draws the top or bulk bar, the banner, the layout's panes in a
-  row (drawer, list, reader), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
+  row (drawer, list, reader, composer: `ComposerView.swift`, MISC-30, whose fields reload only on a new `version`,
+  settings with the Appearance preview), the snackbar (undo) and the floating button; the drawer of compact windows is a sheet
   whose dismissal is Back. `ListPane` keeps Android's window (`total` rows, placeholders outside `offset…`), reports
   `scrolled` from the rows on screen, and maps tap, long press, both swipes and pull to refresh to their events.
   `ReaderPane` draws `DocBlock`s as text: untrusted text is always verbatim (never Markdown), a link span is a
@@ -2093,6 +2118,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `pin_mailbox` / `unpin_mailbox` / `hide_mailbox` / `show_mailbox` | Mutation | `id` → `{mailbox, pinned, hidden, changed}`; settings `pinned_mailboxes` (in pinned order) and `hidden_mailboxes`, kept as `{account, path}` (they survive a rebuilt cache), saved in `config.toml`; repeating changes and records nothing; undo is the opposite command (an unpinned folder comes back last). Pinned folders form a *Favourites* section above the accounts (`app_front::mailbox::favourites`); hidden ones and their subfolders leave the tree (`visible_rows`) but stay in search, *Move to…* and behind the GUI's per-account *Show hidden (n)* toggle; agents allowed | UX-8 |
 | `show_images_from` / `hide_images_from` | Mutation | `sender` (an address, kept in lower case in `settings.images_from`, saved in `config.toml`) → `{sender, showing, changed}`; repeating it changes and records nothing; the reader draws those senders' inline `cid:` images, never remote ones | Wave 2 |
 | `list_contacts` | Query | `query = "", limit = 50 (1–500)` → `{contacts: [{count, last_ms, written_to, untrusted_content: {email, name}}]}`: senders and recipients of the cached mail but the accounts' own addresses, the ones you wrote to first, then by count and recency (`listing::contacts`) | Wave 2 |
+| `trust_certificate` / `forget_certificate` | Mutation (trust: user only, §9) | `account, sha256`: trust a certificate of `status.cert_offers` for the account (saved with it, `[[account.trusted_cert]]`; then `VerifyAccount`) / stop trusting one (it goes back to the offers); undoable (ADR 0016) | CA-2 |
 | `set_identity` / `remove_identity` | Mutation (user only, §9) | `account, email, name?, signature?` / `account, email`: the addresses the account sends from (saved with it, `[[account.identity]]`); undoable | Wave 2 |
 | `set_mailbox_identity` | Mutation | `mailbox, email?`: the From of new drafts written from it | Wave 2 |
 | `set_draft_from` | Mutation | `id, email` (an identity of any connected account, the draft's own account first; the own address clears `draft.from`; another account's address moves the draft there with its threading and quote, and its server copy moves too, MISC-36); an agent's change withdraws its send request | Wave 2 |
@@ -2159,7 +2185,7 @@ canonical form, which parses back to the same `Query`.
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
 | Tracking pixels / remote content | Never fetched; links shown with real target. `show_images_from` (agents may run it) only lets the reader draw parts carried in the message itself (`cid:`), decoded off the UI thread with size limits (PNG, JPEG, GIF, WebP; downscaled to 4096 px per side) |
 | Terminal escape injection (TUI) | Email text and agents' drafts are drawn through one sanitizer (controls, ESC, DEL, bidi overrides replaced; `app-tui/tests/it/untrusted.rs`); no OSC 8 links, no window title, no browser or file dialog (they would open on the SSH host) |
-| MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki roots, no plaintext, no "accept invalid certs" setting |
+| MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki, OS and Android user roots (ADR 0016), no plaintext, no "accept invalid certs" setting |
 | Malicious update | The manifest is accepted only with a valid minisign signature from the built-in key, a trusted comment naming its version, and a version newer than the running one; an artifact only with the manifest's size and sha256; `install_update` is user only and needs `confirm`; checks are off until the user turns them on and send no identifiers (ADR 0011) |
 | Local IPC abuse | Socket in the user-only profile dir (0700) / named pipe with the default DACL (only the owner, SYSTEM and admins may write); clients can't claim the `gui` or `runtime` origin |
 
@@ -2228,7 +2254,11 @@ re-rendered by `icons.yml` only when the SVG changes (MISC-39). `release.yml` ru
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
 `xtask/src/release.rs`, which `cargo xtask release bump <x.y.z>` rewrites); by hand it is a dry run (ADR 0011).
 The store listings live in `fastlane/metadata/android/{en-US,fr-FR}` (title, short and full description, images), the
-single source for Google Play and F-Droid (STORE-18); `release bump` also writes each language's
+single source for Google Play and F-Droid (STORE-18). Their `phoneScreenshots` and `tenInchScreenshots` come from
+`store-screenshots.yml` (by hand, or on a push that changes it, `StoreScreenshotsTest` or
+`scripts/android-store-shots.sh`): the test, off unless the runner gets `store=true`, reaches the inbox, the reader,
+the palette, the composer and the Appearance settings by command through the debug bridge, in English then French,
+with SystemUI's demo mode on; the artifact is laid out as `fastlane/metadata/android` and is committed by hand. `release bump` also writes each language's
 `changelogs/<versionCode>.txt` for the AAB's and each ABI's code, at most 500 characters. `PRIVACY.md` is the privacy
 policy, linked from the phone's About (`About.privacy`) and the listings; `docs/store/play-console.md` drafts the
 Play declarations (Data safety, foreground services, content rating, target audience; STORE-19). A tag's `play` job

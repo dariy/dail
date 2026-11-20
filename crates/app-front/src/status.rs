@@ -29,6 +29,9 @@ pub enum Fix {
     Retry(AccountId),
     /// Test the account's login again (`test_account`).
     Test(AccountId),
+    /// Trust a certificate the account's server offered (`trust_certificate`, after its step
+    /// shows the certificate; ADR 0016).
+    Trust(AccountId),
 }
 
 impl Fix {
@@ -38,6 +41,7 @@ impl Fix {
             Self::Password(_) => Key::FixPassword,
             Self::Retry(_) => Key::FixRetry,
             Self::Test(_) => Key::FixTest,
+            Self::Trust(_) => Key::FixTrust,
         };
         tr(lang, key, &[])
     }
@@ -176,6 +180,7 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
         if let AccountStatus::Failed { error, .. } = &account.status {
             let cause = cause(error);
             let fix = match cause {
+                _ if trust_offered(state, account.id, cause) => Fix::Trust(account.id),
                 Cause::Password | Cause::Other => Fix::Password(account.id),
                 _ => Fix::Test(account.id),
             };
@@ -194,7 +199,9 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
                 account.map_or(crate::i18n::text(lang, Key::AccountX), |a| a.email.as_str());
             let preset = account.map_or(ProviderPreset::Custom, |a| a.preset);
             let cause = cause(&issue.error);
-            let fix = if cause == Cause::Password {
+            let fix = if trust_offered(state, *id, cause) {
+                Fix::Trust(*id)
+            } else if cause == Cause::Password {
                 Fix::Password(*id)
             } else {
                 Fix::Retry(*id)
@@ -208,6 +215,12 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
         }
     }
     out
+}
+
+/// Whether a certificate failure of `account` can be fixed by trusting a certificate its server
+/// offered.
+fn trust_offered(state: &AppState, account: AccountId, cause: Cause) -> bool {
+    cause == Cause::Certificate && !crate::certs::offers(state, account).is_empty()
 }
 
 /// The sync summary: `syncing…`, `synced 2m ago · next in 1m` or `not synced`.

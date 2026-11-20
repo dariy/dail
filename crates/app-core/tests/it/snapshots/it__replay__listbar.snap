@@ -202,7 +202,8 @@ expression: first
       ],
       "bodies_in_flight": [
         "00000000-0000-0003-0000-000000000001",
-        "00000000-0000-0003-0000-000000000003"
+        "00000000-0000-0003-0000-000000000003",
+        "00000000-0000-0003-0000-000000000005"
       ],
       "keyring_error": null,
       "next_poll_ms": null,
@@ -562,6 +563,7 @@ expression: first
             {
               "args": {
                 "account": "00000000-0000-0001-0000-000000000000",
+                "background": true,
                 "imap": {
                   "login": "me@example.com",
                   "secret": {
@@ -584,6 +586,7 @@ expression: first
             {
               "args": {
                 "account": "00000000-0000-0001-0000-000000000000",
+                "background": true,
                 "imap": {
                   "login": "me@example.com",
                   "secret": {
@@ -685,7 +688,31 @@ expression: first
       "line": 5,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "account": "00000000-0000-0001-0000-000000000000",
+                "background": true,
+                "imap": {
+                  "login": "me@example.com",
+                  "secret": {
+                    "service": "dail",
+                    "user": "account/00000000-0000-0001-0000-000000000000"
+                  },
+                  "server": {
+                    "host": "imap.hostinger.com",
+                    "port": 993,
+                    "security": "tls"
+                  }
+                },
+                "message": "00000000-0000-0003-0000-000000000005",
+                "path": "INBOX",
+                "uid": 3,
+                "uid_validity": 1
+              },
+              "effect": "fetch_body"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -694,6 +721,9 @@ expression: first
               {
                 "entity": "mailbox",
                 "id": "00000000-0000-0002-0000-000000000000"
+              },
+              {
+                "entity": "status"
               }
             ],
             "data": {

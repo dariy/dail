@@ -462,6 +462,7 @@ expression: first
             {
               "args": {
                 "account": "00000000-0000-0005-0000-000000000000",
+                "background": true,
                 "imap": {
                   "login": "me@example.com",
                   "secret": {
@@ -484,6 +485,7 @@ expression: first
             {
               "args": {
                 "account": "00000000-0000-0005-0000-000000000000",
+                "background": true,
                 "imap": {
                   "login": "me@example.com",
                   "secret": {

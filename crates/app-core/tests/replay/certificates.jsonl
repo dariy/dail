@@ -1,0 +1,9 @@
+# Certificate trust (ADR 0016): a custom account, its server offers a self-signed certificate,
+# an agent is refused, the user trusts it, undo, redo, forget. Line 3's seed is 3 << 64, the account's ID.
+{"t": 1700000000000, "origin": "gui", "input": {"command": {"cmd": "add_account", "args": {"preset": "custom", "email": "me@example.org", "imap": {"host": "mail.example.org", "port": 993, "security": "tls"}, "smtp": {"host": "mail.example.org", "port": 465, "security": "tls"}}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "certificate_offered", "args": {"host": "mail.example.org", "port": 993, "cert": {"der": "3082", "sha256": "3F8A1C0E5B2D4F6A7C9E1B3D5F7A9C0E2B4D6F8A1C3E5B7D9F0A2C4E6B8D0F1A", "subject": "CN=mail.example.org", "issuer": "CN=mail.example.org", "not_before_ms": 1690000000000, "not_after_ms": 1790000000000}}}}}
+{"t": 1700000002000, "origin": "mcp", "input": {"command": {"cmd": "trust_certificate", "args": {"account": "00000000-0000-0003-0000-000000000000", "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a"}}}}
+{"t": 1700000003000, "origin": "gui", "input": {"command": {"cmd": "trust_certificate", "args": {"account": "00000000-0000-0003-0000-000000000000", "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a"}}}}
+{"t": 1700000004000, "origin": "gui", "input": {"command": {"cmd": "undo", "args": {}}}}
+{"t": 1700000005000, "origin": "gui", "input": {"command": {"cmd": "redo", "args": {}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "forget_certificate", "args": {"account": "00000000-0000-0003-0000-000000000000", "sha256": "3f8a1c0e5b2d4f6a7c9e1b3d5f7a9c0e2b4d6f8a1c3e5b7d9f0a2c4e6b8d0f1a"}}}}

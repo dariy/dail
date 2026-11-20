@@ -1,0 +1,113 @@
+# The store listing's screenshots (STORE-18), by hand, on any branch:
+#   gh workflow run store-screenshots.yml --ref <branch>
+# and on a push that changes this file or the test (a workflow must be on main before it can be run by hand).
+# StoreScreenshotsTest drives the demo build through the debug bridge in English and French, once with the window of a
+# phone (1080x1920, 420 dpi) and once on a Pixel Tablet AVD (2560x1600, 320 dpi); the artifact `store-screenshots`
+# holds `<lang>/images/{phoneScreenshots,tenInchScreenshots}/<n>.png`, laid out as fastlane/metadata/android wants them.
+# Copy it there and commit. It reads golden-path.yml's caches (AVD snapshot, Rust) and writes none.
+name: store-screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/store-screenshots.yml
+      - android/app/src/androidTest/kotlin/net/darii/dail/StoreScreenshotsTest.kt
+      - scripts/android-store-shots.sh
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  NDK: "28.2.13676358"
+  API_LEVEL: "36"
+  EMULATOR_OPTIONS: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+
+jobs:
+  store-screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      # The API 36 AVD's userdata partition needs ~7.4 GB (see ci.yml's android-emulator job).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift
+          df -h /
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: rustup target add x86_64-linux-android
+      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        with:
+          tool: cargo-ndk
+      # A key of its own, saved from any branch: ci.yml never reads it, so its main-only rule still holds there.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          shared-key: golden-path
+          save-if: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # The runner image already carries most of the SDK: install only what is missing.
+      - name: SDK packages
+        run: |
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$NDK" >> "$GITHUB_ENV"
+          need=""
+          [ -d "$ANDROID_SDK_ROOT/ndk/$NDK" ] || need="$need ndk;$NDK"
+          [ -d "$ANDROID_SDK_ROOT/platforms/android-37.2" ] || need="$need platforms;android-37.2"
+          [ -d "$ANDROID_SDK_ROOT/build-tools/37.0.0" ] || need="$need build-tools;37.0.0"
+          echo "missing:${need:- nothing}"
+          [ -z "$need" ] || yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" $need > /dev/null
+      # golden-path.yml's snapshot of the booted AVD, when it has one; else the emulator boots cold.
+      - id: avd
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ env.API_LEVEL }}-x86_64-default
+      # The phone: the default AVD (golden-path.yml's snapshot) at 1080x1920, 420 dpi.
+      - name: Phone screenshots
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          target: default
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: true
+          script: scripts/android-store-shots.sh shots/phone 1080x1920 420
+      # The tablet: an AVD of its own with the Pixel Tablet's hardware (2560x1600, 320 dpi), booted cold.
+      - name: Tablet screenshots
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: ${{ env.API_LEVEL }}
+          arch: x86_64
+          target: default
+          profile: pixel_tablet
+          avd-name: dail-store-tablet
+          emulator-options: -no-snapshot ${{ env.EMULATOR_OPTIONS }}
+          disable-animations: true
+          script: scripts/android-store-shots.sh shots/tablet
+      - name: Lay out as fastlane wants
+        run: |
+          for lang in en-US fr-FR; do
+            mkdir -p "store/$lang/images/phoneScreenshots" "store/$lang/images/tenInchScreenshots"
+            cp shots/phone/$lang/*.png "store/$lang/images/phoneScreenshots/"
+            cp shots/tablet/$lang/*.png "store/$lang/images/tenInchScreenshots/"
+          done
+          find store -type f | sort
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: store-screenshots
+          path: store/
+          if-no-files-found: error

@@ -1,5 +1,6 @@
 package net.darii.dail.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,8 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -25,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -79,6 +83,9 @@ fun SettingsPane(
                     SettingRowView(row, send)
                     HorizontalDivider()
                 }
+            }
+            page.preview?.let { preview ->
+                item(key = "preview") { ListPreviewView(preview) }
             }
         }
     }
@@ -148,3 +155,30 @@ private const val FOLDED_ALPHA = 0.6f
 
 /** Material's horizontal padding inside a tab. */
 private val TAB_PADDING = 16.dp
+
+/**
+ * The Appearance preview (MISC-25): sample rows drawn by the list's own [ThreadRow] in the chosen
+ * density, so a change shows here at once. They are samples: a tap on one does nothing.
+ */
+@Composable
+private fun ListPreviewView(preview: ListPreview) {
+    Column(Modifier.padding(top = 16.dp, bottom = 16.dp)) {
+        Text(
+            preview.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.height(8.dp))
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+                .clip(MaterialTheme.shapes.medium),
+        ) {
+            preview.rows.forEachIndexed { i, row ->
+                if (i > 0) HorizontalDivider()
+                ThreadRow(row, preview.density, send = {})
+            }
+        }
+    }
+}

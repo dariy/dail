@@ -284,6 +284,70 @@ fn pick_mailbox(
     )
 }
 
+/// The step that picks a certificate offered to `account` (every account's if `None`) and trusts
+/// it. Its options show subject, issuer, dates and fingerprint: choosing one is the confirmation.
+#[must_use]
+pub fn trust_certificate(state: &AppState, account: Option<AccountId>) -> Flow {
+    let mut certs = crate::certs::all_offers(state);
+    certs.retain(|(id, _, _)| account.is_none_or(|a| a == *id));
+    pick_cert(
+        crate::i18n::s(Key::TrustWhichCertificate),
+        certs,
+        |account, sha256| Command::TrustCertificate { account, sha256 },
+    )
+}
+
+/// The step that picks a certificate `account` trusts (any account's if `None`) and forgets it.
+#[must_use]
+pub fn forget_certificate(state: &AppState, account: Option<AccountId>) -> Flow {
+    let mut certs = crate::certs::all_trusted(state);
+    certs.retain(|(id, _, _)| account.is_none_or(|a| a == *id));
+    pick_cert(
+        crate::i18n::s(Key::ForgetWhichCertificate),
+        certs,
+        |account, sha256| Command::ForgetCertificate { account, sha256 },
+    )
+}
+
+/// A step that picks one of `certs` (with their accounts) and runs `make` on it.
+fn pick_cert(
+    prompt: &str,
+    certs: Vec<(AccountId, String, &app_core::TrustedCert)>,
+    make: fn(AccountId, String) -> Command,
+) -> Flow {
+    let lang = crate::i18n::current();
+    let options = certs
+        .iter()
+        .map(|(_, email, cert)| {
+            let subject = crate::certs::title(cert);
+            (
+                crate::i18n::tr(
+                    lang,
+                    Key::CertForAccount,
+                    &[("subject", &subject), ("email", email)],
+                ),
+                crate::certs::detail(cert, lang).replace('\n', " · "),
+            )
+        })
+        .collect();
+    let picks: Vec<(AccountId, String)> = certs
+        .into_iter()
+        .map(|(account, _, cert)| (account, cert.sha256.clone()))
+        .collect();
+    ask(
+        prompt,
+        AskKind::Options(options),
+        move |_, choice| match choice {
+            Choice::Index(i) => picks
+                .get(i as usize)
+                .map_or(Flow::Hidden, |(account, sha)| {
+                    Flow::Run(make(*account, sha.clone()))
+                }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
 fn pick_account(make: impl Fn(&AppState, AccountId) -> Flow + Send + Sync + 'static) -> Flow {
     ask(
         crate::i18n::s(Key::WhichAccount),
@@ -1229,6 +1293,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 move |email| Command::RemoveIdentity { account, email },
             )
         }),
+        CommandName::TrustCertificate => trust_certificate(state, None),
+        CommandName::ForgetCertificate => forget_certificate(state, None),
         CommandName::SetMailboxIdentity => {
             let email = |mailbox| {
                 ask(
@@ -1759,6 +1825,11 @@ pub enum Target {
 
 /// The first-step rows: available commands, mailboxes and recent threads.
 pub fn root_rows(state: &AppState) -> Vec<Row> {
+    root_rows_in(state, crate::i18n::current())
+}
+
+/// [`root_rows`] with the commands' titles and categories in `lang`.
+pub fn root_rows_in(state: &AppState, lang: crate::i18n::Lang) -> Vec<Row> {
     let mut rows = Vec::new();
     let mut specs = app_core::Command::specs();
     // Everyday commands first; the sort is stable, so the catalogue order holds within a group.
@@ -1776,8 +1847,9 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
         if offered(name) && (spec.available)(state) {
             rows.push(Row {
                 target: Target::Command(name),
-                title: spec.title.to_owned(),
-                detail: format!("{:?}", spec.category),
+                title: crate::i18n::title_in(lang, name).to_owned(),
+                detail: crate::i18n::text(lang, crate::i18n::category_key(spec.category))
+                    .to_owned(),
                 keys: crate::keymap::keys_for(&state.settings, name)
                     .into_iter()
                     .next(),
@@ -1796,8 +1868,9 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
             at,
             Row {
                 target: Target::RuleFromMessage,
-                title: crate::i18n::s(Key::MakeRuleFromMessage).to_owned(),
-                detail: format!("{:?}", Category::Mail),
+                title: crate::i18n::text(lang, Key::MakeRuleFromMessage).to_owned(),
+                detail: crate::i18n::text(lang, crate::i18n::category_key(Category::Mail))
+                    .to_owned(),
                 keys: None,
             },
         );
@@ -1815,7 +1888,7 @@ pub fn root_rows(state: &AppState) -> Vec<Row> {
             .map(|(letter, _)| format!("g {letter}"));
         rows.push(Row {
             target: Target::Mailbox(mailbox.id),
-            title: crate::i18n::f(Key::GoTo, &[("name", &mailbox_name(mailbox))]),
+            title: crate::i18n::tr(lang, Key::GoTo, &[("name", &mailbox_name(mailbox))]),
             detail: account,
             keys,
         });
