@@ -908,8 +908,8 @@ connection into its notification stream after `watch`). Lines are read with a le
 trusted (`rpc::LineReader`).
 
 #### The dail server's transport (ADR 0017, SRV-3)
-`app_sync::serve` runs the same JSON-RPC over TLS for paired devices; `app_sync::remote` is the device side. Library
-code only: `dail serve` and remote profiles wire it up (SRV-4, SRV-5a).
+`app_sync::serve` runs the same JSON-RPC over TLS for paired devices; `app_sync::remote` is the device side. `dail
+serve` (§5.6) runs the server; remote profiles (SRV-5a) will run the device side.
 
 - **Identity** (`ServerIdentity::load_or_create(<profile>/serve, hosts)`): a P-256 key made once (`getrandom`) in
   `serve/key.p256`, and a self-signed X.509 v3 end-entity certificate built with `x509-cert` and signed with `p256`'s
@@ -920,7 +920,9 @@ code only: `dail serve` and remote profiles wire it up (SRV-4, SRV-5a).
 - **Listener** (`DailServer::start(identity, hub, session, seeds, options)`, `listen(addr)` per address): tokio-rustls,
   TLS 1.3 only, the app-tls provider, no client certificates. Any address; one outside loopback, RFC 1918, CGNAT
   `100.64.0.0/10` and ULA `fc00::/7` (`serve::is_private_address`) gets a `warn!`. The handshake and the first request
-  must arrive within 10 s; the first line is at most 16 KiB, later lines at most an upload's size in base64.
+  must arrive within 10 s; the first line is at most 16 KiB, later lines at most an upload's size in base64. At most
+  8 connections per peer IP may be unauthenticated at once (`MAX_UNAUTHENTICATED_PER_IP`: in the handshake or before
+  `hello` is answered); further ones are closed as soon as they are accepted.
 - **Dialer** (`remote`): TLS 1.3 with a verifier that accepts only the certificate whose SHA-256 is the pinned
   fingerprint (no web roots, names or dates; the handshake signature is still verified with the provider's
   algorithms). `probe(host, port)` accepts any certificate, returns its fingerprint and sends nothing
@@ -955,7 +957,8 @@ code only: `dail serve` and remote profiles wire it up (SRV-4, SRV-5a).
   `resync {revision, state}` (a snapshot);
   `blob {id}` (64 hex) → `{bytes}` (base64) or `null`;
   `put_file {name, bytes}` → `{path}`: at most 25 MiB (`MAX_UPLOAD_BYTES`, `-32003` beyond), stored as
-  `serve/uploads/<uuid>/<name>` with `app_io::mime::safe_file_name`, for `attach_file`.
+  `serve/uploads/<uuid>/<name>` with `app_io::mime::safe_file_name`, for `attach_file`. `serve::sweep_uploads`
+  removes the folders no draft names once they are a day old (`UPLOAD_MAX_AGE`); `dail serve` runs it at start.
   Each answered request reports `DeviceSeen` at most once a minute per device. Error codes: `-32001` not authorized,
   `-32002` protocol mismatch, `-32003` too large, `-32004` origin refused, plus the socket's.
 
@@ -991,6 +994,68 @@ exists while `settings.updates.checks` is `unset`. The GUI shows the panel and t
 badge in the top bar (it opens that section) and the question as a callout over the reader; the TUI shows them as the
 first rows of the general settings and in the status line; the phones as the frame's banner. The policy is saved as
 `[settings.updates]` in `config.toml` (`checks`, `interval_hours` 1–720, `skipped_version`).
+
+### 5.6 Serving (`dail serve`, ADR 0017, SRV-4)
+
+**Process.** `dail serve [--listen <addr:port>]… [--advertise <host>]… [--allow-send]` owns the profile headless, like
+the GUI (`runtime::own`): it refuses to start while another dail owns the profile ("already running"). It opens the
+live session with `LiveBackend::with_serve(hub)`, the `ServeHub` sharing the profile's `ConfigStore`
+(`ProfileStore::config`, so `[[serve.devices]]` and the rest of `config.toml` never overwrite each other), listens on
+the profile socket (§5.4: `dail exec`, `batch`, `tui`, `mcp` and `dail serve pair` attach) and starts a `DailServer`
+with a listener per `--listen`. At start it sweeps old uploads (§5.4), and prints to stderr the profile, each bound
+address and the certificate's SHA-256 fingerprint. It logs through `tracing` to stderr (`DAIL_LOG`, default
+`warn,app_sync=info`: listeners, pairings, revocations; never a code or token), without colours unless stderr is a
+terminal. Ctrl+C or SIGTERM (Unix; on Windows only Ctrl+C) stop it: the listeners close, the session shuts down (drafts saved, running work
+finished), the lock is released, exit 0. It never updates itself (`dail update` does, when run by hand).
+
+- **Listen.** Default `127.0.0.1:7443`: loopback only, so nothing is reachable from the network until the user names
+  an address. 7443 is unprivileged and not a common service's port; `dail remote add` dials it when no port is given.
+  Port 0 picks a free port. Any address is accepted; one outside private networks gets the listener's warning.
+- **`--advertise <host>`**: the names devices reach the server by (a Tailscale MagicDNS name). They go into the
+  certificate's SANs when it is made (devices pin the fingerprint, not names) and into `dail serve pair`'s output.
+- **`--allow-send`** sets `ServeOptions::allow_send`: agent devices may then claim `mcp_allow_send`, the origin
+  `dail mcp --allow-send` uses, so an agent's `send_draft` skips the approval exactly as there. Without it an agent
+  device submitting as `mcp_allow_send` gets `-32004`. User devices are unaffected (they may approve anyway).
+- **Files** under `<profile>/serve/` (0700): `key.p256` and `cert.der` (§5.4), `uploads/`, and `listening.json`
+  (0600: `pid`, the bound `addresses`, `advertise`, `fingerprint`, `allow_send`), written once listening and removed
+  on a clean stop; `dail serve pair` reads it. Every owner of the profile (GUI, TUI, `dail mcp`, a one-shot `exec`)
+  removes it when it takes the lock, so a file left by a crash is gone before another owner listens: while the
+  profile is owned, the file exists only if the owner is `dail serve`, and `pair` attached to another owner refuses
+  ("is not `dail serve`").
+- **`--backend memory`** needs `--profile-dir` (the socket and `config.toml` live there). The CLI's memory backend
+  (`runtime::MemoryServe`) fakes the mail servers, but the dail server is real: codes and revocations run on the hub,
+  the devices kept in `config.toml` are listed at start, and a memory *device* probes and pairs over TLS for real,
+  keeping its token in memory. The smoke gate runs this way (AGENTS.md §6, step 5).
+
+**Pairing.** `dail serve pair --role user|agent --name <name>` attaches to the running server only (never opens the
+profile: a code is useless without the listener) and submits `start_pairing` as `cli`. It prints one JSON line
+`{"ok","name":"pairing","code","role","device_name","expires_at_ms","fingerprint","addresses"}` (`addresses`: each
+advertised host with the first listener's port, then each bound address) and the same for people on stderr. The code
+is meant to be read by the user (ADR 0017); it is never logged. On the device, `dail remote add <host[:port]>`
+submits `connect_server`, waits for the probe, shows the offered fingerprint (in lines of 16 bytes) and asks whether
+it matches the one `dail serve` printed, asks for the code, then submits `trust_server` and waits for
+`server_paired` or `link_failed`. `--fingerprint <hex>` (colons allowed; it must equal the offered one, else the
+command refuses) and `--code` answer both for scripts; without a terminal both are required. A profile with accounts
+is refused by the engine (`error_013_profile_has_accounts`, ERR013), with a hint to use another profile. A pairing that does not complete is
+undone with `disconnect_server`, so the profile is a plain one again. Each step prints its receipt; the last line is
+`{"ok","name":"remote","link"}`. After pairing the profile holds `state.link` (pinned fingerprint, the token's
+`SecretRef`; the token is in the OS keyring) and is in mirror mode (§4.7), but this version does not connect to the
+server: `Connection::Remote` is SRV-5a. `dail remote status` prints `{"name":"remote_status","linked",…}` with the
+link's status, server (host, port, pinned and offered fingerprints), revision, queued count, refused commands and
+last error.
+
+**Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
+(so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
+revoke <id> [--yes]` submits `revoke_device {confirm: true}` after asking on the terminal (without one, `--yes` is
+required; exit 2). Both attach to the running server or, when none runs, open the profile with the hub (no listener),
+so a lost phone can be revoked while the server is stopped and the revocation still reaches `config.toml`.
+
+**Running it.** `packaging/systemd/dail-serve.service` is a user unit (`ExecStart=%h/.local/bin/dail serve …`,
+`Restart=on-failure`, SIGTERM to stop, the sandboxing options a user unit can use); `packaging/systemd/README.md`
+covers installing, `loginctl enable-linger`, logs and the keyring: on Linux account passwords come only from the
+Secret Service on the session bus, which must be reachable and unlocked without a login (no file fallback, no
+prompt; a locked keyring shows as each account's login error). `docs/serve-tailscale.md` runs the server on a
+tailnet address with `--advertise <MagicDNS name>`, pairs a desktop, and covers the firewall.
 
 ## 6. Storage (`app-io`)
 
@@ -1438,6 +1503,12 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   registry command: like `replay` and `schema`, it inspects the installation rather than the mail.
 - `dail account password --email <addr> [--password-stdin]` dispatches `set_password` with a password read the same
   way, waits for the login test and prints `account_status` like `add`; exit code `1` unless verified.
+- `dail serve [--listen <addr:port>]… [--advertise <host>]… [--allow-send]` runs the dail server until Ctrl+C or
+  SIGTERM; `dail serve pair --role user|agent --name <name>` (attached to it), `dail serve devices` and `dail serve
+  revoke <id> [--yes]` are aliases for `start_pairing`, `list_devices` and `revoke_device`. `dail remote add
+  <host[:port]> [--fingerprint <hex>] [--code <code>]` pairs the profile as a device (`connect_server`,
+  `trust_server`) and `dail remote status` prints the link. See §5.6. Their text for people (stderr) is English, like
+  every other CLI message; the JSON lines are the interface.
 - `dail exec --help` lists the registry; `dail schema --command <name>` prints one spec (with `kind` and `agents`) and its
   args schema.
 - `dail replay <log> [--state]`: see §6 (audit log).
@@ -2349,7 +2420,7 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |
-| smoke | `dail batch --backend memory tests/smoke/basic.jsonl` | end-to-end JSON round trip (gate 6) |
+| smoke | `dail batch --backend memory tests/smoke/basic.jsonl`, then `dail serve --backend memory` on loopback paired by `dail remote add` (`xtask/src/smoke.rs`) | end-to-end JSON round trip and the dail server (gate 6) |
 | agent e2e | `app-cli/tests/e2e_agent.rs` (CI via `cargo test`) | an MCP client drives `dail mcp --backend memory --fixture basic --profile-dir …` over stdio: discovers tools and resources, is refused `add_account`, waits for the user's `dail account add` (attached over IPC), syncs, reads the inbox through resources, marks a thread read, archives another, replies and edits the draft; `send_draft` stays an approval request that the agent can't approve |
 | IPC & audit | `app-sync/tests/it/{ipc,audit}.rs`, `app-cli/tests/it/cli.rs`, `app-gui/tests/it/bridge.rs`, `app-tui/tests/it/attached.rs` | attach over a real local socket (origins, password hand-over, disconnects, `watch`), the profile lock; the shared bridge (tagged replies in order, an owned session shut down, an attached one left running, the owner going away); audit logs that replay to the live state; `exec` attaching to a running `dail mcp`; an attached agent's archive reaching the GUI's state snapshot and waking it; `dail replay` |
 

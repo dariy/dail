@@ -1,0 +1,40 @@
+# dail server as a systemd *user* unit (ADR 0017; ARCHITECTURE.md §5.6; README.md next to this file).
+# Install: copy to ~/.config/systemd/user/, adjust ExecStart, then
+#   systemctl --user daemon-reload && systemctl --user enable --now dail-serve
+#   loginctl enable-linger "$USER"     # keep it running without a login session
+# Logs: journalctl --user -u dail-serve -f
+
+[Unit]
+Description=dail server (dail serve): mail sync, rules and sends for paired devices
+
+[Service]
+Type=simple
+# Loopback only by default. For Tailscale, listen on the machine's tailnet address and advertise
+# its MagicDNS name, e.g.:
+#   ExecStart=%h/.local/bin/dail serve --listen 100.101.102.103:7443 --advertise home.tail1234.ts.net
+# A .deb install puts the binary at /usr/bin/dail. Add --profile <name> for another profile.
+ExecStart=%h/.local/bin/dail serve --listen 127.0.0.1:7443
+# SIGTERM (systemctl stop): dail stops listening, saves drafts and exits 0.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=10
+# Pairings, devices and listeners at info; everything else at warn.
+Environment=DAIL_LOG=warn,app_sync=info
+
+# Hardening that needs no privileges, so it works in a user unit.
+UMask=0077
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# Unix sockets: the profile socket and D-Bus (the Secret Service keyring); netlink: address lookup.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=default.target

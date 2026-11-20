@@ -774,3 +774,49 @@ async fn only_a_serving_live_backend_opens_codes() {
     assert_eq!(fx.hub.open_codes(), 1);
     assert!(fx.pair(&Secret::new("ABCDEFGH")).await.is_ok());
 }
+
+#[test]
+fn old_uploads_no_draft_names_are_swept() {
+    use app_core::draft::{AttachmentRef, AttachmentState, Draft};
+    use app_core::{AccountId, DraftId};
+    use std::time::SystemTime;
+
+    let dir = temp_dir("sweep").join("uploads");
+    for folder in ["named", "stale"] {
+        std::fs::create_dir_all(dir.join(folder)).unwrap();
+        std::fs::write(dir.join(folder).join("a.pdf"), b"%PDF-").unwrap();
+    }
+    let draft = DraftId(uuid::Uuid::from_u128(7));
+    let mut local: Draft = serde_json::from_value(json!({
+        "id": draft, "account": AccountId(uuid::Uuid::from_u128(1)),
+        "message_id_hdr": "x@y", "created_ms": 0, "updated_ms": 0
+    }))
+    .unwrap();
+    local.attachments = vec![AttachmentRef {
+        path: dir.join("named").join("a.pdf").display().to_string(),
+        name: "a.pdf".into(),
+        state: AttachmentState::Checking,
+    }];
+    let mut state = AppState::default();
+    state.drafts.insert(draft, local);
+
+    // Fresh folders stay, named or not: a device attaches right after uploading.
+    assert_eq!(
+        serve::sweep_uploads(&dir, &state, serve::UPLOAD_MAX_AGE, SystemTime::now()),
+        0
+    );
+    // A day later only the folder a draft names stays.
+    let later = SystemTime::now() + serve::UPLOAD_MAX_AGE + Duration::from_secs(60);
+    assert_eq!(
+        serve::sweep_uploads(&dir, &state, serve::UPLOAD_MAX_AGE, later),
+        1
+    );
+    assert!(dir.join("named").exists());
+    assert!(!dir.join("stale").exists());
+    // A missing folder is nothing to sweep.
+    assert_eq!(
+        serve::sweep_uploads(&dir.join("none"), &state, serve::UPLOAD_MAX_AGE, later),
+        0
+    );
+    std::fs::remove_dir_all(dir.parent().unwrap()).unwrap();
+}

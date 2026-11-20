@@ -3,3 +3,4 @@
 
 mod cli;
 mod e2e_agent;
+mod serve;

@@ -1326,7 +1326,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-3 (M) [sync]: the socket's JSON-RPC over any stream, a TLS listener and dialer, the self-signed P-256
   certificate (`x509-cert`), pairing, device tokens and roles, `hello`, idempotent `submit` (`request_id`, `seed`),
   `watch` with diffs, `blob`, `put_file`
-- [ ] SRV-4 (M) [cli]: `dail serve`, `dail serve pair|devices|revoke`, `dail remote add|status`; a systemd user unit
+- [x] SRV-4 (M) [cli]: `dail serve`, `dail serve pair|devices|revoke`, `dail remote add|status`; a systemd user unit
   in `packaging/systemd/`, a Tailscale how-to, ARCHITECTURE §5.6 *Serving*; a smoke step against `--backend memory`
 - [ ] SRV-5a (M) [sync][io][tk]: the remote profile (`[remote]`, a new golden), `RemoteClient`, `RemoteBackend`,
   `Connection::Remote`, online only

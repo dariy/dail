@@ -30,6 +30,7 @@ pub fn tui(global: &GlobalArgs) -> anyhow::Result<ExitCode> {
             session,
             server,
             lock,
+            hub: _,
         }) => (Target::Own(session), Some((server, lock))),
     };
     let exit = app_tui::run(&runtime, target, tui)?;

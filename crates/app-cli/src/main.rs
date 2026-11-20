@@ -8,9 +8,11 @@ mod doctor;
 mod exec;
 mod mcp_http;
 mod output;
+mod remote;
 mod replay;
 mod runtime;
 mod schema;
+mod serve;
 mod tui;
 mod update;
 
@@ -34,6 +36,10 @@ fn main() -> ExitCode {
     };
     if terminal_ui {
         init_tracing_to_file(&cli.global);
+    } else if matches!(cli.command, Some(Sub::Serve { command: None, .. })) {
+        // The server's log is its output (the journal under systemd): pairings, devices,
+        // listeners at `info`.
+        init_tracing_with("warn,app_sync=info", std::io::stderr().is_terminal());
     } else {
         init_tracing();
     }
@@ -47,13 +53,27 @@ fn main() -> ExitCode {
 }
 
 fn filter() -> tracing_subscriber::EnvFilter {
+    filter_or("warn")
+}
+
+/// `DAIL_LOG`, else `default`.
+fn filter_or(default: &str) -> tracing_subscriber::EnvFilter {
     tracing_subscriber::EnvFilter::try_from_env("DAIL_LOG")
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn"))
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default))
 }
 
 fn init_tracing() {
     tracing_subscriber::fmt()
         .with_env_filter(filter())
+        .with_writer(std::io::stderr)
+        .init();
+}
+
+/// Logs to stderr at `default` (unless `DAIL_LOG` says otherwise), coloured only on a terminal.
+fn init_tracing_with(default: &str, ansi: bool) {
+    tracing_subscriber::fmt()
+        .with_env_filter(filter_or(default))
+        .with_ansi(ansi)
         .with_writer(std::io::stderr)
         .init();
 }
@@ -111,6 +131,10 @@ fn run(cli: Cli, terminal_ui: bool) -> anyhow::Result<ExitCode> {
             command: AccountCmd::Password(args),
         }) => runtime::block_on(account::password(&cli.global, &args)),
         Some(Sub::Update { command }) => runtime::block_on(update::run(&cli.global, &command)),
+        Some(Sub::Serve { args, command }) => {
+            runtime::block_on(serve::run(&cli.global, &args, command.as_ref()))
+        }
+        Some(Sub::Remote { command }) => runtime::block_on(remote::run(&cli.global, &command)),
         Some(Sub::Mcp {
             allow_send,
             http: None,
@@ -130,13 +154,14 @@ fn run(cli: Cli, terminal_ui: bool) -> anyhow::Result<ExitCode> {
         Some(Sub::Tui) => tui::tui(&cli.global),
         Some(Sub::Gui) | None => {
             let runtime = runtime::build()?;
-            let owned = runtime.block_on(runtime::own(&cli.global))?;
+            let owned = runtime.block_on(runtime::own(&cli.global, runtime::Serve::No))?;
             // The listener keeps serving agents while the window is open; `run` shuts the
             // session down when the window closes.
             let runtime::Owned {
                 session,
                 server,
                 lock,
+                hub: _,
             } = owned;
             app_gui::run(&runtime, session)?;
             drop(server);

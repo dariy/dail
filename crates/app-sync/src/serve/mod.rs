@@ -105,6 +105,16 @@ const SEEN_EVERY_MS: i64 = 60_000;
 /// States kept to answer `watch {since}` with a diff.
 const HISTORY: usize = 16;
 
+/// Connections from one peer address that may be unauthenticated at once: in the TLS handshake
+/// or before their first request is decided. Further ones are closed as soon as they are
+/// accepted, so one address can't hold the server's handshakes open (each may take up to 10 s).
+/// A NAT or Tailscale exit node shares one address among its devices; 8 leaves them room.
+pub const MAX_UNAUTHENTICATED_PER_IP: usize = 8;
+
+/// Upload folders (`serve/uploads/<uuid>`) that no draft names are removed by [`sweep_uploads`]
+/// once they are this old: a device attaches its upload right after `put_file`.
+pub const UPLOAD_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+
 /// Whether a listen address stays on a private network: loopback, RFC 1918, CGNAT
 /// (`100.64.0.0/10`, Tailscale) or a unique local IPv6 address (`fc00::/7`). The server listens
 /// anywhere; for other addresses it warns.
@@ -118,6 +128,86 @@ pub fn is_private_address(ip: IpAddr) -> bool {
             Some(v4) => is_private_address(IpAddr::V4(v4)),
             None => v6.is_loopback() || (v6.segments()[0] & 0xfe00) == 0xfc00,
         },
+    }
+}
+
+/// Removes the upload folders of `dir` (`<profile>/serve/uploads`) that no draft's attachment
+/// lies in and that were last changed more than `max_age` before `now`. `dail serve` runs it at
+/// start ([`UPLOAD_MAX_AGE`]). Returns how many it removed.
+pub fn sweep_uploads(
+    dir: &std::path::Path,
+    state: &AppState,
+    max_age: Duration,
+    now: std::time::SystemTime,
+) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    let named: Vec<&std::path::Path> = state
+        .drafts
+        .values()
+        .flat_map(|d| &d.attachments)
+        .map(|a| std::path::Path::new(&a.path))
+        .collect();
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let folder = entry.path();
+        if !folder.is_dir() || named.iter().any(|path| path.starts_with(&folder)) {
+            continue;
+        }
+        let fresh = entry
+            .metadata()
+            .and_then(|meta| meta.modified())
+            .is_ok_and(|modified| now.duration_since(modified).unwrap_or_default() <= max_age);
+        if fresh {
+            continue;
+        }
+        match std::fs::remove_dir_all(&folder) {
+            Ok(()) => removed += 1,
+            Err(err) => tracing::warn!(error = %err, "an old upload folder stays"),
+        }
+    }
+    removed
+}
+
+/// The unauthenticated connections per peer address ([`MAX_UNAUTHENTICATED_PER_IP`]).
+#[derive(Debug, Default)]
+struct PreAuth {
+    counts: Mutex<HashMap<IpAddr, usize>>,
+}
+
+impl PreAuth {
+    /// Counts a new connection from `ip`, or `None` when `ip` already has the most.
+    fn admit(self: &Arc<Self>, ip: IpAddr) -> Option<PreAuthSlot> {
+        let mut counts = self.counts.lock();
+        let count = counts.entry(ip).or_default();
+        if *count >= MAX_UNAUTHENTICATED_PER_IP {
+            return None;
+        }
+        *count += 1;
+        Some(PreAuthSlot {
+            gate: Arc::clone(self),
+            ip,
+        })
+    }
+}
+
+/// One unauthenticated connection, counted until dropped.
+#[derive(Debug)]
+struct PreAuthSlot {
+    gate: Arc<PreAuth>,
+    ip: IpAddr,
+}
+
+impl Drop for PreAuthSlot {
+    fn drop(&mut self) {
+        let mut counts = self.gate.counts.lock();
+        if let Some(count) = counts.get_mut(&self.ip) {
+            *count = count.saturating_sub(1);
+            if *count == 0 {
+                counts.remove(&self.ip);
+            }
+        }
     }
 }
 
@@ -429,6 +519,8 @@ struct Shared {
     options: ServeOptions,
     /// Recent states, oldest first, for `watch {since}`.
     history: Mutex<VecDeque<Arc<AppState>>>,
+    /// Unauthenticated connections per peer address.
+    pre_auth: Arc<PreAuth>,
 }
 
 impl Shared {
@@ -504,6 +596,7 @@ impl DailServer {
             instance: uuid::Uuid::new_v4().to_string(),
             options,
             history: Mutex::new(VecDeque::new()),
+            pre_auth: Arc::default(),
         });
         let recorder = {
             let shared = Arc::clone(&shared);
@@ -551,9 +644,20 @@ impl DailServer {
             loop {
                 tokio::select! {
                     accepted = listener.accept() => match accepted {
-                        Ok((stream, peer)) => {
-                            connections.spawn(serve_connection(Arc::clone(&shared), stream, peer));
-                        }
+                        Ok((stream, peer)) => match shared.pre_auth.admit(peer.ip()) {
+                            Some(slot) => {
+                                connections.spawn(serve_connection(
+                                    Arc::clone(&shared),
+                                    stream,
+                                    peer,
+                                    slot,
+                                ));
+                            }
+                            None => tracing::debug!(
+                                %peer,
+                                "too many unauthenticated connections from this address"
+                            ),
+                        },
                         Err(err) => tracing::warn!(error = %err, "dail server accept failed"),
                     },
                     Some(_) = connections.join_next(), if !connections.is_empty() => {}
@@ -573,7 +677,14 @@ impl Drop for DailServer {
     }
 }
 
-async fn serve_connection(shared: Arc<Shared>, tcp: TcpStream, peer: SocketAddr) {
+/// Serves one connection. `slot` counts it as unauthenticated until its first request is
+/// decided.
+async fn serve_connection(
+    shared: Arc<Shared>,
+    tcp: TcpStream,
+    peer: SocketAddr,
+    slot: PreAuthSlot,
+) {
     let tls = match tokio::time::timeout(HANDSHAKE_TIMEOUT, shared.acceptor.accept(tcp)).await {
         Ok(Ok(tls)) => tls,
         Ok(Err(err)) => {
@@ -607,6 +718,7 @@ async fn serve_connection(shared: Arc<Shared>, tcp: TcpStream, peer: SocketAddr)
         }
         "hello" => match hello(&shared, &request) {
             Ok((attached, answer)) => {
+                drop(slot);
                 if rpc::write_line(&mut send, &answer).await.is_ok() {
                     authenticated(&shared, attached, lines, send).await;
                 }
@@ -1190,6 +1302,24 @@ mod tests {
             1,
             "until the signalled connection detaches"
         );
+    }
+
+    #[test]
+    fn unauthenticated_connections_are_capped_per_address() {
+        let gate = Arc::new(PreAuth::default());
+        let slots: Vec<PreAuthSlot> = (0..MAX_UNAUTHENTICATED_PER_IP)
+            .map(|_| gate.admit(ip("100.64.0.7")).unwrap())
+            .collect();
+        assert!(gate.admit(ip("100.64.0.7")).is_none(), "one too many");
+        // Another address has its own count.
+        let other = gate.admit(ip("100.64.0.8")).unwrap();
+        // A connection that authenticated (or closed) frees its place.
+        let mut slots = slots;
+        slots.pop();
+        let again = gate.admit(ip("100.64.0.7")).unwrap();
+        assert!(gate.admit(ip("100.64.0.7")).is_none());
+        drop((slots, again, other));
+        assert!(gate.counts.lock().is_empty(), "no address is remembered");
     }
 
     #[test]

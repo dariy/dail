@@ -2,6 +2,8 @@
 
 - `linux/dail.desktop`, `linux/dail.svg`: the desktop entry and icon (`app_id` and `StartupWMClass` are `dail`, which
   is also the `desktop-entry` hint of dail's notifications).
+- `systemd/dail-serve.service`: `dail serve` (ADR 0017) as a systemd user unit, with install, logs, the keyring on a
+  headless machine and the hardening in `systemd/README.md`; running it over Tailscale is `docs/serve-tailscale.md`.
 - Icons (MISC-39): `linux/dail.svg` is the source. `cargo xtask icons` renders `icons/dail-<n>.png` (16–512 px; the
   desktop window embeds the 256 px one), `windows/dail.ico` (the MSI's `ARPPRODUCTICON`), `windows/dail.res` (the icon
   resource `app-cli/build.rs` links into `dail.exe`) and the iOS `AppIcon` (`ios/Dail/Assets.xcassets`, 1024 px, no

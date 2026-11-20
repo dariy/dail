@@ -1,7 +1,9 @@
 //! `cargo xtask verify [GATE…]` — runs the Verification Loop gates from `AGENTS.md §6` in order and
 //! stops at the first failure. Naming gates runs only those, still in gate order; CI runs its jobs
 //! this way. The `android` and `ios` gates run only when named (they need the Android or iOS Rust
-//! targets, and `ios` beyond `check` needs macOS with Xcode).
+//! targets, and `ios` beyond `check` needs macOS with Xcode). The `smoke` gate runs
+//! `tests/smoke/basic.jsonl` on the memory backend, then `dail serve --backend memory` on loopback,
+//! paired and revoked through the CLI ([`smoke::serve`]).
 //!
 //! `cargo xtask android check` — clippy (`-D warnings`) for the Android targets over the crates the
 //! app links, then Gradle's formatter, licence allowlist, Android Lint and JVM tests (ADR 0009).
@@ -36,6 +38,7 @@ mod icons;
 mod ios;
 mod manifest;
 mod release;
+mod smoke;
 
 /// One gate of the Verification Loop.
 struct Gate {
@@ -43,6 +46,8 @@ struct Gate {
     args: &'static [&'static str],
     /// Whether a plain `cargo xtask verify` runs it.
     default: bool,
+    /// What else the gate runs after its cargo command passed (the workspace root, cargo).
+    then: Option<fn(&Path, &str) -> Result<()>>,
 }
 
 /// `fmt` and `deny` compile nothing and take seconds, so they run before the gates that compile.
@@ -53,11 +58,13 @@ const GATES: &[Gate] = &[
         name: "fmt",
         args: &["fmt", "--all", "--check"],
         default: true,
+        then: None,
     },
     Gate {
         name: "deny",
         args: &["deny", "check"],
         default: true,
+        then: None,
     },
     Gate {
         name: "clippy",
@@ -70,17 +77,20 @@ const GATES: &[Gate] = &[
             "warnings",
         ],
         default: true,
+        then: None,
     },
     Gate {
         name: "test",
         args: &["test", "--workspace"],
         default: true,
+        then: None,
     },
     // The patched crates under vendor/ are not members, so `--workspace` skips their tests (ADR 0012).
     Gate {
         name: "vendor",
         args: &["test", "-p", "hayro-postscript", "--lib"],
         default: true,
+        then: None,
     },
     Gate {
         name: "smoke",
@@ -96,16 +106,20 @@ const GATES: &[Gate] = &[
             "tests/smoke/basic.jsonl",
         ],
         default: true,
+        // Then `dail serve --backend memory` on loopback, driven by the CLI (`smoke::serve`).
+        then: Some(smoke::serve),
     },
     Gate {
         name: "android",
         args: &["xtask", "android", "all"],
         default: false,
+        then: None,
     },
     Gate {
         name: "ios",
         args: &["xtask", "ios", "all"],
         default: false,
+        then: None,
     },
 ];
 
@@ -279,6 +293,9 @@ fn verify(only: &[String]) -> Result<()> {
             .with_context(|| format!("failed to spawn `cargo {}`", gate.args.join(" ")))?;
         if !status.success() {
             bail!("gate {number} ({}) failed with {status}", gate.name);
+        }
+        if let Some(then) = gate.then {
+            then(&root, &cargo).with_context(|| format!("gate {number} ({}) failed", gate.name))?;
         }
         passed.push(gate.name);
     }
