@@ -1323,7 +1323,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-2 (S) [core][front]: `list_devices`, `start_pairing` (code in the receipt only), `revoke_device`,
   `connect_server`, `trust_server`, `disconnect_server`, `retry_offline`, `dismiss_offline_rejection`, with agent access,
   placement, reach and actions
-- [ ] SRV-3 (M) [sync]: the socket's JSON-RPC over any stream, a TLS listener and dialer, the self-signed P-256
+- [x] SRV-3 (M) [sync]: the socket's JSON-RPC over any stream, a TLS listener and dialer, the self-signed P-256
   certificate (`x509-cert`), pairing, device tokens and roles, `hello`, idempotent `submit` (`request_id`, `seed`),
   `watch` with diffs, `blob`, `put_file`
 - [ ] SRV-4 (M) [cli]: `dail serve`, `dail serve pair|devices|revoke`, `dail remote add|status`; a systemd user unit

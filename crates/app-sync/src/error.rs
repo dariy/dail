@@ -39,4 +39,12 @@ pub enum SyncError {
     /// The session's engine task has stopped.
     #[error("ERR207: session closed")]
     SessionClosed,
+    /// The dail server could not start or serve (its key, certificate, listener, or paired
+    /// devices; ADR 0017).
+    #[error("ERR210: dail server: {0}")]
+    Serve(String),
+    /// Talking to a dail server failed: it could not be reached, its certificate is not the
+    /// pinned one, or it refused or did not follow the protocol (ADR 0017).
+    #[error("ERR211: dail server link: {0}")]
+    Remote(String),
 }

@@ -98,4 +98,6 @@ The newline-delimited JSON-RPC 2.0 of the profile socket, generalized over any b
 - New dependencies: `x509-cert` (with `der` and `spki`) and `qrcode` (`rqrr` for tests only). On Android, CameraX and
   `zxing-core`. Each is checked against `deny.toml` or the Gradle licence allowlist when it is added. Their exact
   feature sets are confirmed in SRV-3 and SRV-QR1.
+  - SRV-3: `x509-cert` 0.3 with `default-features = false, features = ["builder", "std"]` (`der` and `spki` through
+    its re-exports, not as direct dependencies), `p256` with `pkcs8` in app-sync, and `base64ct` (`alloc`) for the wire.
 - The wire format is public API like `Command` JSON (AGENTS.md §5): versioned through `hello.protocol`.

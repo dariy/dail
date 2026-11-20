@@ -32,6 +32,8 @@ enum Input {
     Command {
         cmd: Command,
         origin: Origin,
+        /// The `Ctx::id_seed` to dispatch with; `None`: a fresh one.
+        seed: Option<u128>,
         reply: oneshot::Sender<SubmitResult>,
     },
     Event(Event),
@@ -180,6 +182,27 @@ impl SessionClient {
     /// engine's rejection. Message bodies requested with `include_body` are read from the store
     /// and added to the receipt ([`crate::bodies`]).
     pub async fn submit(&self, cmd: Command, origin: Origin) -> Result<SubmitResult, SyncError> {
+        self.submit_with(cmd, origin, None).await
+    }
+
+    /// Like [`SessionClient::submit`], dispatched with `seed` as `Ctx::id_seed`: a device of a
+    /// dail server sends the seed it used offline, so the IDs the command creates here are the
+    /// ones it already uses (ADR 0017).
+    pub async fn submit_seeded(
+        &self,
+        cmd: Command,
+        origin: Origin,
+        seed: u128,
+    ) -> Result<SubmitResult, SyncError> {
+        self.submit_with(cmd, origin, Some(seed)).await
+    }
+
+    async fn submit_with(
+        &self,
+        cmd: Command,
+        origin: Origin,
+        seed: Option<u128>,
+    ) -> Result<SubmitResult, SyncError> {
         let bodies = match cmd {
             Command::GetThread {
                 include_body: true,
@@ -193,7 +216,12 @@ impl SessionClient {
         };
         let (reply, response) = oneshot::channel();
         self.input
-            .send(Input::Command { cmd, origin, reply })
+            .send(Input::Command {
+                cmd,
+                origin,
+                seed,
+                reply,
+            })
             .await
             .map_err(|_| SyncError::SessionClosed)?;
         let mut result = response.await.map_err(|_| SyncError::SessionClosed)?;
@@ -231,6 +259,12 @@ impl SessionClient {
             .await
             .map_err(|_| SyncError::SessionClosed)?;
         done.await.map_err(|_| SyncError::SessionClosed)
+    }
+
+    /// The stored blob `id` (a raw message body), or `None` if the store has none. Reads only;
+    /// the engine is not involved.
+    pub async fn blob(&self, id: &str) -> Result<Option<Vec<u8>>, SyncError> {
+        self.backend.get_blob(id).await
     }
 
     /// Writes the sanitized "open original" page of a stored message body (`blob`, from the
@@ -327,8 +361,8 @@ impl EngineLoop {
             }
             let effects = tokio::select! {
                 next = input.recv(), if input_open => match next {
-                    Some(Input::Command { cmd, origin, reply }) => {
-                        let (result, effects) = self.dispatch(cmd, origin);
+                    Some(Input::Command { cmd, origin, seed, reply }) => {
+                        let (result, effects) = self.dispatch(cmd, origin, seed);
                         let _ = reply.send(result);
                         effects
                     }
@@ -405,8 +439,16 @@ impl EngineLoop {
         }
     }
 
-    fn dispatch(&mut self, cmd: Command, origin: Origin) -> (SubmitResult, Vec<Effect>) {
-        let ctx = self.ctx(origin);
+    fn dispatch(
+        &mut self,
+        cmd: Command,
+        origin: Origin,
+        seed: Option<u128>,
+    ) -> (SubmitResult, Vec<Effect>) {
+        let mut ctx = self.ctx(origin);
+        if let Some(seed) = seed {
+            ctx.id_seed = seed;
+        }
         if let Some(audit) = &self.audit {
             audit.record(&ReplayRecord::new(&ctx, ReplayInput::Command(cmd.clone())));
         }

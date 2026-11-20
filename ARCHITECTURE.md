@@ -902,6 +902,63 @@ password (it must reach the owner's keyring; the socket is user-only); everywher
 Transport failures are JSON-RPC errors (`-32600` bad request, `-32601` unknown method, `-32602` bad params or origin,
 `-32603` session closed).
 
+The framing (`app_sync::rpc`) is generic: `ipc::serve_stream` serves this protocol on any `AsyncRead + AsyncWrite`
+stream (the local socket, a pipe in tests), and `rpc::RpcClient` calls over any stream (`into_notifications` turns a
+connection into its notification stream after `watch`). Lines are read with a length limit where the peer is not
+trusted (`rpc::LineReader`).
+
+#### The dail server's transport (ADR 0017, SRV-3)
+`app_sync::serve` runs the same JSON-RPC over TLS for paired devices; `app_sync::remote` is the device side. Library
+code only: `dail serve` and remote profiles wire it up (SRV-4, SRV-5a).
+
+- **Identity** (`ServerIdentity::load_or_create(<profile>/serve, hosts)`): a P-256 key made once (`getrandom`) in
+  `serve/key.p256`, and a self-signed X.509 v3 end-entity certificate built with `x509-cert` and signed with `p256`'s
+  ECDSA in `serve/cert.der` (`CN=dail server`, `serverAuth`, SANs: the advertised hosts plus `localhost`, `127.0.0.1`,
+  `::1`; valid 20 years). Dir 0700, files 0600 on Unix. Kept across restarts even when the hosts change; made again only
+  when missing or not the key's. rustls signs with it through an `rustls::sign::SigningKey` in app-sync (app-tls loads
+  no private keys).
+- **Listener** (`DailServer::start(identity, hub, session, seeds, options)`, `listen(addr)` per address): tokio-rustls,
+  TLS 1.3 only, the app-tls provider, no client certificates. Any address; one outside loopback, RFC 1918, CGNAT
+  `100.64.0.0/10` and ULA `fc00::/7` (`serve::is_private_address`) gets a `warn!`. The handshake and the first request
+  must arrive within 10 s; the first line is at most 16 KiB, later lines at most an upload's size in base64.
+- **Dialer** (`remote`): TLS 1.3 with a verifier that accepts only the certificate whose SHA-256 is the pinned
+  fingerprint (no web roots, names or dates; the handshake signature is still verified with the provider's
+  algorithms). `probe(host, port)` accepts any certificate, returns its fingerprint and sends nothing
+  (`Effect::ProbeServer` → `ServerOffered`). `pair(host, port, fingerprint, code)` exchanges a code for a token
+  (`Effect::PairWithServer`: the token goes to the keyring under `link.server.token`, then `ServerPaired`; a failure is
+  `LinkFailed` with a message that holds neither token nor code). `RemoteClient` (`connect` = dial + `hello`, `submit`,
+  `preview`, `flush`, `state`, `watch` on a connection of its own, `blob`, `put_file`) is what SRV-5a wraps.
+- **Pairing** (`ServeHub`, shared by `LiveBackend::with_serve` and the listener): `Effect::OpenPairing` opens a code
+  (single use, until `expires_at_ms`, case and spaces ignored). A wrong or expired code counts against the peer's IP;
+  the 5th within a minute burns **every** open code (`MAX_WRONG_CODES`, `WRONG_CODE_WINDOW_MS`), so guessing needs a new
+  `start_pairing`. A valid code gives a token of 32 bytes from `getrandom` (base64url on the wire), a `DeviceId` from the
+  session's seed source, `Event::DevicePaired`, and a `[[serve.devices]]` row with the token's SHA-256. A `pair`
+  connection is closed after its answer. Tokens are checked by hashing the presented token and comparing with every
+  stored hash in constant time; the lookup and the connection's registration are one critical section, before
+  `hello` is answered, so a revocation either comes first or signals the connection. `Effect::RevokeDevice` removes the device from memory first (its token fails at once),
+  flips the revocation signal of each of its connections (they close mid-request or mid-watch), then removes the row.
+  Without a hub (`LiveBackend` not serving) both effects fail with `ERR210` → `serve_failed`.
+- **Protocol v1** (`serve::PROTOCOL`; the first request is `pair` or `hello`, anything else, a wrong token or another
+  protocol number gets an error and the connection is closed):
+  `pair {code}` → `{token, device: {id, name, role}, protocol, instance}`;
+  `hello {token, protocol, client_version}` → `{protocol, server_version, instance, device}` (`instance`: a UUID per
+  server process, so a device sees a restart);
+  `submit {origin, command, request_id, seed}` → as on the socket. Roles: `user` claims `gui`, `tui`, `cli`, `batch`;
+  `agent` only `mcp` (and `mcp_allow_send` with `ServeOptions::allow_send`); others get `-32004`. `seed` (a `u128` as a
+  decimal string) is the dispatch's `Ctx::id_seed` (`SessionClient::submit_seeded`), so IDs equal those the device made
+  offline. The answers to each device's last 1024 `request_id`s are kept (`REPLAY_MEMORY`, in memory): a resend gets
+  the stored answer without a dispatch;
+  `preview`, `flush` as on the socket; `state` → `{revision, state}` (`state` is `StateDiff::snapshot`, so no `view`,
+  `update` or `link`; `revision` is `AppState::revision`);
+  `watch {since?, instance?}` → `null`, then only `changed {revision, diff}` after each burst of changes, starting with
+  the change since `since` when that state is among the last 16 the server saw and `instance` is its own, else
+  `resync {revision, state}` (a snapshot);
+  `blob {id}` (64 hex) → `{bytes}` (base64) or `null`;
+  `put_file {name, bytes}` → `{path}`: at most 25 MiB (`MAX_UPLOAD_BYTES`, `-32003` beyond), stored as
+  `serve/uploads/<uuid>/<name>` with `app_io::mime::safe_file_name`, for `attach_file`.
+  Each answered request reports `DeviceSeen` at most once a minute per device. Error codes: `-32001` not authorized,
+  `-32002` protocol mismatch, `-32003` too large, `-32004` origin refused, plus the socket's.
+
 ### 5.5 Updates of dail (Wave 7, ADR 0011)
 
 Effects run on their own worker (`Lane::Update`). `app_sync::https::Https` is hyper's HTTP/1.1 client over
@@ -946,6 +1003,7 @@ first rows of the general settings and in the status line; the phones as the fra
   backups/20261020T081500Z/{config.toml,state.redb}   # daily, newest 7 (`store::backup`)
   state.redb.broken-<time>     # a cache that did not open, set aside (`dail doctor` lists them)
   logs/replay-YYYYMMDD.jsonl   # {"t":ms,"seed"?:u128,"origin":"mcp","input":{"command":…}|{"event":…}} — bodies/secrets redacted
+  serve/             # `dail serve` only (ADR 0017), 0700: key.p256 (raw P-256 scalar), cert.der, uploads/<id>/<name> (0600 files)
 ```
 
 Replay format (`app-core::replay`): `t` becomes `Ctx::now_ms`, `seed` becomes `Ctx::id_seed` (default `line << 64`), blank
@@ -969,7 +1027,9 @@ steps + final state with `insta` and checks that replaying twice is identical.
   senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`, `focused`, `list_filter`; only
   written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
-  and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
+  and not saved). A profile that serves (ADR 0017) also has `[[serve.devices]]` (`id, name, role, token_sha256,
+  paired_at_ms`; absent otherwise); it loads into `state.devices`, and only `dail serve` writes it
+  (`ConfigStore::update_serve`, under the same lock as every other change). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
   disk, rename it over, flush the directory on Unix); blobs are written the same way, and redb commits are durable.
 - Crash safety (`app_io::store::backup`): `ProfileStore::open` (under the profile lock) opens `config.toml` and
   `state.redb`; a `state.redb` that does not open (a torn or foreign file; not a newer schema) is renamed
@@ -2382,3 +2442,4 @@ allowlist; bot PRs are merged like any other.
 | Design tokens | `app-theme` (serde only) | Themes stay data, (de)serializable for theme files later (ADR 0008) |
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |
+| Server certificate | `x509-cert` 0.3 (`builder`, `std`; app-sync) + `p256` (`pkcs8`) | The self-signed certificate of `dail serve` (ADR 0017), on p256 0.14's `der`/`spki`/`signature` line; pure Rust (`rcgen` needs ring or aws-lc) |

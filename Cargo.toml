@@ -116,6 +116,11 @@ parking_lot = "0.13"
 # --- TLS crypto (app-tls, ADR 0003) ---
 zeroize = "1" # wipes keys on drop (already in the tree via rustls)
 getrandom = "0.4" # the OS random source (already in the tree via uuid)
+# The self-signed certificate of `dail serve` (ADR 0017): RustCrypto, pure Rust, on the der 0.8 / spki 0.8 /
+# signature 3 line of p256 0.14. `builder` signs it with p256's ECDSA (and brings sha1 for the key identifiers).
+x509-cert = { version = "0.3", default-features = false, features = ["builder", "std"] }
+# Base64 for the dail server's wire (device tokens, blobs, uploads); constant-time, already in the tree via der.
+base64ct = { version = "1.8", features = ["alloc"] }
 
 # --- Network runtime (app-sync) — rustls with app-tls (ADR 0003), never ring/aws-lc/openssl ---
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal", "process"] }

@@ -4,8 +4,8 @@
 use std::path::{Path, PathBuf};
 
 use app_core::{
-    Account, AccountId, AccountStatus, AppState, Endpoint, PersistDelta, ProviderPreset, SecretRef,
-    SettingKey, Settings, UpdatePolicy, ViewPrefs,
+    Account, AccountId, AccountStatus, AppState, Device, DeviceId, DeviceRole, Endpoint,
+    PersistDelta, ProviderPreset, SecretRef, SettingKey, Settings, UpdatePolicy, ViewPrefs,
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,54 @@ pub struct Config {
     /// Accounts, in display order.
     #[serde(default, rename = "account")]
     pub accounts: Vec<AccountConfig>,
+    /// What `dail serve` keeps (`[serve]`, ADR 0017): the paired devices. Absent unless the
+    /// profile serves.
+    #[serde(default, skip_serializing_if = "ServeConfig::is_empty")]
+    pub serve: ServeConfig,
+}
+
+/// The `[serve]` table of a profile that runs `dail serve` (ADR 0017).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServeConfig {
+    /// The paired devices (`[[serve.devices]]`), in pairing order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub devices: Vec<ServeDevice>,
+}
+
+impl ServeConfig {
+    /// Whether there is nothing to write.
+    pub fn is_empty(&self) -> bool {
+        self.devices.is_empty()
+    }
+}
+
+/// One `[[serve.devices]]` row: a paired device and the SHA-256 of its token. The token itself
+/// is never stored on the server; the device keeps it in its OS keyring.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ServeDevice {
+    /// The device.
+    pub id: DeviceId,
+    /// Its name (`start_pairing`).
+    pub name: String,
+    /// What it may do.
+    pub role: DeviceRole,
+    /// SHA-256 of the device token's 32 bytes, lower-case hex.
+    pub token_sha256: String,
+    /// When it was paired, in Unix milliseconds.
+    pub paired_at_ms: i64,
+}
+
+impl ServeDevice {
+    /// The device as the engine lists it.
+    pub fn to_device(&self) -> Device {
+        Device {
+            id: self.id,
+            name: self.name.clone(),
+            role: self.role,
+            paired_at_ms: self.paired_at_ms,
+            last_seen_ms: None,
+        }
+    }
 }
 
 /// One `[[account]]` table: an [`Account`] without its runtime status.
@@ -106,10 +154,13 @@ impl Config {
             settings: state.settings.clone(),
             view: state.view.prefs(),
             accounts: state.accounts.values().map(AccountConfig::from).collect(),
+            // The token hashes are not in the state; `dail serve` writes `[serve]` itself.
+            serve: ServeConfig::default(),
         }
     }
 
-    /// Replaces settings, accounts and view preferences of `state` with this config.
+    /// Replaces settings, accounts, view preferences and paired devices of `state` with this
+    /// config.
     pub fn apply_to(&self, state: &mut AppState) {
         state.settings = self.settings.clone();
         state.view.apply_prefs(&self.view);
@@ -117,6 +168,12 @@ impl Config {
             .accounts
             .iter()
             .map(|account| (account.id, account.to_account()))
+            .collect();
+        state.devices = self
+            .serve
+            .devices
+            .iter()
+            .map(|device| (device.id, device.to_device()))
             .collect();
     }
 
@@ -210,6 +267,21 @@ impl Config {
                 return Err(format!("account {}: port must not be 0", account.email));
             }
         }
+        for (index, device) in self.serve.devices.iter().enumerate() {
+            if self.serve.devices[..index]
+                .iter()
+                .any(|d| d.id == device.id)
+            {
+                return Err(format!("duplicate serve device id {}", device.id));
+            }
+            let hash = &device.token_sha256;
+            if hash.len() != 64 || !hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+                return Err(format!(
+                    "serve device {}: token_sha256 must be 64 lower-case hex digits",
+                    device.id
+                ));
+            }
+        }
         Ok(())
     }
 }
@@ -244,6 +316,30 @@ impl ConfigStore {
     /// The config file path.
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// The `[serve]` table (empty for a fresh profile).
+    pub fn serve(&self) -> ServeConfig {
+        self.config
+            .lock()
+            .as_ref()
+            .map(|config| config.serve.clone())
+            .unwrap_or_default()
+    }
+
+    /// Changes the `[serve]` table and writes the file, under the same lock as every other
+    /// change, so that neither overwrites the other.
+    pub fn update_serve(&self, change: impl FnOnce(&mut ServeConfig)) -> Result<(), IoError> {
+        let mut guard = self.config.lock();
+        let mut next = guard.clone().unwrap_or_default();
+        change(&mut next.serve);
+        next.validate().map_err(|reason| IoError::Config {
+            path: self.path.display().to_string(),
+            reason,
+        })?;
+        next.save(&self.path)?;
+        *guard = Some(next);
+        Ok(())
     }
 }
 

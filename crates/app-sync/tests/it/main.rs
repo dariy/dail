@@ -9,5 +9,6 @@ mod ipc;
 mod live;
 mod live_it;
 mod saves;
+mod serve;
 mod session;
 mod zone;

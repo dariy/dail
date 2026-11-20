@@ -59,6 +59,9 @@ pub struct LiveBackend {
     /// Where `edit_draft` writes the attachments of server drafts (MISC-44d); none: a server
     /// draft with attachments can't be edited.
     draft_files_dir: Option<std::path::PathBuf>,
+    /// The dail server this profile runs (`dail serve`, ADR 0017); none: pairing codes and
+    /// revocations fail.
+    serve: Option<Arc<crate::serve::ServeHub>>,
 }
 
 impl LiveBackend {
@@ -84,7 +87,15 @@ impl LiveBackend {
             breaker: None,
             updates_dir: None,
             draft_files_dir: None,
+            serve: None,
         }
+    }
+
+    /// Runs the dail server's effects (`OpenPairing`, `RevokeDevice`) on `hub` (ADR 0017).
+    #[must_use]
+    pub fn with_serve(mut self, hub: Arc<crate::serve::ServeHub>) -> Self {
+        self.serve = Some(hub);
+        self
     }
 
     /// Downloads updates of dail into `dir` (`ProfileDirs::updates_dir`, ADR 0011).
@@ -982,21 +993,37 @@ impl LiveBackend {
                 install,
                 path,
             } => Ok(vec![crate::install::install(version, install, path).await]),
-            // The dail server and its link (ADR 0017) arrive with `dail serve` and remote profiles
-            // (SRV-3, SRV-4). Until then they fail as unsupported, which shows in
-            // `status.serve_error` or `link.error`.
-            Effect::OpenPairing { .. }
-            | Effect::RevokeDevice { .. }
-            | Effect::ProbeServer { .. }
-            | Effect::PairWithServer { .. } => {
-                tracing::info!(
-                    effect = effect.name(),
-                    "the dail server is not available in this version"
-                );
-                Err(SyncError::Unsupported {
-                    backend: self.name(),
-                    effect: effect.name(),
-                })
+            // The dail server (ADR 0017): only a profile that runs `dail serve` has a hub.
+            Effect::OpenPairing { .. } | Effect::RevokeDevice { .. } => {
+                let Some(hub) = self.serve.clone() else {
+                    return Err(SyncError::Serve(
+                        "this profile is not running `dail serve`".to_owned(),
+                    ));
+                };
+                hub.execute(&effect).await.unwrap_or(Ok(Vec::new()))
+            }
+            // A device of a dail server (ADR 0017).
+            Effect::ProbeServer { host, port } => {
+                let fingerprint = crate::remote::probe(&host, port).await?;
+                Ok(vec![Event::ServerOffered {
+                    host,
+                    port,
+                    fingerprint,
+                }])
+            }
+            Effect::PairWithServer {
+                host,
+                port,
+                fingerprint,
+                code,
+                secret,
+            } => {
+                let paired = crate::remote::pair(&host, port, &fingerprint, &code).await?;
+                let token = paired.token;
+                self.with_secrets(move |store| store.set(&secret, &token))
+                    .await?;
+                tracing::info!(device = %paired.device, "paired with the dail server");
+                Ok(vec![Event::ServerPaired { fingerprint }])
             }
             Effect::DisconnectServer { secret } => {
                 if let Some(secret) = secret {

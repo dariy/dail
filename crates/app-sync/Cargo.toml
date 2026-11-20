@@ -16,14 +16,18 @@ app-core.workspace = true
 app-io.workspace = true
 app-tls.workspace = true
 async-imap.workspace = true
+base64ct.workspace = true
 chrono.workspace = true
 futures-util.workspace = true
+getrandom.workspace = true
 http-body-util.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
 interprocess.workspace = true
 keyring.workspace = true
 lettre.workspace = true
+# `pkcs8`: the server key encodes its public key into the certificate (ADR 0017).
+p256 = { workspace = true, features = ["pkcs8"] }
 parking_lot.workspace = true
 rustls.workspace = true
 serde.workspace = true
@@ -35,6 +39,8 @@ sha2.workspace = true
 tracing.workspace = true
 uuid = { workspace = true, features = ["v4"] }
 webpki-roots.workspace = true
+x509-cert.workspace = true
+zeroize.workspace = true
 
 # keyring's `v1` set turns on the Apple store's `keychain` feature, which does not build for iOS without
 # `protected` (ADR 0010). Only this feature is wanted here; the iOS host uses the store itself.

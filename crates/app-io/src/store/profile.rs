@@ -11,7 +11,7 @@ use crate::profile::ProfileDirs;
 /// `blobs/`. Deltas are routed to the file that holds them.
 #[derive(Debug)]
 pub struct ProfileStore {
-    config: ConfigStore,
+    config: std::sync::Arc<ConfigStore>,
     cache: RedbStore,
     blobs: BlobDir,
     recovery: Option<Recovery>,
@@ -47,7 +47,7 @@ impl ProfileStore {
             Err(err) => tracing::warn!(error = %err, "profile backup failed"),
         }
         Ok(Self {
-            config,
+            config: std::sync::Arc::new(config),
             cache: RedbStore::open(dirs.state_db())?,
             blobs: BlobDir::new(dirs.blobs_dir()),
             recovery,
@@ -57,6 +57,12 @@ impl ProfileStore {
     /// What opening had to recover, if anything.
     pub fn recovery(&self) -> Option<&Recovery> {
         self.recovery.as_ref()
+    }
+
+    /// The `config.toml` store, shared with `dail serve`, which writes `[serve]` through it
+    /// (ADR 0017).
+    pub fn config(&self) -> std::sync::Arc<ConfigStore> {
+        std::sync::Arc::clone(&self.config)
     }
 
     /// The mail cache.

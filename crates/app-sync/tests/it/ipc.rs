@@ -374,3 +374,55 @@ async fn an_attached_bridge_submits_with_its_origin_and_leaves_the_owner_running
     .await
     .expect("the bridge saw the owner go away");
 }
+
+#[tokio::test]
+async fn the_protocol_runs_over_any_byte_stream() {
+    let session = open(Arc::default()).await;
+    let (near, far) = tokio::io::duplex(1 << 16);
+    tokio::spawn(ipc::serve_stream(far, session.client()));
+    let rpc = app_sync::rpc::RpcClient::new(near);
+    let reply = rpc
+        .call(
+            "submit",
+            json!({ "origin": "cli", "command": { "cmd": "set_setting", "args": { "key": "poll_secs", "value": 300 } } }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reply["ok"]["name"], "set_setting");
+    let state = rpc.call("state", json!(null)).await.unwrap();
+    assert_eq!(state["settings"]["poll_secs"], 300);
+    let refused = rpc
+        .call(
+            "submit",
+            json!({ "origin": "gui", "command": { "cmd": "undo" } }),
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            refused,
+            app_sync::rpc::CallError::Refused { code: -32602, .. }
+        ),
+        "{refused:?}"
+    );
+
+    // A second stream watches.
+    let (near, far) = tokio::io::duplex(1 << 16);
+    tokio::spawn(ipc::serve_stream(far, session.client()));
+    let (result, mut changes) = app_sync::rpc::RpcClient::new(near)
+        .into_notifications("watch", json!(null))
+        .await
+        .unwrap();
+    assert!(result.is_null());
+    session
+        .submit(poll_secs(600), Origin::Cli)
+        .await
+        .unwrap()
+        .unwrap();
+    let (method, _) = tokio::time::timeout(Duration::from_secs(5), changes.next())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(method, "changed");
+    session.shutdown().await.unwrap();
+}
