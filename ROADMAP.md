@@ -1049,6 +1049,8 @@ in every dail instance (ADR 0015). It starts after the Android launch (Wave 11).
   that self-hosted Dovecot servers can turn it on
 - SET-9 (split 2026-11-06, too large for one change): compile rules to Sieve and upload over ManageSieve where the
   preset says it exists; rules Sieve cannot express are marked client-only
+  *(postponed 2026-11-20: neither Hostinger nor Gmail offers ManageSieve; Wave 18's `dail serve` runs rules on an
+  always-on machine instead, ADR 0017)*
   - [ ] SET-9a (S) [core][io]: a pure classifier in `app-core` (`Server` or `ClientOnly(reason)`: mailbox tests,
     has attachment, add_label, and archive without a known special-use folder are client-only) and a deterministic
     script `dail` in `app-io` (`fileinto`, `imap4flags`), strings escaped per RFC 5228; hostile-pattern and snapshot tests
@@ -1297,6 +1299,52 @@ elsewhere. The review took App Review's rules from prior knowledge: **read the c
   ships its own TLS code from RustCrypto crates, not the system's), and a reviewer mailbox (STORE-22's)
 - [ ] IOS-5 (M) [ios][xtask]: `fastlane/metadata/ios` and iPhone and iPad screenshots from `DailDemo`
 - [ ] IOS-7 [user]: the device check, I4a to I4c of Wave 10.5, if it is still open then
+
+---
+
+## Wave 18 — Self-hosted server: "one dail that never sleeps"
+
+`dail serve` runs one headless dail on an always-on machine (a home server, a VPS, behind Tailscale). It holds the
+accounts and runs sync, rules, polling and scheduled sends. The desktop, the TUI, the CLI and MCP, Android and iOS
+connect to it as remote profiles. They send it commands over the network, mirror its state, and keep working offline.
+Design in ADR 0017. All new text ships in the 7 languages.
+
+**Exit criteria**
+- With every device closed, rules sort new mail and scheduled sends leave, from `dail serve` alone.
+- A phone pairs by scanning a QR code. A desktop pairs with a typed code. Both pin the server's certificate.
+- A device that loses the server keeps reading cached mail and queues triage. On reconnect the queue reaches the server
+  in order, and anything refused shows as a problem.
+- Passwords exist only on the server. Revoking a device ends its access at once.
+
+- [x] SRV-0 (S) [docs]: ADR 0017 and this wave *(ADR 0017 proposed 2026-11-20)*
+- [ ] SRV-1 (M) [core]: `Command::placement()` (exhaustive; `Server`, `Client`, `ServerWithUpload`, `ClientWithBlob`),
+  `StateDiff` (`diff`/`apply` without `view`, a proptest round trip), `Event::RemoteSynced`, `state.link` (status, queue,
+  rejections) and mirror mode (no network effects); a replay fixture `remote_offline.jsonl`
+- [ ] SRV-2 (S) [core][front]: `list_devices`, `start_pairing` (code in the receipt only), `revoke_device`,
+  `connect_server`, `trust_server`, `disconnect_server`, `retry_offline`, `dismiss_offline_rejection`, with agent access,
+  placement, reach and actions
+- [ ] SRV-3 (M) [sync]: the socket's JSON-RPC over any stream, a TLS listener and dialer, the self-signed P-256
+  certificate (`x509-cert`), pairing, device tokens and roles, `hello`, idempotent `submit` (`request_id`, `seed`),
+  `watch` with diffs, `blob`, `put_file`
+- [ ] SRV-4 (M) [cli]: `dail serve`, `dail serve pair|devices|revoke`, `dail remote add|status`; a systemd user unit
+  in `packaging/systemd/`, a Tailscale how-to, ARCHITECTURE §5.6 *Serving*; a smoke step against `--backend memory`
+- [ ] SRV-5a (M) [sync][io][tk]: the remote profile (`[remote]`, a new golden), `RemoteClient`, `RemoteBackend`,
+  `Connection::Remote`, online only
+- [ ] SRV-5b (M) [sync][io][tk]: the persisted offline queue and its replay, the blob cache and pre-loading, and the
+  offline refusals (a new error code)
+- [ ] SRV-QR1 (S) [front][cli][tui][gui]: `app_front::qr` (`qrcode`) and `app_front::pairing` (the `dail://pair` URI
+  and its strict parser); half-blocks in the terminal and the TUI, the *Pair a device…* dialog in the GUI; a round trip
+  through `rqrr` in tests
+- [ ] SRV-6 (M) [front][gui][tui]: *Connect to a dail server* in the account wizards, the link in the status bar,
+  offline rejections in the problems list, and *Devices* in settings
+- [ ] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
+  through `External::PickFiles`
+- [ ] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
+- [ ] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera
+  permission asked for when it opens
+- [ ] SRV-8 [user]: live check: `dail serve` under systemd on the home server with the `ai@darii.net` profile, the
+  desktop over Tailscale, then the phone. Covers triage offline and reconnect, an MCP send approved from the phone,
+  and rules sorting overnight with every device closed
 
 ---
 
