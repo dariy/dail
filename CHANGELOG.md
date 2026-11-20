@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.9
+
+- Merge go/misc: rules, settings sync, edit draft, mobile reader
+
 ## 0.1.8
 
 - Wave 13: synced settings, rules, per-message actions, live unread counts
