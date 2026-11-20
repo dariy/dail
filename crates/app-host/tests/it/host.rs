@@ -27,6 +27,7 @@ fn live(dir: &std::path::Path) -> Config {
         backend: BackendChoice::Live,
         lang: None,
         version: None,
+        ca_certs: Vec::new(),
     }
 }
 

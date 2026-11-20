@@ -26,6 +26,10 @@ pub struct Config {
     /// The app's version name.
     #[serde(default)]
     pub version: Option<String>,
+    /// More trusted root certificates, as hex DER: Android's `AndroidCAStore`, with the CAs the user installed
+    /// (ADR 0016). Empty: the Mozilla roots only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ca_certs: Vec<String>,
 }
 
 /// The session's backend: `"live"` or `{"memory": "<fixture>"}`.

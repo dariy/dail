@@ -755,7 +755,9 @@ ManageSieve (RFC 5804, SET-8): `PresetProfile::managesieve` is the preset's defa
 `config.toml` (`[account.managesieve]` with `host`, `port` (usually 4190), `security = "starttls"`), e.g. a self-hosted
 Dovecot; `Account::managesieve()` returns that, else the preset's. Absent from older configs and golden profiles: `None`.
 
-TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`) and `webpki-roots`
+TLS: rustls with the `app-tls` crypto provider (ADR 0003, 0014, `docs/plan-tls.md`). The roots (ADR 0016) are
+`webpki-roots`, the OS store on the desktop (`rustls-native-certs`, read once per process), and the certificates the
+host passes in `Config.ca_certs` (Android's `AndroidCAStore`, with the user's CAs; iOS lists none)
 (`app_sync::tls::client_config`; `tls::smtp_parameters` installs `app_tls::provider()` as rustls's process default for
 lettre, with the same roots). Plaintext connections are refused: `Security` has only `tls` and `starttls`. No crate in
 the build compiles C: `deny.toml` bans `ring`, and `cc` only appears under crates that build nothing with it.
@@ -2171,7 +2173,7 @@ canonical form, which parses back to the same `Query`.
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
 | Tracking pixels / remote content | Never fetched; links shown with real target. `show_images_from` (agents may run it) only lets the reader draw parts carried in the message itself (`cid:`), decoded off the UI thread with size limits (PNG, JPEG, GIF, WebP; downscaled to 4096 px per side) |
 | Terminal escape injection (TUI) | Email text and agents' drafts are drawn through one sanitizer (controls, ESC, DEL, bidi overrides replaced; `app-tui/tests/it/untrusted.rs`); no OSC 8 links, no window title, no browser or file dialog (they would open on the SSH host) |
-| MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki roots, no plaintext, no "accept invalid certs" setting |
+| MITM | rustls with app-tls (ADR 0003: verification tested against Wycheproof and RustCrypto, strict DER, whole-encoding PKCS#1 comparison), webpki, OS and Android user roots (ADR 0016), no plaintext, no "accept invalid certs" setting |
 | Malicious update | The manifest is accepted only with a valid minisign signature from the built-in key, a trusted comment naming its version, and a version newer than the running one; an artifact only with the manifest's size and sha256; `install_update` is user only and needs `confirm`; checks are off until the user turns them on and send no identifiers (ADR 0011) |
 | Local IPC abuse | Socket in the user-only profile dir (0700) / named pipe with the default DACL (only the owner, SYSTEM and admins may write); clients can't claim the `gui` or `runtime` origin |
 

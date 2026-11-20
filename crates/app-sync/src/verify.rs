@@ -136,7 +136,7 @@ async fn smtp_auth(
     timeout: Duration,
 ) -> Result<(), String> {
     let at = address(endpoint);
-    let tls = tls::smtp_parameters(&endpoint.host)
+    let tls = tls::smtp_parameters(&endpoint.host, &[])
         .map_err(|err| format!("SMTP {at}: TLS setup failed: {err}"))?;
     let hello = ClientId::default();
     let server = (endpoint.host.as_str(), endpoint.port);

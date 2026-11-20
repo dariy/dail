@@ -144,7 +144,7 @@ async fn smtp_starttls(host: &str) {
     let mut conn = AsyncSmtpConnection::connect_tokio1((host, 587), timeout, &hello, None, None)
         .await
         .unwrap();
-    conn.starttls(tls::smtp_parameters(host).unwrap(), &hello)
+    conn.starttls(tls::smtp_parameters(host, &[]).unwrap(), &hello)
         .await
         .map_err(|err| tls::with_hint(format!("{host}:587: {err}"), &err))
         .unwrap();

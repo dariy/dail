@@ -85,7 +85,7 @@ impl SmtpSender for NetSmtp {
         Box::pin(async move {
             let at = address(&login.server);
             let envelope = envelope(&message).map_err(|err| format!("SMTP {at}: {err}"))?;
-            let tls = tls::smtp_parameters(&login.server.host)
+            let tls = tls::smtp_parameters(&login.server.host, &[])
                 .map_err(|err| format!("SMTP {at}: TLS setup failed: {err}"))?;
             let tls = match login.server.security {
                 Security::Tls => Tls::Wrapper(tls),

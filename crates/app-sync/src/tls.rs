@@ -1,14 +1,17 @@
-//! TLS client configuration: rustls with the `app-tls` crypto provider (ADR 0003) and the Mozilla roots from
-//! `webpki-roots`. There is no option to accept invalid certificates (`ARCHITECTURE.md §9`).
+//! TLS client configuration: rustls with the `app-tls` crypto provider (ADR 0003). The trusted roots (ADR 0016) are the
+//! Mozilla roots from `webpki-roots`, the OS store on the desktop (`rustls-native-certs`), the certificates the host
+//! passes in ([`set_host_roots`]: Android's `AndroidCAStore`), and per connection the account's own trusted
+//! certificates. There is no option to accept invalid certificates (`ARCHITECTURE.md §9`).
 //!
 //! app-tls implements TLS 1.3 and 1.2 with ChaCha20-Poly1305 and X25519 only. A server that offers none of these
 //! fails the handshake; [`incompatible_server_hint`] turns that failure into a message that says why.
 
 use std::error::Error as StdError;
 use std::io;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use lettre::transport::smtp::client::{CertificateStore, TlsParameters};
+use lettre::transport::smtp::client::{Certificate, CertificateStore, TlsParameters};
+use rustls::pki_types::CertificateDer;
 use rustls::{AlertDescription, ClientConfig, RootCertStore};
 
 use crate::error::SyncError;
@@ -16,11 +19,84 @@ use crate::error::SyncError;
 /// What dail tells the user when a server and app-tls share no algorithms.
 pub const INCOMPATIBLE_SERVER: &str = "the server supports none of the TLS ciphers dail implements (TLS 1.2/1.3 with ChaCha20-Poly1305 or AES-GCM, and X25519, P-256 or P-384)";
 
-/// The client config used for IMAP connections.
-pub fn client_config() -> Result<Arc<ClientConfig>, SyncError> {
-    client_config_with_roots(RootCertStore {
-        roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+/// The roots the host passed in, once per process.
+static HOST_ROOTS: OnceLock<Vec<CertificateDer<'static>>> = OnceLock::new();
+
+/// Every root besides the Mozilla ones: the OS store's, then the host's. Read once per process.
+static EXTRA_ROOTS: OnceLock<Vec<CertificateDer<'static>>> = OnceLock::new();
+
+/// Makes the certificates `hex_ders` (DER, as hex) trusted roots of every connection: Android's `AndroidCAStore`,
+/// which holds the user's own CAs. Call it before the first connection; later calls, and certificates that do not
+/// decode, are ignored. Returns how many were taken.
+pub fn set_host_roots(hex_ders: &[String]) -> usize {
+    let certs: Vec<CertificateDer<'static>> = hex_ders
+        .iter()
+        .filter_map(|hex| decode_hex(hex))
+        .map(CertificateDer::from)
+        .collect();
+    let count = certs.len();
+    if HOST_ROOTS.set(certs).is_err() {
+        tracing::debug!("host roots already set");
+        return 0;
+    }
+    count
+}
+
+/// The OS store's roots on the desktop, then the host's.
+fn extra_roots() -> &'static [CertificateDer<'static>] {
+    EXTRA_ROOTS.get_or_init(|| {
+        let mut roots = native_roots();
+        roots.extend(HOST_ROOTS.get().into_iter().flatten().cloned());
+        roots
     })
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn native_roots() -> Vec<CertificateDer<'static>> {
+    let found = rustls_native_certs::load_native_certs();
+    for err in &found.errors {
+        tracing::warn!("OS certificate store: {err}");
+    }
+    tracing::debug!("OS certificate store: {} certificates", found.certs.len());
+    found.certs
+}
+
+/// The phones have no store `rustls-native-certs` can read: Android's comes from the host, iOS lists none.
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn native_roots() -> Vec<CertificateDer<'static>> {
+    Vec::new()
+}
+
+/// The certificates of `hex_ders` (an account's trusted certificates) that decode.
+pub fn decode_certs(hex_ders: &[String]) -> Vec<CertificateDer<'static>> {
+    hex_ders
+        .iter()
+        .filter_map(|hex| decode_hex(hex))
+        .map(CertificateDer::from)
+        .collect()
+}
+
+/// The roots of every connection: Mozilla's, then [`extra_roots`]. A root that rustls cannot parse is skipped.
+fn root_store(account: &[CertificateDer<'static>]) -> RootCertStore {
+    let mut roots = RootCertStore {
+        roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
+    };
+    let (_, ignored) =
+        roots.add_parsable_certificates(extra_roots().iter().chain(account).cloned());
+    if ignored > 0 {
+        tracing::debug!("{ignored} roots could not be parsed");
+    }
+    roots
+}
+
+/// The client config used for connections that belong to no account (autoconfig, updates).
+pub fn client_config() -> Result<Arc<ClientConfig>, SyncError> {
+    client_config_with_roots(root_store(&[]))
+}
+
+/// The client config of an account's connections: every root, and the certificates the account trusts.
+pub fn account_config(trusted: &[CertificateDer<'static>]) -> Result<Arc<ClientConfig>, SyncError> {
+    client_config_with_roots(root_store(trusted))
 }
 
 /// A client config trusting exactly `roots`.
@@ -42,12 +118,48 @@ pub fn install_default_provider() {
     }
 }
 
-/// lettre's TLS parameters for `host`: app-tls and the webpki roots, like the IMAP config.
-pub fn smtp_parameters(host: &str) -> Result<TlsParameters, lettre::transport::smtp::Error> {
+/// lettre's TLS parameters for `host`: app-tls and the roots of [`account_config`], with `trusted` among them.
+pub fn smtp_parameters(
+    host: &str,
+    trusted: &[CertificateDer<'static>],
+) -> Result<TlsParameters, lettre::transport::smtp::Error> {
     install_default_provider();
-    TlsParameters::builder(host.to_owned())
-        .certificate_store(CertificateStore::WebpkiRoots)
-        .build_rustls()
+    let mut builder =
+        TlsParameters::builder(host.to_owned()).certificate_store(CertificateStore::WebpkiRoots);
+    for der in extra_roots().iter().chain(trusted) {
+        match Certificate::from_der(der.to_vec()) {
+            Ok(cert) => builder = builder.add_root_certificate(cert),
+            Err(err) => tracing::debug!("root skipped for SMTP: {err}"),
+        }
+    }
+    builder.build_rustls()
+}
+
+/// Lower-case hex of `bytes`.
+pub fn encode_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut out, b| {
+            // Writing to a String cannot fail.
+            let _ = write!(out, "{b:02x}");
+            out
+        })
+}
+
+/// The bytes of hex text (either case, no separators); `None` if it is not hex.
+pub fn decode_hex(text: &str) -> Option<Vec<u8>> {
+    let text = text.trim();
+    if !text.len().is_multiple_of(2) {
+        return None;
+    }
+    (0..text.len())
+        .step_by(2)
+        .map(|i| {
+            text.get(i..i + 2)
+                .and_then(|pair| u8::from_str_radix(pair, 16).ok())
+        })
+        .collect()
 }
 
 /// [`INCOMPATIBLE_SERVER`] when `err`, or an error in its source chain, says that the server and app-tls share no
@@ -171,8 +283,17 @@ mod tests {
     }
 
     #[test]
+    fn hex_round_trips() {
+        assert_eq!(encode_hex(&[0, 0xab, 0x10]), "00ab10");
+        assert_eq!(decode_hex("00AB10"), Some(vec![0, 0xab, 0x10]));
+        assert_eq!(decode_hex("0"), None);
+        assert_eq!(decode_hex("zz"), None);
+        assert_eq!(decode_hex("é0"), None);
+    }
+
+    #[test]
     fn smtp_parameters_install_the_default_provider() {
-        smtp_parameters("smtp.example.com").unwrap();
+        smtp_parameters("smtp.example.com", &[]).unwrap();
         let installed = rustls::crypto::CryptoProvider::get_default().unwrap();
         let suites: Vec<_> = installed
             .cipher_suites
@@ -186,6 +307,6 @@ mod tests {
             .collect();
         assert_eq!(suites, ours);
         // A second call finds the provider installed and still works.
-        smtp_parameters("smtp.example.com").unwrap();
+        smtp_parameters("smtp.example.com", &[]).unwrap();
     }
 }

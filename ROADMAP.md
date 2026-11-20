@@ -403,7 +403,7 @@ encryption (SEC-1), 32-bit ARM.
   and the app says so in a notification.
 - Agents work on the desktop: their triage reaches the phone through the servers, and their send requests are approved
   on the desktop.
-- User-installed CA certificates are not trusted (webpki roots, as on the desktop).
+- User-installed CA certificates are not trusted (webpki roots, as on the desktop). *(Since CA-1, ADR 0016, they are.)*
 - No in-app updates: Obtainium can follow the GitHub releases.
 
 ### A0 — Groundwork (no Android app yet; the desktop works as before)
@@ -994,7 +994,14 @@ text ships in English and French.
 
 ### After launch, in this order
 1. Microsoft OAuth2 (needs STORE-11)
-2. System and user CA trust, plus per-account certificate trust for self-hosters
+2. System and user CA trust, plus per-account certificate trust for self-hosters (ADR 0016)
+   - [x] CA-1 (S) [sync][host][kt]: one root set in `app_sync::tls`: Mozilla, the OS store (`rustls-native-certs`,
+     desktop), and Android's `AndroidCAStore` passed in `Config.ca_certs`; SMTP gets the same roots
+   - [ ] CA-2 (M) [core][io][sync][tk]: `Event::CertificateOffered` from a capturing verifier (and an SMTP probe);
+     `trust_certificate` (user only) and `forget_certificate`; `Account.trusted_certs` in `config.toml`; extra anchors
+     per account in `ImapLogin` / `SmtpLogin`
+   - [ ] CA-3 (M) [front][gui][tui][mobile][kt][ios]: the certificate problem's *Trust…* fix: a confirmation with the
+     subject, issuer, dates and SHA-256; trusted certificates listed in the account's settings with *Forget*
 3. MISC-29 pre-loading, then MISC-25 previews and MISC-30 on iOS
 4. Spanish, then Romanian
 5. targetSdk 37, before the deadline expected in August 2027
