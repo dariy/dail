@@ -153,7 +153,7 @@ rpassword = "7.5" # no-echo password prompt for `dail account add` (app-cli only
 eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "persistence", "accesskit", "wayland", "x11", "system_fonts", "clipboard"] } # clipboard: without it copy and paste stay inside the app
 egui = { version = "0.37", features = ["monochrome_emoji_fonts"] } # the symbols the UI draws (✉, ⚠, …): default_fonts left them out in 0.37
 nucleo-matcher = "0.3"
-rfd = "0.17" # native file dialogs; default = XDG portal (no GTK)
+rfd = "0.18" # native file dialogs; default = XDG portal (no GTK)
 # Inline (cid:) images in the reader; already in the tree via eframe (png). Pure-Rust decoders only.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 # Camera JPEGs larger than images::MAX_SIDE, decoded DCT-scaled (MISC-19). Forbids unsafe, no rayon.
