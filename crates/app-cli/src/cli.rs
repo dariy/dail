@@ -214,7 +214,9 @@ pub enum RemoteCmd {
     /// Pair this profile with a dail server (aliases for `connect_server` and `trust_server`).
     /// The profile must have no accounts. Shows the certificate fingerprint the server presents
     /// to compare with the one `dail serve` printed, then asks for the pairing code from
-    /// `dail serve pair`; `--fingerprint` and `--code` answer both for scripts.
+    /// `dail serve pair`; `--fingerprint` and `--code` answer both for scripts. Once paired it is
+    /// a remote profile (`[remote]` in its `config.toml`): every front end on it connects to the
+    /// server.
     Add {
         /// The server as `host[:port]` (default port 7443; `[::1]:7443` for IPv6).
         server: String,

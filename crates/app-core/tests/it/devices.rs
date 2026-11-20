@@ -9,7 +9,7 @@ use app_core::link::{is_pairing_code, pairing_code};
 use app_core::{
     Command, CommandName, CoreError, Ctx, Device, DeviceId, DeviceRole, Effect, Engine, Event,
     LinkStatus, OfflineRejection, Origin, Outcome, PAIRING_TTL_MS, PersistDelta, Placement,
-    ReplayInput, ReplayRecord, RequestId, Secret, SecretRef, StateDiff,
+    ReplayInput, ReplayRecord, RequestId, Secret, SecretRef, ServerEndpoint, StateDiff,
 };
 use serde_json::json;
 
@@ -739,7 +739,8 @@ fn trust_server_pins_the_fingerprint_and_pairs() {
         },
     );
     assert_eq!(ignored.receipt.data, json!({ "ignored": true }));
-    feed(
+    assert!(ignored.effects.is_empty());
+    let paired = feed(
         &mut engine,
         4,
         Event::ServerPaired {
@@ -756,6 +757,16 @@ fn trust_server_pins_the_fingerprint_and_pairs() {
         .unwrap();
     assert_eq!(server.fingerprint.as_deref(), Some(FINGERPRINT));
     assert_eq!(server.pairing, None);
+    // The remote profile is written (`[remote]` in `config.toml`), without the offer.
+    assert_eq!(
+        paired.effects,
+        [Effect::PersistState {
+            delta: PersistDelta::Remote(Some(ServerEndpoint {
+                offered: None,
+                ..server.clone()
+            }))
+        }]
+    );
     assert!(
         !serde_json::to_string(engine.state())
             .unwrap()
@@ -924,9 +935,15 @@ fn disconnect_server_forgets_the_link_and_the_mirror() {
         outcome.receipt.data,
         json!({ "disconnected": "home.example:7443", "lost": 1, "undoable": false })
     );
+    // `[remote]` leaves `config.toml`: the profile is a plain one again.
     assert_eq!(
         outcome.effects,
-        [Effect::DisconnectServer { secret: token }]
+        [
+            Effect::PersistState {
+                delta: PersistDelta::Remote(None)
+            },
+            Effect::DisconnectServer { secret: token }
+        ]
     );
     assert!(engine.state().link.is_none());
     assert!(engine.state().devices.is_empty());

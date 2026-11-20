@@ -654,7 +654,49 @@ expression: first
       "line": 10,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "mail",
+                  "value": {
+                    "messages": [
+                      {
+                        "account": "00000000-0000-0004-0000-000000000000",
+                        "body": {
+                          "state": "not_fetched"
+                        },
+                        "cc": [],
+                        "date_ms": 1699000000000,
+                        "flags": {
+                          "answered": false,
+                          "draft": false,
+                          "flagged": false,
+                          "seen": false
+                        },
+                        "from": [],
+                        "has_attachments": false,
+                        "id": "00000000-0000-0006-0000-000000000001",
+                        "in_reply_to": null,
+                        "mailbox": "00000000-0000-0005-0000-000000000000",
+                        "message_id_hdr": "one@x",
+                        "references": [],
+                        "size": 120,
+                        "subject": "Plans",
+                        "thread": "00000000-0000-0006-0000-000000000000",
+                        "to": [],
+                        "uid": 1
+                      }
+                    ],
+                    "removed_ops": [
+                      "00000000-0000-0009-0000-000000000000"
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {

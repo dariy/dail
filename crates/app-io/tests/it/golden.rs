@@ -5,7 +5,8 @@
 //! it; a format change adds a migration (or a serde default) instead.
 //!
 //! `DAIL_GOLDEN_FREEZE=<name> cargo test -p app-io --test it golden::freeze -- --ignored` writes a
-//! new one with this build.
+//! new one with this build. A name ending in `-remote` writes a remote profile (ADR 0017:
+//! `[remote]`, no accounts) instead, with [`remote_contents`]; it is checked against those.
 
 // reason: helpers outside `#[test]` fns may panic; clippy.toml only exempts `#[test]` bodies.
 #![allow(clippy::unwrap_used)]
@@ -13,8 +14,8 @@
 use std::path::{Path, PathBuf};
 
 use app_core::{
-    AccountId, ApprovalId, ApprovalRequest, DraftId, MailDelta, OpId, Origin, PersistDelta,
-    Settings,
+    AccountId, AppState, ApprovalId, ApprovalRequest, DraftId, LinkStatus, MailDelta, OpId, Origin,
+    PersistDelta, SecretRef, ServerEndpoint, Settings, ViewPrefs,
 };
 use app_io::{ProfileDirs, ProfileStore, Store};
 
@@ -68,11 +69,46 @@ fn contents() -> Vec<PersistDelta> {
     ]
 }
 
+/// Whether the golden profile `name` is a remote profile.
+fn is_remote(name: &str) -> bool {
+    name.ends_with("-remote")
+}
+
+/// The pinned dail server of the remote golden profiles.
+fn golden_server() -> ServerEndpoint {
+    ServerEndpoint {
+        host: "home.tail1234.ts.net".to_owned(),
+        port: 7443,
+        offered: None,
+        pairing: None,
+        fingerprint: Some("5e".repeat(32)),
+        token: Some(SecretRef::for_server(uuid(900))),
+    }
+}
+
+/// What every remote golden profile holds: settings, the view and the pinned server. Its mail is
+/// the server's (a remote profile's cache holds no accounts of its own).
+fn remote_contents() -> Vec<PersistDelta> {
+    let settings = Settings {
+        poll_secs: 300,
+        undo_send_ms: 15_000,
+        ..Settings::default()
+    };
+    vec![
+        PersistDelta::Settings(settings),
+        PersistDelta::View(ViewPrefs {
+            sidebar_collapsed: true,
+            ..ViewPrefs::default()
+        }),
+        PersistDelta::Remote(Some(golden_server())),
+    ]
+}
+
 #[test]
 #[ignore = "writes a golden profile; run by hand with DAIL_GOLDEN_FREEZE=<name>"]
 fn freeze() {
     let name = std::env::var("DAIL_GOLDEN_FREEZE").unwrap();
-    let dir = golden_root().join(name);
+    let dir = golden_root().join(&name);
     assert!(
         !dir.exists(),
         "a golden profile is never rewritten: {}",
@@ -82,7 +118,12 @@ fn freeze() {
     dirs.ensure().unwrap();
     {
         let store = ProfileStore::open(&dirs).unwrap();
-        for delta in contents() {
+        let deltas = if is_remote(&name) {
+            remote_contents()
+        } else {
+            contents()
+        };
+        for delta in deltas {
             store.apply(&delta).unwrap();
         }
         store.put_blob(BLOB).unwrap();
@@ -128,6 +169,13 @@ fn every_golden_profile_opens_intact() {
         let store = ProfileStore::open(&ProfileDirs::at(&scratch)).unwrap();
         let state = store.load_snapshot().unwrap().unwrap();
         let at = golden.display();
+        if is_remote(&golden.file_name().unwrap().to_string_lossy()) {
+            check_remote(&store, &state, &at.to_string());
+            drop(store);
+            std::fs::remove_dir_all(scratch).unwrap();
+            continue;
+        }
+        assert!(state.link.is_none(), "{at}");
         assert!(
             state.status.quarantined.is_empty(),
             "{at}: {:?}",
@@ -167,4 +215,26 @@ fn every_golden_profile_opens_intact() {
         drop(store);
         std::fs::remove_dir_all(scratch).unwrap();
     }
+}
+
+/// A remote golden profile opened: the pinned server in mirror mode, its settings and view, no
+/// accounts, nothing quarantined, the blob.
+fn check_remote(store: &ProfileStore, state: &AppState, at: &str) {
+    assert!(
+        state.status.quarantined.is_empty(),
+        "{at}: {:?}",
+        state.status.quarantined
+    );
+    assert_eq!(state.settings.poll_secs, 300, "{at}");
+    assert_eq!(state.settings.undo_send_ms, 15_000, "{at}");
+    assert!(state.view.prefs().sidebar_collapsed, "{at}");
+    assert!(state.accounts.is_empty(), "{at}");
+    let link = state.link.as_ref().unwrap();
+    assert_eq!(link.status, LinkStatus::Connecting, "{at}");
+    assert_eq!(link.server.as_ref(), Some(&golden_server()), "{at}");
+    assert_eq!(
+        store.get_blob(&app_io::blob_id(BLOB)).unwrap().as_deref(),
+        Some(BLOB),
+        "{at}"
+    );
 }

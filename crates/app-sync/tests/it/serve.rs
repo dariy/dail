@@ -426,7 +426,7 @@ async fn devices_submit_only_as_their_role_allows() {
             .await
             .unwrap_err();
         assert!(
-            matches!(err, SyncError::Remote(ref m) if m.contains("can't submit")),
+            matches!(err, SyncError::Refused { code: serve::ORIGIN_REFUSED, ref message, .. } if message.contains("can't submit")),
             "{err}"
         );
     }
@@ -587,7 +587,7 @@ async fn blobs_and_uploads() {
     let too_big = vec![0u8; MAX_UPLOAD_BYTES + 1];
     let err = user.put_file("big.bin", &too_big).await.unwrap_err();
     assert!(
-        matches!(err, SyncError::Remote(ref m) if m.contains("larger")),
+        matches!(err, SyncError::Refused { code: serve::TOO_LARGE, ref message, .. } if message.contains("larger")),
         "{err}"
     );
     // The connection survives a refused upload.

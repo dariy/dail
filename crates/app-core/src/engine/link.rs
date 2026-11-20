@@ -97,7 +97,16 @@ impl Engine {
         match server {
             Some(server) => {
                 server.fingerprint = server.pairing.take();
-                Outcome::new(receipt.affecting(EntityRef::Link))
+                // The remote profile (`[remote]` in `config.toml`): what the device needs to
+                // connect again after a restart.
+                let pinned = ServerEndpoint {
+                    offered: None,
+                    pairing: None,
+                    ..server.clone()
+                };
+                Outcome::new(receipt.affecting(EntityRef::Link)).with_effect(Effect::PersistState {
+                    delta: PersistDelta::Remote(Some(pinned)),
+                })
             }
             None => Outcome::new(receipt.with_data(json!({ "ignored": true }))),
         }
@@ -311,6 +320,11 @@ impl Engine {
                 delta: PersistDelta::Synced(LocalSettings::of(&self.state.synced)),
             });
         }
+        if server.is_some_and(ServerEndpoint::is_pinned) {
+            outcome = outcome.with_effect(Effect::PersistState {
+                delta: PersistDelta::Remote(None),
+            });
+        }
         Ok(outcome.with_effect(Effect::DisconnectServer {
             secret: server.and_then(|s| s.token.clone()),
         }))
@@ -389,7 +403,10 @@ impl Engine {
     }
 
     /// `remote_synced`: applies the server's diff to the mirror (a snapshot over a cleared
-    /// state) and records its revision. A diff not newer than the mirror is ignored.
+    /// state) and records its revision. A diff not newer than the mirror is ignored. The mirror's
+    /// mail as it is now goes to the local store (`persist_state`, device-local), so a change
+    /// applied optimistically and then overwritten (or cleared by a snapshot) does not come back
+    /// after a restart.
     pub(super) fn ingest_remote_synced(
         &mut self,
         revision: u64,
@@ -402,13 +419,107 @@ impl Engine {
             return Outcome::new(receipt.with_data(serde_json::json!({ "stale": true })));
         }
         link.revision = revision;
-        if snapshot {
+        let mail = if snapshot {
+            let old = MirroredMail::take(&mut self.state);
             StateDiff::clear(&mut self.state);
-        }
-        diff.apply(&mut self.state);
+            diff.apply(&mut self.state);
+            old.delta_to(&self.state)
+        } else {
+            diff.apply(&mut self.state);
+            mail_delta(diff)
+        };
         if snapshot || diff.touches_messages() {
             self.messages_changed();
         }
-        Outcome::new(receipt.affecting(EntityRef::Link))
+        let outcome = Outcome::new(receipt.affecting(EntityRef::Link));
+        if mail.is_empty() {
+            outcome
+        } else {
+            outcome.with_effect(Effect::PersistState {
+                delta: PersistDelta::Mail(mail),
+            })
+        }
+    }
+}
+
+/// The mail of a diff, as the store keeps it.
+fn mail_delta(diff: &StateDiff) -> MailDelta {
+    MailDelta {
+        mailboxes: diff.mailboxes.upsert.values().cloned().collect(),
+        removed_mailboxes: diff.mailboxes.remove.clone(),
+        messages: diff.messages.upsert.values().cloned().collect(),
+        removed_messages: diff.messages.remove.clone(),
+        threads: diff.threads.upsert.values().cloned().collect(),
+        removed_threads: diff.threads.remove.clone(),
+        ops: diff.outbox.upsert.values().cloned().collect(),
+        removed_ops: diff.outbox.remove.clone(),
+        drafts: diff.drafts.upsert.values().cloned().collect(),
+        removed_drafts: diff.drafts.remove.clone(),
+        approvals: diff.approvals.upsert.values().cloned().collect(),
+        removed_approvals: diff.approvals.remove.clone(),
+    }
+}
+
+/// The mirror's mail before a snapshot, to persist only what the snapshot changed.
+struct MirroredMail {
+    mailboxes: indexmap::IndexMap<crate::ids::MailboxId, crate::mailbox::Mailbox>,
+    messages: indexmap::IndexMap<crate::ids::MessageId, crate::message::Envelope>,
+    threads: indexmap::IndexMap<crate::ids::ThreadId, crate::message::Thread>,
+    outbox: indexmap::IndexMap<crate::ids::OpId, crate::ops::PendingOp>,
+    drafts: indexmap::IndexMap<crate::ids::DraftId, crate::draft::Draft>,
+    approvals: indexmap::IndexMap<crate::ids::ApprovalId, crate::approval::ApprovalRequest>,
+}
+
+/// Upserts of what is new or changed in `new`, removals of what is gone from it.
+fn changed<K: Copy + std::hash::Hash + Eq, V: Clone + PartialEq>(
+    old: &indexmap::IndexMap<K, V>,
+    new: &indexmap::IndexMap<K, V>,
+) -> (Vec<V>, Vec<K>) {
+    let upsert = new
+        .iter()
+        .filter(|(key, value)| old.get(*key) != Some(*value))
+        .map(|(_, value)| value.clone())
+        .collect();
+    let removed = old
+        .keys()
+        .filter(|key| !new.contains_key(*key))
+        .copied()
+        .collect();
+    (upsert, removed)
+}
+
+impl MirroredMail {
+    fn take(state: &mut crate::state::AppState) -> Self {
+        Self {
+            mailboxes: std::mem::take(&mut state.mailboxes),
+            messages: std::mem::take(&mut state.messages),
+            threads: std::mem::take(&mut state.threads),
+            outbox: std::mem::take(&mut state.outbox),
+            drafts: std::mem::take(&mut state.drafts),
+            approvals: std::mem::take(&mut state.approvals),
+        }
+    }
+
+    fn delta_to(&self, state: &crate::state::AppState) -> MailDelta {
+        let (mailboxes, removed_mailboxes) = changed(&self.mailboxes, &state.mailboxes);
+        let (messages, removed_messages) = changed(&self.messages, &state.messages);
+        let (threads, removed_threads) = changed(&self.threads, &state.threads);
+        let (ops, removed_ops) = changed(&self.outbox, &state.outbox);
+        let (drafts, removed_drafts) = changed(&self.drafts, &state.drafts);
+        let (approvals, removed_approvals) = changed(&self.approvals, &state.approvals);
+        MailDelta {
+            mailboxes,
+            removed_mailboxes,
+            messages,
+            removed_messages,
+            threads,
+            removed_threads,
+            ops,
+            removed_ops,
+            drafts,
+            removed_drafts,
+            approvals,
+            removed_approvals,
+        }
     }
 }

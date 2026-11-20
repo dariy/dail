@@ -10,6 +10,7 @@ mod offline;
 mod original;
 mod pairing;
 mod pins;
+mod remote;
 mod search;
 mod settings_sync;
 mod testkit;

@@ -41,8 +41,13 @@ dail shows the fingerprint the server presents. Compare it with the one from ste
 yes and type the code. For scripts: `--fingerprint <hex> --code <CODE>` (a different fingerprint is refused).
 `dail --profile home remote status` shows the link.
 
-With this version the link is recorded and the server's certificate pinned; connecting to the server and showing its
-mail on the device come with remote profiles (ROADMAP SRV-5a).
+The profile is now a remote profile: `[remote]` in its `config.toml` names the server, the pinned fingerprint and the
+keyring entry of the device token (the token itself is in the OS keyring). Every dail on it connects to the server and
+mirrors its mail: `dail --profile home tui`, `dail --profile home gui`, `dail --profile home exec …`, and
+`dail --profile home mcp` for an agent. Commands that change mail run on the server; what you look at (the open
+mailbox, the theme) stays on the device. If the server can't be reached, dail retries in the background and
+`dail --profile home remote status` shows the error. This version works online only: while the link is down, commands
+that run on the server are refused (`ERR212`) and nothing is queued; working offline comes later (ROADMAP SRV-5b).
 
 ## Firewall
 

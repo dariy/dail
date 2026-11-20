@@ -1,21 +1,21 @@
 //! Tokio runtime and session setup: attach to the profile's owner or open the profile here
 //! (`ARCHITECTURE.md §5.4`).
 
-use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::{Context, bail};
-use app_core::{AppState, Effect, Event, Secret, SecretRef};
+use app_core::{AppState, Effect, Event};
 use app_io::{ConfigStore, ProfileDirs, ProfileStore};
 use app_sync::ipc::{self, Claim};
 use app_sync::serve::ServeHub;
 use app_sync::{
     AuditLog, Backend, BoxFuture, Connection, IpcServer, KeyringSecrets, LiveBackend, NetImap,
-    NetVerifier, ProfileLock, RandomSeeds, Session, SyncError, SystemClock,
+    NetVerifier, ProfileLock, RandomSeeds, RemoteOptions, SecretStore, Session, SyncError,
+    SystemClock,
 };
-use app_testkit::{Fixture, MemoryBackend};
+use app_testkit::{Fixture, MemoryBackend, MemorySecrets};
 
 use crate::cli::{BackendKind, GlobalArgs};
 
@@ -128,10 +128,19 @@ pub async fn connect_serving(
 ) -> anyhow::Result<Front> {
     Ok(match claim_serving(global, listen, serve).await? {
         Claimed::Attached(conn) => Front { conn, owned: None },
-        Claimed::Owned(owned) => Front {
-            conn: Connection::Local(owned.session.client()),
-            owned: Some(owned),
-        },
+        Claimed::Owned(owned) => {
+            // A remote profile (ADR 0017): give the link a moment to come up, so a one-shot
+            // run's first command for the server is not refused while it is still dialing.
+            if let Some(remote) = owned.session.remote()
+                && let Some(status) = remote.wait_settled().await
+            {
+                tracing::info!(?status, "dail server link");
+            }
+            Front {
+                conn: owned.session.connection(),
+                owned: Some(owned),
+            }
+        }
     })
 }
 
@@ -191,6 +200,8 @@ async fn open_owned(
         }
     }
     let mut hub = None;
+    // Where a device keeps its token for a dail server (ADR 0017).
+    let mut secrets: Arc<dyn SecretStore> = Arc::new(KeyringSecrets);
     let backend: Arc<dyn Backend> = match global.backend {
         BackendKind::Memory => {
             if serve == Serve::Yes {
@@ -199,10 +210,12 @@ async fn open_owned(
                 let config = Arc::new(ConfigStore::open(ProfileDirs::at(root).config_file())?);
                 hub = Some(Arc::new(ServeHub::new(config, Arc::new(SystemClock))));
             }
+            let tokens = Arc::new(MemorySecrets::new());
+            secrets = Arc::clone(&tokens) as Arc<dyn SecretStore>;
             Arc::new(MemoryServe {
                 inner: MemoryBackend::from_fixture(load_fixture(global.fixture.as_deref())?),
                 hub: hub.clone(),
-                tokens: Mutex::default(),
+                tokens,
             })
         }
         BackendKind::Live => {
@@ -243,8 +256,23 @@ async fn open_owned(
     };
     // Sessions on a profile keep an audit log in its `logs/` (`dail replay`).
     let audit = root.map(|root| AuditLog::new(ProfileDirs::at(root).logs_dir()));
-    let session =
-        Session::open_audited(backend, Arc::new(SystemClock), Arc::new(RandomSeeds), audit).await?;
+    let (clock, seeds) = (Arc::new(SystemClock), Arc::new(RandomSeeds));
+    // Every owner but `dail serve` may be a device of a dail server: a remote profile's link
+    // starts at once, a plain profile's once it is paired (ADR 0017).
+    let session = match serve {
+        Serve::Yes => Session::open_audited(backend, clock, seeds, audit).await?,
+        Serve::No => {
+            Session::open_remote(
+                backend,
+                secrets,
+                clock,
+                seeds,
+                audit,
+                RemoteOptions::default(),
+            )
+            .await?
+        }
+    };
     // A memory session starts empty: list the devices the profile's `config.toml` keeps, as a
     // live profile's store does.
     if let (BackendKind::Memory, Some(hub)) = (global.backend, &hub) {
@@ -273,7 +301,7 @@ async fn open_owned(
         .ingest(app_core::Event::UpdateHostDetected { host })
         .await?;
     let server = match (root, listen) {
-        (Some(root), Listen::Yes) => Some(IpcServer::listen(root, session.client())?),
+        (Some(root), Listen::Yes) => Some(IpcServer::listen(root, session.connection())?),
         _ => None,
     };
     Ok(Owned {
@@ -290,15 +318,8 @@ async fn open_owned(
 struct MemoryServe {
     inner: MemoryBackend,
     hub: Option<Arc<ServeHub>>,
-    tokens: Mutex<BTreeMap<SecretRef, Secret>>,
-}
-
-impl MemoryServe {
-    fn tokens(&self) -> std::sync::MutexGuard<'_, BTreeMap<SecretRef, Secret>> {
-        self.tokens
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
+    /// The device tokens, which the link reads too.
+    tokens: Arc<MemorySecrets>,
 }
 
 impl Backend for MemoryServe {
@@ -333,12 +354,12 @@ impl Backend for MemoryServe {
                     secret,
                 } => {
                     let paired = app_sync::remote::pair(&host, port, &fingerprint, &code).await?;
-                    self.tokens().insert(secret, paired.token);
+                    self.tokens.set(&secret, &paired.token)?;
                     Ok(vec![Event::ServerPaired { fingerprint }])
                 }
                 Effect::DisconnectServer { secret } => {
                     if let Some(secret) = &secret {
-                        self.tokens().remove(secret);
+                        self.tokens.delete(secret)?;
                     }
                     self.inner
                         .execute(Effect::DisconnectServer { secret })

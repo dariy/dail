@@ -351,3 +351,116 @@ fn a_managesieve_server_round_trips_and_old_configs_have_none() {
             .contains("managesieve")
     );
 }
+
+fn pinned_server() -> app_core::ServerEndpoint {
+    app_core::ServerEndpoint {
+        host: "home.tail1234.ts.net".into(),
+        port: 7443,
+        offered: Some("ab".repeat(32)),
+        pairing: None,
+        fingerprint: Some("ab".repeat(32)),
+        token: Some(SecretRef::for_server(uuid::Uuid::from_u128(9))),
+    }
+}
+
+#[test]
+fn a_remote_profile_round_trips_and_opens_in_mirror_mode() {
+    let dir = scratch("remote");
+    let path = dir.join("config.toml");
+    let store = ConfigStore::open(&path).unwrap();
+    store
+        .apply(&PersistDelta::Remote(Some(pinned_server())))
+        .unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("[remote]"), "{text}");
+    assert!(text.contains("host = \"home.tail1234.ts.net\""), "{text}");
+    assert!(text.contains("[remote.token]"), "{text}");
+    assert!(text.contains("user = \"server/"), "{text}");
+    // Only the pinned fingerprint is kept, never an offer.
+    assert_eq!(text.matches(&"ab".repeat(32)).count(), 1, "{text}");
+
+    let state = ConfigStore::open(&path)
+        .unwrap()
+        .load_snapshot()
+        .unwrap()
+        .unwrap();
+    let link = state.link.as_ref().unwrap();
+    assert_eq!(link.status, app_core::LinkStatus::Connecting);
+    let server = link.server.as_ref().unwrap();
+    assert_eq!(
+        server,
+        &app_core::ServerEndpoint {
+            offered: None,
+            ..pinned_server()
+        }
+    );
+    assert_eq!(
+        Config::from_state(&state).remote,
+        Config::parse(&text, &path).unwrap().remote
+    );
+
+    // The mirror's accounts are the server's: they never reach the config.
+    store
+        .apply(&PersistDelta::Account(account(1, "a@example.org")))
+        .unwrap();
+    store
+        .apply(&PersistDelta::AccountRemoved(AccountId::from_uuid(
+            uuid::Uuid::from_u128(1),
+        )))
+        .unwrap();
+    assert!(Config::load(&path).unwrap().unwrap().accounts.is_empty());
+
+    // `disconnect_server` removes the table: a plain profile again.
+    store.apply(&PersistDelta::Remote(None)).unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(!text.contains("remote"), "{text}");
+    let state = ConfigStore::open(&path)
+        .unwrap()
+        .load_snapshot()
+        .unwrap()
+        .unwrap();
+    assert!(state.link.is_none());
+}
+
+#[test]
+fn a_config_with_remote_and_accounts_is_refused() {
+    let dir = scratch("remote-accounts");
+    let path = dir.join("config.toml");
+    let mut config = Config::from_state(&state_with_accounts());
+    config.remote = app_io::RemoteConfig::from_endpoint(&pinned_server());
+    std::fs::write(&path, config.to_toml().unwrap()).unwrap();
+    let err = ConfigStore::open(&path).unwrap_err();
+    assert!(
+        matches!(err, IoError::RemoteWithAccounts { accounts: 2, .. }),
+        "{err}"
+    );
+    assert!(err.to_string().starts_with("ERR108: "), "{err}");
+    assert!(err.to_string().contains("[remote]"), "{err}");
+
+    // A store never writes such a file.
+    let plain = scratch("remote-accounts-store").join("config.toml");
+    let store = ConfigStore::open(&plain).unwrap();
+    store
+        .apply(&PersistDelta::Account(account(1, "a@example.org")))
+        .unwrap();
+    let refused = store
+        .apply(&PersistDelta::Remote(Some(pinned_server())))
+        .unwrap_err();
+    assert!(
+        matches!(refused, IoError::RemoteWithAccounts { .. }),
+        "{refused}"
+    );
+    assert!(Config::load(&plain).unwrap().unwrap().remote.is_none());
+
+    // An unpinned server (a pairing) is not a remote profile; a bad fingerprint is refused.
+    let unpinned = app_core::ServerEndpoint {
+        fingerprint: None,
+        ..pinned_server()
+    };
+    assert!(app_io::RemoteConfig::from_endpoint(&unpinned).is_none());
+    let bad = "[remote]\nhost = \"h\"\nport = 7443\nfingerprint = \"AB\"\n\n[remote.token]\nservice = \"dail\"\nuser = \"server/x\"\n";
+    assert!(matches!(
+        Config::parse(bad, &path),
+        Err(IoError::Config { .. })
+    ));
+}

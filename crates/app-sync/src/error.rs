@@ -47,4 +47,26 @@ pub enum SyncError {
     /// pinned one, or it refused or did not follow the protocol (ADR 0017).
     #[error("ERR211: dail server link: {0}")]
     Remote(String),
+    /// A command that runs on the dail server was submitted on a remote profile while the
+    /// server is not connected. Remote profiles queue nothing yet (ADR 0017, SRV-5a).
+    #[error(
+        "ERR212: `{command}` runs on the dail server, which is not connected ({status}); nothing was changed, try again when the link is online"
+    )]
+    NotOnline {
+        /// The command's name.
+        command: &'static str,
+        /// The link's status.
+        status: &'static str,
+    },
+    /// The dail server answered a request of this device with a refusal (a JSON-RPC error, such
+    /// as an origin its role may not claim). The link stays up (ADR 0017).
+    #[error("ERR213: the dail server refused `{method}`: {message}")]
+    Refused {
+        /// The request (`submit`, `preview`, …).
+        method: String,
+        /// The JSON-RPC error code.
+        code: i64,
+        /// The server's message.
+        message: String,
+    },
 }

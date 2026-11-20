@@ -1328,7 +1328,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
   `watch` with diffs, `blob`, `put_file`
 - [x] SRV-4 (M) [cli]: `dail serve`, `dail serve pair|devices|revoke`, `dail remote add|status`; a systemd user unit
   in `packaging/systemd/`, a Tailscale how-to, ARCHITECTURE §5.6 *Serving*; a smoke step against `--backend memory`
-- [ ] SRV-5a (M) [sync][io][tk]: the remote profile (`[remote]`, a new golden), `RemoteClient`, `RemoteBackend`,
+- [x] SRV-5a (M) [sync][io][tk]: the remote profile (`[remote]`, a new golden), `RemoteClient`, `RemoteBackend`,
   `Connection::Remote`, online only
 - [ ] SRV-5b (M) [sync][io][tk]: the persisted offline queue and its replay, the blob cache and pre-loading, and the
   offline refusals (a new error code)

@@ -335,7 +335,25 @@ expression: first
       "line": 15,
       "result": {
         "ok": {
-          "effects": [],
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "remote",
+                  "value": {
+                    "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03",
+                    "host": "home.example",
+                    "port": 7443,
+                    "token": {
+                      "service": "dail",
+                      "user": "server/00000000-0000-000e-0000-000000000000"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
           "receipt": {
             "affected": [
               {
@@ -409,6 +427,15 @@ expression: first
       "result": {
         "ok": {
           "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "remote",
+                  "value": null
+                }
+              },
+              "effect": "persist_state"
+            },
             {
               "args": {
                 "secret": {

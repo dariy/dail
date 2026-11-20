@@ -380,11 +380,20 @@ impl RemoteClient {
         &self.hello
     }
 
+    /// A request on the connection. A refusal is [`SyncError::Refused`] (the connection is
+    /// fine); a lost or garbled connection is [`SyncError::Remote`].
     async fn call(&self, method: &str, params: Value) -> Result<Value, SyncError> {
         self.rpc
             .call(method, params)
             .await
-            .map_err(|err| call_error(method, err))
+            .map_err(|err| match err {
+                CallError::Refused { code, message } => SyncError::Refused {
+                    method: method.to_owned(),
+                    code,
+                    message,
+                },
+                err => call_error(method, err),
+            })
     }
 
     /// Submits a command. `request_id` makes a resend harmless (the server answers it from

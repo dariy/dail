@@ -109,7 +109,8 @@ impl Store for ProfileStore {
             PersistDelta::Settings(_)
             | PersistDelta::Account(_)
             | PersistDelta::AccountRemoved(_)
-            | PersistDelta::View(_) => self.config.apply(delta),
+            | PersistDelta::View(_)
+            | PersistDelta::Remote(_) => self.config.apply(delta),
         }
     }
 

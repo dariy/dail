@@ -1310,6 +1310,11 @@ pub enum PersistDelta {
     /// The synced settings document as this device knows it, with its unpushed-changes flag
     /// (the `synced` table of `state.redb`, SET-4).
     Synced(crate::synced::LocalSettings),
+    /// The dail server this device is paired with (`[remote]` in `config.toml`, ADR 0017): its
+    /// host, port, pinned fingerprint and the keyring entry of the device token, written when
+    /// pairing completes (`server_paired`); `None` when the link is removed
+    /// (`disconnect_server`).
+    Remote(Option<crate::link::ServerEndpoint>),
 }
 
 /// Upserts and removals in the local mail cache. Removals are applied before upserts.
@@ -1425,6 +1430,10 @@ impl PersistDelta {
             Self::Mail(delta) => delta.apply_to(state),
             Self::View(prefs) => state.view.apply_prefs(prefs),
             Self::Synced(local) => local.apply_to(state),
+            Self::Remote(Some(server)) => {
+                state.link.get_or_insert_with(Default::default).server = Some(server.clone());
+            }
+            Self::Remote(None) => state.link = None,
         }
     }
 }

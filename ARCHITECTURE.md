@@ -508,7 +508,9 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   `OfflineRejection{request_id, command, code, error, at_ms}` records a queued command the server refused (SRV-5b).
   `LinkChanged{status}` sets the status and turns mirror mode on. `RemoteSynced{revision, diff, snapshot}` applies the
   diff (a `snapshot` first clears the shared state) and records `revision`; a non-snapshot diff whose revision is not
-  newer is ignored (`data.stale`). Neither is recorded in history. Fixture: `tests/replay/remote_offline.jsonl`.
+  newer is ignored (`data.stale`). It emits `persist_state` of the mirror's mail it changed (a diff's upserts and
+  removals; for a snapshot, what differs from the mail before it), so an optimistic change a snapshot took back is
+  not left in the local store. Neither is recorded in history. Fixture: `tests/replay/remote_offline.jsonl`.
 - **Pairing and the link** (SRV-2; fixture `tests/replay/devices.jsonl`). On the server, `state.devices:
   IndexMap<DeviceId, Device{id, name, role: user|agent, paired_at_ms, last_seen_ms?}>` is shared (part of `StateDiff`,
   so a paired desktop lists them); no token or token hash is in state (the server keeps the hash in `config.toml`,
@@ -519,7 +521,9 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   `connect_server` sets the server (and turns mirror mode on) and emits `ProbeServer`; `ServerOffered` records the
   fingerprint the server presented (`offered`; an offer from another host or port is ignored); `trust_server` records
   it as `pairing` and emits `PairWithServer`, whose runtime keeps the device token in the keyring under `server.token`
-  and reports `ServerPaired` (which pins `pairing` as `fingerprint`) and `LinkChanged`; `LinkFailed` sets the link
+  and reports `ServerPaired` (which pins `pairing` as `fingerprint` and emits `persist_state` of
+  `PersistDelta::Remote(Some(server))`, the `[remote]` table of §6; `disconnect_server` of a pinned link emits
+  `PersistDelta::Remote(None)`) and `LinkChanged`; `LinkFailed` sets the link
   `offline` with `link.error` and ends a pairing in progress (`trust_server` can be retried with a new code) (without a link, after `disconnect_server`, it
   is the keyring's error). `ProbeServer`, `PairWithServer` and `DisconnectServer` are device-local (the device's own
   work with its server); `OpenPairing` and `RevokeDevice` are the server's. The live backend fails the four network
@@ -578,7 +582,8 @@ The **parity tests** (`app-core/tests/it/registry.rs`, `app-mcp/tests/it/parity.
   One-shot CLI runs abort the timer on shutdown, so they never poll;
 - the **IPC listener** (GUI and `dail mcp`, §5.4).
 
-`Backend` is a trait object with `Live` (IMAP/SMTP + redb) and `Memory` (app-testkit) implementations. Besides `execute(effect)` and
+`Backend` is a trait object with `Live` (IMAP/SMTP + redb) and `Memory` (app-testkit) implementations; a remote profile's
+session wraps one in `RemoteBackend` (`Session::open_remote`, §5.6). Besides `execute(effect)` and
 `load_state()` it offers `get_blob(id)`: the core can't read blobs, so `Session::submit` resolves the body references
 (`body: {state: "fetched", blob}`) of a `get_thread`/`get_message` receipt with `include_body` itself (`app_sync::bodies`): it
 parses each blob with `app_io::mime::parse_message` and puts `{text, text_source, attachments}` into the message's
@@ -877,7 +882,9 @@ or on Windows the named pipe `dail-<FNV-64 of the profile path>`; a stale socket
 `dail exec`, `dail batch`, `dail account add`, `dail tui` and `dail mcp` first `ipc::claim` the profile: connect to the socket
 (→ `Claim::Attached(IpcClient)`), else take the lock (→ `Claim::Owned`, open the profile here), else retry for up to 10 s
 (`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does. Front-ends talk
-to a `Connection`: `Local(SessionClient)` or `Attached(IpcClient)`. `SessionClient` is a cloneable handle of a `Session`
+to a `Connection`: `Local(SessionClient)`, `Attached(IpcClient)` or `Remote(RemoteSession)` (a session of this process
+that may be a device of a dail server, §5.6 *Remote profiles*; `Session::connection()` gives it, and the IPC listener
+serves it, so an attached `dail exec` is forwarded to the server like the owner's own commands). `SessionClient` is a cloneable handle of a `Session`
 (`Session::client`) that does not keep it alive: after `shutdown` its calls fail with `SessionClosed`. This way an agent
 always drives the same state the user is looking at, and the GUI repaints live when an agent archives a thread. With
 `--backend memory` a session is private unless `--profile-dir` is given, which then provides the lock and socket only.
@@ -909,7 +916,7 @@ trusted (`rpc::LineReader`).
 
 #### The dail server's transport (ADR 0017, SRV-3)
 `app_sync::serve` runs the same JSON-RPC over TLS for paired devices; `app_sync::remote` is the device side. `dail
-serve` (§5.6) runs the server; remote profiles (SRV-5a) will run the device side.
+serve` (§5.6) runs the server; remote profiles (§5.6 *Remote profiles*, `app_sync::link`) run the device side.
 
 - **Identity** (`ServerIdentity::load_or_create(<profile>/serve, hosts)`): a P-256 key made once (`getrandom`) in
   `serve/key.p256`, and a self-signed X.509 v3 end-entity certificate built with `x509-cert` and signed with `p256`'s
@@ -929,7 +936,8 @@ serve` (§5.6) runs the server; remote profiles (SRV-5a) will run the device sid
   (`Effect::ProbeServer` → `ServerOffered`). `pair(host, port, fingerprint, code)` exchanges a code for a token
   (`Effect::PairWithServer`: the token goes to the keyring under `link.server.token`, then `ServerPaired`; a failure is
   `LinkFailed` with a message that holds neither token nor code). `RemoteClient` (`connect` = dial + `hello`, `submit`,
-  `preview`, `flush`, `state`, `watch` on a connection of its own, `blob`, `put_file`) is what SRV-5a wraps.
+  `preview`, `flush`, `state`, `watch` on a connection of its own, `blob`, `put_file`) is what the link of a remote
+  profile uses (§5.6).
 - **Pairing** (`ServeHub`, shared by `LiveBackend::with_serve` and the listener): `Effect::OpenPairing` opens a code
   (single use, until `expires_at_ms`, case and spaces ignored). A wrong or expired code counts against the peer's IP;
   the 5th within a minute burns **every** open code (`MAX_WRONG_CODES`, `WRONG_CODE_WINDOW_MS`), so guessing needs a new
@@ -1039,10 +1047,52 @@ command refuses) and `--code` answer both for scripts; without a terminal both a
 is refused by the engine (`error_013_profile_has_accounts`, ERR013), with a hint to use another profile. A pairing that does not complete is
 undone with `disconnect_server`, so the profile is a plain one again. Each step prints its receipt; the last line is
 `{"ok","name":"remote","link"}`. After pairing the profile holds `state.link` (pinned fingerprint, the token's
-`SecretRef`; the token is in the OS keyring) and is in mirror mode (§4.7), but this version does not connect to the
-server: `Connection::Remote` is SRV-5a. `dail remote status` prints `{"name":"remote_status","linked",…}` with the
-link's status, server (host, port, pinned and offered fingerprints), revision, queued count, refused commands and
-last error.
+`SecretRef`; the token is in the OS keyring), `[remote]` in its `config.toml`, and is a remote profile (below).
+`dail remote status` prints `{"name":"remote_status","linked",…}` with the link's status, server (host, port, pinned
+and offered fingerprints), revision, queued count, refused commands and last error: the owner's live link when it
+attaches, else the link of its own session once it has dialed (at most `RemoteOptions::settle_timeout`, 15 s).
+
+**Remote profiles** (SRV-5a, `app_sync::link`). Source of truth: `config.toml` `[remote] host, port, fingerprint,
+token` (§6). Opening the profile puts `state.link` = `{status: connecting, server: pinned}` (mirror mode, §4.7); the
+engine writes `[remote]` through `PersistDelta::Remote(Some(server))` when `server_paired` pins the server and removes
+it with `PersistDelta::Remote(None)` on `disconnect_server` of a pinned link (both `persist_state`, device-local).
+`state.link.server` mirrors `[remote]` while the process runs; nothing else writes the table.
+- **Session.** Every owner but `dail serve` opens its session with `Session::open_remote(inner, secrets, …)`
+  (`runtime::open_owned`; the TUI, the GUI, `exec`, `batch`, `mcp`), so a plain profile becomes a device as soon as
+  it is paired. `RemoteBackend` wraps the live (or memory) backend: the device-local effects run there; `get_blob`
+  falls back to the server's `blob` while online (open original, previews, `include_body` from the mirror), and
+  `SaveAttachments` (`client_with_blob`) fetches the body from the server when the local store lacks it, then writes the
+  files locally (`saves::save_attachments`). Nothing is cached yet (SRV-5b).
+- **Link task.** Whenever `state.link.server` is pinned and has a token: `link_changed{connecting}`, the token from the
+  `SecretStore` (OS keyring; memory: `MemorySecrets`), `RemoteClient::connect` (dial + `hello`), `state` →
+  `remote_synced{snapshot: true}`, `watch{since: revision}`, then `link_changed{online}` and only then the client is
+  shared (so a forwarded command reaches the engine after `online` and is never queued). Each `changed` becomes
+  `remote_synced`, a `resync` a snapshot. A failed dial or a lost connection is `link_failed{error}` (offline, the error
+  in `link.error`; never the token), then a pause of `backoff_min` (1 s) doubling to `backoff_max` (60 s), reset after a
+  connection; a server restart (new `instance`) is a lost connection followed by a fresh snapshot. A link that is
+  removed or re-pinned ends the connection at once. The task is aborted (and the client dropped) when the session
+  shuts down.
+- **`Connection::Remote`** (`RemoteSession::submit(cmd, origin)`), by `Command::placement()`: `client` and
+  `client_with_blob` → the local session only. Without a pinned link everything is local. A `server` query → the server
+  while online (its receipt, with bodies), else the mirror. Any other `server`/`server_with_upload` command while
+  online → dispatched locally first with a fresh seed (optimistic; the engine does not queue it, it is online), then
+  `submit {origin, command, request_id, seed}` with the same seed (so the server creates the same IDs) and
+  `request_id` = the seed as a UUID. **The server's answer is the one returned.** A server refusal of a command the
+  mirror accepted asks the link for a fresh snapshot (ingested before the call returns), so the optimistic change does
+  not stay; the caller gets the refusal (`link.rejected` stays for refused *queued* commands, SRV-5b). A transport
+  failure is returned as `ERR211` and drops the connection: the reconnect's snapshot says whether it was applied. A
+  refusal of the request itself (a JSON-RPC error: an origin the role may not claim, an upload too large) is
+  `ERR213` (`SyncError::Refused`) and keeps the link up; the mirror is reset by a snapshot as for a rejection. An
+  origin the device's role (from `hello`) may never claim is refused with `ERR213` before anything is applied.
+  `attach_file` uploads the file first (`put_file`, at most 25 MiB) and sends the server's path; the mirror keeps the
+  local one until the diff brings the server's. While not online a `server` command that is not a query is refused
+  with `ERR212` (`SyncError::NotOnline`) and nothing is applied or queued: 5a is online only; the engine's own queue
+  (`link.queued`) fills only through a session's direct `submit` (no runtime replays it yet). The caller's origin is
+  forwarded unchanged; the server enforces the device's role and the approvals (an agent's `send_draft` still needs
+  one). `preview` of a `server` command runs on the server while online; `flush` waits for the local effects, the
+  server's (`flush`), and a fresh snapshot, so a one-shot run ends with the server's state; `state`/`subscribe` are the
+  mirror's. One-shot runs (`runtime::connect`) wait until the link has connected or failed once
+  (`RemoteSession::wait_settled`) before their first command.
 
 **Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
 (so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
@@ -1094,7 +1144,12 @@ steps + final state with `insta` and checks that replaying twice is identical.
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
   and not saved). A profile that serves (ADR 0017) also has `[[serve.devices]]` (`id, name, role, token_sha256,
   paired_at_ms`; absent otherwise); it loads into `state.devices`, and only `dail serve` writes it
-  (`ConfigStore::update_serve`, under the same lock as every other change). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
+  (`ConfigStore::update_serve`, under the same lock as every other change). A remote profile (ADR 0017, §5.6) has
+  `[remote]` (`host, port, fingerprint` — the pinned SHA-256, 64 lower-case hex — and `[remote.token]`, the
+  `SecretRef` of the device token; absent otherwise), which loads into `state.link` (`connecting`, the pinned server)
+  and is written by `PersistDelta::Remote`. A remote profile has no accounts: a config with both is refused at open
+  (`IoError::RemoteWithAccounts`, `ERR108`), `ConfigStore` never writes one, and it ignores `Account`/`AccountRemoved`
+  deltas while `[remote]` is set (the mirror's accounts are the server's). Golden profile: `v0.1.9-remote`. Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
   disk, rename it over, flush the directory on Unix); blobs are written the same way, and redb commits are durable.
 - Crash safety (`app_io::store::backup`): `ProfileStore::open` (under the profile lock) opens `config.toml` and
   `state.redb`; a `state.redb` that does not open (a torn or foreign file; not a newer schema) is renamed
@@ -1112,12 +1167,13 @@ steps + final state with `insta` and checks that replaying twice is identical.
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
   The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
-  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>`.
+  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>` (a name ending in `-remote`
+  freezes a remote profile, checked for its `[remote]` link instead of mail).
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
   `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
-  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only), `Remote(Option<ServerEndpoint>)` (the `[remote]` table; `ConfigStore` only, ADR 0017) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,
@@ -2420,6 +2476,7 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |
+| remote profiles | `app-testkit/tests/it/remote.rs` over `app_testkit::TestServer` (a real `DailServer` and `ServeHub` on loopback TLS over a `MemoryBackend` session; devices from `Session::open_remote` with `MemorySecrets`) | snapshot and diffs, forwarded commands with the device's seed (same IDs), a server refusal resets the mirror (and the store), a refused origin keeps the link up (`ERR213`), an agent's `send_draft` becomes an approval on the server and no device SMTP effect (before and after the first snapshot), `client` commands stay local, `attach_file` uploads, `save_attachments` fetches the body, resync after a server restart, `ERR212` while offline, the token never in state, errors or `Debug` |
 | smoke | `dail batch --backend memory tests/smoke/basic.jsonl`, then `dail serve --backend memory` on loopback paired by `dail remote add` (`xtask/src/smoke.rs`) | end-to-end JSON round trip and the dail server (gate 6) |
 | agent e2e | `app-cli/tests/e2e_agent.rs` (CI via `cargo test`) | an MCP client drives `dail mcp --backend memory --fixture basic --profile-dir …` over stdio: discovers tools and resources, is refused `add_account`, waits for the user's `dail account add` (attached over IPC), syncs, reads the inbox through resources, marks a thread read, archives another, replies and edits the draft; `send_draft` stays an approval request that the agent can't approve |
 | IPC & audit | `app-sync/tests/it/{ipc,audit}.rs`, `app-cli/tests/it/cli.rs`, `app-gui/tests/it/bridge.rs`, `app-tui/tests/it/attached.rs` | attach over a real local socket (origins, password hand-over, disconnects, `watch`), the profile lock; the shared bridge (tagged replies in order, an owned session shut down, an attached one left running, the owner going away); audit logs that replay to the live state; `exec` attaching to a running `dail mcp`; an attached agent's archive reaching the GUI's state snapshot and waking it; `dail replay` |

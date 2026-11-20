@@ -19,8 +19,11 @@ use tokio::task::{JoinHandle, JoinSet};
 use crate::audit::{AuditLog, AuditWriter};
 use crate::backend::Backend;
 use crate::clock::{Clock, SeedSource};
+use crate::connection::Connection;
 use crate::error::SyncError;
 use crate::executor::run_effect;
+use crate::link::{RemoteBackend, RemoteLink, RemoteOptions, RemoteSession};
+use crate::secrets::SecretStore;
 
 /// Queue depth of the input channel.
 const INPUT_CAPACITY: usize = 256;
@@ -56,6 +59,23 @@ pub struct Session {
     /// Dropping it tells the engine loop to stop taking inputs.
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
+    /// The link to a dail server, for a session opened with [`Session::open_remote`].
+    remote: Option<RemoteParts>,
+}
+
+/// The remote side of a session: its front ends' way in, and the link task.
+struct RemoteParts {
+    session: RemoteSession,
+    task: Option<JoinHandle<()>>,
+}
+
+impl Drop for RemoteParts {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+        self.session.link().close();
+    }
 }
 
 /// A cheap, cloneable handle that submits to a running session (e.g. for each IPC connection or
@@ -114,7 +134,47 @@ impl Session {
             },
             stop: stop_tx,
             task,
+            remote: None,
         })
+    }
+
+    /// Opens a session that can be a device of a dail server (ADR 0017): `inner` runs the
+    /// device's own effects behind a [`RemoteBackend`], and a link task connects to the server
+    /// whenever `state.link.server` is pinned (a remote profile, or right after pairing), reading
+    /// the device token from `secrets`. Front ends reach it through [`Session::connection`]
+    /// (`Connection::Remote`); without a pinned link it behaves like [`Session::open_audited`].
+    pub async fn open_remote(
+        inner: Arc<dyn Backend>,
+        secrets: Arc<dyn SecretStore>,
+        clock: Arc<dyn Clock>,
+        seeds: Arc<dyn SeedSource>,
+        audit: Option<AuditLog>,
+        options: RemoteOptions,
+    ) -> Result<Self, SyncError> {
+        let link = RemoteLink::new(options);
+        let backend = Arc::new(RemoteBackend::new(inner, Arc::clone(&link)));
+        let mut session = Self::open_audited(backend, clock, Arc::clone(&seeds), audit).await?;
+        let task = link.spawn(session.client(), secrets);
+        session.remote = Some(RemoteParts {
+            session: RemoteSession::new(session.client(), link, seeds),
+            task,
+        });
+        Ok(session)
+    }
+
+    /// The front ends' way to this session: [`Connection::Remote`] for a session opened with
+    /// [`Session::open_remote`] (commands for the server are forwarded), else
+    /// [`Connection::Local`].
+    pub fn connection(&self) -> Connection {
+        match &self.remote {
+            Some(remote) => Connection::Remote(remote.session.clone()),
+            None => Connection::Local(self.client()),
+        }
+    }
+
+    /// The remote side, for a session opened with [`Session::open_remote`].
+    pub fn remote(&self) -> Option<&RemoteSession> {
+        self.remote.as_ref().map(|remote| &remote.session)
     }
 
     /// A handle that submits to this session without owning it.
@@ -160,7 +220,9 @@ impl Session {
     /// Tells the engine the front-end is closing (drafts with unsaved changes are saved now),
     /// completes in-flight effects, then stops the engine task. Inputs that clients submit
     /// meanwhile are refused with [`SyncError::SessionClosed`].
-    pub async fn shutdown(self) -> Result<(), SyncError> {
+    pub async fn shutdown(mut self) -> Result<(), SyncError> {
+        // The link first: nothing from the server arrives while the session closes.
+        drop(self.remote.take());
         self.client.ingest(Event::Closing {}).await?;
         self.client.flush().await?;
         drop(self.stop);

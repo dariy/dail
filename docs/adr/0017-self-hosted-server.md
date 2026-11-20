@@ -100,4 +100,8 @@ The newline-delimited JSON-RPC 2.0 of the profile socket, generalized over any b
   feature sets are confirmed in SRV-3 and SRV-QR1.
   - SRV-3: `x509-cert` 0.3 with `default-features = false, features = ["builder", "std"]` (`der` and `spki` through
     its re-exports, not as direct dependencies), `p256` with `pkcs8` in app-sync, and `base64ct` (`alloc`) for the wire.
+  - SRV-5a: `[remote]` in `config.toml` is the source of truth for the link (`state.link.server` mirrors it; the engine
+    writes it through `PersistDelta::Remote`). A forwarded command returns the server's receipt; a refusal of what the
+    mirror applied resets the mirror to a fresh snapshot. Until SRV-5b the runtime is online only: a server command
+    while the link is down is refused with `ERR212` and nothing is applied (ARCHITECTURE §5.6).
 - The wire format is public API like `Command` JSON (AGENTS.md §5): versioned through `hello.protocol`.

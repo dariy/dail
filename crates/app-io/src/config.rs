@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use app_core::link::{LinkState, LinkStatus, ServerEndpoint};
 use app_core::{
     Account, AccountId, AccountStatus, AppState, Device, DeviceId, DeviceRole, Endpoint,
     PersistDelta, ProviderPreset, SecretRef, SettingKey, Settings, UpdatePolicy, ViewPrefs,
@@ -32,6 +33,61 @@ pub struct Config {
     /// profile serves.
     #[serde(default, skip_serializing_if = "ServeConfig::is_empty")]
     pub serve: ServeConfig,
+    /// The dail server this profile is a device of (`[remote]`, ADR 0017). A remote profile
+    /// has no accounts: a config with both is refused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote: Option<RemoteConfig>,
+}
+
+/// The `[remote]` table of a remote profile (ADR 0017): the dail server a device connects to.
+/// It is the source of truth for `state.link.server` when the profile opens; the engine writes
+/// it when pairing completes and removes it with `disconnect_server`
+/// (`PersistDelta::Remote`). Holds the keyring entry of the device token, never the token.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RemoteConfig {
+    /// The server's host name or IP address.
+    pub host: String,
+    /// Its port.
+    pub port: u16,
+    /// The pinned SHA-256 fingerprint of its certificate, 64 lower-case hex digits.
+    pub fingerprint: String,
+    /// The keyring entry of the device token.
+    pub token: SecretRef,
+}
+
+impl RemoteConfig {
+    /// The `[remote]` table of a pinned server; `None` while it is not pinned (pairing).
+    pub fn from_endpoint(server: &ServerEndpoint) -> Option<Self> {
+        Some(Self {
+            host: server.host.clone(),
+            port: server.port,
+            fingerprint: server.fingerprint.clone()?,
+            token: server.token.clone()?,
+        })
+    }
+
+    /// The pinned server as the engine keeps it in `state.link.server`.
+    pub fn to_endpoint(&self) -> ServerEndpoint {
+        ServerEndpoint {
+            host: self.host.clone(),
+            port: self.port,
+            offered: None,
+            pairing: None,
+            fingerprint: Some(self.fingerprint.clone()),
+            token: Some(self.token.clone()),
+        }
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        if self.host.trim().is_empty() || self.port == 0 {
+            return Err("remote: host must not be empty and port must not be 0".to_owned());
+        }
+        let hex = &self.fingerprint;
+        if hex.len() != 64 || !hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+            return Err("remote: fingerprint must be 64 lower-case hex digits".to_owned());
+        }
+        Ok(())
+    }
 }
 
 /// The `[serve]` table of a profile that runs `dail serve` (ADR 0017).
@@ -156,11 +212,17 @@ impl Config {
             accounts: state.accounts.values().map(AccountConfig::from).collect(),
             // The token hashes are not in the state; `dail serve` writes `[serve]` itself.
             serve: ServeConfig::default(),
+            remote: state
+                .link
+                .as_ref()
+                .and_then(|link| link.server.as_ref())
+                .and_then(RemoteConfig::from_endpoint),
         }
     }
 
-    /// Replaces settings, accounts, view preferences and paired devices of `state` with this
-    /// config.
+    /// Replaces settings, accounts, view preferences, paired devices and the link of `state`
+    /// with this config. A `[remote]` table puts the profile in mirror mode (`state.link`,
+    /// `connecting` until the runtime reports otherwise).
     pub fn apply_to(&self, state: &mut AppState) {
         state.settings = self.settings.clone();
         state.view.apply_prefs(&self.view);
@@ -175,12 +237,20 @@ impl Config {
             .iter()
             .map(|device| (device.id, device.to_device()))
             .collect();
+        state.link = self.remote.as_ref().map(|remote| LinkState {
+            status: LinkStatus::Connecting,
+            server: Some(remote.to_endpoint()),
+            ..LinkState::default()
+        });
     }
 
     /// Applies one persisted change.
     pub fn apply_delta(&mut self, delta: &PersistDelta) {
         match delta {
             PersistDelta::Settings(settings) => self.settings = settings.clone(),
+            // A remote profile has no accounts of its own: the mirror's are the server's.
+            PersistDelta::Account(_) | PersistDelta::AccountRemoved(_) if self.remote.is_some() => {
+            }
             PersistDelta::Account(account) => {
                 let entry = AccountConfig::from(account);
                 match self.accounts.iter_mut().find(|a| a.id == account.id) {
@@ -190,6 +260,9 @@ impl Config {
             }
             PersistDelta::AccountRemoved(id) => self.accounts.retain(|a| a.id != *id),
             PersistDelta::View(prefs) => self.view = prefs.clone(),
+            PersistDelta::Remote(server) => {
+                self.remote = server.as_ref().and_then(RemoteConfig::from_endpoint);
+            }
             // The mail cache and the synced settings live in `state.redb`, not in the config file.
             PersistDelta::Mail(_) | PersistDelta::Synced(_) => {}
         }
@@ -204,6 +277,12 @@ impl Config {
             path: path.display().to_string(),
             reason,
         })?;
+        if config.remote.is_some() && !config.accounts.is_empty() {
+            return Err(IoError::RemoteWithAccounts {
+                path: path.display().to_string(),
+                accounts: config.accounts.len(),
+            });
+        }
         Ok(config)
     }
 
@@ -266,6 +345,9 @@ impl Config {
             if account.imap.port == 0 || account.smtp.port == 0 {
                 return Err(format!("account {}: port must not be 0", account.email));
             }
+        }
+        if let Some(remote) = &self.remote {
+            remote.validate()?;
         }
         for (index, device) in self.serve.devices.iter().enumerate() {
             if self.serve.devices[..index]
@@ -359,6 +441,13 @@ impl Store for ConfigStore {
         let mut guard = self.config.lock();
         let mut next = guard.clone().unwrap_or_default();
         next.apply_delta(delta);
+        // Never write a file that would not open again.
+        if next.remote.is_some() && !next.accounts.is_empty() {
+            return Err(IoError::RemoteWithAccounts {
+                path: self.path.display().to_string(),
+                accounts: next.accounts.len(),
+            });
+        }
         next.save(&self.path)?;
         *guard = Some(next);
         Ok(())

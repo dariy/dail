@@ -1,5 +1,7 @@
 //! `dail remote add|status` (ADR 0017): pair this profile with a dail server as a device
-//! (`connect_server`, then `trust_server`), and show the link.
+//! (`connect_server`, then `trust_server`; pairing writes `[remote]` into `config.toml`, which
+//! makes it a remote profile), and show the link: the live one of the process that owns the
+//! profile, or, when none does, the link as it settles after dialing once.
 //!
 //! Each step's result is printed as a JSON line, then `{"ok","name":"remote","link"}`. A pairing
 //! that does not complete leaves no link behind (`disconnect_server`).
@@ -141,9 +143,11 @@ async fn add(
         let _ = writeln!(
             std::io::stderr().lock(),
             "Paired with {host}:{port}: its certificate is pinned and the device token is kept \
-             {kept}. This profile is now linked to the server: it runs no mail sync, rules or \
-             sends of its own. This dail version records the link but does not connect to the \
-             server yet (remote profiles: ROADMAP SRV-5a); `dail remote status` shows it."
+             {kept}. This is now a remote profile ([remote] in its config.toml): dail gui, tui, \
+             exec, batch and mcp on it connect to the server and mirror its mail; it runs no \
+             mail sync, rules or sends of its own. This version works online only: while the \
+             server can't be reached, commands that run there are refused. `dail remote status` \
+             shows the link."
         );
     }
     Ok(if ok {

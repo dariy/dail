@@ -44,12 +44,13 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::watch;
 use tokio::task::{JoinHandle, JoinSet};
 
+use crate::connection::Connection;
 use crate::error::SyncError;
 use crate::rpc::{
     self, BoxRead, BoxWrite, CallError, INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST,
     LineReader, METHOD_NOT_FOUND, Request, RpcClient,
 };
-use crate::session::{SessionClient, SubmitResult};
+use crate::session::SubmitResult;
 
 /// How long [`claim`] waits for a busy profile (another process holds the lock but does not
 /// listen yet, or is a short `dail exec`).
@@ -207,7 +208,8 @@ impl IpcServer {
     /// Listens on the profile's endpoint and serves `session` to every client. Call it only
     /// while holding the profile's [`ProfileLock`]; a stale socket file left by a crashed owner
     /// is replaced.
-    pub fn listen(root: &Path, session: SessionClient) -> Result<Self, SyncError> {
+    pub fn listen(root: &Path, session: impl Into<Connection>) -> Result<Self, SyncError> {
+        let session: Connection = session.into();
         let endpoint = IpcEndpoint::for_profile(root);
         let name = endpoint.to_name().map_err(|err| {
             SyncError::Ipc(format!("bad socket name {}: {err}", endpoint.display()))
@@ -253,10 +255,11 @@ impl Drop for IpcServer {
 
 /// Serves the profile socket's protocol (see the module doc) on `stream`, which may be any byte
 /// stream: the local socket, or a pipe in tests. Returns when the client closes it.
-pub async fn serve_stream<S>(stream: S, session: SessionClient)
+pub async fn serve_stream<S>(stream: S, session: impl Into<Connection>)
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    let session: Connection = session.into();
     let (recv, mut send) = rpc::split(stream);
     let mut lines = LineReader::new(recv);
     loop {
@@ -288,12 +291,10 @@ where
 }
 
 /// Sends `changed` after each burst of state changes until the session or the client goes away.
-async fn notify_changes(
-    mut lines: LineReader<BoxRead>,
-    mut send: BoxWrite,
-    session: &SessionClient,
-) {
-    let mut changes = session.subscribe();
+async fn notify_changes(mut lines: LineReader<BoxRead>, mut send: BoxWrite, session: &Connection) {
+    let Ok(mut changes) = session.subscribe().await else {
+        return;
+    };
     changes.borrow_and_update();
     let changed = json!({ "jsonrpc": "2.0", "method": "changed" });
     loop {
@@ -314,7 +315,7 @@ async fn notify_changes(
     }
 }
 
-async fn respond(line: &str, session: &SessionClient) -> Value {
+async fn respond(line: &str, session: &Connection) -> Value {
     let request: Request = match serde_json::from_str(line) {
         Ok(request) => request,
         Err(err) => {
@@ -330,8 +331,11 @@ async fn respond(line: &str, session: &SessionClient) -> Value {
             .await
             .map(|()| Value::Null)
             .map_err(internal),
-        "state" => serde_json::to_value(session.state().as_ref())
-            .map_err(|err| (INTERNAL_ERROR, err.to_string())),
+        "state" => match session.state().await {
+            Ok(state) => serde_json::to_value(state.as_ref())
+                .map_err(|err| (INTERNAL_ERROR, err.to_string())),
+            Err(err) => Err(internal(err)),
+        },
         other => Err((METHOD_NOT_FOUND, format!("unknown method `{other}`"))),
     };
     match outcome {
@@ -340,7 +344,7 @@ async fn respond(line: &str, session: &SessionClient) -> Value {
     }
 }
 
-async fn submit(params: Value, session: &SessionClient) -> Result<Value, (i64, String)> {
+async fn submit(params: Value, session: &Connection) -> Result<Value, (i64, String)> {
     let params: SubmitParams = serde_json::from_value(params)
         .map_err(|err| (INVALID_PARAMS, format!("bad submit params: {err}")))?;
     if !origin_allowed(params.origin) {
@@ -359,7 +363,7 @@ async fn submit(params: Value, session: &SessionClient) -> Result<Value, (i64, S
     serde_json::to_value(reply).map_err(|err| (INTERNAL_ERROR, err.to_string()))
 }
 
-async fn preview(params: Value, session: &SessionClient) -> Result<Value, (i64, String)> {
+async fn preview(params: Value, session: &Connection) -> Result<Value, (i64, String)> {
     let params: SubmitParams = serde_json::from_value(params)
         .map_err(|err| (INVALID_PARAMS, format!("bad preview params: {err}")))?;
     if !origin_allowed(params.origin) {
@@ -428,7 +432,7 @@ impl IpcClient {
         })
     }
 
-    /// Submits a command to the owner's session, like [`SessionClient::submit`].
+    /// Submits a command to the owner's session, like [`crate::SessionClient::submit`].
     pub async fn submit(&self, cmd: &Command, origin: Origin) -> Result<SubmitResult, SyncError> {
         let params = json!({ "origin": origin, "command": wire_command(cmd)? });
         let result = self.call("submit", params).await?;
@@ -440,7 +444,7 @@ impl IpcClient {
         }
     }
 
-    /// A dry run in the owner's session, like [`SessionClient::preview`].
+    /// A dry run in the owner's session, like [`crate::SessionClient::preview`].
     pub async fn preview(
         &self,
         cmd: &Command,
@@ -456,7 +460,7 @@ impl IpcClient {
         }
     }
 
-    /// Waits until the owner's in-flight effects are done, like [`SessionClient::flush`].
+    /// Waits until the owner's in-flight effects are done, like [`crate::SessionClient::flush`].
     pub async fn flush(&self) -> Result<(), SyncError> {
         self.call("flush", Value::Null).await.map(drop)
     }
