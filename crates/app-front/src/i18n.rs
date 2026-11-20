@@ -1,7 +1,7 @@
 //! The UI strings table: every text the front-ends share is a [`Key`] with a template per
 //! language, `{name}` placeholders filled by [`tr`].
 //!
-//! The real languages are English and French. [`Lang::Pseudo`] is a pseudo-locale for
+//! The real languages are English, French, Spanish and Romanian. [`Lang::Pseudo`] is a pseudo-locale for
 //! developers (`DAIL_LANG=pseudo`): every template accented, a third longer and bracketed, the
 //! placeholders kept, so hard-coded strings (plain ASCII) and clipped ones (no closing bracket)
 //! stand out. Adding a language: a variant of [`Lang`] and a column in `table.rs`.
@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use app_core::{Category, CommandName};
 
 pub use engine::{error_in, help_in, label_in, message_in};
-pub use table::{Key, english, french};
+pub use table::{Key, english, french, romanian, spanish};
 
 /// A UI language.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -32,37 +32,52 @@ pub enum Lang {
     French,
     /// The pseudo-locale: English, accented, longer, bracketed.
     Pseudo,
+    /// Spanish.
+    Spanish,
+    /// Romanian.
+    Romanian,
 }
 
 impl Lang {
-    /// The language of the `language` setting (`0`: `system`, the language of the system).
+    /// The language of the `language` setting (`0`: `system`, the language of the system;
+    /// `1` English, `2` French, `3` Spanish, `4` Romanian).
     pub const fn resolve(setting: u64, system: Self) -> Self {
         match setting {
             1 => Self::English,
             2 => Self::French,
+            3 => Self::Spanish,
+            4 => Self::Romanian,
             _ => system,
         }
     }
 
-    /// The language of a tag such as `$DAIL_LANG` (`fr`, `fr-CA`, `fr_FR.UTF-8`: French;
-    /// `pseudo` or `en-XA`: the pseudo-locale; anything else, or nothing: English).
+    /// The language of a tag such as `$DAIL_LANG` (`fr`, `fr-CA`, `fr_FR.UTF-8`: French; `es…`:
+    /// Spanish; `ro…`: Romanian; `pseudo` or `en-XA`: the pseudo-locale; anything else, or
+    /// nothing: English).
     pub fn from_tag(tag: Option<&str>) -> Self {
         let tag = tag.map(|t| t.trim().to_ascii_lowercase());
         match tag.as_deref() {
             Some("pseudo" | "en-xa") => Self::Pseudo,
-            Some(t) if t.split(['-', '_', '.']).next() == Some("fr") => Self::French,
-            _ => Self::English,
+            Some(t) => match t.split(['-', '_', '.']).next() {
+                Some("fr") => Self::French,
+                Some("es") => Self::Spanish,
+                Some("ro") => Self::Romanian,
+                _ => Self::English,
+            },
+            None => Self::English,
         }
     }
 }
 
 /// The choices of the `language` setting in `lang`: each value and its name. A language is
 /// named in its own tongue, so that a reader can find it whatever the UI's language is.
-pub fn languages(lang: Lang) -> [(u64, &'static str); 3] {
+pub fn languages(lang: Lang) -> [(u64, &'static str); 5] {
     [
         (0, text(lang, Key::System)),
         (1, "English"),
         (2, "Français"),
+        (3, "Español"),
+        (4, "Română"),
     ]
 }
 
@@ -94,6 +109,8 @@ pub fn current() -> Lang {
     match CURRENT.load(Ordering::Relaxed) {
         1 => Lang::French,
         2 => Lang::Pseudo,
+        3 => Lang::Spanish,
+        4 => Lang::Romanian,
         _ => Lang::English,
     }
 }
@@ -134,6 +151,8 @@ pub fn title_in(lang: Lang, name: CommandName) -> &'static str {
     match lang {
         Lang::English => name.spec().title,
         Lang::French => commands::french(name),
+        Lang::Spanish => commands::spanish(name),
+        Lang::Romanian => commands::romanian(name),
         Lang::Pseudo => CommandName::ALL
             .iter()
             .position(|&n| n == name)
@@ -173,6 +192,8 @@ pub fn text(lang: Lang, key: Key) -> &'static str {
     match lang {
         Lang::English => english(key),
         Lang::French => french(key),
+        Lang::Spanish => spanish(key),
+        Lang::Romanian => romanian(key),
         Lang::Pseudo => PSEUDO
             .get_or_init(|| Key::ALL.iter().map(|&k| pseudo(english(k))).collect())
             .get(key as usize)
@@ -283,6 +304,12 @@ mod tests {
             let pseudo = text(Lang::Pseudo, key);
             assert_eq!(placeholders(english), placeholders(pseudo), "{key:?}");
             assert_eq!(placeholders(english), placeholders(french(key)), "{key:?}");
+            assert_eq!(placeholders(english), placeholders(spanish(key)), "{key:?}");
+            assert_eq!(
+                placeholders(english),
+                placeholders(romanian(key)),
+                "{key:?}"
+            );
             assert!(pseudo.starts_with('[') && pseudo.ends_with(']'), "{key:?}");
             assert!(pseudo.chars().count() > english.chars().count(), "{key:?}");
             assert!(!english.is_empty());
@@ -297,6 +324,30 @@ mod tests {
             "Recherche : dail"
         );
         assert!(Key::ALL.iter().all(|&key| !french(key).is_empty()));
+    }
+
+    #[test]
+    fn spanish_and_romanian_are_real_tables() {
+        assert_eq!(text(Lang::Spanish, Key::Compose), "Redactar");
+        assert_eq!(text(Lang::Romanian, Key::Compose), "Scrieți");
+        assert_eq!(
+            tr(Lang::Spanish, Key::SearchTitle, &[("query", "dail")]),
+            "Búsqueda: dail"
+        );
+        assert!(
+            Key::ALL
+                .iter()
+                .all(|&key| !spanish(key).is_empty() && !romanian(key).is_empty())
+        );
+        // Romanian is written with the comma below (ș ț), never the cedilla (ş ţ).
+        assert!(
+            Key::ALL
+                .iter()
+                .all(|&key| !romanian(key).contains(['ş', 'ţ', 'Ş', 'Ţ']))
+        );
+        assert_eq!(Lang::resolve(3, Lang::English), Lang::Spanish);
+        assert_eq!(Lang::resolve(4, Lang::English), Lang::Romanian);
+        assert_eq!(languages(Lang::Romanian)[4], (4, "Română"));
     }
 
     #[test]
@@ -320,6 +371,8 @@ mod tests {
         assert_eq!(Lang::from_tag(Some(" en-XA ")), Lang::Pseudo);
         assert_eq!(Lang::from_tag(Some("fr_CA.UTF-8")), Lang::French);
         assert_eq!(Lang::from_tag(Some("fr")), Lang::French);
+        assert_eq!(Lang::from_tag(Some("es_MX.UTF-8")), Lang::Spanish);
+        assert_eq!(Lang::from_tag(Some("ro-RO")), Lang::Romanian);
         assert_eq!(Lang::from_tag(Some("fy")), Lang::English);
         assert_eq!(Lang::from_tag(Some("de_DE.UTF-8")), Lang::English);
         assert_eq!(Lang::from_tag(None), Lang::English);

@@ -181,13 +181,16 @@ fn the_language_setting_offers_names_and_submits_the_value() {
     assert_eq!(step.kind, AskKind::Languages);
     let rows = palette::ask_rows(&state, &step.kind, "");
     let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
-    assert_eq!(titles, ["System", "English", "Français"]);
+    assert_eq!(
+        titles,
+        ["System", "English", "Français", "Español", "Română"]
+    );
     let Some(Target::Choice(choice)) = rows.last().map(|r| r.target.clone()) else {
         panic!("no choice");
     };
     assert!(matches!(
         step.answer(&state, choice),
-        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 2
+        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 4
     ));
 }
 

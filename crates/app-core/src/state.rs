@@ -414,7 +414,7 @@ pub struct Settings {
     /// Thread list rows: 0 = cozy (two lines, 48 px), 1 = compact (one line, 40 px), 2 = preview
     /// (three lines with the snippet, 72 px).
     pub list_density: u64,
-    /// UI language: 0 = follow the system, 1 = English, 2 = French.
+    /// UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian.
     pub language: u64,
     /// TUI colours: 0 = the terminal's own (default, ADR 0004), 1 = the active theme's roles in
     /// truecolor (UI-16).

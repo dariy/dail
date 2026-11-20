@@ -1025,7 +1025,7 @@ pub enum SettingKey {
     /// What the GUI and the TUI show after the open conversation is archived, trashed or moved:
     /// 0 = the next one (default), 1 = the previous one, 2 = the list.
     AfterTriage,
-    /// UI language: 0 = follow the system, 1 = English, 2 = French.
+    /// UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian.
     Language,
 }
 
@@ -1135,7 +1135,7 @@ impl SettingKey {
             Self::MarkReadAfterMs => (0, 60_000),
             Self::StaleSecs | Self::FullSyncSecs => (0, 86_400),
             Self::AfterTriage => (0, 2),
-            Self::Language => (0, 2),
+            Self::Language => (0, 4),
         }
     }
 

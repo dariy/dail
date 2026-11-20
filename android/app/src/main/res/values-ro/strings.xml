@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_sending">Trimitere</string>
+    <string name="sending">Se trimit e-mailurile…</string>
+    <string name="channel_new_mail">E-mail nou</string>
+    <string name="channel_not_sent">Netrimise</string>
+    <string name="channel_background">Fundal</string>
+    <string name="push_starting">Conectare la căsuțele dvs. de intrare</string>
+    <string name="failed_title">dail nu mai funcționează</string>
+    <string name="failed_body">E-mailurile și ciornele dvs. sunt salvate pe acest dispozitiv. Reporniți dail pentru a continua. Pentru a raporta problema, copiați diagnosticarea: versiunea, dispozitivul și ultimele rânduri din jurnal. Nu se trimite nimic automat.</string>
+    <string name="failed_restart">Reporniți</string>
+    <string name="failed_copy">Copiați diagnosticarea</string>
+    <string name="failed_copied">Diagnosticare copiată</string>
+</resources>

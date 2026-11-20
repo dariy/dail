@@ -1,4 +1,4 @@
-//! Engine texts for display: English unchanged, French translated (MISC-32).
+//! Engine texts for display: English unchanged, French, Spanish and Romanian translated (MISC-32).
 
 use app_core::{CommandName, CoreError};
 use app_front::i18n::{self, Lang, error_in, help_in, label_in};
@@ -116,4 +116,61 @@ fn the_last_validation_reasons_are_translated() {
     ] {
         assert_ne!(fr(text), text);
     }
+}
+
+#[test]
+fn spanish_and_romanian_translate_helps_errors_and_labels() {
+    for &name in CommandName::ALL {
+        for lang in [Lang::Spanish, Lang::Romanian] {
+            let help = help_in(lang, name);
+            assert!(!help.is_empty(), "{lang:?} {name:?}");
+            assert_ne!(help, help_in(Lang::English, name), "{lang:?} {name:?}");
+            assert_ne!(
+                i18n::title_in(lang, name),
+                name.spec().title,
+                "{lang:?} {name:?}: a title of its own"
+            );
+        }
+    }
+    let err = CoreError::InvalidArgument {
+        field: "password".to_owned(),
+        reason: "must not be empty".to_owned(),
+    };
+    assert_eq!(
+        error_in(Lang::Spanish, &err),
+        "ERR002: argumento `password` no válido: no puede estar vacío"
+    );
+    assert_eq!(
+        error_in(Lang::Romanian, &err),
+        "ERR002: argument `password` nevalid: nu trebuie să fie gol"
+    );
+    let at_column = CoreError::InvalidArgument {
+        field: "f".to_owned(),
+        reason: "at column 3: invalid date `x`; write YYYY-MM-DD".to_owned(),
+    };
+    assert_eq!(
+        error_in(Lang::Spanish, &at_column),
+        "ERR002: argumento `f` no válido: en la columna 3: fecha `x` no válida; escribe AAAA-MM-DD"
+    );
+    assert_eq!(
+        label_in(Lang::Romanian, "Keep the newest 50 of Work offline"),
+        "Păstrarea offline a celor mai noi 50 din Work"
+    );
+    assert_eq!(
+        label_in(Lang::Spanish, "Archive (3 messages)"),
+        "Archivar (3 messages)"
+    );
+    // CA-2's texts are translated too.
+    assert_eq!(
+        label_in(Lang::French, "Trust the certificate"),
+        "Faire confiance au certificat"
+    );
+    let not_found = CoreError::NotFound {
+        entity: "certificate offer".to_owned(),
+        id: "ab".to_owned(),
+    };
+    assert_eq!(
+        error_in(Lang::Spanish, &not_found),
+        "ERR004: certificado ofrecido ab: no se encontró"
+    );
 }

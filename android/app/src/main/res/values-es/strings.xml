@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_sending">Envío</string>
+    <string name="sending">Enviando correo…</string>
+    <string name="channel_new_mail">Correo nuevo</string>
+    <string name="channel_not_sent">No enviados</string>
+    <string name="channel_background">Segundo plano</string>
+    <string name="push_starting">Conectando con tus bandejas de entrada</string>
+    <string name="failed_title">dail dejó de funcionar</string>
+    <string name="failed_body">Tu correo y tus borradores están guardados en este dispositivo. Reinicia dail para continuar. Para informar del problema, copia los diagnósticos: la versión, el dispositivo y las últimas líneas del registro. No se envía nada automáticamente.</string>
+    <string name="failed_restart">Reiniciar</string>
+    <string name="failed_copy">Copiar diagnósticos</string>
+    <string name="failed_copied">Diagnósticos copiados</string>
+</resources>
