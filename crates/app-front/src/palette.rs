@@ -284,6 +284,31 @@ fn pick_mailbox(
     )
 }
 
+/// The step that picks a certificate offered to `account` (every account's if `None`) and trusts
+/// it. Its options show subject, issuer, dates and fingerprint: choosing one is the confirmation.
+#[must_use]
+pub fn trust_certificate(state: &AppState, account: Option<AccountId>) -> Flow {
+    let mut certs = crate::certs::all_offers(state);
+    certs.retain(|(id, _, _)| account.is_none_or(|a| a == *id));
+    pick_cert(
+        crate::i18n::s(Key::TrustWhichCertificate),
+        certs,
+        |account, sha256| Command::TrustCertificate { account, sha256 },
+    )
+}
+
+/// The step that picks a certificate `account` trusts (any account's if `None`) and forgets it.
+#[must_use]
+pub fn forget_certificate(state: &AppState, account: Option<AccountId>) -> Flow {
+    let mut certs = crate::certs::all_trusted(state);
+    certs.retain(|(id, _, _)| account.is_none_or(|a| a == *id));
+    pick_cert(
+        crate::i18n::s(Key::ForgetWhichCertificate),
+        certs,
+        |account, sha256| Command::ForgetCertificate { account, sha256 },
+    )
+}
+
 /// A step that picks one of `certs` (with their accounts) and runs `make` on it.
 fn pick_cert(
     prompt: &str,
@@ -1268,16 +1293,8 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 move |email| Command::RemoveIdentity { account, email },
             )
         }),
-        CommandName::TrustCertificate => pick_cert(
-            crate::i18n::s(Key::TrustWhichCertificate),
-            crate::certs::all_offers(state),
-            |account, sha256| Command::TrustCertificate { account, sha256 },
-        ),
-        CommandName::ForgetCertificate => pick_cert(
-            crate::i18n::s(Key::ForgetWhichCertificate),
-            crate::certs::all_trusted(state),
-            |account, sha256| Command::ForgetCertificate { account, sha256 },
-        ),
+        CommandName::TrustCertificate => trust_certificate(state, None),
+        CommandName::ForgetCertificate => forget_certificate(state, None),
         CommandName::SetMailboxIdentity => {
             let email = |mailbox| {
                 ask(

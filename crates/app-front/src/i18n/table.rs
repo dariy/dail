@@ -1403,6 +1403,18 @@ strings! {
     RemoveWhichAddress:
         "Remove which address?",
         "Retirer quelle adresse ?";
+    TrustCertificateDots:
+        "Trust certificate…",
+        "Faire confiance au certificat…";
+    ForgetCertificateDots:
+        "Forget certificate…",
+        "Oublier le certificat…";
+    FixTrust:
+        "trust…",
+        "faire confiance…";
+    FixPaletteTrust:
+        " (palette: Trust a server's certificate)",
+        " (palette : Faire confiance au certificat d’un serveur)";
     TrustWhichCertificate:
         "Trust which certificate?",
         "Faire confiance à quel certificat ?";

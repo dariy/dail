@@ -1000,8 +1000,10 @@ text ships in English and French.
    - [x] CA-2 (M) [core][io][sync][tk]: `Event::CertificateOffered` from a capturing verifier (SMTP runs over dail's own TLS, so no probe);
      `trust_certificate` (user only) and `forget_certificate`; `Account.trusted_certs` in `config.toml`; extra anchors
      per account in `ImapLogin` / `SmtpLogin`
-   - [ ] CA-3 (M) [front][gui][tui][mobile][kt][ios]: the certificate problem's *Trust…* fix: a confirmation with the
-     subject, issuer, dates and SHA-256; trusted certificates listed in the account's settings with *Forget*
+   - [x] CA-3 (M) [front][gui][tui][mobile]: the certificate problem's *trust…* fix opens a step whose option shows the
+     subject, issuer, dates and SHA-256 (choosing it is the confirmation); the account's actions gain *Trust
+     certificate…* while a server offers one and *Forget certificate…* while it trusts one (GUI account settings, touch
+     account sheet; the TUI names the palette command). Kotlin and SwiftUI draw them from the frame unchanged
 3. MISC-29 pre-loading, then MISC-25 previews and MISC-30 on iOS
 4. Spanish, then Romanian
 5. targetSdk 37, before the deadline expected in August 2027

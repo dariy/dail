@@ -46,6 +46,10 @@ pub enum Run {
     Addresses(AccountId),
     /// Remove this account (confirms).
     RemoveAccount(AccountId),
+    /// Trust a certificate one of this account's servers offered: picks it (ADR 0016).
+    TrustCertificate(AccountId),
+    /// Forget a certificate this account trusts: picks it.
+    ForgetCertificate(AccountId),
 }
 
 impl Run {
@@ -64,6 +68,8 @@ impl Run {
             Self::Password(id) => Flow::Password(*id),
             Self::Addresses(id) => palette::set_identity(*id),
             Self::RemoveAccount(id) => palette::remove_account(state, *id),
+            Self::TrustCertificate(id) => palette::trust_certificate(state, Some(*id)),
+            Self::ForgetCertificate(id) => palette::forget_certificate(state, Some(*id)),
         }
     }
 }
@@ -339,12 +345,30 @@ pub fn mailbox_actions(state: &AppState, id: MailboxId) -> Vec<Entry> {
 }
 
 /// The actions of account `id`, in display order; none if it is unknown: test, the password
-/// form, a sending address, remove (confirms). No *Servers…* yet (PAR-5).
+/// form, a sending address, *Trust certificate…* while a server offers one and *Forget
+/// certificate…* while it trusts one (ADR 0016), remove (confirms). No *Servers…* yet (PAR-5).
 pub fn account_actions(state: &AppState, id: AccountId) -> Vec<Entry> {
-    if !state.accounts.contains_key(&id) {
+    let Some(account) = state.accounts.get(&id) else {
         return Vec::new();
+    };
+    let mut certs = Vec::new();
+    if !crate::certs::offers(state, id).is_empty() {
+        certs.push(entry(
+            Key::TrustCertificateDots,
+            Icon::VerifiedUser,
+            Run::TrustCertificate(id),
+            false,
+        ));
     }
-    vec![
+    if !account.trusted_certs.is_empty() {
+        certs.push(entry(
+            Key::ForgetCertificateDots,
+            Icon::Delete,
+            Run::ForgetCertificate(id),
+            false,
+        ));
+    }
+    let mut out = vec![
         cmd(
             Key::Test,
             Icon::VerifiedUser,
@@ -363,8 +387,15 @@ pub fn account_actions(state: &AppState, id: AccountId) -> Vec<Entry> {
             Run::Addresses(id),
             false,
         ),
-        entry(Key::RemoveDots, Icon::Delete, Run::RemoveAccount(id), false),
-    ]
+    ];
+    out.extend(certs);
+    out.push(entry(
+        Key::RemoveDots,
+        Icon::Delete,
+        Run::RemoveAccount(id),
+        false,
+    ));
+    out
 }
 
 /// The icons the lists use: the only way an entry gets one, so [`ICONS`] holds every name a

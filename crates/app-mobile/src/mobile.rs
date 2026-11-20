@@ -1952,6 +1952,9 @@ impl Mobile {
                 }),
                 Fix::Test(id) => Act::Run(Command::TestAccount { id }),
                 Fix::Password(account) => Act::Reenter(account),
+                Fix::Trust(account) => {
+                    Act::Action(app_front::actions::Run::TrustCertificate(account))
+                }
             };
             Button {
                 icon: None,

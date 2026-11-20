@@ -30,6 +30,8 @@ const NEVER: &[(CommandName, FrontEnd, &str)] = &[];
 const FLOW_GUI: &[&str] = &[
     "set_keybinding",
     "set_identity",
+    "trust_certificate",
+    "forget_certificate",
     "create_folder",
     "rename_folder",
     "delete_folder",
@@ -55,6 +57,8 @@ const FLOW_TUI: &[&str] = &[
 ];
 const FLOW_TOUCH: &[&str] = &[
     "set_keybinding",
+    "trust_certificate",
+    "forget_certificate",
     "create_folder",
     "rename_folder",
     "delete_folder",
@@ -85,8 +89,6 @@ fn the_gui_gaps_are_pinned() {
             "redo",
             "update_account",
             "remove_identity",
-            "trust_certificate",
-            "forget_certificate",
             "set_mailbox_identity",
             "pull_settings",
             "list_rules",
@@ -174,8 +176,6 @@ fn the_touch_gaps_are_pinned() {
             "update_account",
             "set_identity",
             "remove_identity",
-            "trust_certificate",
-            "forget_certificate",
             "set_mailbox_identity",
             "list_rules",
             "list_mailboxes",
@@ -278,6 +278,8 @@ fn run_name(run: &Run) -> CommandName {
         Run::Password(_) => CommandName::SetPassword,
         Run::Addresses(_) => CommandName::SetIdentity,
         Run::RemoveAccount(_) => CommandName::RemoveAccount,
+        Run::TrustCertificate(_) => CommandName::TrustCertificate,
+        Run::ForgetCertificate(_) => CommandName::ForgetCertificate,
     }
 }
 

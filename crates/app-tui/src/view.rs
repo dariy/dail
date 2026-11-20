@@ -322,6 +322,7 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
             Some(status::Fix::Password(_)) => s(Key::FixPalettePassword),
             Some(status::Fix::Retry(_)) => s(Key::FixPaletteSync),
             Some(status::Fix::Test(_)) => s(Key::FixPaletteTest),
+            Some(status::Fix::Trust(_)) => s(Key::FixPaletteTrust),
             None => "",
         };
         segments.push((format!("{}{fix}{more}", clean(&first.text)), bold()));
