@@ -88,7 +88,12 @@ fn the_agent_policy_is_pinned() {
             "restore_draft",
             "install_update",
             "approve_request",
-            "reject_request"
+            "reject_request",
+            "start_pairing",
+            "revoke_device",
+            "connect_server",
+            "trust_server",
+            "disconnect_server"
         ]
     );
     assert_eq!(with(AgentAccess::Approval), ["send_draft"]);

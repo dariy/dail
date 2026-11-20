@@ -6789,4 +6789,148 @@ strings! {
         "Último erro",
         "Último erro",
         "Ultimus error";
+    PairWhichKindOfDevice:
+        "Pair which kind of device?",
+        "Associer quel type d’appareil ?",
+        "¿Qué tipo de dispositivo quieres vincular?",
+        "Ce tip de dispozitiv asociați?",
+        "Parear qual tipo de dispositivo?",
+        "Emparelhar que tipo de dispositivo?",
+        "Quod genus instrumenti copulare?";
+    DeviceOfYours:
+        "A device of yours",
+        "Un de vos appareils",
+        "Un dispositivo tuyo",
+        "Un dispozitiv al dvs.",
+        "Um dispositivo seu",
+        "Um dispositivo seu",
+        "Instrumentum tuum";
+    DeviceOfYoursDetail:
+        "It can act as you and approve sends",
+        "Il peut agir en votre nom et approuver les envois",
+        "Puede actuar como tú y aprobar envíos",
+        "Poate acționa în numele dvs. și aproba trimiterile",
+        "Ele pode agir como você e aprovar envios",
+        "Pode agir como o utilizador e aprovar envios",
+        "Pro te agere et missiones probare potest";
+    AnAgent:
+        "An agent",
+        "Un agent",
+        "Un agente",
+        "Un agent",
+        "Um agente",
+        "Um agente",
+        "Agens";
+    AnAgentDetail:
+        "It can act only as an agent (MCP)",
+        "Il ne peut agir qu’en tant qu’agent (MCP)",
+        "Solo puede actuar como agente (MCP)",
+        "Poate acționa doar ca agent (MCP)",
+        "Ele só pode agir como agente (MCP)",
+        "Só pode agir como agente (MCP)",
+        "Solum ut agens (MCP) agere potest";
+    DeviceNameQuestion:
+        "Its name?",
+        "Son nom ?",
+        "¿Su nombre?",
+        "Numele său?",
+        "O nome dele?",
+        "O nome?",
+        "Nomen eius?";
+    DeviceNameHint:
+        "Phone",
+        "Téléphone",
+        "Teléfono",
+        "Telefon",
+        "Celular",
+        "Telemóvel",
+        "Telephonum";
+    RevokeWhichDevice:
+        "Revoke which device?",
+        "Révoquer quel appareil ?",
+        "¿Revocar qué dispositivo?",
+        "Revocați ce dispozitiv?",
+        "Revogar qual dispositivo?",
+        "Revogar que dispositivo?",
+        "Quod instrumentum revocare?";
+    RevokeThisDevice:
+        "Revoke this device? It has to be paired again to reconnect.",
+        "Révoquer cet appareil ? Il devra être associé de nouveau pour se reconnecter.",
+        "¿Revocar este dispositivo? Habrá que vincularlo de nuevo para reconectarlo.",
+        "Revocați acest dispozitiv? Va trebui asociat din nou pentru a se reconecta.",
+        "Revogar este dispositivo? Será preciso pareá-lo de novo para reconectar.",
+        "Revogar este dispositivo? Terá de ser emparelhado de novo para voltar a ligar.",
+        "Hoc instrumentum revocare? Iterum copulandum erit ut rursus conectat.";
+    RevokeName:
+        "Revoke {name}",
+        "Révoquer {name}",
+        "Revocar {name}",
+        "Revocați {name}",
+        "Revogar {name}",
+        "Revogar {name}",
+        "Revoca {name}";
+    WhichDailServer:
+        "Which dail server?",
+        "Quel serveur dail ?",
+        "¿Qué servidor dail?",
+        "Ce server dail?",
+        "Qual servidor dail?",
+        "Que servidor dail?",
+        "Quis servitor dail?";
+    ServerHostPortHint:
+        "host:port, e.g. home.example.org:7443",
+        "hôte:port, par ex. home.example.org:7443",
+        "host:puerto, p. ej. home.example.org:7443",
+        "gazdă:port, de ex. home.example.org:7443",
+        "host:porta, ex.: home.example.org:7443",
+        "anfitrião:porta, p. ex. home.example.org:7443",
+        "hospes:porta, e.g. home.example.org:7443";
+    DoesTheServerShowThisFingerprint:
+        "Does the dail server show this fingerprint?",
+        "Le serveur dail affiche-t-il cette empreinte ?",
+        "¿El servidor dail muestra esta huella?",
+        "Serverul dail afișează această amprentă?",
+        "O servidor dail mostra esta impressão digital?",
+        "O servidor dail mostra esta impressão digital?",
+        "Monstratne servitor dail hoc vestigium?";
+    TrustFingerprint:
+        "Trust {fingerprint}",
+        "Faire confiance à {fingerprint}",
+        "Confiar en {fingerprint}",
+        "Acceptați {fingerprint}",
+        "Confiar em {fingerprint}",
+        "Confiar em {fingerprint}",
+        "Confide {fingerprint}";
+    PairingCodeQuestion:
+        "The pairing code the server shows?",
+        "Le code d’association affiché par le serveur ?",
+        "¿El código de vinculación que muestra el servidor?",
+        "Codul de asociere afișat de server?",
+        "O código de pareamento que o servidor mostra?",
+        "O código de emparelhamento que o servidor mostra?",
+        "Nota copulationis quam servitor monstrat?";
+    DisconnectFromTheServer:
+        "Disconnect from the dail server? Its mail and the offline changes not sent yet leave this device.",
+        "Se déconnecter du serveur dail ? Son courrier et les modifications hors ligne pas encore envoyées quittent cet appareil.",
+        "¿Desconectarte del servidor dail? Su correo y los cambios sin conexión aún no enviados salen de este dispositivo.",
+        "Vă deconectați de la serverul dail? E-mailurile sale și modificările offline încă netrimise dispar de pe acest dispozitiv.",
+        "Desconectar do servidor dail? Os e-mails dele e as alterações offline ainda não enviadas saem deste dispositivo.",
+        "Desligar do servidor dail? O correio dele e as alterações offline ainda não enviadas saem deste dispositivo.",
+        "A servitore dail disiungere? Epistulae eius et mutationes sine conexione nondum missae ex hoc instrumento abeunt.";
+    DisconnectFrom:
+        "Disconnect from {server}",
+        "Se déconnecter de {server}",
+        "Desconectarte de {server}",
+        "Deconectați-vă de la {server}",
+        "Desconectar de {server}",
+        "Desligar de {server}",
+        "Disiunge a {server}";
+    DismissWhichRefusedChange:
+        "Dismiss which refused change?",
+        "Abandonner quelle modification refusée ?",
+        "¿Descartar qué cambio rechazado?",
+        "Renunțați la ce modificare refuzată?",
+        "Descartar qual alteração recusada?",
+        "Rejeitar que alteração recusada?",
+        "Quam mutationem recusatam abicere?";
 }

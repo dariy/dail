@@ -48,9 +48,13 @@ pub use error::CoreError;
 pub use event::{Effect, Event, FolderAction, MailDelta, PersistDelta, SentCopy};
 pub use history::{History, HistoryEntry};
 pub use ids::{
-    AccountId, ApprovalId, DraftId, IdGen, MailboxId, MessageId, OpId, RequestId, RuleId, ThreadId,
+    AccountId, ApprovalId, DeviceId, DraftId, IdGen, MailboxId, MessageId, OpId, RequestId, RuleId,
+    ThreadId,
 };
-pub use link::{LinkState, LinkStatus, OfflineRejection, Placement, QueuedCommand};
+pub use link::{
+    Device, DeviceRole, LinkState, LinkStatus, OfflineRejection, PAIRING_CODE_LEN, PAIRING_TTL_MS,
+    Placement, QueuedCommand, ServerEndpoint,
+};
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};
 pub use message::{

@@ -104,7 +104,15 @@ fn the_gui_gaps_are_pinned() {
             "focus_pane",
             "get_view",
             "compact_store",
-            "list_approvals"
+            "list_approvals",
+            "list_devices",
+            "start_pairing",
+            "revoke_device",
+            "connect_server",
+            "trust_server",
+            "disconnect_server",
+            "retry_offline",
+            "dismiss_offline_rejection"
         ]
     );
     assert!(with(FrontEnd::Gui, Reach::Never).is_empty());
@@ -159,7 +167,15 @@ fn the_tui_gaps_are_pinned() {
             "clear_focus",
             "get_view",
             "compact_store",
-            "list_approvals"
+            "list_approvals",
+            "list_devices",
+            "start_pairing",
+            "revoke_device",
+            "connect_server",
+            "trust_server",
+            "disconnect_server",
+            "retry_offline",
+            "dismiss_offline_rejection"
         ]
     );
     assert!(with(FrontEnd::Tui, Reach::Never).is_empty());
@@ -200,7 +216,15 @@ fn the_touch_gaps_are_pinned() {
             "install_update",
             "list_approvals",
             "approve_request",
-            "reject_request"
+            "reject_request",
+            "list_devices",
+            "start_pairing",
+            "revoke_device",
+            "connect_server",
+            "trust_server",
+            "disconnect_server",
+            "retry_offline",
+            "dismiss_offline_rejection"
         ]
     );
     assert!(with(FrontEnd::Touch, Reach::Never).is_empty());

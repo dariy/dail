@@ -8,6 +8,7 @@ mod folders;
 mod media;
 mod offline;
 mod original;
+mod pairing;
 mod pins;
 mod search;
 mod settings_sync;

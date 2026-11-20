@@ -415,6 +415,168 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
+/// `start_pairing`: which kind of device, then its name.
+fn start_pairing() -> Flow {
+    let roles = [app_core::DeviceRole::User, app_core::DeviceRole::Agent];
+    options(
+        crate::i18n::s(Key::PairWhichKindOfDevice),
+        roles.iter().map(|role| role_labels(*role)).collect(),
+        move |_, i| {
+            let Some(role) = roles.get(i).copied() else {
+                return Flow::Hidden;
+            };
+            text(
+                crate::i18n::s(Key::DeviceNameQuestion),
+                crate::i18n::s(Key::DeviceNameHint),
+                move |name| Command::StartPairing { role, name },
+            )
+        },
+    )
+}
+
+/// A device role's title and detail.
+fn role_labels(role: app_core::DeviceRole) -> (String, String) {
+    let (title, detail) = match role {
+        app_core::DeviceRole::User => (Key::DeviceOfYours, Key::DeviceOfYoursDetail),
+        app_core::DeviceRole::Agent => (Key::AnAgent, Key::AnAgentDetail),
+    };
+    (
+        crate::i18n::s(title).to_owned(),
+        crate::i18n::s(detail).to_owned(),
+    )
+}
+
+/// `revoke_device`: which device, then the confirmation.
+fn revoke_device(state: &AppState) -> Flow {
+    let devices: Vec<(app_core::DeviceId, String)> = state
+        .devices
+        .values()
+        .map(|d| (d.id, d.name.clone()))
+        .collect();
+    let items = state
+        .devices
+        .values()
+        .map(|d| (d.name.clone(), role_labels(d.role).0))
+        .collect();
+    options(
+        crate::i18n::s(Key::RevokeWhichDevice),
+        items,
+        move |_, i| {
+            let Some((id, name)) = devices.get(i).cloned() else {
+                return Flow::Hidden;
+            };
+            ask(
+                crate::i18n::s(Key::RevokeThisDevice),
+                AskKind::Confirm(crate::i18n::f(Key::RevokeName, &[("name", &name)])),
+                move |_, choice| match choice {
+                    Choice::Yes => Flow::Run(Command::RevokeDevice { id, confirm: true }),
+                    _ => Flow::Hidden,
+                },
+            )
+        },
+    )
+}
+
+/// `host:port` as `connect_server` takes it (`[::1]:7443` for an IPv6 address).
+fn host_port(text: &str) -> Option<(String, u16)> {
+    let (host, port) = text.trim().rsplit_once(':')?;
+    let port = port.parse::<u16>().ok().filter(|port| *port != 0)?;
+    (!host.is_empty()).then(|| (host.to_owned(), port))
+}
+
+/// `connect_server`: the server's `host:port`.
+fn connect_server() -> Flow {
+    ask(
+        crate::i18n::s(Key::WhichDailServer),
+        AskKind::Text(crate::i18n::s(Key::ServerHostPortHint).into()),
+        |_, choice| match choice {
+            Choice::Text(text) => host_port(&text).map_or(Flow::Hidden, |(host, port)| {
+                Flow::Run(Command::ConnectServer { host, port })
+            }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `trust_server`: the fingerprint the server offered, to compare, then the pairing code.
+fn trust_server(state: &AppState) -> Flow {
+    let Some(fingerprint) = state
+        .link
+        .as_ref()
+        .and_then(|link| link.server.as_ref())
+        .and_then(|server| server.offered.clone())
+    else {
+        return Flow::Hidden;
+    };
+    ask(
+        crate::i18n::s(Key::DoesTheServerShowThisFingerprint),
+        AskKind::Confirm(crate::i18n::f(
+            Key::TrustFingerprint,
+            &[("fingerprint", &fingerprint)],
+        )),
+        move |_, choice| match choice {
+            Choice::Yes => {
+                let fingerprint = fingerprint.clone();
+                text(
+                    crate::i18n::s(Key::PairingCodeQuestion),
+                    "ABCD2345",
+                    move |code| Command::TrustServer {
+                        fingerprint: fingerprint.clone(),
+                        code: app_core::Secret::new(code),
+                    },
+                )
+            }
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `disconnect_server`: the confirmation.
+fn disconnect_server(state: &AppState) -> Flow {
+    let server = state
+        .link
+        .as_ref()
+        .and_then(|link| link.server.as_ref())
+        .map(|s| format!("{}:{}", s.host, s.port))
+        .unwrap_or_default();
+    ask(
+        crate::i18n::s(Key::DisconnectFromTheServer),
+        AskKind::Confirm(crate::i18n::f(Key::DisconnectFrom, &[("server", &server)])),
+        |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::DisconnectServer { confirm: true }),
+            _ => Flow::Hidden,
+        },
+    )
+}
+
+/// `dismiss_offline_rejection`: which refused change.
+fn dismiss_offline_rejection(state: &AppState) -> Flow {
+    let rejected = state
+        .link
+        .as_ref()
+        .map(|link| link.rejected.as_slice())
+        .unwrap_or_default();
+    let ids: Vec<app_core::RequestId> = rejected.iter().map(|r| r.request_id).collect();
+    let items = rejected
+        .iter()
+        .map(|r| {
+            (
+                crate::i18n::title_in(crate::i18n::current(), r.command.command_name()).to_owned(),
+                crate::i18n::message_in(crate::i18n::current(), &r.error),
+            )
+        })
+        .collect();
+    options(
+        crate::i18n::s(Key::DismissWhichRefusedChange),
+        items,
+        move |_, i| {
+            ids.get(i).map_or(Flow::Hidden, |id| {
+                Flow::Run(Command::DismissOfflineRejection { id: *id })
+            })
+        },
+    )
+}
+
 /// The confirmation step of `install_update` (the About screen's *Install* starts here).
 pub fn install_update(state: &AppState) -> Flow {
     let version = match &state.update.status {
@@ -1773,6 +1935,14 @@ pub fn flow(name: CommandName, state: &AppState) -> Flow {
                 _ => Flow::Hidden,
             },
         ),
+        CommandName::ListDevices => Flow::Run(Command::ListDevices {}),
+        CommandName::StartPairing => start_pairing(),
+        CommandName::RevokeDevice => revoke_device(state),
+        CommandName::ConnectServer => connect_server(),
+        CommandName::TrustServer => trust_server(state),
+        CommandName::DisconnectServer => disconnect_server(state),
+        CommandName::RetryOffline => Flow::Run(Command::RetryOffline {}),
+        CommandName::DismissOfflineRejection => dismiss_offline_rejection(state),
     }
 }
 

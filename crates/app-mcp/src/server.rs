@@ -38,8 +38,10 @@ their passwords and sending addresses (`add_account`, `update_account`, `set_pas
 `restore_draft` (use `undo` to bring back a discarded draft), installing an update of dail \
 (`install_update`; you may check for and download one), pushing the settings to the mail server \
 (`push_settings`; you may `pull_settings`), choosing the account that holds them \
-(`set_settings_account`) and deciding approval requests \
-(`approve_request`, `reject_request`). Ask the user to do these in \
+(`set_settings_account`), deciding approval requests \
+(`approve_request`, `reject_request`), pairing and revoking devices of a dail server \
+(`start_pairing`, `revoke_device`; you may `list_devices`) and linking this profile to a dail \
+server (`connect_server`, `trust_server`, `disconnect_server`). Ask the user to do these in \
 the dail GUI or CLI.\n\n\
 Rules: `list_rules`, `save_rule`, `enable_rule`, `delete_rule` and `apply_rules` manage the \
 sorting rules. A rule can only mark read, star, move, archive or add a label (`add_label` is \

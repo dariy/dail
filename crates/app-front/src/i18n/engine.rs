@@ -707,6 +707,50 @@ const REASONS: &[(&str, Tr)] = &[
         ],
     ),
     (
+        "must be 1 to 64 characters without control characters",
+        [
+            "doit compter de 1 à 64 caractères, sans caractère de contrôle",
+            "debe tener de 1 a 64 caracteres, sin caracteres de control",
+            "trebuie să aibă între 1 și 64 de caractere, fără caractere de control",
+            "deve ter de 1 a 64 caracteres, sem caracteres de controle",
+            "deve ter de 1 a 64 carateres, sem carateres de controlo",
+            "1 ad 64 characteres sine characteribus moderandi habere debet",
+        ],
+    ),
+    (
+        "the server has not shown a certificate yet; wait for it after connect_server",
+        [
+            "le serveur n’a pas encore présenté de certificat ; attendez-le après connect_server",
+            "el servidor aún no ha presentado un certificado; espéralo después de connect_server",
+            "serverul nu a prezentat încă un certificat; așteptați-l după connect_server",
+            "o servidor ainda não apresentou um certificado; aguarde-o depois de connect_server",
+            "o servidor ainda não apresentou um certificado; aguarde-o depois de connect_server",
+            "servitor nondum testimonium ostendit; id post connect_server exspecta",
+        ],
+    ),
+    (
+        "does not match the certificate the server presented; do not pair",
+        [
+            "ne correspond pas au certificat présenté par le serveur ; ne vous associez pas",
+            "no coincide con el certificado que presentó el servidor; no te vincules",
+            "nu corespunde certificatului prezentat de server; nu asociați dispozitivul",
+            "não corresponde ao certificado que o servidor apresentou; não faça o pareamento",
+            "não corresponde ao certificado que o servidor apresentou; não emparelhe",
+            "testimonio a servitore ostenso non congruit; noli copulare",
+        ],
+    ),
+    (
+        "expected the 8-character pairing code from start_pairing (A-Z, 2-7)",
+        [
+            "code d’association de 8 caractères attendu, donné par start_pairing (A-Z, 2-7)",
+            "se esperaba el código de vinculación de 8 caracteres de start_pairing (A-Z, 2-7)",
+            "se aștepta codul de asociere de 8 caractere de la start_pairing (A-Z, 2-7)",
+            "esperava-se o código de pareamento de 8 caracteres de start_pairing (A-Z, 2-7)",
+            "esperava-se o código de emparelhamento de 8 carateres de start_pairing (A-Z, 2-7)",
+            "nota copulationis 8 characterum ex start_pairing exspectabatur (A-Z, 2-7)",
+        ],
+    ),
+    (
         "the account trusts this certificate already",
         [
             "le compte fait déjà confiance à ce certificat",
@@ -2089,6 +2133,30 @@ fn entity(col: usize, entity: &str) -> String {
             "certificado aceite",
             "testimonium acceptum",
         ]),
+        "device" => Some([
+            "appareil",
+            "dispositivo",
+            "dispozitivul",
+            "dispositivo",
+            "dispositivo",
+            "instrumentum",
+        ]),
+        "offline rejection" => Some([
+            "modification hors ligne refusée",
+            "cambio sin conexión rechazado",
+            "modificarea offline refuzată",
+            "alteração offline recusada",
+            "alteração offline recusada",
+            "mutatio sine conexione recusata",
+        ]),
+        "server link" => Some([
+            "liaison au serveur",
+            "enlace con el servidor",
+            "legătura cu serverul",
+            "vínculo com o servidor",
+            "ligação ao servidor",
+            "nexus cum servitore",
+        ]),
         "identity" => Some([
             "adresse d’envoi",
             "dirección de envío",
@@ -2253,6 +2321,28 @@ fn translated_error(col: usize, err: &CoreError) -> String {
         ),
         CoreError::NothingToUndo => reason_in(col, "nothing to undo"),
         CoreError::NothingToRedo => reason_in(col, "nothing to redo"),
+        CoreError::NotLinked => t(
+            [
+                "ce profil n’est relié à aucun serveur dail ; lancez d’abord connect_server",
+                "este perfil no está enlazado con ningún servidor dail; ejecuta primero connect_server",
+                "acest profil nu este legat de un server dail; rulați mai întâi connect_server",
+                "este perfil não está vinculado a um servidor dail; execute connect_server primeiro",
+                "este perfil não está associado a um servidor dail; execute primeiro connect_server",
+                "haec profilis cum nullo servitore dail coniuncta est; prius connect_server exsequere",
+            ],
+            &[],
+        ),
+        CoreError::ProfileHasAccounts { accounts } => t(
+            [
+                "ce profil a {} compte(s) de messagerie ; un profil relié à un serveur dail n’en a aucun, utilisez donc un nouveau profil",
+                "este perfil tiene {} cuenta(s) de correo; un perfil enlazado con un servidor dail no tiene ninguna, así que usa un perfil nuevo",
+                "acest profil are {} cont(uri) de e-mail; un profil legat de un server dail nu are niciunul, deci folosiți un profil nou",
+                "este perfil tem {} conta(s) de e-mail; um perfil vinculado a um servidor dail não tem nenhuma, então use um perfil novo",
+                "este perfil tem {} conta(s) de correio; um perfil associado a um servidor dail não tem nenhuma, por isso use um perfil novo",
+                "haec profilis {} rationem/rationes epistularum habet; profilis cum servitore dail coniuncta nullam habet, ergo novam profilem adhibe",
+            ],
+            &[&accounts.to_string()],
+        ),
     }
 }
 

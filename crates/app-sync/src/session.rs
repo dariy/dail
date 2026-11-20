@@ -483,7 +483,14 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::SaveAttachments { .. }
         | Effect::CompactStore { .. }
         | Effect::SearchIndex { .. } => Lane::Local,
-        Effect::DiscoverServers { .. } => Lane::Lookup,
+        // Other servers (autoconfig, ADR 0006), and the dail server's link and pairing (ADR
+        // 0017), in order.
+        Effect::DiscoverServers { .. }
+        | Effect::ProbeServer { .. }
+        | Effect::PairWithServer { .. }
+        | Effect::DisconnectServer { .. }
+        | Effect::OpenPairing { .. }
+        | Effect::RevokeDevice { .. } => Lane::Lookup,
         // Downloads take minutes; they must not hold up the store or the lookups.
         Effect::CheckForUpdates { .. }
         | Effect::DownloadUpdate { .. }

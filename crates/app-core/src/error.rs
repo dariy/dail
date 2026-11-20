@@ -96,6 +96,21 @@ pub enum CoreError {
     #[error("ERR011: nothing to redo")]
     #[serde(rename = "error_011_nothing_to_redo")]
     NothingToRedo,
+    /// The command needs a link to a dail server (ADR 0017), and this profile has none. Run
+    /// `connect_server` first.
+    #[error("ERR012: this profile is not linked to a dail server; run connect_server first")]
+    #[serde(rename = "error_012_not_linked")]
+    NotLinked,
+    /// A profile that mirrors a dail server has no mail accounts of its own (ADR 0017): the
+    /// server owns them. Use a new profile for the server, or remove the accounts.
+    #[error(
+        "ERR013: this profile has {accounts} mail account(s); a profile linked to a dail server has none, so use a new profile"
+    )]
+    #[serde(rename = "error_013_profile_has_accounts")]
+    ProfileHasAccounts {
+        /// How many accounts the profile has.
+        accounts: usize,
+    },
 }
 
 impl CoreError {
@@ -113,6 +128,8 @@ impl CoreError {
             Self::NotSendable { .. } => "ERR009",
             Self::NothingToUndo => "ERR010",
             Self::NothingToRedo => "ERR011",
+            Self::NotLinked => "ERR012",
+            Self::ProfileHasAccounts { .. } => "ERR013",
         }
     }
 }

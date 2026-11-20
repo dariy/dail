@@ -11,8 +11,11 @@ use serde::{Deserialize, Serialize};
 use crate::account::{ProviderPreset, Secret};
 use crate::command::{Command, CommandKind, SettingKey};
 use crate::draft::Draft;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, RuleId, ThreadId};
-use crate::link::Placement;
+use crate::ids::{
+    AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, RequestId, RuleId,
+    ThreadId,
+};
+use crate::link::{DeviceRole, Placement};
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
@@ -299,6 +302,22 @@ pub enum CommandName {
     ApproveRequest,
     /// See [`Command::RejectRequest`].
     RejectRequest,
+    /// See [`Command::ListDevices`].
+    ListDevices,
+    /// See [`Command::StartPairing`].
+    StartPairing,
+    /// See [`Command::RevokeDevice`].
+    RevokeDevice,
+    /// See [`Command::ConnectServer`].
+    ConnectServer,
+    /// See [`Command::TrustServer`].
+    TrustServer,
+    /// See [`Command::DisconnectServer`].
+    DisconnectServer,
+    /// See [`Command::RetryOffline`].
+    RetryOffline,
+    /// See [`Command::DismissOfflineRejection`].
+    DismissOfflineRejection,
 }
 
 const fn always(_: &AppState) -> bool {
@@ -370,6 +389,31 @@ fn has_approvals(state: &AppState) -> bool {
     !state.approvals.is_empty()
 }
 
+fn has_devices(state: &AppState) -> bool {
+    !state.devices.is_empty()
+}
+
+/// A profile without accounts and without a link can become a mirror (`connect_server`).
+fn can_connect_server(state: &AppState) -> bool {
+    state.link.is_none() && state.accounts.is_empty()
+}
+
+/// The server of `connect_server` offered a certificate the user has not trusted yet.
+fn server_offered(state: &AppState) -> bool {
+    state
+        .link
+        .as_ref()
+        .and_then(|link| link.server.as_ref())
+        .is_some_and(|server| server.offered.is_some() && !server.is_pinned())
+}
+
+fn has_offline_rejections(state: &AppState) -> bool {
+    state
+        .link
+        .as_ref()
+        .is_some_and(|link| !link.rejected.is_empty())
+}
+
 fn has_scheduled_sends(state: &AppState) -> bool {
     state
         .drafts
@@ -404,6 +448,12 @@ const EXAMPLE_APPROVAL: ApprovalId = ApprovalId::from_uuid(uuid::Uuid::from_u128
 
 /// The sorting-rule ID used by examples.
 const EXAMPLE_RULE: RuleId = RuleId::from_uuid(uuid::Uuid::from_u128(8));
+
+/// The paired-device ID used by examples.
+const EXAMPLE_DEVICE: DeviceId = DeviceId::from_uuid(uuid::Uuid::from_u128(9));
+
+/// The offline submission ID used by examples.
+const EXAMPLE_REQUEST: RequestId = RequestId::from_uuid(uuid::Uuid::from_u128(10));
 
 /// A rule used by examples: newsletters are marked read and moved to `Reading`.
 fn example_rule() -> Rule {
@@ -554,6 +604,14 @@ impl CommandName {
         Self::ListApprovals,
         Self::ApproveRequest,
         Self::RejectRequest,
+        Self::ListDevices,
+        Self::StartPairing,
+        Self::RevokeDevice,
+        Self::ConnectServer,
+        Self::TrustServer,
+        Self::DisconnectServer,
+        Self::RetryOffline,
+        Self::DismissOfflineRejection,
     ];
 
     /// The `snake_case` name.
@@ -667,6 +725,14 @@ impl CommandName {
             Self::ListApprovals => "list_approvals",
             Self::ApproveRequest => "approve_request",
             Self::RejectRequest => "reject_request",
+            Self::ListDevices => "list_devices",
+            Self::StartPairing => "start_pairing",
+            Self::RevokeDevice => "revoke_device",
+            Self::ConnectServer => "connect_server",
+            Self::TrustServer => "trust_server",
+            Self::DisconnectServer => "disconnect_server",
+            Self::RetryOffline => "retry_offline",
+            Self::DismissOfflineRejection => "dismiss_offline_rejection",
         }
     }
 
@@ -688,11 +754,12 @@ impl CommandName {
             | Self::GetMessage
             | Self::ListPendingOps
             | Self::ListApprovals
+            | Self::ListDevices
             | Self::Search
             | Self::ListContacts
             | Self::ListRules => CommandKind::Query,
-            // `undo`/`redo`, `sync_now` and the pending-op commands change data but are never
-            // recorded in history.
+            // `undo`/`redo`, `sync_now`, the pending-op commands and the pairing and link
+            // commands change data but are never recorded in history.
             Self::SetSetting
             | Self::SetKeybinding
             | Self::SetKeyPreset
@@ -757,6 +824,11 @@ impl CommandName {
             | Self::RemoveAttachment
             | Self::ApproveRequest
             | Self::RejectRequest
+            | Self::StartPairing
+            | Self::ConnectServer
+            | Self::TrustServer
+            | Self::RetryOffline
+            | Self::DismissOfflineRejection
             | Self::CancelSend => CommandKind::Mutation,
             Self::SendDraft => CommandKind::Outbound,
             Self::OpenPalette
@@ -787,6 +859,8 @@ impl CommandName {
             | Self::DeleteFolder
             | Self::EmptyTrash
             | Self::EmptyJunk
+            | Self::RevokeDevice
+            | Self::DisconnectServer
             | Self::InstallUpdate => CommandKind::Destructive,
         }
     }
@@ -796,7 +870,10 @@ impl CommandName {
     /// to them, and so do saved drafts with their attachments), restoring a draft from arguments
     /// (a forged attachment check or header) and deciding approval requests. Also user-only:
     /// writing files (`save_attachments`), which could plant a file where it gets run, and
-    /// trusting a certificate (`trust_certificate`), which decides whom dail talks to.
+    /// trusting a certificate (`trust_certificate`), which decides whom dail talks to. And the
+    /// dail server's pairing and link (ADR 0017): a pairing code or a revocation decides who
+    /// reaches the mail, and connecting or trusting a server decides where this profile's
+    /// commands go.
     pub const fn agent_access(self) -> AgentAccess {
         match self {
             Self::AddAccount
@@ -811,7 +888,12 @@ impl CommandName {
             | Self::RejectRequest
             | Self::PushSettings
             | Self::SetSettingsAccount
-            | Self::InstallUpdate => AgentAccess::UserOnly,
+            | Self::InstallUpdate
+            | Self::StartPairing
+            | Self::RevokeDevice
+            | Self::ConnectServer
+            | Self::TrustServer
+            | Self::DisconnectServer => AgentAccess::UserOnly,
             Self::SendDraft => AgentAccess::Approval,
             Self::GetSettings
             | Self::SetSetting
@@ -906,7 +988,10 @@ impl CommandName {
             | Self::DownloadUpdate
             | Self::SkipUpdateVersion
             | Self::SetUpdatePolicy
-            | Self::ListApprovals => AgentAccess::Allowed,
+            | Self::ListApprovals
+            | Self::ListDevices
+            | Self::RetryOffline
+            | Self::DismissOfflineRejection => AgentAccess::Allowed,
         }
     }
 
@@ -914,7 +999,9 @@ impl CommandName {
     /// mutations, sends, destructive, account, certificate, folder and rule commands, undo/redo
     /// (the server keeps the history), the synced settings, and queries over mail (they may
     /// search the server). `Client`: every `View` command, the device's appearance (theme, key
-    /// bindings), its own store (`compact_store`) and updates of its own dail. `set_setting` is
+    /// bindings), its own store (`compact_store`), updates of its own dail, and its own link to
+    /// the server (`connect_server` … `dismiss_offline_rejection`). The paired devices
+    /// (`list_devices`, `start_pairing`, `revoke_device`) are the server's. `set_setting` is
     /// `Server` here; [`crate::Command::placement`] refines it by key
     /// ([`crate::SettingKey::placement`]).
     pub const fn placement(self) -> Placement {
@@ -955,7 +1042,12 @@ impl CommandName {
             | Self::ClearFocus
             | Self::CollapseFolders
             | Self::ExpandFolders
-            | Self::ToggleSidebar => Placement::Client,
+            | Self::ToggleSidebar
+            | Self::ConnectServer
+            | Self::TrustServer
+            | Self::DisconnectServer
+            | Self::RetryOffline
+            | Self::DismissOfflineRejection => Placement::Client,
             Self::SetSetting
             | Self::SetSettingsAccount
             | Self::PullSettings
@@ -1026,7 +1118,10 @@ impl CommandName {
             | Self::SendDraft
             | Self::CancelSend
             | Self::ApproveRequest
-            | Self::RejectRequest => Placement::Server,
+            | Self::RejectRequest
+            | Self::ListDevices
+            | Self::StartPairing
+            | Self::RevokeDevice => Placement::Server,
         }
     }
 
@@ -1480,6 +1575,32 @@ impl CommandName {
                 available: has_approvals,
                 ..base("Reject send request", Category::Compose, &[])
             },
+            Self::ListDevices => base("Show paired devices", Category::App, &[]),
+            Self::StartPairing => base("Pair a device", Category::App, &[]),
+            Self::RevokeDevice => CommandSpec {
+                available: has_devices,
+                ..base("Revoke a device", Category::App, &[])
+            },
+            Self::ConnectServer => CommandSpec {
+                available: can_connect_server,
+                ..base("Connect to a dail server", Category::App, &[])
+            },
+            Self::TrustServer => CommandSpec {
+                available: server_offered,
+                ..base("Trust the dail server and pair", Category::App, &[])
+            },
+            Self::DisconnectServer => CommandSpec {
+                available: |state| state.link.is_some(),
+                ..base("Disconnect from the dail server", Category::App, &[])
+            },
+            Self::RetryOffline => CommandSpec {
+                available: has_offline_rejections,
+                ..base("Retry refused offline changes", Category::App, &[])
+            },
+            Self::DismissOfflineRejection => CommandSpec {
+                available: has_offline_rejections,
+                ..base("Dismiss a refused offline change", Category::App, &[])
+            },
         }
     }
 
@@ -1814,6 +1935,29 @@ impl CommandName {
             },
             Self::RejectRequest => Command::RejectRequest {
                 id: EXAMPLE_APPROVAL,
+            },
+            Self::ListDevices => Command::ListDevices {},
+            Self::StartPairing => Command::StartPairing {
+                role: DeviceRole::User,
+                name: "Phone".to_owned(),
+            },
+            Self::RevokeDevice => Command::RevokeDevice {
+                id: EXAMPLE_DEVICE,
+                confirm: true,
+            },
+            Self::ConnectServer => Command::ConnectServer {
+                host: "home.tailnet.example".to_owned(),
+                port: 7443,
+            },
+            Self::TrustServer => Command::TrustServer {
+                fingerprint: EXAMPLE_SHA256.to_owned(),
+                // Serialized as `<redacted>`: the example round-trips through JSON as that.
+                code: Secret::new(Secret::REDACTED),
+            },
+            Self::DisconnectServer => Command::DisconnectServer { confirm: true },
+            Self::RetryOffline => Command::RetryOffline {},
+            Self::DismissOfflineRejection => Command::DismissOfflineRejection {
+                id: EXAMPLE_REQUEST,
             },
             Self::RestoreDraft => Command::RestoreDraft {
                 draft: Box::new(Draft {

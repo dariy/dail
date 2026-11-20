@@ -85,6 +85,7 @@ fn entity_json(state: &AppState, entity: &EntityRef) -> Option<serde_json::Value
         EntityRef::Status => serde_json::to_value(&state.status),
         EntityRef::Update => serde_json::to_value(&state.update),
         EntityRef::Link => serde_json::to_value(state.link.as_ref()?),
+        EntityRef::Device(id) => serde_json::to_value(state.devices.get(id)?),
     };
     value.ok()
 }

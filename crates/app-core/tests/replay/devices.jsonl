@@ -1,0 +1,19 @@
+# A dail server's devices, then a device's link (ADR 0017, SRV-2). Line 3's code is in its receipt only; an agent may not
+# pair (4). The runtime reports a pairing (5); revoke needs confirm (8). Lines 11-19: connect, offer, trust (13: wrong fingerprint), paired (15).
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "start_pairing", "args": {"role": "user", "name": "Phone"}}}}
+{"t": 1700000001000, "origin": "mcp", "input": {"command": {"cmd": "start_pairing", "args": {"role": "agent", "name": "Claude"}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "device_paired", "args": {"device": {"id": "00000000-0000-0000-0000-000000000001", "name": "Phone", "role": "user", "paired_at_ms": 1700000002000}}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "device_seen", "args": {"id": "00000000-0000-0000-0000-000000000001", "at_ms": 1700000003000}}}}
+{"t": 1700000004000, "origin": "cli", "input": {"command": {"cmd": "list_devices", "args": {}}}}
+{"t": 1700000005000, "origin": "cli", "input": {"command": {"cmd": "revoke_device", "args": {"id": "00000000-0000-0000-0000-000000000001"}}}}
+{"t": 1700000006000, "origin": "cli", "input": {"command": {"cmd": "revoke_device", "args": {"id": "00000000-0000-0000-0000-000000000001", "confirm": true}}}}
+{"t": 1700000007000, "origin": "cli", "input": {"command": {"cmd": "list_devices", "args": {}}}}
+{"t": 1700000008000, "origin": "gui", "input": {"command": {"cmd": "connect_server", "args": {"host": "home.example", "port": 7443}}}}
+{"t": 1700000009000, "origin": "runtime", "input": {"event": {"event": "server_offered", "args": {"host": "home.example", "port": 7443, "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"}}}}
+{"t": 1700000010000, "origin": "gui", "input": {"command": {"cmd": "trust_server", "args": {"fingerprint": "0000000000000000000000000000000000000000000000000000000000000000", "code": "ABCD2345"}}}}
+{"t": 1700000011000, "origin": "gui", "input": {"command": {"cmd": "trust_server", "args": {"fingerprint": "5D41402ABC4B2A76B9719D911017C592AE2F5E3C8A1B7D0F4E6C2A9B8D7F1E03", "code": "abcd2345"}}}}
+{"t": 1700000011500, "origin": "runtime", "input": {"event": {"event": "server_paired", "args": {"fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"}}}}
+{"t": 1700000012000, "origin": "runtime", "input": {"event": {"event": "link_changed", "args": {"status": "offline"}}}}
+{"t": 1700000013000, "origin": "cli", "input": {"command": {"cmd": "retry_offline", "args": {}}}}
+{"t": 1700000014000, "origin": "cli", "input": {"command": {"cmd": "dismiss_offline_rejection", "args": {"id": "00000000-0000-0000-0000-000000000009"}}}}
+{"t": 1700000015000, "origin": "gui", "input": {"command": {"cmd": "disconnect_server", "args": {"confirm": true}}}}

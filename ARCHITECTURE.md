@@ -195,6 +195,7 @@ pub struct AppState {
     pub drafts:    IndexMap<DraftId, Draft>,
     pub outbox:    IndexMap<OpId, PendingOp>,          // remote ops not yet confirmed
     pub approvals: IndexMap<ApprovalId, ApprovalRequest>, // agent sends awaiting the user
+    pub devices:   IndexMap<DeviceId, Device>,         // paired with this profile as a dail server (ADR 0017, §4.7); shared
     pub view:      ViewState,                          // palette_open, mailbox, selected threads, checked threads, open thread,
                                                        // expanded: {MessageId: bool} (reader overrides), search,
                                                        // composer (open draft), focus: Pane, sidebar_collapsed
@@ -440,6 +441,10 @@ messages shown in a mailbox as one undo step; redo plans again over the restored
 - **IDs** — newtypes over `Uuid`, derived from `Ctx::id_seed` through `IdGen` (the n-th ID of a call is `seed + n`).
 - **Mirror events** (ADR 0017, §4.7): `LinkChanged{status}` and `RemoteSynced{revision, diff: StateDiff, snapshot?}`.
   `Effect::is_device_local()` (exhaustive) says which effects a mirror still runs.
+- **Pairing and link** (ADR 0017, SRV-2; §4.7): events `DevicePaired{device}`, `DeviceSeen{id, at_ms}`,
+  `ServeFailed{error}`, `ServerOffered{host, port, fingerprint}`, `ServerPaired{fingerprint}`, `LinkFailed{error}`; effects `OpenPairing{code,
+  role, name, expires_at_ms}`, `RevokeDevice{id}` (the server's), `ProbeServer{host, port}`, `PairWithServer{host, port,
+  fingerprint, code, secret}`, `DisconnectServer{secret?}` (the device's own, device-local).
 
 ### 4.4 Undo / redo semantics
 
@@ -480,7 +485,7 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   colours and the Android background checks stay on the device; the rest (what the server's engine uses and the shared
   settings) goes to the server. `app-core/tests/it/link.rs` pins the table.
 - **`StateDiff`** (`diff.rs`): `diff(old, new)`, `apply`, `snapshot`, `is_empty`. Keyed collections (`accounts` …
-  `approvals`) change entry by entry (`MapDiff{upsert, remove, order?}`, `order` only when removing and upserting alone
+  `approvals`, `devices`) change entry by entry (`MapDiff{upsert, remove, order?}`, `order` only when removing and upserting alone
   would not give the new key order); `settings`, `status` and `synced` are replaced whole when they changed. The
   device-local `view`, `update` (each device updates its own dail) and `link` are never part of it. Nor are the
   device's own fields of `settings` and `status`: `Settings::keep_device_local` and `StatusState::keep_device_local`
@@ -490,7 +495,7 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   `updates`; `images_from`, `pinned_mailboxes`, `hidden_mailboxes`, `settings_account` and the engine and shared keys
   are the server's (a test pins each field's side to its command's placement). Device status: `persist_error`,
   `quarantined`, `compaction` (its own store), `metered` (its own network) and `saves` (`save_attachments`); the rest
-  (keyring, sync, polls, fetches, searches, discovery, certificate offers) is the server's. `diff(a, b).apply(a)` gives
+  (keyring, sync, polls, fetches, searches, discovery, certificate offers, `serve_error`) is the server's. `diff(a, b).apply(a)` gives
   `b` on every other field, order included (a proptest over random triage sessions).
 - **`state.link: Option<LinkState{status: connecting|online|offline, revision, queued, rejected}>`**: present only in
   mirror mode. While it is set, every input still applies locally (optimistic), but `dispatch` and `ingest` return only
@@ -504,6 +509,23 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   `LinkChanged{status}` sets the status and turns mirror mode on. `RemoteSynced{revision, diff, snapshot}` applies the
   diff (a `snapshot` first clears the shared state) and records `revision`; a non-snapshot diff whose revision is not
   newer is ignored (`data.stale`). Neither is recorded in history. Fixture: `tests/replay/remote_offline.jsonl`.
+- **Pairing and the link** (SRV-2; fixture `tests/replay/devices.jsonl`). On the server, `state.devices:
+  IndexMap<DeviceId, Device{id, name, role: user|agent, paired_at_ms, last_seen_ms?}>` is shared (part of `StateDiff`,
+  so a paired desktop lists them); no token or token hash is in state (the server keeps the hash in `config.toml`,
+  SRV-3). `start_pairing` returns its code in the receipt only and emits `OpenPairing`; `revoke_device` emits
+  `RevokeDevice`; the runtime reports `DevicePaired` and `DeviceSeen`, and `ServeFailed` (into the shared
+  `status.serve_error`, cleared by the next pairing) when it cannot open a code or revoke. On a device,
+  `link.server: Option<ServerEndpoint{host, port, offered?, pairing?, fingerprint?, token?: SecretRef}>` and `link.error`:
+  `connect_server` sets the server (and turns mirror mode on) and emits `ProbeServer`; `ServerOffered` records the
+  fingerprint the server presented (`offered`; an offer from another host or port is ignored); `trust_server` records
+  it as `pairing` and emits `PairWithServer`, whose runtime keeps the device token in the keyring under `server.token`
+  and reports `ServerPaired` (which pins `pairing` as `fingerprint`) and `LinkChanged`; `LinkFailed` sets the link
+  `offline` with `link.error` and ends a pairing in progress (`trust_server` can be retried with a new code) (without a link, after `disconnect_server`, it
+  is the keyring's error). `ProbeServer`, `PairWithServer` and `DisconnectServer` are device-local (the device's own
+  work with its server); `OpenPairing` and `RevokeDevice` are the server's. The live backend fails the four network
+  ones as unsupported until SRV-3/SRV-4 (the failure shows in `serve_error` or `link.error`) and deletes the token on
+  `DisconnectServer`; the fake backend opens codes and revokes silently, presents `FAKE_SERVER_FINGERPRINT` and pairs
+  any well-formed code. `OfflineRejection` carries the queued command's `seed` and `origin` for `retry_offline`.
 
 ### 4.5 Command registry
 
@@ -2204,6 +2226,13 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?, focused?, filter?`); also the MCP resource `dail://state/view` | M7 |
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `error_008_origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
+| `list_devices` | Query | — → `{devices: [{id, name, role: user\|agent, paired_at_ms, last_seen_ms?}]}` in pairing order (`state.devices`); agents allowed; placement `server` | SRV-2 |
+| `start_pairing` | Mutation (no history, like `sync_now`) | `role: user\|agent, name` (trimmed, 1–64 characters, no control characters, else `ERR002` on `name`) → `{code, role, name, expires_at_ms, undoable: false}`: `code` is 8 RFC 4648 base32 characters from 40 bits of `id_seed` (`link::pairing_code`), valid 10 minutes, in the receipt only (never in state; the audit line leaves out the call's seed); emits `OpenPairing{code: Secret, role, name, expires_at_ms}`; user only; placement `server` | SRV-2 |
+| `revoke_device` | Destructive | `id, confirm` → `{revoked, name, undoable: false}`; without `confirm` `ERR006`, unknown `ERR004` (`device`); emits `RevokeDevice{id}`; user only; placement `server` | SRV-2 |
+| `connect_server` | Mutation (no history) | `host, port` → `{host, port, undoable: false}`: `link` with `server{host, port}`, status `connecting`, and `ProbeServer{host, port}`; a profile with accounts `ERR013`, a bad host or port 0 `ERR002`, a link already pinned `ERR005` (`server link`); user only; placement `client` | SRV-2 |
+| `trust_server` | Mutation (no history) | `fingerprint, code: Secret` → `{host, port, fingerprint, undoable: false}`: the fingerprint (hex, colons and case ignored) must equal `link.server.offered` (`ERR002` on `fingerprint`: none offered yet, mismatch, malformed), `code` 8 base32 characters (case ignored, `ERR002` on `code`); sets `server.pairing` to the fingerprint and `server.token` = `SecretRef::for_server(uuid(id_seed))` (a retry keeps the first one) and emits `PairWithServer{host, port, fingerprint, code, secret}`; the fingerprint is pinned (`server.fingerprint`) only by `ServerPaired`, and `LinkFailed` clears `pairing`, so a refused or expired code is retried with a new one; no link `ERR012`, already paired `ERR005`; user only; placement `client` | SRV-2 |
+| `disconnect_server` | Destructive | `confirm` → `{disconnected: "host:port"?, lost: <queued commands>, undoable: false}`: clears `link`, the mirrored shared state (`StateDiff::clear`) and the history; emits `PersistState` removals of the mirrored accounts and mail (and the settings and synced document if they changed), so they don't come back from the store, then `DisconnectServer{secret?}`; without `confirm` `ERR006`, no link `ERR012`; user only; placement `client` | SRV-2 |
+| `retry_offline` / `dismiss_offline_rejection` | Mutation (no history, like `retry_pending_ops` / `discard_pending_op`) | — / `id: RequestId`. Retry → `{retried: [new request IDs]}`: every `link.rejected` entry goes to the end of `link.queued` with its seed and origin (an agent's command stays the agent's) under a new request ID from `id_seed` (the server answers a known request ID from memory, so the old one would only bring back the refusal). Dismiss → `{dismissed, command}`; unknown `ERR004` (`offline rejection`). No link `ERR012`; agents allowed; placement `client` | SRV-2 |
 
 Search query language (pure parser in `app-core::search`, `Query::parse` → `Query { terms: [Term { negated, condition }] }`):
 `from: to: cc: subject: is:unread|read|starred has:attachment in:<mailbox> before:YYYY-MM-DD after: "phrase" -negation`.
@@ -2220,7 +2249,7 @@ canonical form, which parses back to the same `Query`.
 |---|---|
 | Prompt injection via email | `untrusted_content` envelopes; MCP instructions; agents can't escalate via content; no auto-actions on content in the MVP |
 | Agent sends mail | `Origin::Mcp` + `send_draft` (also via `undo` of a `cancel_send` or `redo` of an approval) → `ApprovalRequest`, unless `--allow-send`; `approve_request`/`reject_request` refused from agent origins (`error_008_origin_not_allowed`); an agent's edit withdraws its request; IPC clients can't claim the `gui` origin (§5.4) |
-| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request`, `install_update` → `error_008_origin_not_allowed` (`install_update` runs downloaded code; `save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
+| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request`, `install_update`, and the dail server's pairing and link (`start_pairing`, `revoke_device`, `connect_server`, `trust_server`, `disconnect_server`, ADR 0017) → `error_008_origin_not_allowed` (`install_update` runs downloaded code; `save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
 | Agent exfiltrates local files | `attach_file` takes any readable path. The file leaves the machine when the draft is sent (agent sends need approval; the card lists attachments with their paths) and when the draft is saved to its account's Drafts mailbox, on a server only the user sets up (`add_account`/`update_account` are user only). An agent can't hand the engine a draft with a forged attachment check: `restore_draft` is user only, and it checks every attachment again anyway |
 | Agent mass-deletes | No permanent delete in the MVP besides `remove_account` (agents may run it: `Destructive`, needs `confirm`, MCP `destructiveHint`); trash is undoable |
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
@@ -2235,7 +2264,9 @@ canonical form, which parses back to the same `Query`.
   agents get structured errors such as `{"error":"error_004_not_found","entity":"thread","id":"…"}`,
   `{"error":"error_007_no_mailbox_for_role","account":"…","role":"trash"}`,
   `{"error":"error_005_already_exists","entity":"account","key":"…"}`, `{"error":"error_006_confirmation_required","command":"…"}`,
-  `{"error":"error_008_origin_not_allowed","command":"approve_request","origin":"mcp"}` or `{"error":"error_009_not_sendable","draft":"…","reason":"…"}`.
+  `{"error":"error_008_origin_not_allowed","command":"approve_request","origin":"mcp"}`, `{"error":"error_009_not_sendable","draft":"…","reason":"…"}`,
+  `{"error":"error_012_not_linked"}` (a link command on a profile without a dail server) or
+  `{"error":"error_013_profile_has_accounts","accounts":1}` (`connect_server` on a profile with mail accounts).
 - Remote failures are state (`PendingOp.last_error`/`attempts`/`state`, `Account.status`, `SyncStatus.last_error`), not just logs.
   The GUI's status chip and `dail exec list_pending_ops` show them; `retry_pending_ops` and `discard_pending_op` act on them.
 

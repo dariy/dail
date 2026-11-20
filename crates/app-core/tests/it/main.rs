@@ -13,6 +13,7 @@ mod certificates;
 mod checked;
 mod condstore;
 mod contacts;
+mod devices;
 mod discovery;
 mod draft_saves;
 mod drafts;

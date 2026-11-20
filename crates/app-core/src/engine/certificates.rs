@@ -17,6 +17,12 @@ pub const MAX_CERT_OFFERS: usize = 16;
 
 /// `sha256` as the engine compares it: lower-case hex without colons or spaces.
 fn fingerprint(sha256: &str) -> Result<String, CoreError> {
+    sha256_hex("sha256", sha256)
+}
+
+/// A SHA-256 fingerprint as the engine compares it (lower-case hex without colons or spaces),
+/// or `error_002_invalid_argument` on `field`.
+pub(super) fn sha256_hex(field: &str, sha256: &str) -> Result<String, CoreError> {
     let hex: String = sha256
         .chars()
         .filter(|c| !matches!(c, ':' | ' '))
@@ -26,7 +32,7 @@ fn fingerprint(sha256: &str) -> Result<String, CoreError> {
         Ok(hex)
     } else {
         Err(invalid(
-            "sha256",
+            field,
             "expected a SHA-256 fingerprint: 64 hex digits",
         ))
     }

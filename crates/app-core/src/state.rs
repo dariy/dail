@@ -36,6 +36,11 @@ pub struct AppState {
     /// Agents' requests to send a draft, waiting for the user, oldest first.
     #[serde(default)]
     pub approvals: IndexMap<ApprovalId, ApprovalRequest>,
+    /// The devices paired with this profile when it runs as a dail server (`dail serve`, ADR
+    /// 0017), in pairing order. Shared with the server's mirrors, so that a paired desktop can
+    /// list them. Their tokens are never here (the server keeps their hashes in `config.toml`).
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub devices: IndexMap<crate::ids::DeviceId, crate::link::Device>,
     /// What the user is looking at. Changed only by `View` commands.
     pub view: ViewState,
     /// User preferences.
@@ -581,7 +586,7 @@ impl StatusState {
     /// (ADR 0017): its own store (`persist_error`, `quarantined`, `compaction`), its own network
     /// (`metered`) and the attachments it saved (`saves`, from the `client_with_blob`
     /// `save_attachments`). The rest is the server's: its keyring, sync, polls, fetches,
-    /// searches, discovery and certificate offers. A `StateDiff` never overwrites the device's
+    /// searches, discovery, certificate offers and pairing failures. A `StateDiff` never overwrites the device's
     /// fields. Every field is named, so a new one has to be classified here.
     pub fn keep_device_local(&mut self, device: &Self) {
         let Self {
@@ -601,6 +606,7 @@ impl StatusState {
             quarantined,
             metered,
             cert_offers: _,
+            serve_error: _,
         } = device;
         self.persist_error.clone_from(persist_error);
         self.compaction.clone_from(compaction);
@@ -663,6 +669,11 @@ pub struct StatusState {
     /// `MAX_CERT_OFFERS`). `trust_certificate` takes one from here by fingerprint.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cert_offers: Vec<CertOffer>,
+    /// The last failure of the dail server to open a pairing code or revoke a device (ADR
+    /// 0017), e.g. because this profile is not running `dail serve`; cleared when a device
+    /// pairs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub serve_error: Option<String>,
 }
 
 /// A certificate that `trust_certificate` may add to an account (ADR 0016).

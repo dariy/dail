@@ -192,5 +192,15 @@ const fn row(name: CommandName) -> Row {
         N::ApproveRequest | N::RejectRequest => Row(C, C, P),
         // Touch has no visible control for it (the back arrow shows only over other panes).
         N::ClearSearch => Row(C, C, P),
+        // The dail server's devices and the link to it (ADR 0017): only through the palette
+        // until SRV-6 builds the Devices page and the connection settings.
+        N::ListDevices
+        | N::StartPairing
+        | N::RevokeDevice
+        | N::ConnectServer
+        | N::TrustServer
+        | N::DisconnectServer
+        | N::RetryOffline
+        | N::DismissOfflineRejection => Row(P, P, P),
     }
 }

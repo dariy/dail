@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::Command;
 use crate::ctx::Origin;
-use crate::ids::RequestId;
+use crate::ids::{DeviceId, RequestId};
 
 /// Where a command runs when the profile is linked to a dail server (ADR 0017). Without a link
 /// every command runs here.
@@ -79,6 +79,14 @@ pub struct LinkState {
     /// Queued commands the server refused on replay, oldest first.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub rejected: Vec<OfflineRejection>,
+    /// The server this device connects to (`connect_server`), with the certificate fingerprint
+    /// it offered and the one the user trusted (`trust_server`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub server: Option<ServerEndpoint>,
+    /// Why the last probe, pairing or connection failed (`Event::LinkFailed`); cleared when the
+    /// server answers again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 impl LinkState {
@@ -86,6 +94,113 @@ impl LinkState {
     pub fn is_online(&self) -> bool {
         self.status == LinkStatus::Online
     }
+}
+
+/// The dail server a device connects to (`connect_server`, ADR 0017).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ServerEndpoint {
+    /// Host name or IP address.
+    pub host: String,
+    /// TCP port.
+    pub port: u16,
+    /// SHA-256 fingerprint of the certificate the server presented on the last probe
+    /// (lower-case hex), for the user to compare with the one the server shows. Not trusted
+    /// until `trust_server` pins it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub offered: Option<String>,
+    /// The fingerprint `trust_server` is pairing with (lower-case hex), until the server
+    /// accepts the code (`Event::ServerPaired` pins it) or the pairing fails (`link_failed`
+    /// clears it, so `trust_server` can be run again with a new code).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pairing: Option<String>,
+    /// The pinned fingerprint (lower-case hex), set once pairing succeeded
+    /// (`Event::ServerPaired`). The device accepts only this certificate from the server; web
+    /// roots are never consulted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fingerprint: Option<String>,
+    /// Where the device token lives in the OS keyring (set by `trust_server`). The token
+    /// itself never enters the state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token: Option<crate::account::SecretRef>,
+}
+
+impl ServerEndpoint {
+    /// Whether the device is paired: the server accepted the code and its certificate is
+    /// pinned.
+    pub const fn is_pinned(&self) -> bool {
+        self.fingerprint.is_some()
+    }
+}
+
+/// What a paired device may do on the server (ADR 0017).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceRole {
+    /// A device of the user: it may submit as the GUI, the TUI, the CLI or a batch, so it can
+    /// approve agents' sends.
+    User,
+    /// An agent: it may submit only as MCP, under the agent policy and approvals.
+    Agent,
+}
+
+impl DeviceRole {
+    /// The role's `snake_case` name.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Agent => "agent",
+        }
+    }
+}
+
+/// A device paired with this dail server (ADR 0017). Its token is never here: the server
+/// keeps only the token's SHA-256, in `config.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Device {
+    /// The device.
+    pub id: DeviceId,
+    /// The name given when pairing (`start_pairing`), e.g. `Phone`.
+    pub name: String,
+    /// What it may do.
+    pub role: DeviceRole,
+    /// When it was paired, in Unix milliseconds.
+    pub paired_at_ms: i64,
+    /// When it last connected, in Unix milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_seen_ms: Option<i64>,
+}
+
+/// Characters of a pairing code (`start_pairing`): RFC 4648 base32, 5 bits each.
+pub const PAIRING_CODE_LEN: usize = 8;
+
+/// How long a pairing code is valid, in milliseconds (10 minutes).
+pub const PAIRING_TTL_MS: i64 = 10 * 60 * 1000;
+
+/// The RFC 4648 base32 alphabet.
+const BASE32: &[u8; 32] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/// The single-use pairing code of a `start_pairing` dispatched with `seed`: 40 bits of the seed
+/// (its 40-bit chunks folded with XOR, so that a random seed and a counter in the high bits both
+/// give distinct codes) as 8 base32 characters. The core has no RNG: the runtime's seeds are
+/// random, so the code is too. Whoever knows the seed knows the code, which is why the audit log
+/// leaves out the seed of `start_pairing` ([`crate::ReplayRecord::redacted_line`]).
+pub fn pairing_code(seed: u128) -> String {
+    const MASK: u128 = (1 << 40) - 1;
+    let bits = (seed ^ (seed >> 40) ^ (seed >> 80) ^ (seed >> 120)) & MASK;
+    (0..PAIRING_CODE_LEN)
+        .rev()
+        .map(|i| {
+            let index = (bits >> (i * 5)) & 0x1f;
+            BASE32
+                .get(usize::try_from(index).unwrap_or_default())
+                .map_or('A', |b| char::from(*b))
+        })
+        .collect()
+}
+
+/// Whether `code` is a pairing code: 8 base32 characters (upper-case, `2`–`7`).
+pub fn is_pairing_code(code: &str) -> bool {
+    code.len() == PAIRING_CODE_LEN && code.bytes().all(|b| BASE32.contains(&b))
 }
 
 /// A command for the server, applied to the mirror while offline and waiting to be sent.
@@ -107,11 +222,19 @@ pub struct QueuedCommand {
     pub queued_at_ms: i64,
 }
 
-/// A queued command the server refused when it was replayed.
+/// A queued command the server refused when it was replayed. `retry_offline` queues it again
+/// with its seed and origin, under a new request ID.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct OfflineRejection {
     /// The refused submission.
     pub request_id: RequestId,
+    /// The `Ctx::id_seed` it was queued with ([`QueuedCommand::seed`]), as a decimal string.
+    #[serde(with = "seed_text")]
+    #[schemars(with = "String")]
+    pub seed: u128,
+    /// Where the command came from: a retry keeps it, so that an agent's command never comes
+    /// back as the user's.
+    pub origin: Origin,
     /// The command.
     pub command: Command,
     /// The error code (`ERR…`).

@@ -8,7 +8,7 @@ pub mod store;
 pub mod synced;
 pub mod updates;
 
-pub use backend::{MemoryBackend, SentMail};
+pub use backend::{FAKE_SERVER_FINGERPRINT, MemoryBackend, SentMail};
 pub use fixture::{
     FakeAccount, FakeMailbox, FakeMessage, Fixture, LARGE_MESSAGES, TestkitError, media,
 };

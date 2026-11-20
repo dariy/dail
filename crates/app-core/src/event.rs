@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::account::{Account, Endpoint, ImapLogin, Secret, SecretRef, SmtpLogin};
 use crate::approval::ApprovalRequest;
 use crate::draft::{Draft, OutgoingMessage};
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, RemoteMailbox};
 use crate::message::{Addr, Envelope, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::ops::{PendingOp, RemoteStep};
@@ -513,6 +513,51 @@ pub enum Event {
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         snapshot: bool,
     },
+    /// The dail server paired a device (ADR 0017): it exchanged a code of `start_pairing` for a
+    /// token. The device joins `AppState::devices` (an existing entry with its ID is replaced).
+    DevicePaired {
+        /// The device.
+        device: crate::link::Device,
+    },
+    /// A paired device connected to the dail server (ADR 0017). An unknown device is ignored.
+    DeviceSeen {
+        /// The device.
+        id: DeviceId,
+        /// When it connected, in Unix milliseconds.
+        at_ms: i64,
+    },
+    /// The dail server accepted the pairing code of `trust_server` (`Effect::PairWithServer`)
+    /// and the device token is in the keyring (ADR 0017): `fingerprint` becomes the pinned one
+    /// (`link.server.fingerprint`). Ignored unless it is the fingerprint being paired with.
+    ServerPaired {
+        /// The pinned SHA-256 fingerprint, hex.
+        fingerprint: String,
+    },
+    /// Probing, pairing with or disconnecting from the dail server failed (ADR 0017): the link
+    /// goes offline with the error in `link.error`, and a pairing in progress ends (the
+    /// fingerprint stays offered, so `trust_server` can be run again). Without a link (after
+    /// `disconnect_server`) it is the keyring's error.
+    LinkFailed {
+        /// Diagnostic.
+        error: String,
+    },
+    /// The dail server could not open a pairing code or revoke a device (ADR 0017), e.g.
+    /// because this profile is not running `dail serve`: recorded in `status.serve_error`.
+    ServeFailed {
+        /// Diagnostic.
+        error: String,
+    },
+    /// A dail server answered `connect_server` (`Effect::ProbeServer`): the SHA-256
+    /// fingerprint of its certificate is recorded in `link.server.offered`, for the user to
+    /// compare before `trust_server`. Ignored if the link is to another server or gone.
+    ServerOffered {
+        /// The server's host, as given to `connect_server`.
+        host: String,
+        /// The server's port.
+        port: u16,
+        /// SHA-256 fingerprint of its certificate, hex.
+        fingerprint: String,
+    },
 }
 
 impl Event {
@@ -523,6 +568,12 @@ impl Event {
             Self::NetworkChanged { .. } => "network_changed",
             Self::LinkChanged { .. } => "link_changed",
             Self::RemoteSynced { .. } => "remote_synced",
+            Self::DevicePaired { .. } => "device_paired",
+            Self::DeviceSeen { .. } => "device_seen",
+            Self::ServerOffered { .. } => "server_offered",
+            Self::ServerPaired { .. } => "server_paired",
+            Self::LinkFailed { .. } => "link_failed",
+            Self::ServeFailed { .. } => "serve_failed",
             Self::CertificateOffered { .. } => "certificate_offered",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",
@@ -937,6 +988,56 @@ pub enum Effect {
         /// The downloaded file.
         path: String,
     },
+    /// On a dail server (ADR 0017): accept `code` once, until `expires_at_ms`, in exchange for
+    /// a device token of a new device with `role` and `name`; report `DevicePaired` when a
+    /// device uses it. Five wrong attempts a minute from one peer burn it.
+    OpenPairing {
+        /// The single-use code (redacted in logs).
+        code: Secret,
+        /// What the device may do.
+        role: crate::link::DeviceRole,
+        /// The device's name.
+        name: String,
+        /// When the code expires, in Unix milliseconds.
+        expires_at_ms: i64,
+    },
+    /// On a dail server (ADR 0017): forget the device's token hash and close its connections.
+    RevokeDevice {
+        /// The device.
+        id: DeviceId,
+    },
+    /// On a device (ADR 0017): connect to the dail server at `host:port` without trusting it
+    /// and report the fingerprint of its certificate (`ServerOffered`), or `LinkChanged` to
+    /// `offline` if it cannot be reached.
+    ProbeServer {
+        /// The server's host.
+        host: String,
+        /// The server's port.
+        port: u16,
+    },
+    /// On a device (ADR 0017): connect to the server, accepting only the certificate with
+    /// `fingerprint`, exchange `code` for a device token and keep the token in the OS keyring
+    /// under `secret`; then report `ServerPaired` and `LinkChanged`, or `LinkFailed`. The token
+    /// never enters the engine.
+    PairWithServer {
+        /// The server's host.
+        host: String,
+        /// The server's port.
+        port: u16,
+        /// The pinned SHA-256 fingerprint of the server's certificate, lower-case hex.
+        fingerprint: String,
+        /// The pairing code (redacted in logs).
+        code: Secret,
+        /// Where the device token goes in the keyring.
+        secret: SecretRef,
+    },
+    /// On a device (ADR 0017): close the connection to the dail server, delete the device
+    /// token from the keyring and drop the mirror's local copy of the server's mail.
+    DisconnectServer {
+        /// The keyring entry of the device token; `None` if the device never paired.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        secret: Option<SecretRef>,
+    },
 }
 
 impl Effect {
@@ -971,15 +1072,22 @@ impl Effect {
             Self::CheckForUpdates { .. } => "check_for_updates",
             Self::DownloadUpdate { .. } => "download_update",
             Self::InstallUpdate { .. } => "install_update",
+            Self::OpenPairing { .. } => "open_pairing",
+            Self::RevokeDevice { .. } => "revoke_device",
+            Self::ProbeServer { .. } => "probe_server",
+            Self::PairWithServer { .. } => "pair_with_server",
+            Self::DisconnectServer { .. } => "disconnect_server",
         }
     }
 
     /// Whether the effect stays on the device, so that a mirror of a dail server still runs it
     /// (mirror mode, ADR 0017): writing the mirror to the local store, timers, inspecting a
     /// file to upload, writing attachments into a local folder, compacting the local store and
-    /// updating the device's own dail. Everything else talks to mail servers, the keyring of
-    /// account passwords, or works on mail the server owns (its full-text index, reading a
-    /// server draft), and only the server runs it.
+    /// updating the device's own dail, and the device's own link to the dail server (probing,
+    /// pairing with and disconnecting from it: the device's work, not the mail servers').
+    /// Everything else talks to mail servers, the keyring of account passwords, or works on
+    /// mail the server owns (its full-text index, reading a server draft) or its paired devices
+    /// (opening a pairing code, revoking a device), and only the server runs it.
     pub const fn is_device_local(&self) -> bool {
         match self {
             Self::PersistState { .. }
@@ -989,7 +1097,10 @@ impl Effect {
             | Self::CompactStore { .. }
             | Self::CheckForUpdates { .. }
             | Self::DownloadUpdate { .. }
-            | Self::InstallUpdate { .. } => true,
+            | Self::InstallUpdate { .. }
+            | Self::ProbeServer { .. }
+            | Self::PairWithServer { .. }
+            | Self::DisconnectServer { .. } => true,
             Self::StoreSecret { .. }
             | Self::DeleteSecret { .. }
             | Self::VerifyAccount { .. }
@@ -1009,7 +1120,9 @@ impl Effect {
             | Self::FetchOlder { .. }
             | Self::WatchMailbox { .. }
             | Self::RunRemoteOp { .. }
-            | Self::SearchMailbox { .. } => false,
+            | Self::SearchMailbox { .. }
+            | Self::OpenPairing { .. }
+            | Self::RevokeDevice { .. } => false,
         }
     }
 
@@ -1017,6 +1130,10 @@ impl Effect {
     pub fn failure_event(&self, error: String) -> Event {
         match self {
             Self::PersistState { .. } => Event::PersistFailed { error },
+            Self::ProbeServer { .. }
+            | Self::PairWithServer { .. }
+            | Self::DisconnectServer { .. } => Event::LinkFailed { error },
+            Self::OpenPairing { .. } | Self::RevokeDevice { .. } => Event::ServeFailed { error },
             Self::CheckForUpdates { .. }
             | Self::DownloadUpdate { .. }
             | Self::InstallUpdate { .. } => Event::UpdateFailed { reason: error },

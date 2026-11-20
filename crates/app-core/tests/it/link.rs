@@ -36,6 +36,12 @@ fn data_changing_commands_run_on_the_server() {
         CommandName::SkipUpdateVersion,
         CommandName::SetUpdatePolicy,
         CommandName::SaveAttachments,
+        // The device's own link to its server (SRV-2).
+        CommandName::ConnectServer,
+        CommandName::TrustServer,
+        CommandName::DisconnectServer,
+        CommandName::RetryOffline,
+        CommandName::DismissOfflineRejection,
     ];
     for &name in CommandName::ALL {
         let data = matches!(

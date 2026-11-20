@@ -16,7 +16,8 @@ use serde::{Deserialize, Serialize};
 use crate::account::Account;
 use crate::approval::ApprovalRequest;
 use crate::draft::Draft;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::link::Device;
 use crate::mailbox::Mailbox;
 use crate::message::{Envelope, Thread};
 use crate::ops::PendingOp;
@@ -137,6 +138,9 @@ pub struct StateDiff {
     /// `AppState::approvals`.
     #[serde(default, skip_serializing_if = "MapDiff::is_empty")]
     pub approvals: MapDiff<ApprovalId, ApprovalRequest>,
+    /// `AppState::devices` (the server's paired devices).
+    #[serde(default, skip_serializing_if = "MapDiff::is_empty")]
+    pub devices: MapDiff<DeviceId, Device>,
     /// `AppState::settings`, if its server fields changed; its device fields are ignored.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<Settings>,
@@ -165,6 +169,7 @@ impl StateDiff {
             drafts,
             outbox,
             approvals,
+            devices,
             view: _,
             settings,
             status,
@@ -181,6 +186,7 @@ impl StateDiff {
             drafts: MapDiff::diff(&old.drafts, drafts),
             outbox: MapDiff::diff(&old.outbox, outbox),
             approvals: MapDiff::diff(&old.approvals, approvals),
+            devices: MapDiff::diff(&old.devices, devices),
             settings: {
                 let mut settings = settings.clone();
                 settings.keep_device_local(&old.settings);
@@ -209,6 +215,7 @@ impl StateDiff {
             && self.drafts.is_empty()
             && self.outbox.is_empty()
             && self.approvals.is_empty()
+            && self.devices.is_empty()
             && self.settings.is_none()
             && self.status.is_none()
             && self.synced.is_none()
@@ -228,6 +235,7 @@ impl StateDiff {
         self.drafts.apply(&mut state.drafts);
         self.outbox.apply(&mut state.outbox);
         self.approvals.apply(&mut state.approvals);
+        self.devices.apply(&mut state.devices);
         if let Some(settings) = &self.settings {
             let mut settings = settings.clone();
             settings.keep_device_local(&state.settings);
@@ -254,6 +262,7 @@ impl StateDiff {
         state.drafts = empty.drafts;
         state.outbox = empty.outbox;
         state.approvals = empty.approvals;
+        state.devices = empty.devices;
         let mut settings = empty.settings;
         settings.keep_device_local(&state.settings);
         state.settings = settings;

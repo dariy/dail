@@ -50,6 +50,7 @@ fn queries(state: &AppState) -> Vec<(CommandName, Value)> {
         json!({"cmd": "list_rules", "args": {}}),
         json!({"cmd": "test_account", "args": {"id": account}}),
         json!({"cmd": "discover_servers", "args": {"email": "me@example.org"}}),
+        json!({"cmd": "list_devices", "args": {}}),
     ];
     all.into_iter()
         .map(|cmd| {

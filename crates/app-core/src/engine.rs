@@ -4,6 +4,8 @@ mod accounts;
 mod approvals;
 mod backfill;
 mod certificates;
+mod devices;
+pub use devices::MAX_DEVICE_NAME_CHARS;
 mod draft_saves;
 mod drafts;
 mod folders;
@@ -368,6 +370,18 @@ impl Engine {
                 diff,
                 snapshot,
             } => Ok(self.ingest_remote_synced(revision, &diff, snapshot, receipt)),
+            Event::DevicePaired { device } => Ok(self.ingest_device_paired(device, receipt)),
+            Event::DeviceSeen { id, at_ms } => Ok(self.ingest_device_seen(id, at_ms, receipt)),
+            Event::ServeFailed { error } => Ok(self.ingest_serve_failed(error, receipt)),
+            Event::LinkFailed { error } => Ok(self.ingest_link_failed(error, receipt)),
+            Event::ServerPaired { fingerprint } => {
+                Ok(self.ingest_server_paired(&fingerprint, receipt))
+            }
+            Event::ServerOffered {
+                host,
+                port,
+                fingerprint,
+            } => Ok(self.ingest_server_offered(&host, port, &fingerprint, receipt)),
             Event::DraftSaved { draft, revision } => {
                 Ok(self.ingest_draft_saved(draft, Ok(revision), ctx, receipt))
             }
@@ -1065,6 +1079,26 @@ impl Engine {
                 .map(Applied::plain),
             Command::ApproveRequest { id } => self.approve_request(id, ctx, receipt),
             Command::RejectRequest { id } => self.reject_request(id, receipt).map(Applied::plain),
+            Command::ListDevices {} => Ok(Applied::plain(self.list_devices(receipt))),
+            Command::StartPairing { role, name } => self
+                .start_pairing(role, &name, ctx, receipt)
+                .map(Applied::plain),
+            Command::RevokeDevice { id, confirm } => {
+                self.revoke_device(id, confirm, receipt).map(Applied::plain)
+            }
+            Command::ConnectServer { host, port } => self
+                .connect_server(&host, port, receipt)
+                .map(Applied::plain),
+            Command::TrustServer { fingerprint, code } => self
+                .trust_server(&fingerprint, &code, ctx, receipt)
+                .map(Applied::plain),
+            Command::DisconnectServer { confirm } => {
+                self.disconnect_server(confirm, receipt).map(Applied::plain)
+            }
+            Command::RetryOffline {} => self.retry_offline(ctx, receipt).map(Applied::plain),
+            Command::DismissOfflineRejection { id } => self
+                .dismiss_offline_rejection(id, receipt)
+                .map(Applied::plain),
             // History commands are handled by `dispatch`; nested undo is not a thing.
             Command::Undo {} => Err(CoreError::NothingToUndo),
             Command::Redo {} => Err(CoreError::NothingToRedo),

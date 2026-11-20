@@ -1320,7 +1320,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-1 (M) [core]: `Command::placement()` (exhaustive; `Server`, `Client`, `ServerWithUpload`, `ClientWithBlob`),
   `StateDiff` (`diff`/`apply` without `view`, a proptest round trip), `Event::RemoteSynced`, `state.link` (status, queue,
   rejections) and mirror mode (no network effects); a replay fixture `remote_offline.jsonl`
-- [ ] SRV-2 (S) [core][front]: `list_devices`, `start_pairing` (code in the receipt only), `revoke_device`,
+- [x] SRV-2 (S) [core][front]: `list_devices`, `start_pairing` (code in the receipt only), `revoke_device`,
   `connect_server`, `trust_server`, `disconnect_server`, `retry_offline`, `dismiss_offline_rejection`, with agent access,
   placement, reach and actions
 - [ ] SRV-3 (M) [sync]: the socket's JSON-RPC over any stream, a TLS listener and dialer, the self-signed P-256

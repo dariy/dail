@@ -355,7 +355,13 @@ impl Engine {
             | Event::SearchResults { .. }
             | Event::SearchFailed { .. }
             | Event::LinkChanged { .. }
-            | Event::RemoteSynced { .. } => {
+            | Event::RemoteSynced { .. }
+            | Event::DevicePaired { .. }
+            | Event::DeviceSeen { .. }
+            | Event::LinkFailed { .. }
+            | Event::ServerPaired { .. }
+            | Event::ServeFailed { .. }
+            | Event::ServerOffered { .. } => {
                 return Outcome::new(receipt);
             }
         };

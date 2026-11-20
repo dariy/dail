@@ -982,6 +982,29 @@ impl LiveBackend {
                 install,
                 path,
             } => Ok(vec![crate::install::install(version, install, path).await]),
+            // The dail server and its link (ADR 0017) arrive with `dail serve` and remote profiles
+            // (SRV-3, SRV-4). Until then they fail as unsupported, which shows in
+            // `status.serve_error` or `link.error`.
+            Effect::OpenPairing { .. }
+            | Effect::RevokeDevice { .. }
+            | Effect::ProbeServer { .. }
+            | Effect::PairWithServer { .. } => {
+                tracing::info!(
+                    effect = effect.name(),
+                    "the dail server is not available in this version"
+                );
+                Err(SyncError::Unsupported {
+                    backend: self.name(),
+                    effect: effect.name(),
+                })
+            }
+            Effect::DisconnectServer { secret } => {
+                if let Some(secret) = secret {
+                    self.with_secrets(move |store| store.delete(&secret))
+                        .await?;
+                }
+                Ok(Vec::new())
+            }
             Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
                 effect: effect.name(),
