@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channel_sending">Missio</string>
+    <string name="sending">Epistulae mittuntur…</string>
+    <string name="channel_new_mail">Epistulae novae</string>
+    <string name="channel_not_sent">Non missae</string>
+    <string name="channel_background">Recessus</string>
+    <string name="push_starting">Conexio ad capsas acceptorum tuas</string>
+    <string name="failed_title">dail operari desiit</string>
+    <string name="failed_body">Epistulae et adumbrationes tuae in hac machina servatae sunt. dail iterum incipe ut pergas. Ut difficultatem nunties, diagnosin exscribe: versionem, machinam et ultimos versus actorum. Nihil sponte mittitur.</string>
+    <string name="failed_restart">Iterum incipe</string>
+    <string name="failed_copy">Diagnosin exscribe</string>
+    <string name="failed_copied">Diagnosis exscripta</string>
+</resources>

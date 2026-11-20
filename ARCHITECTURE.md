@@ -974,13 +974,16 @@ steps + final state with `insta` and checks that replaying twice is identical.
 ## 7. Front-ends
 
 **Strings and languages** (`app_front::i18n`): the texts of the front-ends are keys of a strings table
-(`i18n/table.rs`: one row per `i18n::Key` with its English, French, Spanish and Romanian templates, `{name}` placeholders filled by
+(`i18n/table.rs`: one row per `i18n::Key` with its English, French, Spanish, Romanian, Brazilian Portuguese, European Portuguese and Latin templates, `{name}` placeholders filled by
 `i18n::tr`; `i18n::text` is the plain `&'static str` lookup). Command titles have an exhaustive table
 (`i18n/commands.rs`, read through `i18n::title`; the one-sentence help there too). Engine errors and undo labels are
 translated in `i18n/engine.rs`, one column per language. Spanish uses the informal *tú* of most Spanish mail apps,
-Romanian the formal imperative and the comma-below letters ș ț (a test refuses the cedilla forms). Android's own
-strings are in `values-fr`, `values-es` and `values-ro`. The `language` setting (0 = system, 1 = English, 2 = French,
-3 = Spanish, 4 = Romanian; every front-end offers these by name, from `i18n::languages`) picks
+Romanian the formal imperative and the comma-below letters ș ț (a test refuses the cedilla forms). Brazilian
+Portuguese uses *você*; European Portuguese the Portugal norm (*ficheiro*, *ecrã*, "A enviar…"); a bare `pt` tag is
+Brazilian. Latin is Neo-Latin UI vocabulary (*epistula*, *capsa*, *ratio*). Android's own strings are in `values-fr`,
+`values-es`, `values-ro`, `values-pt` (Brazilian), `values-pt-rPT` and `values-la`. The `language` setting (0 =
+system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian, 5 = Brazilian Portuguese, 6 = European Portuguese, 7 =
+Latin; every front-end offers these by name, from `i18n::languages`) picks
 the language: each front-end resolves it per frame (`Lang::resolve`, the system being `$DAIL_LANG`, the POSIX locale
 variables, or the device's locale) and calls `i18n::set_current`; code with no `Lang` at hand uses `i18n::s`/`f`.
 The GUI also carries it on `Tokens` (`t.s`, `t.f`). Kotlin and Swift compose a few texts themselves and read them

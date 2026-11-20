@@ -860,7 +860,7 @@ expression: command_schema()
         },
         {
           "const": "language",
-          "description": "UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian.",
+          "description": "UI language: 0 = follow the system, 1 = English, 2 = French, 3 = Spanish, 4 = Romanian,\n5 = Brazilian Portuguese, 6 = European Portuguese, 7 = Latin.",
           "type": "string"
         }
       ]

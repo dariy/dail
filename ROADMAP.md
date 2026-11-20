@@ -253,6 +253,8 @@ at a time on a phone, the GUI's three panes on a wide terminal. Every item updat
 - [x] i18n: engine texts (`app-core` errors and undo labels, translated for display in `app_front::i18n`)
 - [x] i18n: the TUI's named language choice
 - [x] i18n: Spanish, then Romanian (both in one change: every table gained two columns; `language` 3 and 4)
+- [x] i18n: Brazilian and European Portuguese, and Latin (`language` 5, 6 and 7; `values-pt`, `values-pt-rPT`,
+  `values-la`)
 - [ ] RTL layout — split from i18n, blocked: egui 0.37 has no bidirectional text or mirrored layouts (RTL mail shows in
   logical order); bidi controls from mail already cannot reorder the UI
 - [x] Packaging: `.deb` for Ubuntu (`cargo deb -p app-cli`: binary, desktop entry, icon; `packaging/`); the GitHub

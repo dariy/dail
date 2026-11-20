@@ -183,14 +183,23 @@ fn the_language_setting_offers_names_and_submits_the_value() {
     let titles: Vec<&str> = rows.iter().map(|r| r.title.as_str()).collect();
     assert_eq!(
         titles,
-        ["System", "English", "Français", "Español", "Română"]
+        [
+            "System",
+            "English",
+            "Français",
+            "Español",
+            "Română",
+            "Português (Brasil)",
+            "Português (Portugal)",
+            "Latina"
+        ]
     );
     let Some(Target::Choice(choice)) = rows.last().map(|r| r.target.clone()) else {
         panic!("no choice");
     };
     assert!(matches!(
         step.answer(&state, choice),
-        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 4
+        Flow::Run(Command::SetSetting { key: SettingKey::Language, value }) if value == 7
     ));
 }
 

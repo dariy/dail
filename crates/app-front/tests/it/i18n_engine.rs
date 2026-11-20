@@ -1,4 +1,4 @@
-//! Engine texts for display: English unchanged, French, Spanish and Romanian translated (MISC-32).
+//! Engine texts for display: English unchanged, French, Spanish, Romanian, Portuguese and Latin translated (MISC-32).
 
 use app_core::{CommandName, CoreError};
 use app_front::i18n::{self, Lang, error_in, help_in, label_in};
@@ -121,7 +121,13 @@ fn the_last_validation_reasons_are_translated() {
 #[test]
 fn spanish_and_romanian_translate_helps_errors_and_labels() {
     for &name in CommandName::ALL {
-        for lang in [Lang::Spanish, Lang::Romanian] {
+        for lang in [
+            Lang::Spanish,
+            Lang::Romanian,
+            Lang::PortugueseBrazil,
+            Lang::PortuguesePortugal,
+            Lang::Latin,
+        ] {
             let help = help_in(lang, name);
             assert!(!help.is_empty(), "{lang:?} {name:?}");
             assert_ne!(help, help_in(Lang::English, name), "{lang:?} {name:?}");
@@ -172,5 +178,37 @@ fn spanish_and_romanian_translate_helps_errors_and_labels() {
     assert_eq!(
         error_in(Lang::Spanish, &not_found),
         "ERR004: certificado ofrecido ab: no se encontró"
+    );
+}
+
+#[test]
+fn portuguese_and_latin_translate_errors_and_labels() {
+    let err = CoreError::InvalidArgument {
+        field: "password".to_owned(),
+        reason: "must not be empty".to_owned(),
+    };
+    assert_eq!(
+        error_in(Lang::PortugueseBrazil, &err),
+        "ERR002: argumento `password` inválido: não pode estar vazio"
+    );
+    assert_eq!(
+        error_in(Lang::Latin, &err),
+        "ERR002: argumentum `password` invalidum: vacuum esse non debet"
+    );
+    assert_eq!(
+        error_in(Lang::PortuguesePortugal, &CoreError::NothingToUndo),
+        "ERR010: nada para anular"
+    );
+    assert_eq!(
+        error_in(Lang::PortugueseBrazil, &CoreError::NothingToUndo),
+        "ERR010: nada para desfazer"
+    );
+    assert_eq!(
+        label_in(Lang::PortuguesePortugal, "Rename Work"),
+        "Mudar o nome de Work"
+    );
+    assert_eq!(
+        label_in(Lang::Latin, "Archive (3 messages)"),
+        "In archivum condere (3 messages)"
     );
 }

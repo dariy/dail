@@ -954,3 +954,891 @@ pub(super) const fn romanian_help(name: CommandName) -> &'static str {
         CommandName::RejectRequest => "Respingeți cererea de trimitere a unui agent.",
     }
 }
+
+/// The Brazilian Portuguese title of `name`.
+pub(super) const fn portuguese_brazil(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Mostrar as configurações",
+        CommandName::SetSetting => "Alterar uma configuração",
+        CommandName::SetKeybinding => "Alterar as teclas de um comando",
+        CommandName::SetKeyPreset => "Escolher os atalhos (Gmail, Vim)",
+        CommandName::SetTheme => "Escolher o tema",
+        CommandName::OpenSettings => "Configurações",
+        CommandName::CloseSettings => "Fechar as configurações",
+        CommandName::Undo => "Desfazer",
+        CommandName::Redo => "Refazer",
+        CommandName::OpenPalette => "Abrir a paleta de comandos",
+        CommandName::ClosePalette => "Fechar a paleta de comandos",
+        CommandName::AddAccount => "Adicionar uma conta",
+        CommandName::TestAccount => "Testar a conexão da conta",
+        CommandName::DiscoverServers => "Encontrar os servidores de um endereço",
+        CommandName::UpdateAccount => "Editar a conta",
+        CommandName::SetPassword => "Alterar a senha da conta",
+        CommandName::SetIdentity => "Adicionar ou editar um endereço de envio",
+        CommandName::RemoveIdentity => "Remover um endereço de envio",
+        CommandName::TrustCertificate => "Confiar no certificado de um servidor",
+        CommandName::ForgetCertificate => "Esquecer um certificado confiável",
+        CommandName::SetMailboxIdentity => "Enviar de um endereço para esta pasta",
+        CommandName::CreateFolder => "Nova pasta",
+        CommandName::RenameFolder => "Renomear a pasta",
+        CommandName::DeleteFolder => "Excluir a pasta",
+        CommandName::EmptyTrash => "Esvaziar a lixeira",
+        CommandName::EmptyJunk => "Esvaziar o spam",
+        CommandName::SetDraftFrom => "Enviar este rascunho de…",
+        CommandName::RemoveAccount => "Remover a conta",
+        CommandName::SyncNow => "Sincronizar agora",
+        CommandName::PullSettings => "Ler as configurações do servidor",
+        CommandName::PushSettings => "Salvar as configurações no servidor",
+        CommandName::SetSettingsAccount => "Escolher a conta das configurações",
+        CommandName::ListRules => "Listar as regras de organização",
+        CommandName::SaveRule => "Criar uma regra de organização",
+        CommandName::DeleteRule => "Excluir uma regra de organização",
+        CommandName::EnableRule => "Ativar ou desativar uma regra de organização",
+        CommandName::ApplyRules => "Aplicar as regras de organização a uma pasta",
+        CommandName::ListMailboxes => "Listar as pastas",
+        CommandName::SetSyncWindow => "Escolher os e-mails mantidos offline",
+        CommandName::ListThreads => "Listar as conversas",
+        CommandName::OpenMailbox => "Ir para a pasta",
+        CommandName::OpenUnifiedInbox => "Ir para todas as caixas de entrada",
+        CommandName::SelectThreads => "Selecionar conversas",
+        CommandName::CheckThreads => "Selecionar todas as conversas",
+        CommandName::UncheckThreads => "Limpar as conversas marcadas",
+        CommandName::OpenThread => "Abrir a conversa",
+        CommandName::CloseThread => "Fechar a conversa",
+        CommandName::ExpandMessages => "Expandir todas as mensagens",
+        CommandName::CollapseMessages => "Recolher todas as mensagens",
+        CommandName::GetThread => "Mostrar a conversa",
+        CommandName::GetMessage => "Mostrar a mensagem",
+        CommandName::ShowImagesFrom => "Mostrar as imagens do remetente",
+        CommandName::HideImagesFrom => "Ocultar as imagens do remetente",
+        CommandName::PinMailbox => "Fixar nos Favoritos",
+        CommandName::UnpinMailbox => "Remover a pasta dos Favoritos",
+        CommandName::HideMailbox => "Ocultar a pasta",
+        CommandName::ShowMailbox => "Mostrar a pasta oculta",
+        CommandName::SaveAttachments => "Salvar os anexos",
+        CommandName::MarkRead => "Marcar como lida",
+        CommandName::MarkMailboxRead => "Marcar tudo como lido",
+        CommandName::MarkUnread => "Marcar como não lida",
+        CommandName::Star => "Adicionar estrela",
+        CommandName::Unstar => "Remover estrela",
+        CommandName::PinThreads => "Fixar no topo",
+        CommandName::UnpinThreads => "Desafixar",
+        CommandName::ArchiveThreads => "Arquivar",
+        CommandName::TrashThreads => "Mover para a lixeira",
+        CommandName::MarkJunk => "Marcar como spam",
+        CommandName::MarkNotJunk => "Não é spam",
+        CommandName::MoveThreads => "Mover para…",
+        CommandName::ListPendingOps => "Mostrar as alterações pendentes",
+        CommandName::RetryPendingOps => "Tentar de novo as alterações pendentes",
+        CommandName::DiscardPendingOp => "Descartar a alteração pendente",
+        CommandName::CreateDraft => "Escrever",
+        CommandName::Reply => "Responder",
+        CommandName::ReplyAll => "Responder a todos",
+        CommandName::Forward => "Encaminhar",
+        CommandName::UpdateDraft => "Editar o rascunho",
+        CommandName::DiscardDraft => "Descartar o rascunho",
+        CommandName::EditDraft => "Editar um rascunho da conversa",
+        CommandName::RestoreDraft => "Restaurar o rascunho",
+        CommandName::AttachFile => "Anexar um arquivo",
+        CommandName::RemoveAttachment => "Remover o anexo",
+        CommandName::SendDraft => "Enviar",
+        CommandName::CancelSend => "Cancelar o envio",
+        CommandName::Search => "Pesquisar no e-mail",
+        CommandName::ListContacts => "Listar os contatos",
+        CommandName::SetSearch => "Pesquisar",
+        CommandName::ClearSearch => "Limpar a pesquisa",
+        CommandName::OpenComposer => "Abrir o rascunho",
+        CommandName::CloseComposer => "Fechar a escrita",
+        CommandName::FocusPane => "Focar um painel",
+        CommandName::SetListFilter => "Filtrar a lista",
+        CommandName::FocusMailbox => "Focar nesta pasta",
+        CommandName::ClearFocus => "Sair do foco",
+        CommandName::CollapseFolders => "Recolher as pastas",
+        CommandName::ExpandFolders => "Expandir as pastas",
+        CommandName::ToggleSidebar => "Mostrar ou ocultar a barra lateral",
+        CommandName::GetView => "Mostrar o estado da visualização",
+        CommandName::CompactStore => "Compactar o armazenamento local",
+        CommandName::CheckForUpdates => "Procurar atualizações",
+        CommandName::DownloadUpdate => "Baixar a atualização",
+        CommandName::InstallUpdate => "Instalar a atualização",
+        CommandName::SkipUpdateVersion => "Pular esta versão",
+        CommandName::SetUpdatePolicy => "Verificação de atualizações",
+        CommandName::ListApprovals => "Mostrar as solicitações de envio",
+        CommandName::ApproveRequest => "Aprovar a solicitação de envio",
+        CommandName::RejectRequest => "Rejeitar a solicitação de envio",
+    }
+}
+
+/// The European Portuguese title of `name`.
+pub(super) const fn portuguese_portugal(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Mostrar as definições",
+        CommandName::SetSetting => "Alterar uma definição",
+        CommandName::SetKeybinding => "Alterar as teclas de um comando",
+        CommandName::SetKeyPreset => "Escolher os atalhos (Gmail, Vim)",
+        CommandName::SetTheme => "Escolher o tema",
+        CommandName::OpenSettings => "Definições",
+        CommandName::CloseSettings => "Fechar as definições",
+        CommandName::Undo => "Anular",
+        CommandName::Redo => "Refazer",
+        CommandName::OpenPalette => "Abrir a paleta de comandos",
+        CommandName::ClosePalette => "Fechar a paleta de comandos",
+        CommandName::AddAccount => "Adicionar uma conta",
+        CommandName::TestAccount => "Testar a ligação da conta",
+        CommandName::DiscoverServers => "Encontrar os servidores de um endereço",
+        CommandName::UpdateAccount => "Editar a conta",
+        CommandName::SetPassword => "Alterar a palavra-passe da conta",
+        CommandName::SetIdentity => "Adicionar ou editar um endereço de envio",
+        CommandName::RemoveIdentity => "Remover um endereço de envio",
+        CommandName::TrustCertificate => "Confiar no certificado de um servidor",
+        CommandName::ForgetCertificate => "Esquecer um certificado aceite",
+        CommandName::SetMailboxIdentity => "Enviar de um endereço para esta pasta",
+        CommandName::CreateFolder => "Nova pasta",
+        CommandName::RenameFolder => "Mudar o nome da pasta",
+        CommandName::DeleteFolder => "Eliminar a pasta",
+        CommandName::EmptyTrash => "Esvaziar o lixo",
+        CommandName::EmptyJunk => "Esvaziar o spam",
+        CommandName::SetDraftFrom => "Enviar este rascunho de…",
+        CommandName::RemoveAccount => "Remover a conta",
+        CommandName::SyncNow => "Sincronizar agora",
+        CommandName::PullSettings => "Ler as definições do servidor",
+        CommandName::PushSettings => "Guardar as definições no servidor",
+        CommandName::SetSettingsAccount => "Escolher a conta das definições",
+        CommandName::ListRules => "Listar as regras de organização",
+        CommandName::SaveRule => "Criar uma regra de organização",
+        CommandName::DeleteRule => "Eliminar uma regra de organização",
+        CommandName::EnableRule => "Ativar ou desativar uma regra de organização",
+        CommandName::ApplyRules => "Aplicar as regras de organização a uma pasta",
+        CommandName::ListMailboxes => "Listar as pastas",
+        CommandName::SetSyncWindow => "Escolher o correio mantido offline",
+        CommandName::ListThreads => "Listar as conversas",
+        CommandName::OpenMailbox => "Ir para a pasta",
+        CommandName::OpenUnifiedInbox => "Ir para todas as caixas de entrada",
+        CommandName::SelectThreads => "Selecionar conversas",
+        CommandName::CheckThreads => "Selecionar todas as conversas",
+        CommandName::UncheckThreads => "Limpar as conversas marcadas",
+        CommandName::OpenThread => "Abrir a conversa",
+        CommandName::CloseThread => "Fechar a conversa",
+        CommandName::ExpandMessages => "Expandir todas as mensagens",
+        CommandName::CollapseMessages => "Recolher todas as mensagens",
+        CommandName::GetThread => "Mostrar a conversa",
+        CommandName::GetMessage => "Mostrar a mensagem",
+        CommandName::ShowImagesFrom => "Mostrar as imagens do remetente",
+        CommandName::HideImagesFrom => "Ocultar as imagens do remetente",
+        CommandName::PinMailbox => "Fixar nos Favoritos",
+        CommandName::UnpinMailbox => "Remover a pasta dos Favoritos",
+        CommandName::HideMailbox => "Ocultar a pasta",
+        CommandName::ShowMailbox => "Mostrar a pasta oculta",
+        CommandName::SaveAttachments => "Guardar os anexos",
+        CommandName::MarkRead => "Marcar como lida",
+        CommandName::MarkMailboxRead => "Marcar tudo como lido",
+        CommandName::MarkUnread => "Marcar como não lida",
+        CommandName::Star => "Adicionar estrela",
+        CommandName::Unstar => "Remover estrela",
+        CommandName::PinThreads => "Fixar no topo",
+        CommandName::UnpinThreads => "Desafixar",
+        CommandName::ArchiveThreads => "Arquivar",
+        CommandName::TrashThreads => "Mover para o lixo",
+        CommandName::MarkJunk => "Marcar como spam",
+        CommandName::MarkNotJunk => "Não é spam",
+        CommandName::MoveThreads => "Mover para…",
+        CommandName::ListPendingOps => "Mostrar as alterações pendentes",
+        CommandName::RetryPendingOps => "Tentar de novo as alterações pendentes",
+        CommandName::DiscardPendingOp => "Rejeitar a alteração pendente",
+        CommandName::CreateDraft => "Escrever",
+        CommandName::Reply => "Responder",
+        CommandName::ReplyAll => "Responder a todos",
+        CommandName::Forward => "Reencaminhar",
+        CommandName::UpdateDraft => "Editar o rascunho",
+        CommandName::DiscardDraft => "Rejeitar o rascunho",
+        CommandName::EditDraft => "Editar um rascunho da conversa",
+        CommandName::RestoreDraft => "Restaurar o rascunho",
+        CommandName::AttachFile => "Anexar um ficheiro",
+        CommandName::RemoveAttachment => "Remover o anexo",
+        CommandName::SendDraft => "Enviar",
+        CommandName::CancelSend => "Cancelar o envio",
+        CommandName::Search => "Pesquisar no correio",
+        CommandName::ListContacts => "Listar os contactos",
+        CommandName::SetSearch => "Pesquisar",
+        CommandName::ClearSearch => "Limpar a pesquisa",
+        CommandName::OpenComposer => "Abrir o rascunho",
+        CommandName::CloseComposer => "Fechar a escrita",
+        CommandName::FocusPane => "Focar um painel",
+        CommandName::SetListFilter => "Filtrar a lista",
+        CommandName::FocusMailbox => "Focar nesta pasta",
+        CommandName::ClearFocus => "Sair do foco",
+        CommandName::CollapseFolders => "Recolher as pastas",
+        CommandName::ExpandFolders => "Expandir as pastas",
+        CommandName::ToggleSidebar => "Mostrar ou ocultar a barra lateral",
+        CommandName::GetView => "Mostrar o estado da vista",
+        CommandName::CompactStore => "Compactar o armazenamento local",
+        CommandName::CheckForUpdates => "Procurar atualizações",
+        CommandName::DownloadUpdate => "Transferir a atualização",
+        CommandName::InstallUpdate => "Instalar a atualização",
+        CommandName::SkipUpdateVersion => "Ignorar esta versão",
+        CommandName::SetUpdatePolicy => "Verificação de atualizações",
+        CommandName::ListApprovals => "Mostrar os pedidos de envio",
+        CommandName::ApproveRequest => "Aprovar o pedido de envio",
+        CommandName::RejectRequest => "Rejeitar o pedido de envio",
+    }
+}
+
+/// The Latin title of `name`.
+pub(super) const fn latin(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Optiones monstra",
+        CommandName::SetSetting => "Optionem muta",
+        CommandName::SetKeybinding => "Claves mandati muta",
+        CommandName::SetKeyPreset => "Compendia elige (Gmail, Vim)",
+        CommandName::SetTheme => "Thema elige",
+        CommandName::OpenSettings => "Optiones",
+        CommandName::CloseSettings => "Optiones claude",
+        CommandName::Undo => "Revoca",
+        CommandName::Redo => "Restitue",
+        CommandName::OpenPalette => "Tabulam mandatorum aperi",
+        CommandName::ClosePalette => "Tabulam mandatorum claude",
+        CommandName::AddAccount => "Rationem adde",
+        CommandName::TestAccount => "Conexionem rationis proba",
+        CommandName::DiscoverServers => "Servitores inscriptionis inveni",
+        CommandName::UpdateAccount => "Rationem recense",
+        CommandName::SetPassword => "Tesseram rationis muta",
+        CommandName::SetIdentity => "Inscriptionem missionis adde aut recense",
+        CommandName::RemoveIdentity => "Inscriptionem missionis remove",
+        CommandName::TrustCertificate => "Testimonio servitoris confide",
+        CommandName::ForgetCertificate => "Testimonium acceptum obliviscere",
+        CommandName::SetMailboxIdentity => "Ab inscriptione pro hac capsa mitte",
+        CommandName::CreateFolder => "Nova capsa",
+        CommandName::RenameFolder => "Capsam renomina",
+        CommandName::DeleteFolder => "Capsam dele",
+        CommandName::EmptyTrash => "Quisquilias exhauri",
+        CommandName::EmptyJunk => "Purgamentum exhauri",
+        CommandName::SetDraftFrom => "Hanc adumbrationem mitte ab…",
+        CommandName::RemoveAccount => "Rationem remove",
+        CommandName::SyncNow => "Nunc synchroniza",
+        CommandName::PullSettings => "Optiones e servitore lege",
+        CommandName::PushSettings => "Optiones in servitore serva",
+        CommandName::SetSettingsAccount => "Rationem optionum elige",
+        CommandName::ListRules => "Regulas digerendi enumera",
+        CommandName::SaveRule => "Regulam digerendi crea",
+        CommandName::DeleteRule => "Regulam digerendi dele",
+        CommandName::EnableRule => "Regulam digerendi accende aut exstingue",
+        CommandName::ApplyRules => "Regulas digerendi capsae adhibe",
+        CommandName::ListMailboxes => "Capsas enumera",
+        CommandName::SetSyncWindow => "Epistulas sine conexione servandas elige",
+        CommandName::ListThreads => "Colloquia enumera",
+        CommandName::OpenMailbox => "Ad capsam i",
+        CommandName::OpenUnifiedInbox => "Ad omnes capsas acceptorum i",
+        CommandName::SelectThreads => "Colloquia selige",
+        CommandName::CheckThreads => "Omnia colloquia selige",
+        CommandName::UncheckThreads => "Colloquia signata purga",
+        CommandName::OpenThread => "Colloquium aperi",
+        CommandName::CloseThread => "Colloquium claude",
+        CommandName::ExpandMessages => "Omnes epistulas expande",
+        CommandName::CollapseMessages => "Omnes epistulas contrahe",
+        CommandName::GetThread => "Colloquium monstra",
+        CommandName::GetMessage => "Epistulam monstra",
+        CommandName::ShowImagesFrom => "Imagines missoris monstra",
+        CommandName::HideImagesFrom => "Imagines missoris cela",
+        CommandName::PinMailbox => "In dilectis fige",
+        CommandName::UnpinMailbox => "Capsam e dilectis remove",
+        CommandName::HideMailbox => "Capsam cela",
+        CommandName::ShowMailbox => "Capsam occultam monstra",
+        CommandName::SaveAttachments => "Adiuncta serva",
+        CommandName::MarkRead => "Ut lectum nota",
+        CommandName::MarkMailboxRead => "Omnia ut lecta nota",
+        CommandName::MarkUnread => "Ut non lectum nota",
+        CommandName::Star => "Stella nota",
+        CommandName::Unstar => "Stellam remove",
+        CommandName::PinThreads => "In summo fige",
+        CommandName::UnpinThreads => "Refige",
+        CommandName::ArchiveThreads => "In archivum conde",
+        CommandName::TrashThreads => "In quisquilias move",
+        CommandName::MarkJunk => "Ut purgamentum nota",
+        CommandName::MarkNotJunk => "Non purgamentum",
+        CommandName::MoveThreads => "Move in…",
+        CommandName::ListPendingOps => "Mutationes exspectantes monstra",
+        CommandName::RetryPendingOps => "Mutationes exspectantes iterum conare",
+        CommandName::DiscardPendingOp => "Mutationem exspectantem abice",
+        CommandName::CreateDraft => "Scribe",
+        CommandName::Reply => "Responde",
+        CommandName::ReplyAll => "Omnibus responde",
+        CommandName::Forward => "Transmitte",
+        CommandName::UpdateDraft => "Adumbrationem recense",
+        CommandName::DiscardDraft => "Adumbrationem abice",
+        CommandName::EditDraft => "Adumbrationem colloquii recense",
+        CommandName::RestoreDraft => "Adumbrationem restitue",
+        CommandName::AttachFile => "Documentum adiunge",
+        CommandName::RemoveAttachment => "Adiunctum remove",
+        CommandName::SendDraft => "Mitte",
+        CommandName::CancelSend => "Missionem rescinde",
+        CommandName::Search => "In cursu quaere",
+        CommandName::ListContacts => "Necessarios enumera",
+        CommandName::SetSearch => "Quaere",
+        CommandName::ClearSearch => "Quaestionem purga",
+        CommandName::OpenComposer => "Adumbrationem aperi",
+        CommandName::CloseComposer => "Scriptionem claude",
+        CommandName::FocusPane => "Tabulatum intende",
+        CommandName::SetListFilter => "Indicem cola",
+        CommandName::FocusMailbox => "In hac capsa intende",
+        CommandName::ClearFocus => "Ab intentione exi",
+        CommandName::CollapseFolders => "Capsas contrahe",
+        CommandName::ExpandFolders => "Capsas expande",
+        CommandName::ToggleSidebar => "Tabulam lateralem monstra aut cela",
+        CommandName::GetView => "Statum conspectus monstra",
+        CommandName::CompactStore => "Repositorium locale comprime",
+        CommandName::CheckForUpdates => "Renovationes quaere",
+        CommandName::DownloadUpdate => "Renovationem deprime",
+        CommandName::InstallUpdate => "Renovationem institue",
+        CommandName::SkipUpdateVersion => "Hanc versionem praetermitte",
+        CommandName::SetUpdatePolicy => "Inspectio renovationum",
+        CommandName::ListApprovals => "Petitiones missionis monstra",
+        CommandName::ApproveRequest => "Petitionem missionis proba",
+        CommandName::RejectRequest => "Petitionem missionis reice",
+    }
+}
+
+/// The Brazilian Portuguese one-sentence help of `name`.
+pub(super) const fn portuguese_brazil_help(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Mostrar as configurações atuais.",
+        CommandName::SetKeybinding => {
+            "Associar teclas a um comando, no lugar das da predefinição de atalhos."
+        }
+        CommandName::SetKeyPreset => {
+            "Escolher a predefinição de atalhos de partida: `gmail` (padrão) ou `vim`."
+        }
+        CommandName::SetTheme => {
+            "Escolher a aparência: o modo (sistema, claro, escuro) e o tema de cada modo."
+        }
+        CommandName::SetSetting => "Alterar uma configuração.",
+        CommandName::Undo => "Desfazer o último comando que pode ser desfeito.",
+        CommandName::Redo => "Refazer o último comando desfeito.",
+        CommandName::OpenPalette => "Abrir a paleta de comandos.",
+        CommandName::ClosePalette => "Fechar a paleta de comandos.",
+        CommandName::AddAccount => "Adicionar uma conta de e-mail IMAP/SMTP.",
+        CommandName::DiscoverServers => {
+            "Procurar os servidores IMAP e SMTP do domínio de um endereço."
+        }
+        CommandName::TestAccount => {
+            "Verificar uma conta: conectar aos servidores IMAP e SMTP com a senha salva."
+        }
+        CommandName::UpdateAccount => "Alterar o nome de exibição ou os servidores de uma conta.",
+        CommandName::SetPassword => "Substituir a senha de uma conta.",
+        CommandName::SetIdentity => {
+            "Adicionar um endereço de envio (um alias) ou alterar seu nome ou sua assinatura."
+        }
+        CommandName::RemoveIdentity => {
+            "Remover um alias, ou o nome e a assinatura do endereço da conta."
+        }
+        CommandName::TrustCertificate => {
+            "Confiar, para uma conta, no certificado autoassinado ou na autoridade privada que um dos seus servidores apresentou."
+        }
+        CommandName::ForgetCertificate => {
+            "Deixar de confiar em um certificado aceito para uma conta."
+        }
+        CommandName::SetMailboxIdentity => {
+            "Escolher o endereço de envio dos novos rascunhos escritos a partir de uma pasta."
+        }
+        CommandName::CreateFolder => "Criar uma pasta no servidor.",
+        CommandName::RenameFolder => "Renomear ou mover uma pasta no servidor, com suas subpastas.",
+        CommandName::DeleteFolder => "Excluir uma pasta do servidor, com todas as suas mensagens.",
+        CommandName::EmptyTrash => {
+            "Excluir para sempre todas as mensagens da lixeira de uma conta, também no servidor."
+        }
+        CommandName::EmptyJunk => {
+            "Excluir para sempre todas as mensagens de spam de uma conta, também no servidor."
+        }
+        CommandName::SetDraftFrom => "Escolher o endereço de envio de um rascunho.",
+        CommandName::RemoveAccount => "Remover uma conta e apagar sua senha do chaveiro.",
+        CommandName::PullSettings => {
+            "Ler do servidor de e-mail as configurações compartilhadas entre dispositivos e mesclá-las."
+        }
+        CommandName::PushSettings => {
+            "Salvar as configurações compartilhadas no servidor de e-mail para os outros dispositivos."
+        }
+        CommandName::SetSettingsAccount => {
+            "Escolher a conta cujo servidor guarda as configurações compartilhadas entre dispositivos."
+        }
+        CommandName::ListRules => "Listar as regras que organizam os novos e-mails.",
+        CommandName::SaveRule => {
+            "Criar ou substituir uma regra que organiza os novos e-mails; ela não pode encaminhar nem responder."
+        }
+        CommandName::DeleteRule => "Excluir uma regra de organização, em todos os dispositivos.",
+        CommandName::EnableRule => "Ativar ou desativar uma regra de organização sem excluí-la.",
+        CommandName::ApplyRules => {
+            "Aplicar agora as regras de organização aos e-mails em cache de uma pasta."
+        }
+        CommandName::SyncNow => "Sincronizar agora: listar as pastas e baixar os novos e-mails.",
+        CommandName::ListMailboxes => {
+            "Listar as pastas em cache, com sua função e seus contadores."
+        }
+        CommandName::ListThreads => "Listar as conversas de uma pasta, as mais recentes primeiro.",
+        CommandName::SetSyncWindow => {
+            "Escolher quantas das mensagens mais recentes de uma pasta ficam no cache local."
+        }
+        CommandName::OpenUnifiedInbox => {
+            "Mostrar as caixas de entrada de todas as contas (caixa unificada)."
+        }
+        CommandName::OpenMailbox => "Mostrar uma pasta na lista de conversas.",
+        CommandName::SelectThreads => "Substituir a seleção de conversas.",
+        CommandName::CheckThreads => "Marcar conversas para agir sobre várias de uma vez.",
+        CommandName::UncheckThreads => "Desmarcar conversas.",
+        CommandName::OpenThread => "Abrir uma conversa no leitor.",
+        CommandName::CloseThread => "Fechar a conversa mostrada no leitor.",
+        CommandName::ExpandMessages => "Expandir mensagens da conversa aberta.",
+        CommandName::CollapseMessages => "Recolher mensagens da conversa aberta em uma linha.",
+        CommandName::GetThread => {
+            "Mostrar uma conversa e todas as suas mensagens, as mais antigas primeiro."
+        }
+        CommandName::GetMessage => "Mostrar uma mensagem.",
+        CommandName::ShowImagesFrom => {
+            "Mostrar as imagens incluídas nas mensagens deste remetente."
+        }
+        CommandName::HideImagesFrom => {
+            "Deixar de mostrar as imagens incluídas nas mensagens deste remetente."
+        }
+        CommandName::PinMailbox => "Fixar uma pasta nos *Favoritos*, no topo da barra lateral.",
+        CommandName::UnpinMailbox => "Remover uma pasta dos *Favoritos* da barra lateral.",
+        CommandName::HideMailbox => "Ocultar uma pasta na árvore da barra lateral.",
+        CommandName::ShowMailbox => "Mostrar de novo uma pasta na árvore da barra lateral.",
+        CommandName::SaveAttachments => {
+            "Salvar os anexos de uma mensagem baixada em uma pasta deste computador."
+        }
+        CommandName::MarkRead => "Marcar conversas ou mensagens como lidas.",
+        CommandName::MarkMailboxRead => {
+            "Marcar como lidas todas as mensagens de uma pasta, inclusive as fora do cache."
+        }
+        CommandName::MarkUnread => "Marcar conversas ou mensagens como não lidas.",
+        CommandName::Star => "Adicionar estrela a conversas ou mensagens.",
+        CommandName::Unstar => "Remover a estrela de conversas ou mensagens.",
+        CommandName::PinThreads => "Fixar conversas no topo das listas que as mostram.",
+        CommandName::UnpinThreads => "Desafixar conversas ou mensagens.",
+        CommandName::ArchiveThreads => "Arquivar conversas ou mensagens.",
+        CommandName::TrashThreads => "Mover conversas ou mensagens para a lixeira.",
+        CommandName::MarkJunk => "Mover conversas ou mensagens para a pasta de spam.",
+        CommandName::MarkNotJunk => "Devolver o spam à caixa de entrada.",
+        CommandName::MoveThreads => "Mover conversas ou mensagens para outra pasta da mesma conta.",
+        CommandName::ListPendingOps => {
+            "Listar as alterações locais que ainda não chegaram ao servidor."
+        }
+        CommandName::RetryPendingOps => "Tentar de novo agora as operações pendentes.",
+        CommandName::DiscardPendingOp => {
+            "Descartar uma operação pendente: sua alteração é desfeita localmente."
+        }
+        CommandName::CreateDraft => "Começar uma nova mensagem a partir de uma conta.",
+        CommandName::Reply => "Começar uma resposta ao remetente de uma mensagem.",
+        CommandName::ReplyAll => "Responder ao remetente e a todos os outros destinatários.",
+        CommandName::Forward => "Começar a encaminhar uma mensagem.",
+        CommandName::UpdateDraft => "Alterar os campos de um rascunho.",
+        CommandName::DiscardDraft => "Excluir um rascunho.",
+        CommandName::EditDraft => {
+            "Editar um rascunho mostrado em uma conversa, mesmo escrito em outro dispositivo."
+        }
+        CommandName::AttachFile => "Anexar um arquivo local a um rascunho.",
+        CommandName::RemoveAttachment => {
+            "Remover um anexo de um rascunho (o arquivo não é alterado)."
+        }
+        CommandName::SendDraft => "Enviar um rascunho.",
+        CommandName::CancelSend => {
+            "Parar um envio programado antes de sair; o rascunho volta a ser editável."
+        }
+        CommandName::RestoreDraft => "Restaurar um rascunho excluído como estava.",
+        CommandName::ListContacts => "Listar as pessoas que aparecem nos e-mails em cache.",
+        CommandName::Search => "Pesquisar nos e-mails em cache.",
+        CommandName::SetSearch => "Mostrar resultados de pesquisa no lugar da pasta aberta.",
+        CommandName::ClearSearch => "Sair da pesquisa: a lista volta a mostrar a pasta aberta.",
+        CommandName::OpenComposer => {
+            "Mostrar um rascunho na janela de escrita e levar o foco até ela."
+        }
+        CommandName::CloseComposer => "Fechar a janela de escrita.",
+        CommandName::OpenSettings => "Mostrar a página de configurações, em uma seção específica.",
+        CommandName::CloseSettings => "Fechar a página de configurações.",
+        CommandName::FocusPane => "Levar o foco do teclado para um painel.",
+        CommandName::SetListFilter => "Filtrar a lista: não lidas, com estrela, com anexos.",
+        CommandName::FocusMailbox => "Focar em uma pasta ou conta: a barra lateral mostra só isso.",
+        CommandName::ClearFocus => "Sair do modo foco: a barra lateral volta a mostrar tudo.",
+        CommandName::CollapseFolders => "Recolher pastas na árvore da barra lateral.",
+        CommandName::ExpandFolders => "Expandir pastas na árvore da barra lateral.",
+        CommandName::ToggleSidebar => "Recolher ou expandir a barra lateral.",
+        CommandName::CompactStore => {
+            "Compactar o armazenamento local e remover corpos de mensagem órfãos."
+        }
+        CommandName::GetView => "Mostrar o que o usuário está vendo na interface gráfica.",
+        CommandName::CheckForUpdates => "Procurar agora uma nova versão do dail.",
+        CommandName::DownloadUpdate => {
+            "Baixar a atualização disponível e verificar seu tamanho e sua assinatura."
+        }
+        CommandName::InstallUpdate => "Instalar a atualização baixada.",
+        CommandName::SkipUpdateVersion => "Pular uma versão: ela não será mais oferecida.",
+        CommandName::SetUpdatePolicy => {
+            "Alterar a verificação periódica de atualizações e seu intervalo."
+        }
+        CommandName::ListApprovals => {
+            "Listar as solicitações de envio de agentes que aguardam sua decisão."
+        }
+        CommandName::ApproveRequest => "Aprovar a solicitação de envio de um agente.",
+        CommandName::RejectRequest => "Rejeitar a solicitação de envio de um agente.",
+    }
+}
+
+/// The European Portuguese one-sentence help of `name`.
+pub(super) const fn portuguese_portugal_help(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Mostrar as definições atuais.",
+        CommandName::SetKeybinding => {
+            "Associar teclas a um comando, no lugar das da predefinição de atalhos."
+        }
+        CommandName::SetKeyPreset => {
+            "Escolher a predefinição de atalhos de partida: `gmail` (predefinido) ou `vim`."
+        }
+        CommandName::SetTheme => {
+            "Escolher a aparência: o modo (sistema, claro, escuro) e o tema de cada modo."
+        }
+        CommandName::SetSetting => "Alterar uma definição.",
+        CommandName::Undo => "Anular o último comando que pode ser anulado.",
+        CommandName::Redo => "Refazer o último comando anulado.",
+        CommandName::OpenPalette => "Abrir a paleta de comandos.",
+        CommandName::ClosePalette => "Fechar a paleta de comandos.",
+        CommandName::AddAccount => "Adicionar uma conta de correio IMAP/SMTP.",
+        CommandName::DiscoverServers => {
+            "Procurar os servidores IMAP e SMTP do domínio de um endereço."
+        }
+        CommandName::TestAccount => {
+            "Verificar uma conta: ligar aos servidores IMAP e SMTP com a palavra-passe guardada."
+        }
+        CommandName::UpdateAccount => "Alterar o nome a mostrar ou os servidores de uma conta.",
+        CommandName::SetPassword => "Substituir a palavra-passe de uma conta.",
+        CommandName::SetIdentity => {
+            "Adicionar um endereço de envio (um alias) ou alterar o seu nome ou a sua assinatura."
+        }
+        CommandName::RemoveIdentity => {
+            "Remover um alias, ou o nome e a assinatura do endereço da conta."
+        }
+        CommandName::TrustCertificate => {
+            "Confiar, para uma conta, no certificado autoassinado ou na autoridade privada que um dos seus servidores apresentou."
+        }
+        CommandName::ForgetCertificate => {
+            "Deixar de confiar num certificado aceite para uma conta."
+        }
+        CommandName::SetMailboxIdentity => {
+            "Escolher o endereço de envio dos novos rascunhos escritos a partir de uma pasta."
+        }
+        CommandName::CreateFolder => "Criar uma pasta no servidor.",
+        CommandName::RenameFolder => {
+            "Mudar o nome ou mover uma pasta no servidor, com as suas subpastas."
+        }
+        CommandName::DeleteFolder => "Eliminar uma pasta do servidor, com todas as suas mensagens.",
+        CommandName::EmptyTrash => {
+            "Eliminar definitivamente todas as mensagens do lixo de uma conta, também no servidor."
+        }
+        CommandName::EmptyJunk => {
+            "Eliminar definitivamente todas as mensagens de spam de uma conta, também no servidor."
+        }
+        CommandName::SetDraftFrom => "Escolher o endereço de envio de um rascunho.",
+        CommandName::RemoveAccount => {
+            "Remover uma conta e apagar a sua palavra-passe do porta-chaves."
+        }
+        CommandName::PullSettings => {
+            "Ler do servidor de correio as definições partilhadas entre dispositivos e juntá-las."
+        }
+        CommandName::PushSettings => {
+            "Guardar as definições partilhadas no servidor de correio para os outros dispositivos."
+        }
+        CommandName::SetSettingsAccount => {
+            "Escolher a conta cujo servidor guarda as definições partilhadas entre dispositivos."
+        }
+        CommandName::ListRules => "Listar as regras que organizam o correio novo.",
+        CommandName::SaveRule => {
+            "Criar ou substituir uma regra que organiza o correio novo; não pode reencaminhar nem responder."
+        }
+        CommandName::DeleteRule => "Eliminar uma regra de organização, em todos os dispositivos.",
+        CommandName::EnableRule => "Ativar ou desativar uma regra de organização sem a eliminar.",
+        CommandName::ApplyRules => {
+            "Aplicar agora as regras de organização ao correio em cache de uma pasta."
+        }
+        CommandName::SyncNow => "Sincronizar agora: listar as pastas e transferir o correio novo.",
+        CommandName::ListMailboxes => {
+            "Listar as pastas em cache, com a sua função e os seus contadores."
+        }
+        CommandName::ListThreads => "Listar as conversas de uma pasta, as mais recentes primeiro.",
+        CommandName::SetSyncWindow => {
+            "Escolher quantas das mensagens mais recentes de uma pasta ficam na cache local."
+        }
+        CommandName::OpenUnifiedInbox => {
+            "Mostrar as caixas de entrada de todas as contas (caixa unificada)."
+        }
+        CommandName::OpenMailbox => "Mostrar uma pasta na lista de conversas.",
+        CommandName::SelectThreads => "Substituir a seleção de conversas.",
+        CommandName::CheckThreads => "Marcar conversas para agir sobre várias de uma vez.",
+        CommandName::UncheckThreads => "Desmarcar conversas.",
+        CommandName::OpenThread => "Abrir uma conversa no leitor.",
+        CommandName::CloseThread => "Fechar a conversa mostrada no leitor.",
+        CommandName::ExpandMessages => "Expandir mensagens da conversa aberta.",
+        CommandName::CollapseMessages => "Recolher mensagens da conversa aberta numa linha.",
+        CommandName::GetThread => {
+            "Mostrar uma conversa e todas as suas mensagens, as mais antigas primeiro."
+        }
+        CommandName::GetMessage => "Mostrar uma mensagem.",
+        CommandName::ShowImagesFrom => {
+            "Mostrar as imagens incluídas nas mensagens deste remetente."
+        }
+        CommandName::HideImagesFrom => {
+            "Deixar de mostrar as imagens incluídas nas mensagens deste remetente."
+        }
+        CommandName::PinMailbox => "Fixar uma pasta nos *Favoritos*, no topo da barra lateral.",
+        CommandName::UnpinMailbox => "Remover uma pasta dos *Favoritos* da barra lateral.",
+        CommandName::HideMailbox => "Ocultar uma pasta na árvore da barra lateral.",
+        CommandName::ShowMailbox => "Mostrar de novo uma pasta na árvore da barra lateral.",
+        CommandName::SaveAttachments => {
+            "Guardar os anexos de uma mensagem transferida numa pasta deste computador."
+        }
+        CommandName::MarkRead => "Marcar conversas ou mensagens como lidas.",
+        CommandName::MarkMailboxRead => {
+            "Marcar como lidas todas as mensagens de uma pasta, incluindo as que estão fora da cache."
+        }
+        CommandName::MarkUnread => "Marcar conversas ou mensagens como não lidas.",
+        CommandName::Star => "Adicionar estrela a conversas ou mensagens.",
+        CommandName::Unstar => "Remover a estrela de conversas ou mensagens.",
+        CommandName::PinThreads => "Fixar conversas no topo das listas que as mostram.",
+        CommandName::UnpinThreads => "Desafixar conversas ou mensagens.",
+        CommandName::ArchiveThreads => "Arquivar conversas ou mensagens.",
+        CommandName::TrashThreads => "Mover conversas ou mensagens para o lixo.",
+        CommandName::MarkJunk => "Mover conversas ou mensagens para a pasta de spam.",
+        CommandName::MarkNotJunk => "Devolver o spam à caixa de entrada.",
+        CommandName::MoveThreads => "Mover conversas ou mensagens para outra pasta da mesma conta.",
+        CommandName::ListPendingOps => {
+            "Listar as alterações locais que ainda não chegaram ao servidor."
+        }
+        CommandName::RetryPendingOps => "Tentar de novo agora as operações pendentes.",
+        CommandName::DiscardPendingOp => {
+            "Rejeitar uma operação pendente: a sua alteração é anulada localmente."
+        }
+        CommandName::CreateDraft => "Começar uma nova mensagem a partir de uma conta.",
+        CommandName::Reply => "Começar uma resposta ao remetente de uma mensagem.",
+        CommandName::ReplyAll => "Responder ao remetente e a todos os outros destinatários.",
+        CommandName::Forward => "Começar a reencaminhar uma mensagem.",
+        CommandName::UpdateDraft => "Alterar os campos de um rascunho.",
+        CommandName::DiscardDraft => "Eliminar um rascunho.",
+        CommandName::EditDraft => {
+            "Editar um rascunho mostrado numa conversa, mesmo que escrito noutro dispositivo."
+        }
+        CommandName::AttachFile => "Anexar um ficheiro local a um rascunho.",
+        CommandName::RemoveAttachment => {
+            "Remover um anexo de um rascunho (o ficheiro não é alterado)."
+        }
+        CommandName::SendDraft => "Enviar um rascunho.",
+        CommandName::CancelSend => {
+            "Parar um envio agendado antes de sair; o rascunho volta a ser editável."
+        }
+        CommandName::RestoreDraft => "Restaurar um rascunho eliminado tal como estava.",
+        CommandName::ListContacts => "Listar as pessoas que aparecem no correio em cache.",
+        CommandName::Search => "Pesquisar no correio em cache.",
+        CommandName::SetSearch => "Mostrar resultados de pesquisa no lugar da pasta aberta.",
+        CommandName::ClearSearch => "Sair da pesquisa: a lista volta a mostrar a pasta aberta.",
+        CommandName::OpenComposer => {
+            "Mostrar um rascunho na janela de escrita e levar o foco até ela."
+        }
+        CommandName::CloseComposer => "Fechar a janela de escrita.",
+        CommandName::OpenSettings => "Mostrar a página de definições, numa secção específica.",
+        CommandName::CloseSettings => "Fechar a página de definições.",
+        CommandName::FocusPane => "Levar o foco do teclado para um painel.",
+        CommandName::SetListFilter => "Filtrar a lista: não lidas, com estrela, com anexos.",
+        CommandName::FocusMailbox => "Focar numa pasta ou conta: a barra lateral mostra só isso.",
+        CommandName::ClearFocus => "Sair do modo foco: a barra lateral volta a mostrar tudo.",
+        CommandName::CollapseFolders => "Recolher pastas na árvore da barra lateral.",
+        CommandName::ExpandFolders => "Expandir pastas na árvore da barra lateral.",
+        CommandName::ToggleSidebar => "Recolher ou expandir a barra lateral.",
+        CommandName::CompactStore => {
+            "Compactar o armazenamento local e remover corpos de mensagem órfãos."
+        }
+        CommandName::GetView => "Mostrar o que o utilizador está a ver na interface gráfica.",
+        CommandName::CheckForUpdates => "Procurar agora uma nova versão do dail.",
+        CommandName::DownloadUpdate => {
+            "Transferir a atualização disponível e verificar o seu tamanho e a sua assinatura."
+        }
+        CommandName::InstallUpdate => "Instalar a atualização transferida.",
+        CommandName::SkipUpdateVersion => "Ignorar uma versão: não voltará a ser oferecida.",
+        CommandName::SetUpdatePolicy => {
+            "Alterar a verificação periódica de atualizações e o seu intervalo."
+        }
+        CommandName::ListApprovals => {
+            "Listar os pedidos de envio de agentes que aguardam a sua decisão."
+        }
+        CommandName::ApproveRequest => "Aprovar o pedido de envio de um agente.",
+        CommandName::RejectRequest => "Rejeitar o pedido de envio de um agente.",
+    }
+}
+
+/// The Latin one-sentence help of `name`.
+pub(super) const fn latin_help(name: CommandName) -> &'static str {
+    match name {
+        CommandName::GetSettings => "Optiones praesentes monstra.",
+        CommandName::SetKeybinding => "Claves mandato tribue, loco earum praeformati compendiorum.",
+        CommandName::SetKeyPreset => {
+            "Praeformatum compendiorum initiale elige: `gmail` (praesumptum) aut `vim`."
+        }
+        CommandName::SetTheme => {
+            "Speciem elige: modum (systema, lucidum, obscurum) et thema cuiusque modi."
+        }
+        CommandName::SetSetting => "Optionem muta.",
+        CommandName::Undo => "Ultimum mandatum revocabile revoca.",
+        CommandName::Redo => "Ultimum mandatum revocatum restitue.",
+        CommandName::OpenPalette => "Tabulam mandatorum aperi.",
+        CommandName::ClosePalette => "Tabulam mandatorum claude.",
+        CommandName::AddAccount => "Rationem cursus electronici IMAP/SMTP adde.",
+        CommandName::DiscoverServers => "Servitores IMAP et SMTP dominii inscriptionis quaere.",
+        CommandName::TestAccount => {
+            "Rationem inspice: ad servitores IMAP et SMTP tessera servata coniunge."
+        }
+        CommandName::UpdateAccount => "Nomen monstrandum aut servitores rationis muta.",
+        CommandName::SetPassword => "Tesseram rationis substitue.",
+        CommandName::SetIdentity => {
+            "Inscriptionem missionis (aliam) adde, aut nomen eius vel subscriptionem muta."
+        }
+        CommandName::RemoveIdentity => {
+            "Aliam remove, aut nomen et subscriptionem inscriptionis rationis."
+        }
+        CommandName::TrustCertificate => {
+            "Pro ratione confide testimonio a se ipso signato aut auctoritati privatae quam unus eius servitorum praebuit."
+        }
+        CommandName::ForgetCertificate => "Testimonio pro ratione accepto confidere desine.",
+        CommandName::SetMailboxIdentity => {
+            "Inscriptionem missionis novarum adumbrationum in capsa scriptarum elige."
+        }
+        CommandName::CreateFolder => "Capsam in servitore crea.",
+        CommandName::RenameFolder => "Capsam in servitore renomina aut move, cum subcapsis eius.",
+        CommandName::DeleteFolder => "Capsam e servitore dele, cum omnibus eius epistulis.",
+        CommandName::EmptyTrash => {
+            "Omnes epistulas in quisquiliis rationis in perpetuum dele, etiam in servitore."
+        }
+        CommandName::EmptyJunk => {
+            "Omnes epistulas purgamenti rationis in perpetuum dele, etiam in servitore."
+        }
+        CommandName::SetDraftFrom => "Inscriptionem missionis adumbrationis elige.",
+        CommandName::RemoveAccount => "Rationem remove et tesseram eius e clavario dele.",
+        CommandName::PullSettings => "Optiones machinis communes e servitore cursus lege et misce.",
+        CommandName::PushSettings => {
+            "Optiones communes in servitore cursus pro ceteris machinis serva."
+        }
+        CommandName::SetSettingsAccount => {
+            "Rationem elige cuius servitor optiones machinis communes servat."
+        }
+        CommandName::ListRules => "Regulas quae epistulas novas digerunt enumera.",
+        CommandName::SaveRule => {
+            "Regulam quae epistulas novas digerit crea aut substitue; nec transmittere nec respondere potest."
+        }
+        CommandName::DeleteRule => "Regulam digerendi dele, in omnibus machinis.",
+        CommandName::EnableRule => "Regulam digerendi accende aut exstingue sine deletione.",
+        CommandName::ApplyRules => "Regulas digerendi nunc epistulis in memoria capsae adhibe.",
+        CommandName::SyncNow => "Nunc synchroniza: capsas enumera et epistulas novas deprime.",
+        CommandName::ListMailboxes => "Capsas in memoria enumera, cum munere et numeris earum.",
+        CommandName::ListThreads => "Colloquia capsae enumera, recentissima prima.",
+        CommandName::SetSyncWindow => {
+            "Elige quot recentissimae epistulae capsae in memoria locali serventur."
+        }
+        CommandName::OpenUnifiedInbox => "Capsas acceptorum omnium rationum monstra (capsa unita).",
+        CommandName::OpenMailbox => "Capsam in indice colloquiorum monstra.",
+        CommandName::SelectThreads => "Selectionem colloquiorum substitue.",
+        CommandName::CheckThreads => "Colloquia signa ut in pluribus simul agas.",
+        CommandName::UncheckThreads => "Colloquia dissigna.",
+        CommandName::OpenThread => "Colloquium in lectore aperi.",
+        CommandName::CloseThread => "Colloquium in lectore monstratum claude.",
+        CommandName::ExpandMessages => "Epistulas colloquii aperti expande.",
+        CommandName::CollapseMessages => "Epistulas colloquii aperti in unum versum contrahe.",
+        CommandName::GetThread => {
+            "Colloquium et omnes eius epistulas monstra, antiquissimas primas."
+        }
+        CommandName::GetMessage => "Epistulam monstra.",
+        CommandName::ShowImagesFrom => "Imagines in epistulis huius missoris inclusas monstra.",
+        CommandName::HideImagesFrom => {
+            "Imagines in epistulis huius missoris inclusas monstrare desine."
+        }
+        CommandName::PinMailbox => "Capsam in *Dilectis* in summa tabula laterali fige.",
+        CommandName::UnpinMailbox => "Capsam e *Dilectis* tabulae lateralis remove.",
+        CommandName::HideMailbox => "Capsam in arbore tabulae lateralis cela.",
+        CommandName::ShowMailbox => "Capsam in arbore tabulae lateralis iterum monstra.",
+        CommandName::SaveAttachments => {
+            "Adiuncta epistulae depressae in capsa huius computatri serva."
+        }
+        CommandName::MarkRead => "Colloquia aut epistulas ut lecta nota.",
+        CommandName::MarkMailboxRead => {
+            "Omnes epistulas capsae ut lectas nota, etiam extra memoriam."
+        }
+        CommandName::MarkUnread => "Colloquia aut epistulas ut non lecta nota.",
+        CommandName::Star => "Colloquia aut epistulas stella nota.",
+        CommandName::Unstar => "Stellam e colloquiis aut epistulis remove.",
+        CommandName::PinThreads => "Colloquia in summis indicibus qui ea monstrant fige.",
+        CommandName::UnpinThreads => "Colloquia aut epistulas refige.",
+        CommandName::ArchiveThreads => "Colloquia aut epistulas in archivum conde.",
+        CommandName::TrashThreads => "Colloquia aut epistulas in quisquilias move.",
+        CommandName::MarkJunk => "Colloquia aut epistulas in capsam purgamenti move.",
+        CommandName::MarkNotJunk => "Purgamentum in capsam acceptorum redde.",
+        CommandName::MoveThreads => {
+            "Colloquia aut epistulas in aliam capsam eiusdem rationis move."
+        }
+        CommandName::ListPendingOps => {
+            "Mutationes locales quae servitorem nondum attigerunt enumera."
+        }
+        CommandName::RetryPendingOps => "Operationes exspectantes nunc iterum conare.",
+        CommandName::DiscardPendingOp => {
+            "Operationem exspectantem abice: mutatio eius localiter revocatur."
+        }
+        CommandName::CreateDraft => "Novam epistulam ex ratione incipe.",
+        CommandName::Reply => "Responsum missori epistulae incipe.",
+        CommandName::ReplyAll => "Missori et omnibus ceteris recipientibus responde.",
+        CommandName::Forward => "Epistulam transmittere incipe.",
+        CommandName::UpdateDraft => "Campos adumbrationis muta.",
+        CommandName::DiscardDraft => "Adumbrationem dele.",
+        CommandName::EditDraft => {
+            "Adumbrationem in colloquio monstratam recense, etiam in alia machina scriptam."
+        }
+        CommandName::AttachFile => "Documentum locale adumbrationi adiunge.",
+        CommandName::RemoveAttachment => {
+            "Adiunctum ex adumbratione remove (documentum non tangitur)."
+        }
+        CommandName::SendDraft => "Adumbrationem mitte.",
+        CommandName::CancelSend => {
+            "Missionem constitutam ante discessum siste; adumbratio iterum recenseri potest."
+        }
+        CommandName::RestoreDraft => "Adumbrationem deletam ut erat restitue.",
+        CommandName::ListContacts => "Personas in epistulis in memoria apparentes enumera.",
+        CommandName::Search => "In epistulis in memoria quaere.",
+        CommandName::SetSearch => "Effectus quaestionis loco capsae apertae monstra.",
+        CommandName::ClearSearch => "A quaestione exi: index iterum capsam apertam monstrat.",
+        CommandName::OpenComposer => {
+            "Adumbrationem in fenestra scribendi monstra et intentionem eo duc."
+        }
+        CommandName::CloseComposer => "Fenestram scribendi claude.",
+        CommandName::OpenSettings => "Paginam optionum monstra, ad certam sectionem.",
+        CommandName::CloseSettings => "Paginam optionum claude.",
+        CommandName::FocusPane => "Intentionem claviaturae ad tabulatum duc.",
+        CommandName::SetListFilter => "Indicem cola: non lecta, stellata, cum adiunctis.",
+        CommandName::FocusMailbox => {
+            "In capsa aut ratione intende: tabula lateralis id solum monstrat."
+        }
+        CommandName::ClearFocus => {
+            "A modo intentionis exi: tabula lateralis iterum omnia monstrat."
+        }
+        CommandName::CollapseFolders => "Capsas in arbore tabulae lateralis contrahe.",
+        CommandName::ExpandFolders => "Capsas in arbore tabulae lateralis expande.",
+        CommandName::ToggleSidebar => "Tabulam lateralem contrahe aut expande.",
+        CommandName::CompactStore => {
+            "Repositorium locale comprime et corpora epistularum orba dele."
+        }
+        CommandName::GetView => "Monstra quod usor in interfacie graphica aspicit.",
+        CommandName::CheckForUpdates => "Novam versionem dail nunc quaere.",
+        CommandName::DownloadUpdate => {
+            "Renovationem praesto deprime et magnitudinem eius ac signum inspice."
+        }
+        CommandName::InstallUpdate => "Renovationem depressam institue.",
+        CommandName::SkipUpdateVersion => "Versionem praetermitte: non iam offeretur.",
+        CommandName::SetUpdatePolicy => {
+            "Inspectionem periodicam renovationum et intervallum eius muta."
+        }
+        CommandName::ListApprovals => {
+            "Petitiones missionis agentium quae iudicium tuum exspectant enumera."
+        }
+        CommandName::ApproveRequest => "Petitionem missionis agentis proba.",
+        CommandName::RejectRequest => "Petitionem missionis agentis reice.",
+    }
+}
