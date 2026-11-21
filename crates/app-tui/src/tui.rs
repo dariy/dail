@@ -56,6 +56,9 @@ enum Hit {
     List,
     /// The reader pane.
     Reader,
+    /// The status line while linked to a dail server: a tap opens the link's details (the
+    /// Accounts settings).
+    Status,
 }
 
 /// Something the user asked for that happens outside the TUI: the runner performs it.
@@ -264,6 +267,7 @@ impl Tui {
             || state.drafts.values().any(|d| d.send_at.is_some())
             || self.notice.is_some()
             || self.pair.is_some()
+            || self.setup.as_ref().is_some_and(Setup::is_waiting)
     }
 
     /// Draws one frame of `state`, in the theme's colours when `tui_colors` asks for them and
@@ -313,7 +317,7 @@ impl Tui {
             frame.render_widget(Paragraph::new(banner), banner_area);
         }
         if state.accounts.is_empty() {
-            frame.render_widget(self.setup(), body);
+            frame.render_widget(self.setup(state), body);
         } else {
             for (slot, area) in &arrangement.panes {
                 self.draw_pane(frame, *slot, *area, arrangement.borders, state);
@@ -324,6 +328,7 @@ impl Tui {
             view.draw(frame, overlay_area(body, borders, 90), state, borders);
         }
         if state.view.settings.is_some() {
+            self.settings.at(self.now_ms(), self.zone);
             self.settings
                 .draw(frame, overlay_area(body, borders, 90), state, borders);
         }
@@ -356,6 +361,9 @@ impl Tui {
         };
         let line = view::status(state, now, &parts, status.width);
         frame.render_widget(Paragraph::new(line), status);
+        if state.link.is_some() {
+            self.hits.push((status, Hit::Status));
+        }
     }
 
     fn draw_pane(
@@ -462,7 +470,27 @@ impl Tui {
     }
 
     /// The first-run screen: how to add an account from another shell (it then appears live).
-    fn setup(&self) -> Paragraph<'static> {
+    /// A device of a dail server waits for the server's mail instead.
+    fn setup(&self, state: &AppState) -> Paragraph<'static> {
+        if let Some(link) = &state.link {
+            let server = link
+                .server
+                .as_ref()
+                .map(|s| crate::text::clean(&format!("{}:{}", s.host, s.port)))
+                .unwrap_or_default();
+            let status = app_front::server::summary(state, self.lang)
+                .map(|s| s.text)
+                .unwrap_or_default();
+            return Paragraph::new(vec![
+                Line::from(Span::styled(
+                    f(Text::LinkWaitingForMail, &[("server", &server)]),
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Line::from(""),
+                Line::from(status),
+            ])
+            .wrap(ratatui::widgets::Wrap { trim: false });
+        }
         Paragraph::new(vec![
             Line::from(Span::styled(
                 s(Text::NoAccountsYet),
@@ -484,6 +512,10 @@ impl Tui {
         self.palette.sync(state);
         if let Some(pair) = &mut self.pair {
             pair.dialog.sync(state);
+        }
+        let now = self.now_ms();
+        if let Some(setup) = &mut self.setup {
+            setup.sync(state, now);
         }
         if state.approvals.is_empty() {
             self.approvals = None;
@@ -685,7 +717,11 @@ impl Tui {
             }
             return outcome.requests;
         }
-        if state.accounts.is_empty() && key.code == KeyCode::Enter && !state.view.palette_open {
+        if state.accounts.is_empty()
+            && state.link.is_none()
+            && key.code == KeyCode::Enter
+            && !state.view.palette_open
+        {
             self.setup = Some(Setup::default());
             return Vec::new();
         }
@@ -719,9 +755,13 @@ impl Tui {
             return outcome.requests;
         }
         if state.view.settings.is_some() && self.result.is_none() {
+            self.settings.at(self.now_ms(), self.zone);
             let outcome = self.settings.key(key, state);
             if outcome.wizard {
                 self.setup = Some(Setup::default());
+            }
+            if outcome.connect {
+                self.setup = Some(Setup::connect());
             }
             if outcome.pair {
                 self.pair = Some(PairView::default());
@@ -874,7 +914,7 @@ impl Tui {
                 Hit::List | Hit::Thread(_) => {
                     self.list_offset = self.list_offset.saturating_add_signed(step);
                 }
-                Hit::Mailbox(_) => {}
+                Hit::Mailbox(_) | Hit::Status => {}
             }
             return Vec::new();
         }
@@ -887,6 +927,9 @@ impl Tui {
                 vec![Request::user(Command::SelectThreads { ids: vec![id] })]
             }
             Hit::Mailbox(id) => vec![Request::user(Command::OpenMailbox { id })],
+            Hit::Status => vec![Request::user(Command::OpenSettings {
+                section: Some(app_core::SettingsSection::Accounts),
+            })],
             _ => Vec::new(),
         }
     }
@@ -999,8 +1042,9 @@ impl Tui {
                     }
                 }
                 Purpose::Setup => {
+                    let now = self.now_ms();
                     if let Some(setup) = &mut self.setup
-                        && let Some(request) = setup.accept(&reply)
+                        && let Some(request) = setup.accept(&reply, now)
                     {
                         out.push(request);
                     }

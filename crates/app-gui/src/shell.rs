@@ -293,7 +293,7 @@ impl Shell {
         if let Some(account) = asked.password {
             self.wizard.reenter(state, account);
         }
-        self.wizard.show(&ctx, &t, state, &mut queue);
+        self.wizard.show(&ctx, &t, state, now_ms, &mut queue);
         let paired = self.pairing.show(&ctx, &t, state, now_ms, &mut queue);
         if let Some(code) = paired.copy {
             ctx.copy_text(code);
@@ -370,9 +370,13 @@ impl Shell {
             .frame(bar.stroke(egui::Stroke::new(t.m.stroke.hairline, chrome.border_subtle)))
             .show(ui, |ui| {
                 ui.style_mut().visuals = theme::chrome_visuals(&t);
-                topbar::show(ui, &chrome, state, now_ms, self.lang, &mut queue)
+                topbar::show(ui, &chrome, state, (now_ms, zone), self.lang, &mut queue)
             });
-        match top.inner {
+        if let Some(step) = top.inner.ask {
+            self.palette.open_at(step);
+            queue.push(Request::user(Command::OpenPalette {}));
+        }
+        match top.inner.fix {
             Some(app_front::status::Fix::Password(account)) => self.wizard.reenter(state, account),
             Some(app_front::status::Fix::Trust(account)) => {
                 if let app_front::palette::Flow::Ask(step) =
@@ -399,6 +403,9 @@ impl Shell {
                 .inner;
             if page.wizard {
                 self.wizard.open();
+            }
+            if page.connect {
+                self.wizard.connect();
             }
             if page.pair {
                 self.pairing.open();

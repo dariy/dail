@@ -44,6 +44,8 @@ const FLOW_GUI: &[&str] = &[
     "mark_mailbox_read",
     "set_search",
     "install_update",
+    "revoke_device",
+    "disconnect_server",
 ];
 const FLOW_TUI: &[&str] = &[
     "set_setting",
@@ -54,6 +56,8 @@ const FLOW_TUI: &[&str] = &[
     "save_rule",
     "install_update",
     "set_update_policy",
+    "revoke_device",
+    "disconnect_server",
 ];
 const FLOW_TOUCH: &[&str] = &[
     "set_keybinding",
@@ -105,13 +109,7 @@ fn the_gui_gaps_are_pinned() {
             "get_view",
             "compact_store",
             "list_approvals",
-            "list_devices",
-            "revoke_device",
-            "connect_server",
-            "trust_server",
-            "disconnect_server",
-            "retry_offline",
-            "dismiss_offline_rejection"
+            "list_devices"
         ]
     );
     assert!(with(FrontEnd::Gui, Reach::Never).is_empty());
@@ -167,13 +165,7 @@ fn the_tui_gaps_are_pinned() {
             "get_view",
             "compact_store",
             "list_approvals",
-            "list_devices",
-            "revoke_device",
-            "connect_server",
-            "trust_server",
-            "disconnect_server",
-            "retry_offline",
-            "dismiss_offline_rejection"
+            "list_devices"
         ]
     );
     assert!(with(FrontEnd::Tui, Reach::Never).is_empty());
@@ -303,6 +295,8 @@ fn run_name(run: &Run) -> CommandName {
         Run::TrustCertificate(_) => CommandName::TrustCertificate,
         Run::ForgetCertificate(_) => CommandName::ForgetCertificate,
         Run::Pair => CommandName::StartPairing,
+        Run::Revoke(_) => CommandName::RevokeDevice,
+        Run::Disconnect => CommandName::DisconnectServer,
     }
 }
 
@@ -474,5 +468,86 @@ fn every_palette_entry_is_offered() {
                 );
             }
         }
+    }
+}
+
+/// The dail server's lists (SRV-6) are drawn by the GUI and the TUI: what they offer has a
+/// control there; touch keeps the palette until SRV-7.
+#[test]
+fn what_the_server_lists_offer_has_a_control_on_the_gui_and_the_tui() {
+    use app_core::{
+        Command, Device, DeviceRole, IdGen, LinkState, OfflineRejection, Origin, ServeInfo,
+        ServerEndpoint,
+    };
+    use app_front::actions::{device_actions, link_actions, rejection_actions, server_actions};
+
+    let mut state = synced_state();
+    let mut ids = IdGen::new(5);
+    let device: app_core::DeviceId = ids.next_id();
+    state.devices.insert(
+        device,
+        Device {
+            id: device,
+            name: "Phone".into(),
+            role: DeviceRole::User,
+            paired_at_ms: 0,
+            last_seen_ms: None,
+        },
+    );
+    state.status.serve = Some(ServeInfo {
+        addresses: vec!["127.0.0.1:7443".into()],
+        advertise: Vec::new(),
+        fingerprint: "ab".repeat(32),
+    });
+    let refused: app_core::RequestId = ids.next_id();
+    state.link = Some(LinkState {
+        server: Some(ServerEndpoint {
+            host: "home.example".into(),
+            port: 7443,
+            fingerprint: Some("ab".repeat(32)),
+            ..ServerEndpoint::default()
+        }),
+        rejected: vec![OfflineRejection {
+            request_id: refused,
+            seed: 1,
+            origin: Origin::Gui,
+            command: Command::RetryOffline {},
+            code: "ERR004".into(),
+            error: "ERR004: gone".into(),
+            at_ms: 0,
+        }],
+        ..LinkState::default()
+    });
+    let runs: Vec<Run> = link_actions(&state)
+        .into_iter()
+        .chain(rejection_actions(&state, refused))
+        .chain(device_actions(&state, device))
+        .chain(server_actions(&state))
+        .map(|e| e.run)
+        .collect();
+    let names: HashSet<CommandName> = runs.iter().map(run_name).collect();
+    for name in [
+        CommandName::RetryOffline,
+        CommandName::DismissOfflineRejection,
+        CommandName::DisconnectServer,
+        CommandName::RevokeDevice,
+        CommandName::StartPairing,
+    ] {
+        assert!(names.contains(&name), "the fixtures reach {name:?}");
+    }
+    for front in [FrontEnd::Gui, FrontEnd::Tui] {
+        for name in &names {
+            assert!(
+                matches!(reach(*name, front), Reach::Control | Reach::Flow),
+                "{front:?}: {} is in a server list, so it is not {:?}",
+                name.as_str(),
+                reach(*name, front)
+            );
+        }
+    }
+    // The wizards' connect step submits these.
+    for name in [CommandName::ConnectServer, CommandName::TrustServer] {
+        assert_eq!(reach(name, FrontEnd::Gui), Reach::Control);
+        assert_eq!(reach(name, FrontEnd::Tui), Reach::Control);
     }
 }

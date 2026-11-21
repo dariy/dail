@@ -1158,7 +1158,27 @@ set; `config.toml` keeps no accounts, ERR108 unchanged); the engine writes `[rem
   replayed) or failed once (`RemoteSession::wait_settled`) before their first command.
 - **Rejections** stay in `link.rejected` (with the code, message, time, seed and origin) until `retry_offline` (back
   to the end of the queue under new request IDs, same seed and origin) or `dismiss_offline_rejection`; `dail remote
-  status` counts them. Showing them in the front ends is SRV-6.
+  status` counts them. The front ends show them as problems (SRV-6, §7.1, §7.4).
+
+**In the front ends** (SRV-6; `app_front::connect`, `app_front::server`, the shared lists of `app_front::actions`).
+The account wizards of the GUI and the TUI offer *Connect to a dail server instead* on a profile without accounts:
+`ConnectFlow` (`Address` → `Probing` → `Compare` or `Mismatch` → `Pairing` → `Paired`, or `Failed` with a retry of
+the address or the code) runs the steps of `dail remote add` as replies and state arrive. The server is
+`host[:port]` (`connect::parse_server`: `dail remote add`'s rules, port 7443 by default, the host a DNS name or an
+IP address) or a pasted `dail://pair` link (`pairing::parse_uri`, untrusted): the link fills the server and the code
+and sets the fingerprint the server must offer; any other offer is `Mismatch` and nothing is trusted. The offered
+fingerprint is shown in groups of four, eight a line (as *Pair a device…*); `trust_server` takes the code as a
+`Secret` (the field is emptied). A failure counts only after the command's reply and either the attempt seen in
+progress, a new error, or `connect::GRACE_MS` (1.5 s), since a retry can fail with the same text and a front end can
+see a state older than the reply. Given up before pairing, the flow removes its unpinned link (`disconnect_server`).
+The link's status (`server::summary`: *Online*, *Connecting…*, *Offline · 3 queued*) is in the GUI's top bar and the
+TUI's status line, with its details (`server::details`: server, connection, pinned certificate, revision, queued, last
+error) and `actions::link_actions` (*Retry refused changes*, *Disconnect…*, which confirms in the palette). Each
+`link.rejected` entry is a problem (`status::problems`, `Fix::Refused`: the command's title, the translated error)
+with `actions::rejection_actions` (*Retry all*: `retry_offline` re-queues every refusal; *Dismiss*). The *Devices*
+settings (`server::devices`, `server::shows_devices`: devices paired, or this front end can pair) list each device
+with its role, pairing date and last connection, `actions::device_actions` (*Revoke…*, confirms) and *Pair a
+device…* (`actions::server_actions`). Touch keeps the palette for all of them until SRV-7.
 
 **Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
 (so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
@@ -1315,8 +1335,9 @@ mouse); on touch keys never count. `app-front/tests/it/reach.rs` pins the `Palet
 unless `NEVER` names its ADR (today none: touch has no approvals screen, ADR 0009, but its palette offers them). It also checks that every
 command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`, `message_actions`) can return is
 `Control` or `Flow` where they are drawn (touch draws all but `account_actions`; `mailbox_actions` in the drawer's
-folder sheet, TCH-4), that every command with a default key is `Control` on the TUI, and that every
-`Palette` entry is offered by the palette.
+folder sheet, TCH-4), and the dail server's lists (`link_actions`, `rejection_actions`, `device_actions`,
+`server_actions`, SRV-6) on the GUI and the TUI, that every command with a default key is `Control` on the TUI,
+and that every `Palette` entry is offered by the palette.
 
 ### 7.1 GUI (`app-gui`)
 ```text
@@ -1426,7 +1447,7 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   runs `open_settings`; collapsed, a 56 px rail of named icon buttons:
   expand, compose, the current account's role mailboxes, settings), then the top bar (the search pill, which runs
   `open_palette`; `/` still opens the palette at its search step), then the list and the reader. The sidebar and the
-  top bar draw with the theme's chrome group. There is no status bar.
+  top bar draw with the theme's chrome group. There is no status bar: the top bar holds the status (below).
 - **Status** (`app_gui::topbar` over `app_front::status`, a projection of `status`, the accounts and the outbox), in the
   top bar: a status dot (filled when synced, a ring while syncing, a crossed ring when a login failed: shape, not
   colour) and `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs
@@ -1441,6 +1462,12 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   in the composer. The TUI shows the same hint in `?` and names the palette command in the status line; its setup
   re-enters a password the same way. The list footer shows the latest undoable action's `undo_label` with *Undo z*
   until an `undo`/`redo` goes through, else the key hints, and the number of conversations on the right.
+  On a device of a dail server (ADR 0017, SRV-6) a link chip (`app_front::server::summary`: *Online*, *Connecting…*,
+  *Offline · 3 queued*, with a link, sync or cloud-off icon) sits left of the status chip; its popover shows the
+  details (`server::details`, the fingerprint in monospace) and `actions::link_actions` (*Retry refused changes*,
+  *Disconnect…* → the palette's confirmation). A command the server refused after an offline period is a problem in
+  the status chip's popover: its title, the error and the time, with *Retry all* and *Dismiss*
+  (`actions::rejection_actions`).
 - **Toasts:** `send_draft` shows *Sending in N s* with *Cancel send* until the window closes; rejections and runtime
   failures show the command's title and the error.
 - **Desktop notifications** (`app_front::alerts`, delivered by `app_gui::desktop`): while the window is not focused,
@@ -1520,9 +1547,21 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   Verified: *Sync now* (`sync_now` for the account). Failed: the error, *Try another password* (removes the half-added
   account with `remove_account {confirm: true}` and goes back) or *Keep it anyway*. For custom servers, *Find
   servers* runs `discover_servers` for the address and fills both fields from `status.discovery` (the note says where
-  they were found, or that they must be typed); the TUI's setup does the same with Ctrl+F.
+  they were found, or that they must be typed); the TUI's setup does the same with Ctrl+F. On a profile without
+  accounts (`connect::availability`) the first step also offers *Connect to a dail server instead* (ADR 0017,
+  SRV-6), as does the Accounts settings' *Connect to a dail server*: the wizard then draws `app_front::connect::
+  ConnectFlow` (§5.6 *In the front ends*): *Server* (a paste of a `dail://pair` link is read at once, a typed one on
+  *Connect*), a spinner while probing, the offered fingerprint with the code field and *Pair* (*It matches the
+  pairing link* for a link), the mismatch with both fingerprints and *Back*, the failure with *Try again* / *Enter
+  another code*, then *Paired with …*. Its commands go out as `Background::Connect`. Closing it before pairing
+  removes the unpinned link. The wizard no longer opens by itself on a device of a server whose mail has not
+  arrived yet.
+- **dail server and Devices** (Accounts settings, SRV-6): on a device, a *dail server* card with the link's details
+  and `actions::link_actions`; on a server or a device (`server::shows_devices`), *Devices*: a row per device (name;
+  role · paired · last seen) with *Revoke…* (`actions::device_actions`, the palette confirms), *No device is paired
+  yet.* when empty, and *Pair a device…*.
 - ***Pair a device…*** (`app_gui::pairing`, ADR 0017, SRV-QR1): a modal over `app_front::pairing::PairDialog`. Opened
-  by the Accounts settings' *Pair a device…* (`app_front::actions::server_actions`, shown while
+  by the Devices settings' *Pair a device…* (`app_front::actions::server_actions`, shown while
   `pairing::can_pair`), or by a `start_pairing` from the palette (its role and name questions; the shell re-tags the
   command `Background::Pairing` and opens the dialog waiting for it). Form: role (radio), name, *Pair* →
   `start_pairing`. Then the code (monospace, *Copy code* → clipboard, toast), role and name, the time left (repaints
@@ -1757,9 +1796,18 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   countdown *Sending in N s · z cancels* of a send this TUI scheduled, the latest notice (a rejected command's title
   and error, or a runtime failure, for 6 s — the GUI's toasts), the first problem (store, keyring, login, sync;
   `app_front::status::problems`, `+N more`), `N pending · M failed (retry: palette)`, the latest undoable action
-  (`app_front::notice::LastAction`) with `z undo`, and the sync state; `? help` on the right when there is room.
+  (`app_front::notice::LastAction`) with `z undo`, the link to a dail server (`app_front::server::summary`, bold
+  while offline: *Offline · 3 queued*; SRV-6) and the sync state; `? help` on the right when there is room. A
+  command the server refused offline is a problem (*Refused by the server: Archive (settings › Accounts)*); a tap on
+  the line of a device opens the Accounts settings, where the link's details and actions are.
   `?` opens a read-only view with the full text of the current problems, every registry key a plain terminal
   delivers with its command's title, and the TUI-local keys.
+- **dail server** (Accounts settings, SRV-6): on a device, a *dail server* group of rows: the link's details
+  (`server::details`; the fingerprint on two rows), each refused command (title; error · time) with its *Retry all*
+  and *Dismiss* rows (`actions::rejection_actions`), then *Retry refused changes* and *Disconnect…*
+  (`actions::link_actions`); then *Devices* (`server::shows_devices`): a row per device (name; role · paired · last
+  seen) with *Revoke…*, and *Pair a device…*. Enter on an action row runs its entry (a confirmation opens the
+  palette). On a profile without accounts the section has *Connect to a dail server*, which opens the setup there.
 - **Send** (Ctrl+S, or *Send* in the palette) writes typed text back first, then `send_draft`: the status line counts
   *Sending in N s · z cancels* down while the draft is read-only (`z` undoes the send, `cancel_send`). *Attach file*
   in the palette takes a typed path (`~/` is the home directory; there is no file dialog: over SSH it would open on the
@@ -1824,10 +1872,15 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   drawn as `•` and moved straight into `add_account`'s write-only `Secret` (the field is empty afterwards) → the
   setup's own `test_account` (`Purpose::Setup`), whose result arrives in the account's `status` → Enter runs
   `sync_now` for the account. After a failed login, `p` removes the half-added account (`remove_account {confirm:
-  true}`) and asks for another password; `k` keeps it. Over a plain SSH login the keyring may be out of reach (see
+  true}`) and asks for another password; `k` keeps it. On a profile without accounts the first step's last choice is
+  *Connect to a dail server instead* (SRV-6): `app_front::connect::ConnectFlow` as in the GUI (§7.1), typed text into
+  *Server* (a paste of a `dail://pair` link is read at once), Enter connects, then the fingerprint and *Pairing code*
+  (letters upper-cased), Enter pairs, Esc goes back (or gives up, removing the unpinned link); the TUI ticks while it
+  waits. Without accounts but linked to a server, the first-run screen says the server's mail shows up once
+  connected. Over a plain SSH login the keyring may be out of reach (see
   the Wave 1.5 known limitations in `ROADMAP.md`): the keyring error shows in the status line.
 - ***Pair a device…*** (`app_tui::pairing`, SRV-QR1): the GUI's dialog (§7.1) over the same `PairDialog`, from the
-  Accounts section's *Pair a device…* row (Enter) or a `start_pairing` from the palette (`Purpose::Pairing`). Form:
+  Accounts section's *Pair a device…* row under *Devices* (Enter) or a `start_pairing` from the palette (`Purpose::Pairing`). Form:
   Tab/↑/↓ toggles the role, typed text and a paste go into the name, Enter submits. Then the code, the time left
   (ticks each second), the address, the fingerprint, the scan hint and the QR code in half-blocks
   (`app_front::qr::half_blocks`), black on white (explicit colours, which `colors::paint` keeps) so that it scans
@@ -1864,7 +1917,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
   mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
-  first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
+  first `app_front::status` problem and its fix (none for a dail server's refusal, `Fix::Refused`: phones are devices only from SRV-7); with no problem, news with `info: true` and a second `dismiss` button:
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `menu`
   (below), `back` and `wants_tick`.

@@ -10,8 +10,14 @@
 //! The same form changes the password of an existing account ([`Wizard::reenter`], e.g. from a
 //! failed login in the status bar): password → `set_password` (keyring, then a login test) →
 //! the result; another try keeps the account.
+//!
+//! *Connect to a dail server instead* (ADR 0017, SRV-6; [`Wizard::connect`]) replaces the mail
+//! account with a server this profile mirrors: it draws `app_front::connect::ConnectFlow`
+//! (address or pasted `dail://pair` link → `connect_server` → the offered fingerprint to compare
+//! and the code → `trust_server` → paired). Offered only to a profile without accounts.
 
 use app_core::{AccountId, AccountStatus, AppState, Command, Endpoint, ProviderPreset, Secret};
+use app_front::connect::{Availability, ConnectFlow, Retry, Stage, availability};
 use app_front::i18n::Key;
 use egui::{RichText, Ui};
 
@@ -30,6 +36,8 @@ pub enum Step {
     Password,
     /// `add_account` + `test_account` sent; waiting for the status.
     Test,
+    /// *Connect to a dail server* instead of an account (SRV-6).
+    Server,
 }
 
 /// UI-local wizard state.
@@ -55,6 +63,10 @@ pub struct Wizard {
     lookup_error: Option<String>,
     /// What was shown last frame: the modal re-sizes a frame late, so a change asks for one more.
     shown: Option<(Step, u8)>,
+    /// *Connect to a dail server* (the code it holds is never shown in `Debug`).
+    flow: ConnectFlow,
+    /// The clock of the last frame, for the flow's replies.
+    now_ms: i64,
 }
 
 impl Default for Wizard {
@@ -75,6 +87,8 @@ impl Default for Wizard {
             looking: None,
             lookup_error: None,
             shown: None,
+            flow: ConnectFlow::default(),
+            now_ms: 0,
         }
     }
 }
@@ -117,6 +131,21 @@ impl Wizard {
         };
     }
 
+    /// Opens the wizard at *Connect to a dail server* (the settings' button).
+    pub fn connect(&mut self) {
+        *self = Self {
+            open: true,
+            offered: true,
+            step: Step::Server,
+            ..Self::default()
+        };
+    }
+
+    /// The *Connect to a dail server* flow.
+    pub const fn connect_flow(&self) -> &ConnectFlow {
+        &self.flow
+    }
+
     /// Opens the password step for `account`, to replace its password (`set_password`).
     pub fn reenter(&mut self, state: &AppState, account: AccountId) {
         let Some(found) = state.accounts.get(&account) else {
@@ -136,6 +165,15 @@ impl Wizard {
 
     /// Takes the reply to the wizard's `add_account`.
     pub fn accept(&mut self, reply: &Reply, queue: &mut Vec<Request>) {
+        if reply.purpose == Purpose::Background(Background::Connect) {
+            let result = match &reply.result {
+                Ok(Ok(receipt)) => Ok(receipt),
+                Ok(Err(err)) => Err(app_front::i18n::message(&err.to_string())),
+                Err(err) => Err(format!("dail: {err}")),
+            };
+            self.flow.accept(result, self.now_ms);
+            return;
+        }
         if reply.purpose == Purpose::Background(Background::WizardPassword) {
             match &reply.result {
                 Ok(Ok(_)) => {}
@@ -189,13 +227,19 @@ impl Wizard {
         ctx: &egui::Context,
         t: &Tokens,
         state: &AppState,
+        now_ms: i64,
         queue: &mut Vec<Request>,
     ) {
-        if !self.offered && state.accounts.is_empty() {
+        self.now_ms = now_ms;
+        // A device of a dail server has its accounts once the server's state arrives.
+        if !self.offered && state.accounts.is_empty() && state.link.is_none() {
             self.open();
         }
         if !self.open {
             return;
+        }
+        if self.step == Step::Server {
+            self.flow.sync(state, now_ms);
         }
         let status = match self
             .account
@@ -216,6 +260,8 @@ impl Wizard {
                 ui.set_width(t.m.overlays.dialog_width - 2.0 * t.m.space.xl);
                 let title = if self.existing {
                     t.s(Key::ChangePassword)
+                } else if self.step == Step::Server {
+                    t.s(Key::ConnectToServer)
                 } else {
                     t.s(Key::AddAnAccount)
                 };
@@ -227,23 +273,249 @@ impl Wizard {
                     (false, Step::Address) => t.s(Key::Address2).to_owned(),
                     (false, Step::Password) => t.s(Key::Password3).to_owned(),
                     (false, Step::Test) => t.s(Key::Connection4).to_owned(),
+                    (_, Step::Server) => self.flow.server(),
                 };
                 ui::caption(ui, t, &step);
                 ui.add_space(t.m.space.md);
                 match self.step {
-                    Step::Preset => self.preset_step(ui, t),
+                    Step::Preset => self.preset_step(ui, t, state),
                     Step::Address => self.address_step(ui, t, state, queue),
                     Step::Password => self.password_step(ui, t, queue),
                     Step::Test => self.test_step(ui, t, state, queue),
+                    Step::Server => self.server_step(ui, t, state, queue),
                 }
             });
         if modal.should_close() && self.step != Step::Test {
+            if self.step == Step::Server {
+                self.give_up(state, queue);
+            }
             self.open = false;
             self.password.clear();
         }
     }
 
-    fn preset_step(&mut self, ui: &mut Ui, t: &Tokens) {
+    /// Closes *Connect to a dail server*: a link it left unpinned is removed.
+    fn give_up(&mut self, state: &AppState, queue: &mut Vec<Request>) {
+        if let Some(cmd) = self.flow.cancel(state) {
+            queue.push(Request {
+                purpose: Purpose::Background(Background::Connect),
+                cmd,
+            });
+        }
+        self.flow = ConnectFlow::default();
+        self.open = false;
+    }
+
+    /// *Connect to a dail server* (SRV-6): the stages of `app_front::connect::ConnectFlow`.
+    fn server_step(&mut self, ui: &mut Ui, t: &Tokens, state: &AppState, queue: &mut Vec<Request>) {
+        let muted = |ui: &mut Ui, text: &str| {
+            ui.label(
+                RichText::new(text)
+                    .font(ui::font(&t.type_scale.body_sm))
+                    .color(t.text_muted),
+            );
+        };
+        let fingerprint = |ui: &mut Ui, label: &str, fp: &str| {
+            ui.label(ui::text(&t.type_scale.label_md, label, t.text_secondary));
+            for line in app_front::connect::fingerprint_lines(fp) {
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(line)
+                            .font(ui::mono(t.type_scale.body_md.size))
+                            .color(t.text_strong),
+                    )
+                    .selectable(true),
+                );
+            }
+        };
+        let server = self.flow.server();
+        let mut submit = None;
+        let mut cancel = false;
+        match self.flow.stage().clone() {
+            Stage::Address => {
+                let label = ui.label(ui::text(
+                    &t.type_scale.label_md,
+                    t.s(Key::ConnectServerLabel),
+                    t.text_secondary,
+                ));
+                let before = self.flow.address.chars().count();
+                let response = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut self.flow.address)
+                            .hint_text("home.example.org:7443")
+                            .desired_width(f32::INFINITY),
+                    )
+                    .labelled_by(label.id);
+                if response.changed() {
+                    self.flow.address_edited();
+                    // A paste (more than one character at once) is read at once if it is a
+                    // pairing link; a link typed by hand is read on *Connect*.
+                    if self.flow.address.chars().count() > before + 1 {
+                        self.flow.read_address();
+                    }
+                }
+                muted(ui, t.s(Key::ConnectAddressHint));
+                if let Some(note) = self.flow.note() {
+                    muted(ui, note);
+                }
+                let problem = self.flow.address_problem();
+                let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                ui.add_space(t.m.space.md);
+                ui.horizontal(|ui| {
+                    if ui::secondary(ui, t, t.s(Key::Back), None, true) {
+                        self.step = Step::Preset;
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let ready = problem.is_none();
+                        if ui::primary(ui, t, t.s(Key::Connect), None, ready) || (enter && ready) {
+                            submit = self.flow.submit_address(state);
+                        }
+                        if let Some(problem) = &problem
+                            && !self.flow.address.trim().is_empty()
+                        {
+                            muted(ui, problem);
+                        }
+                    });
+                });
+            }
+            Stage::Probing | Stage::Pairing => {
+                let text = if self.flow.stage() == &Stage::Probing {
+                    t.f(Key::ConnectProbing, &[("server", &server)])
+                } else {
+                    t.f(Key::ConnectPairing, &[("server", &server)])
+                };
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(text);
+                });
+                ui.add_space(t.m.space.md);
+                if ui::secondary(ui, t, t.s(Key::Cancel), Some("Esc"), true) {
+                    cancel = true;
+                }
+            }
+            Stage::Compare {
+                fingerprint: offered,
+                matches_link,
+            } => {
+                ui.label(ui::text(
+                    &t.type_scale.body_md,
+                    t.f(Key::ConnectCompare, &[("server", &server)]),
+                    t.text,
+                ));
+                ui.add_space(t.m.space.xs);
+                fingerprint(ui, t.s(Key::PairingFingerprint), &offered);
+                if matches_link {
+                    ui::icon_label(
+                        ui,
+                        t,
+                        app_theme::Icon::Check,
+                        t.s(Key::ConnectMatchesLink),
+                        t.text_strong,
+                        t.s(Key::ConnectMatchesLink),
+                    );
+                }
+                ui.add_space(t.m.space.sm);
+                let label = ui.label(ui::text(
+                    &t.type_scale.label_md,
+                    t.s(Key::PairingCode),
+                    t.text_secondary,
+                ));
+                let response = ui
+                    .add(
+                        egui::TextEdit::singleline(&mut self.flow.code)
+                            .hint_text("ABCD2345")
+                            .font(ui::mono(t.type_scale.body_md.size))
+                            .desired_width(f32::INFINITY),
+                    )
+                    .labelled_by(label.id);
+                muted(ui, t.s(Key::ConnectCodeHint));
+                let problem = self.flow.code_problem();
+                let enter = response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                ui.add_space(t.m.space.md);
+                ui.horizontal(|ui| {
+                    if ui::secondary(ui, t, t.s(Key::Back), None, true) {
+                        self.flow.back();
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let ready = problem.is_none();
+                        if ui::primary(ui, t, t.s(Key::Pair), None, ready) || (enter && ready) {
+                            submit = self.flow.submit_code(state);
+                        }
+                        if let Some(problem) = &problem
+                            && !self.flow.code.trim().is_empty()
+                        {
+                            muted(ui, problem);
+                        }
+                    });
+                });
+            }
+            Stage::Mismatch { offered, expected } => {
+                ui.colored_label(t.danger, t.f(Key::ConnectMismatch, &[("server", &server)]));
+                ui.add_space(t.m.space.xs);
+                fingerprint(ui, t.s(Key::PairingFingerprint), &offered);
+                fingerprint(ui, t.s(Key::ConnectLinkFingerprint), &expected);
+                ui.add_space(t.m.space.md);
+                ui.horizontal(|ui| {
+                    if ui::secondary(ui, t, t.s(Key::Cancel), Some("Esc"), true) {
+                        cancel = true;
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui::primary(ui, t, t.s(Key::Back), None, true) {
+                            self.flow.retry();
+                        }
+                    });
+                });
+            }
+            Stage::Paired => {
+                ui.label(ui::text(
+                    &t.type_scale.body_md,
+                    t.f(Key::ConnectPaired, &[("server", &server)]),
+                    t.text_strong,
+                ));
+                if let Some(summary) = app_front::server::summary(state, t.lang) {
+                    muted(ui, &summary.text);
+                }
+                ui.add_space(t.m.space.md);
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui::primary(ui, t, t.s(Key::Close), None, true) {
+                            self.flow = ConnectFlow::default();
+                            self.open = false;
+                        }
+                    });
+                });
+            }
+            Stage::Failed { error, retry } => {
+                ui.colored_label(t.danger, app_front::text::clean(&error));
+                ui.add_space(t.m.space.md);
+                ui.horizontal(|ui| {
+                    if ui::secondary(ui, t, t.s(Key::Cancel), Some("Esc"), true) {
+                        cancel = true;
+                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let again = match retry {
+                            Retry::Address => t.s(Key::TryAgain),
+                            Retry::Code => t.s(Key::AnotherCode),
+                        };
+                        if ui::primary(ui, t, again, None, true) {
+                            self.flow.retry();
+                        }
+                    });
+                });
+            }
+        }
+        if let Some(cmd) = submit {
+            queue.push(Request {
+                purpose: Purpose::Background(Background::Connect),
+                cmd,
+            });
+        }
+        if cancel {
+            self.give_up(state, queue);
+        }
+    }
+
+    fn preset_step(&mut self, ui: &mut Ui, t: &Tokens, state: &AppState) {
         for (preset, title, hint) in PRESETS {
             let chosen = self.preset == *preset;
             let response = ui.add(
@@ -275,6 +547,19 @@ impl Wizard {
                     .color(t.text_muted),
             );
             ui.add_space(t.m.space.xs + 2.0);
+        }
+        // SRV-6: a profile without accounts can mirror a dail server instead.
+        if availability(state) == Availability::Open {
+            ui.add_space(t.m.space.xs);
+            if ui::secondary(ui, t, t.s(Key::ConnectToServerInstead), None, true) {
+                self.flow = ConnectFlow::default();
+                self.step = Step::Server;
+            }
+            ui.label(
+                RichText::new(t.s(Key::ConnectToServerDetail))
+                    .font(ui::font(&t.type_scale.body_sm))
+                    .color(t.text_muted),
+            );
         }
         ui.add_space(t.m.space.sm);
         ui.horizontal(|ui| {

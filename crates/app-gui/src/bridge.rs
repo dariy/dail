@@ -46,6 +46,9 @@ pub enum Background {
     WizardPassword,
     /// `start_pairing` of the *Pair a device…* dialog (its reply carries the code).
     Pairing,
+    /// `connect_server` and `trust_server` of the wizard's *Connect to a dail server* (their
+    /// replies go to its `app_front::connect::ConnectFlow`).
+    Connect,
 }
 
 /// A command and why it was submitted.

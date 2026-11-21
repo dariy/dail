@@ -1,0 +1,34 @@
+---
+source: crates/app-tui/tests/it/server.rs
+expression: screen
+---
+dail · Conversations
+┌ Conversations ─────────────────────────┐┌ Message ───────────────────────────────────────────────┐
+│Pick┌ Settings ──────────────────────────────────────────────────────────────────────────────┐    │
+│    │ General   Keys   Accounts   Rules                                                      │    │
+│    │                                                                                        │    │
+│    │alice@example.com                 not tested                                            │    │
+│    │Add an account                                                                          │    │
+│    │dail server                                                                             │    │
+│    │  Server                          home.example:7443                                     │    │
+│    │  Connection                      Offline · 3 queued                                    │    │
+│    │  Server certificate (SHA-256)    5d41 402a bc4b 2a76 b971 9d91 1017 c592               │    │
+│    │                                  ae2f 5e3c 8a1b 7d0f 4e6c 2a9b 8d7f 1e03               │    │
+│    │  Revision                        42                                                    │    │
+│    │  Waiting to be sent              3                                                     │    │
+│    │  Last error                      connect failed: connection refused                    │    │
+│    │  Refused by the server: Archive  ERR004: thread 1 not found · refused 07:00            │    │
+│    │    Retry all                                                                           │    │
+│    │    Dismiss                                                                             │    │
+│    │  Retry refused changes                                                                 │    │
+│    │  Disconnect…                                                                           │    │
+│    │Devices                                                                                 │    │
+│    │  Phone                           A device of yours · paired Nov 14 · last seen 5m ago  │    │
+│    │    Revoke…                                                                             │    │
+│    │  Pair a device…                                                                        │    │
+│    │                                                                                        │    │
+│    │                                                                                        │    │
+│    │Tab section · j/k move · Enter change · Esc close                                       │    │
+│    └────────────────────────────────────────────────────────────────────────────────────────┘    │
+└────────────────────────────────────────┘└────────────────────────────────────────────────────────┘
+Refused by the server: Archive (settings › Accounts) · Offline · 3 queued · synced 9h ago     ? help

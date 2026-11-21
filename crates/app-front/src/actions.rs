@@ -1,6 +1,9 @@
 //! The actions of threads, of a mailbox and of an account (PAR-1): one list each, which every
 //! front end draws (the GUI's bulk bar, row and folder context menus and account buttons; the
-//! mobile presenter's bulk bar and reader), so none of them hand-writes its own buttons.
+//! mobile presenter's bulk bar and reader), so none of them hand-writes its own buttons. The
+//! dail server's lists (ADR 0017, SRV-6) are drawn by the GUI and the TUI: the link's
+//! ([`link_actions`]), a refused offline command's ([`rejection_actions`]), a paired device's
+//! ([`device_actions`]) and the server's own ([`server_actions`]).
 //!
 //! An [`Entry`] is a label, an icon name (an `app_theme::Icon::name()`; `app-front` does not
 //! depend on `app-theme`, so a test in `app-gui` pins the names), what it runs ([`Run`]) and a
@@ -10,7 +13,8 @@
 //! (PAR-5 adds that form).
 
 use app_core::{
-    AccountId, AppState, Command, MailboxId, MailboxRole, MessageId, ThreadId, listing,
+    AccountId, AppState, Command, DeviceId, MailboxId, MailboxRole, MessageId, RequestId, ThreadId,
+    listing,
 };
 
 use crate::i18n::Key;
@@ -54,6 +58,10 @@ pub enum Run {
     /// ([`crate::pairing::PairDialog`]) instead of [`Run::flow`], whose palette questions are
     /// the fallback of a front end without one.
     Pair,
+    /// *Revoke…* this paired device (confirms).
+    Revoke(DeviceId),
+    /// *Disconnect…* from the dail server (confirms).
+    Disconnect,
 }
 
 impl Run {
@@ -75,6 +83,8 @@ impl Run {
             Self::TrustCertificate(id) => palette::trust_certificate(state, Some(*id)),
             Self::ForgetCertificate(id) => palette::forget_certificate(state, Some(*id)),
             Self::Pair => palette::start_pairing(),
+            Self::Revoke(id) => palette::revoke_this_device(state, *id),
+            Self::Disconnect => palette::disconnect_server(state),
         }
     }
 }
@@ -405,10 +415,68 @@ pub fn account_actions(state: &AppState, id: AccountId) -> Vec<Entry> {
 
 /// The actions of this dail server or of the server this profile mirrors (ADR 0017): *Pair a
 /// device…* while a pairing code can be opened ([`crate::pairing::can_pair`]). The GUI's and the
-/// TUI's Accounts settings show them; the Devices page is SRV-6.
+/// TUI's *Devices* settings show them (SRV-6).
 pub fn server_actions(state: &AppState) -> Vec<Entry> {
     if crate::pairing::can_pair(state) {
         vec![entry(Key::PairADevice, Icon::Link, Run::Pair, true)]
+    } else {
+        Vec::new()
+    }
+}
+
+/// The actions of this device's link to its dail server (SRV-6), none without a link: *Retry
+/// refused changes* while the server refused some (`retry_offline` queues them all again), then
+/// *Disconnect…* (confirms). The status bar's link details and the settings show them.
+pub fn link_actions(state: &AppState) -> Vec<Entry> {
+    let Some(link) = state.link.as_ref() else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if !link.rejected.is_empty() {
+        out.push(cmd(
+            Key::RetryRefused,
+            Icon::Sync,
+            Command::RetryOffline {},
+            true,
+        ));
+    }
+    out.push(entry(
+        Key::DisconnectDots,
+        Icon::CloudOff,
+        Run::Disconnect,
+        false,
+    ));
+    out
+}
+
+/// The actions of a command the server refused after an offline period (`id` in
+/// `link.rejected`), none if it is unknown: *Retry all* (`retry_offline` has no per-command form:
+/// it queues every refused command again, so the label says all) and *Dismiss*. The problems
+/// list shows them next to the refusal.
+pub fn rejection_actions(state: &AppState, id: RequestId) -> Vec<Entry> {
+    let known = state
+        .link
+        .as_ref()
+        .is_some_and(|link| link.rejected.iter().any(|r| r.request_id == id));
+    if !known {
+        return Vec::new();
+    }
+    vec![
+        cmd(Key::RetryAll, Icon::Sync, Command::RetryOffline {}, true),
+        cmd(
+            Key::Dismiss,
+            Icon::Close,
+            Command::DismissOfflineRejection { id },
+            true,
+        ),
+    ]
+}
+
+/// The actions of a device paired with the dail server, none if it is unknown: *Revoke…*
+/// (confirms). The *Devices* settings show them.
+pub fn device_actions(state: &AppState, id: DeviceId) -> Vec<Entry> {
+    if state.devices.contains_key(&id) {
+        vec![entry(Key::RevokeDots, Icon::Delete, Run::Revoke(id), false)]
     } else {
         Vec::new()
     }
@@ -462,4 +530,6 @@ icons! {
     Person => "person",
     CheckBox => "check_box",
     Link => "link",
+    Sync => "sync",
+    Close => "close",
 }

@@ -7,6 +7,8 @@ use crate::text::{f, s};
 use app_core::{
     AccountStatus, AppState, Command, CommandName, RuleId, SettingKey, SettingsSection,
 };
+use app_front::actions::Run;
+use app_front::format::Zone;
 use app_front::i18n::Key;
 use app_front::palette::{Flow, edit_rule, flow, new_rule, set_setting};
 use ratatui::Frame;
@@ -34,6 +36,17 @@ struct Row {
     change: Option<CommandName>,
     /// What `Enter` does on a row of the Rules section.
     rule: Option<RuleRow>,
+    /// What `Enter` does on a row of the dail server's (SRV-6).
+    action: Option<RowAction>,
+}
+
+/// What `Enter` does on a row of the Accounts section's dail server and devices (SRV-6).
+#[derive(Debug, Clone)]
+enum RowAction {
+    /// An entry of a shared action list (`app_front::actions`).
+    Run(Run),
+    /// *Connect to a dail server*: the setup at that step.
+    Connect,
 }
 
 /// A row of the Rules section (SET-5).
@@ -56,6 +69,7 @@ impl Row {
             value,
             change,
             rule: None,
+            action: None,
         }
     }
 }
@@ -72,7 +86,7 @@ const fn shown(section: SettingsSection) -> SettingsSection {
     }
 }
 
-fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
+fn rows(state: &AppState, section: SettingsSection, when: (i64, Zone)) -> Vec<Row> {
     let settings = &state.settings;
     match shown(section) {
         SettingsSection::Keys => {
@@ -81,6 +95,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 value: format!("{:?}", settings.key_preset).to_lowercase(),
                 change: Some(CommandName::SetKeyPreset),
                 rule: None,
+                action: None,
             }];
             for &name in CommandName::ALL {
                 let keys = crate::keys::deliverable(settings, name);
@@ -90,6 +105,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                         value: keys.join(", "),
                         change: Some(CommandName::SetKeybinding),
                         rule: None,
+                        action: None,
                     });
                 }
             }
@@ -111,6 +127,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                     },
                     change: Some(CommandName::TestAccount),
                     rule: None,
+                    action: None,
                 })
                 .collect();
             out.push(Row {
@@ -118,16 +135,18 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 value: String::new(),
                 change: Some(CommandName::AddAccount),
                 rule: None,
+                action: None,
             });
-            // The server's actions (SRV-QR1): *Pair a device…* opens the pairing dialog.
-            for entry in app_front::actions::server_actions(state) {
+            if app_front::connect::availability(state) == app_front::connect::Availability::Open {
                 out.push(Row {
-                    key: s(entry.label).to_owned(),
+                    key: s(Key::ConnectToServer).to_owned(),
                     value: String::new(),
-                    change: Some(CommandName::StartPairing),
+                    change: None,
                     rule: None,
+                    action: Some(RowAction::Connect),
                 });
             }
+            out.extend(server_rows(state, when));
             out
         }
         SettingsSection::General
@@ -149,6 +168,7 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                     },
                     change: Some(CommandName::SetSetting),
                     rule: None,
+                    action: None,
                 }
             }))
             .chain([
@@ -157,17 +177,88 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                     value: clean(&settings.theme_light),
                     change: Some(CommandName::SetTheme),
                     rule: None,
+                    action: None,
                 },
                 Row {
                     key: "theme_dark".to_owned(),
                     value: clean(&settings.theme_dark),
                     change: Some(CommandName::SetTheme),
                     rule: None,
+                    action: None,
                 },
             ])
             .chain(synced_rows(state))
             .collect(),
     }
+}
+
+/// A row that runs `entry` of a shared action list, indented under what it acts on.
+fn entry_row(entry: &app_front::actions::Entry, indent: &str) -> Row {
+    Row {
+        key: format!("{indent}{}", s(entry.label)),
+        value: String::new(),
+        change: None,
+        rule: None,
+        action: Some(RowAction::Run(entry.run.clone())),
+    }
+}
+
+/// An information row (no action).
+fn info(key: String, value: String) -> Row {
+    Row::plain(key, value, None)
+}
+
+/// The dail server in the Accounts section (ADR 0017, SRV-6): the link's details and actions
+/// (*Retry refused changes*, *Disconnect…*), the commands the server refused after an offline
+/// period with *Retry all* and *Dismiss* (the problems the status line names), then *Devices*:
+/// each paired device with *Revoke…*, and *Pair a device…*.
+fn server_rows(state: &AppState, (now_ms, zone): (i64, Zone)) -> Vec<Row> {
+    let lang = app_front::i18n::current();
+    let mut out = Vec::new();
+    if state.link.is_some() {
+        out.push(info(s(Key::DailServer).to_owned(), String::new()));
+        for field in app_front::server::details(state, lang) {
+            let mut lines = field.lines.into_iter();
+            out.push(info(
+                format!("  {}", field.label),
+                lines.next().unwrap_or_default(),
+            ));
+            out.extend(lines.map(|line| info(String::new(), line)));
+        }
+        for rejection in app_front::server::rejections(state, lang, now_ms, zone) {
+            out.push(info(
+                format!("  {}", rejection.text),
+                format!("{} · {}", rejection.error, rejection.when),
+            ));
+            for entry in app_front::actions::rejection_actions(state, rejection.id) {
+                out.push(entry_row(&entry, "    "));
+            }
+        }
+        for entry in app_front::actions::link_actions(state) {
+            out.push(entry_row(&entry, "  "));
+        }
+    }
+    if app_front::server::shows_devices(state) {
+        out.push(info(s(Key::Devices).to_owned(), String::new()));
+        let devices = app_front::server::devices(state, lang, now_ms, zone);
+        if devices.is_empty() {
+            out.push(info(format!("  {}", s(Key::NoDevices)), String::new()));
+        }
+        for device in devices {
+            out.push(info(
+                format!("  {}", device.name),
+                format!("{} · {} · {}", device.role, device.paired, device.seen),
+            ));
+            for entry in app_front::actions::device_actions(state, device.id) {
+                out.push(entry_row(&entry, "    "));
+            }
+        }
+        // *Pair a device…* (SRV-QR1) opens the pairing dialog.
+        for entry in app_front::actions::server_actions(state) {
+            out.push(entry_row(&entry, "  "));
+        }
+    }
+    out
 }
 
 /// The Rules section (ADR 0015, SET-5): a row per sorting rule, then *Add a rule…*, *Apply to
@@ -186,6 +277,7 @@ fn rule_rows(state: &AppState) -> Vec<Row> {
             ),
             change: None,
             rule: Some(RuleRow::Rule(rule.id, rule.enabled)),
+            action: None,
         })
         .collect();
     if out.is_empty() {
@@ -200,6 +292,7 @@ fn rule_rows(state: &AppState) -> Vec<Row> {
         value: String::new(),
         change: None,
         rule: Some(RuleRow::Add),
+        action: None,
     });
     out.push(Row {
         key: s(Key::RulesApplyHere).to_owned(),
@@ -210,6 +303,7 @@ fn rule_rows(state: &AppState) -> Vec<Row> {
         },
         change: None,
         rule: Some(RuleRow::Apply),
+        action: None,
     });
     out.push(Row {
         key: s(Key::RulesStore).to_owned(),
@@ -221,6 +315,7 @@ fn rule_rows(state: &AppState) -> Vec<Row> {
         .to_owned(),
         change: None,
         rule: Some(RuleRow::Push),
+        action: None,
     });
     out
 }
@@ -274,6 +369,7 @@ fn synced_rows(state: &AppState) -> Vec<Row> {
             value: panel.account_label,
             change: Some(CommandName::SetSettingsAccount),
             rule: None,
+            action: None,
         },
         Row {
             key: s(Key::SettingsSyncState).to_owned(),
@@ -283,12 +379,14 @@ fn synced_rows(state: &AppState) -> Vec<Row> {
             },
             change: Some(CommandName::PullSettings),
             rule: None,
+            action: None,
         },
         Row {
             key: String::new(),
             value: panel.shared.to_owned(),
             change: None,
             rule: None,
+            action: None,
         },
     ]
 }
@@ -307,6 +405,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
             value: clean(&panel.status),
             change: None,
             rule: None,
+            action: None,
         });
         for action in &panel.actions {
             let (value, change) = match action {
@@ -321,6 +420,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                         value: clean(url),
                         change: None,
                         rule: None,
+                        action: None,
                     });
                     continue;
                 }
@@ -330,6 +430,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
                 value,
                 change: Some(change),
                 rule: None,
+                action: None,
             });
         }
     }
@@ -346,6 +447,7 @@ fn update_rows(state: &AppState) -> Vec<Row> {
         ),
         change: Some(CommandName::SetUpdatePolicy),
         rule: None,
+        action: None,
     });
     out
 }
@@ -361,17 +463,36 @@ pub struct Outcome {
     pub wizard: bool,
     /// The *Pair a device…* dialog to open.
     pub pair: bool,
+    /// The setup to open at *Connect to a dail server*.
+    pub connect: bool,
     /// The key was not the view's: let the keymap have it.
     pub unhandled: bool,
 }
 
 /// The settings view's cursor.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SettingsView {
     cursor: usize,
+    /// The clock and the time zone of the dates shown (devices, refusals).
+    when: (i64, Zone),
+}
+
+impl Default for SettingsView {
+    fn default() -> Self {
+        Self {
+            cursor: 0,
+            when: (0, app_front::format::utc),
+        }
+    }
 }
 
 impl SettingsView {
+    /// Sets the clock and the time zone of the dates shown; the TUI calls it before each frame
+    /// and key.
+    pub const fn at(&mut self, now_ms: i64, zone: Zone) {
+        self.when = (now_ms, zone);
+    }
+
     /// Handles a key while the settings are shown.
     pub fn key(&mut self, key: KeyEvent, state: &AppState) -> Outcome {
         let Some(section) = state.view.settings else {
@@ -380,7 +501,7 @@ impl SettingsView {
                 ..Outcome::default()
             };
         };
-        let rows = rows(state, section);
+        let rows = rows(state, section, self.when);
         if shown(section) == SettingsSection::Rules
             && let Some(outcome) =
                 rule_key(key.code, rows.get(self.cursor).and_then(|r| r.rule), state)
@@ -412,6 +533,17 @@ impl SettingsView {
                 let Some(row) = rows.get(self.cursor) else {
                     return outcome;
                 };
+                match &row.action {
+                    Some(RowAction::Connect) => outcome.connect = true,
+                    Some(RowAction::Run(Run::Pair)) => outcome.pair = true,
+                    Some(RowAction::Run(run)) => match run.flow(state) {
+                        Flow::Ask(step) => outcome.ask = Some(step),
+                        Flow::Run(cmd) => outcome.requests.push(Request::user(cmd)),
+                        Flow::Wizard => outcome.wizard = true,
+                        Flow::Password(_) | Flow::Hidden => {}
+                    },
+                    None => {}
+                }
                 let Some(name) = row.change else {
                     return outcome;
                 };
@@ -452,7 +584,7 @@ impl SettingsView {
         let Some(section) = state.view.settings else {
             return;
         };
-        let rows = rows(state, section);
+        let rows = rows(state, section, self.when);
         self.cursor = self.cursor.min(rows.len().saturating_sub(1));
         frame.render_widget(Clear, area);
         let block = if borders {

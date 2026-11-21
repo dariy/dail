@@ -1,11 +1,17 @@
-//! The top bar (UI-5): the search pill that opens the palette, the sync state and a status chip
-//! with a popover for pending changes, failures and their fixes, and a key hint.
+//! The top bar (UI-5): the search pill that opens the palette, the sync state, the link to a
+//! dail server (ADR 0017, SRV-6: *Online*, *Connecting…*, *Offline · 3 queued*, with a popover of
+//! its details and actions), a status chip with a popover for pending changes, failures and their
+//! fixes (a command the server refused offline with *Retry all* and *Dismiss*), and a key hint.
 //!
-//! The texts come from the shared status projections (`app_front::status`).
+//! The texts come from the shared projections (`app_front::status`, `app_front::server`) and
+//! the actions from the shared lists (`app_front::actions`).
 
 use app_core::{AppState, Command, CommandName};
+use app_front::actions::Entry;
+use app_front::format::Zone;
 use app_front::i18n::Key;
 use app_front::i18n::{self, Lang};
+use app_front::palette::{Ask, Flow};
 use app_front::status::{self, Fix, problems, sync_text};
 use app_theme::Icon;
 use egui::{Align, Layout, Ui};
@@ -19,17 +25,25 @@ fn popover_id() -> egui::Id {
     egui::Id::unique("dail-status-popover")
 }
 
-/// Renders the bar with the chrome group's tokens. Returns the problem's fix the shell runs: the
-/// password form, or the certificate step.
+/// What the bar asked for that the shell does.
+#[derive(Default)]
+pub struct BarActions {
+    /// A problem's fix: the password form, or the certificate step.
+    pub fix: Option<Fix>,
+    /// A palette step to open (*Disconnect…* confirms there).
+    pub ask: Option<Ask>,
+}
+
+/// Renders the bar with the chrome group's tokens.
 pub fn show(
     ui: &mut Ui,
     t: &Tokens,
     state: &AppState,
-    now_ms: i64,
+    (now_ms, zone): (i64, Zone),
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<Fix> {
-    let mut password = None;
+) -> BarActions {
+    let mut actions = BarActions::default();
     ui.horizontal_centered(|ui| {
         ui.spacing_mut().item_spacing.x = t.m.space.md;
         let palette_keys =
@@ -47,12 +61,122 @@ pub fn show(
                 t.s(Key::MoveHint),
                 t.text_muted,
             ));
-            password = status_chip(ui, t, state, lang, queue);
+            let chip = status_chip(ui, t, state, (now_ms, zone), lang, queue);
+            let link = link_chip(ui, t, state, lang, queue);
+            actions = BarActions {
+                fix: chip.fix,
+                ask: chip.ask.or(link),
+            };
             update_badge(ui, t, state, queue);
             sync_state(ui, t, state, now_ms, lang, queue);
         });
     });
-    password
+    actions
+}
+
+/// Runs an entry of a shared action list: its command goes into the queue, a confirmation
+/// step is returned for the palette.
+fn run_entry(entry: &Entry, state: &AppState, queue: &mut Vec<Request>) -> Option<Ask> {
+    match entry.run.flow(state) {
+        Flow::Run(cmd) => {
+            queue.push(Request::user(cmd));
+            None
+        }
+        Flow::Ask(step) => Some(step),
+        Flow::Password(_) | Flow::Wizard | Flow::Hidden => None,
+    }
+}
+
+/// The link to the dail server (ADR 0017): its state and the queue, as a chip whose popover
+/// shows the server, the pinned certificate, the revision, the last error and the link's
+/// actions. Nothing when this profile is not linked.
+fn link_chip(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    lang: Lang,
+    queue: &mut Vec<Request>,
+) -> Option<Ask> {
+    let summary = app_front::server::summary(state, lang)?;
+    let (icon, color) = match summary.tone {
+        app_front::server::Tone::Online => (Icon::Link, t.text_secondary),
+        app_front::server::Tone::Busy => (Icon::Sync, t.text_secondary),
+        app_front::server::Tone::Offline => (Icon::CloudOff, t.text_strong),
+    };
+    let job = ui::icon_text(icon, &summary.text, ui::font(&t.type_scale.label_sm), color);
+    let chip = egui::Button::new(job)
+        .fill(t.raised)
+        .stroke(egui::Stroke::new(t.m.stroke.hairline, t.border))
+        .corner_radius(ui::radius(t.m.radius.sm))
+        .min_size(egui::Vec2::new(0.0, t.m.controls.badge + t.m.space.xs));
+    let response = ui.add(chip);
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, &summary.text));
+    let id = popover_id().with("link");
+    let ctx = ui.ctx().clone();
+    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    if response.clicked() {
+        open = !open;
+    }
+    let mut ask = None;
+    if open {
+        let area = egui::Area::new(id.with("area"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(response.rect.left_bottom() + egui::Vec2::new(0.0, t.m.space.xs))
+            .show(&ctx, |ui| {
+                ui::overlay(t).show(ui, |ui| {
+                    ui.set_max_width(t.m.overlays.dialog_width);
+                    ui::caption(ui, t, t.s(Key::DailServer));
+                    link_fields(ui, t, state, lang);
+                    ui.add_space(t.m.space.sm);
+                    ui.horizontal_wrapped(|ui| {
+                        for entry in app_front::actions::link_actions(state) {
+                            if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                                ask = run_entry(&entry, state, queue);
+                            }
+                        }
+                    });
+                });
+            });
+        if area.response.clicked_elsewhere() && !response.clicked() {
+            open = false;
+        }
+        if ask.is_some() {
+            open = false;
+        }
+    }
+    ctx.data_mut(|d| d.insert_temp(id, open));
+    ask
+}
+
+/// The link's details (`app_front::server::details`) as a two-column grid, the fingerprint in
+/// monospace.
+pub fn link_fields(ui: &mut Ui, t: &Tokens, state: &AppState, lang: Lang) {
+    egui::Grid::new(ui.next_auto_id())
+        .num_columns(2)
+        .spacing([t.m.space.md, t.m.space.xs])
+        .show(ui, |ui| {
+            for field in app_front::server::details(state, lang) {
+                ui.label(ui::text(
+                    &t.type_scale.label_md,
+                    field.label.as_str(),
+                    t.text_muted,
+                ));
+                let mono = field.label == t.s(Key::PairingFingerprint);
+                ui.vertical(|ui| {
+                    for line in &field.lines {
+                        let text = if mono {
+                            egui::RichText::new(line.as_str())
+                                .font(ui::mono(t.type_scale.label_md.size))
+                                .color(t.text)
+                        } else {
+                            ui::text(&t.type_scale.body_md, line.as_str(), t.text)
+                        };
+                        ui.add(egui::Label::new(text).selectable(true));
+                    }
+                });
+                ui.end_row();
+            }
+        });
 }
 
 /// `Update 1.2.3` while a new version waits (Wave 7 F1); a click opens the update panel.
@@ -138,10 +262,13 @@ fn status_chip(
     ui: &mut Ui,
     t: &Tokens,
     state: &AppState,
+    when: (i64, Zone),
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<Fix> {
-    let (text, alarming) = chip_text(state, lang)?;
+) -> BarActions {
+    let Some((text, alarming)) = chip_text(state, lang) else {
+        return BarActions::default();
+    };
     let color = if alarming { t.danger } else { t.text_secondary };
     let icon = if alarming {
         Icon::Warning
@@ -163,7 +290,7 @@ fn status_chip(
     if response.clicked() {
         open = !open;
     }
-    let mut password = None;
+    let mut actions = BarActions::default();
     if open {
         let area = egui::Area::new(popover_id().with("area"))
             .order(egui::Order::Foreground)
@@ -171,7 +298,7 @@ fn status_chip(
             .show(&ctx, |ui| {
                 ui::overlay(t).show(ui, |ui| {
                     ui.set_max_width(t.m.overlays.dialog_width);
-                    password = details(ui, t, state, lang, queue);
+                    actions = details(ui, t, state, when, lang, queue);
                 });
             });
         if area.response.clicked_elsewhere() && !response.clicked() {
@@ -179,18 +306,21 @@ fn status_chip(
         }
     }
     ctx.data_mut(|d| d.insert_temp(popover_id(), open));
-    password
+    actions
 }
 
-/// The popover's contents: pending changes with *retry*, server search, problems with fixes.
+/// The popover's contents: pending changes with *retry*, server search, problems with fixes (a
+/// refused offline command with its error, its time and the shared *Retry all* / *Dismiss*).
 fn details(
     ui: &mut Ui,
     t: &Tokens,
     state: &AppState,
+    (now_ms, zone): (i64, Zone),
     lang: Lang,
     queue: &mut Vec<Request>,
-) -> Option<Fix> {
-    let mut password = None;
+) -> BarActions {
+    let mut actions = BarActions::default();
+    let refused = app_front::server::rejections(state, lang, now_ms, zone);
     let small = |text: String, color| ui::text(&t.type_scale.label_md, text, color);
     if let Some((text, failed)) = status::pending_text(state, lang) {
         ui.horizontal(|ui| {
@@ -212,6 +342,17 @@ fn details(
         ui.label(small(t.s(Key::SearchingServer).to_owned(), t.text_muted));
     }
     for problem in problems(state, lang) {
+        if let Some(Fix::Refused(id)) = problem.fix {
+            refusal(
+                ui,
+                t,
+                state,
+                &problem,
+                refused.iter().find(|r| r.id == id),
+                queue,
+            );
+            continue;
+        }
         ui.horizontal(|ui| {
             let hover = match problem.hint {
                 Some(hint) => format!("{hint}\n\n{}", problem.detail),
@@ -222,16 +363,46 @@ fn details(
                 && ui::ghost(ui, t, small(fix.label(lang), t.text_strong)).clicked()
             {
                 match fix {
-                    Fix::Password(_) | Fix::Trust(_) => password = Some(fix),
+                    Fix::Password(_) | Fix::Trust(_) => actions.fix = Some(fix),
                     Fix::Retry(account) => queue.push(Request::user(Command::SyncNow {
                         account: Some(account),
                     })),
                     Fix::Test(id) => queue.push(Request::user(Command::TestAccount { id })),
+                    Fix::Refused(_) => {}
                 }
             }
         });
     }
-    password
+    actions
+}
+
+/// A command the dail server refused after an offline period: its title, the error and when,
+/// and the shared actions (*Retry all*, *Dismiss*).
+fn refusal(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    problem: &status::Problem,
+    rejection: Option<&app_front::server::Rejection>,
+    queue: &mut Vec<Request>,
+) {
+    let small = |text: String, color| ui::text(&t.type_scale.label_md, text, color);
+    let hover = problem.hint.clone().unwrap_or_default();
+    ui.label(small(problem.text.clone(), t.danger))
+        .on_hover_text(hover);
+    if let Some(rejection) = rejection {
+        ui.label(small(
+            format!("{} · {}", rejection.error, rejection.when),
+            t.text_secondary,
+        ));
+        ui.horizontal(|ui| {
+            for entry in app_front::actions::rejection_actions(state, rejection.id) {
+                if ui::ghost(ui, t, small(t.s(entry.label).to_owned(), t.text_strong)).clicked() {
+                    run_entry(&entry, state, queue);
+                }
+            }
+        });
+    }
 }
 
 /// The undo offer in the list footer: “label” and *Undo* with its key. Returns whether it was

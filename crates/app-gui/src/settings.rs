@@ -30,6 +30,8 @@ pub struct SettingsActions {
     pub wizard: bool,
     /// Open the *Pair a device…* dialog.
     pub pair: bool,
+    /// Open the account wizard at *Connect to a dail server*.
+    pub connect: bool,
     /// Open the password form for this account.
     pub password: Option<AccountId>,
     /// Open the palette at this step (*Change…* on a key binding, *Install…* of an update).
@@ -131,6 +133,8 @@ impl SettingsState {
                     }
                     SettingsSection::Accounts => {
                         self.accounts(ui, t, state, &mut actions, queue);
+                        server(ui, t, state, &mut actions, queue);
+                        devices(ui, t, state, (now_ms, zone), &mut actions, queue);
                     }
                     SettingsSection::Rules => rules(ui, t, state, &mut actions, queue),
                     SettingsSection::About => about(ui, t, &mut actions),
@@ -203,23 +207,112 @@ impl SettingsState {
             if ui::primary(ui, t, t.s(Key::AddAccount), None, true) {
                 actions.wizard = true;
             }
-            // The server's actions (SRV-QR1): *Pair a device…* opens the pairing dialog.
-            for entry in app_front::actions::server_actions(state) {
+            // SRV-6: a profile without accounts can become a device of a dail server.
+            if app_front::connect::availability(state) == app_front::connect::Availability::Open
+                && ui::secondary(ui, t, t.s(Key::ConnectToServer), None, true)
+            {
+                actions.connect = true;
+            }
+        });
+    }
+}
+
+/// Runs an entry of a shared action list (`app_front::actions`).
+fn run_entry(
+    entry: &app_front::actions::Entry,
+    state: &AppState,
+    actions: &mut SettingsActions,
+    queue: &mut Vec<Request>,
+) {
+    match &entry.run {
+        app_front::actions::Run::Pair => actions.pair = true,
+        run => match run.flow(state) {
+            Flow::Run(cmd) => queue.push(Request::user(cmd)),
+            Flow::Ask(step) => actions.ask = Some(step),
+            Flow::Password(id) => actions.password = Some(id),
+            Flow::Wizard => actions.wizard = true,
+            Flow::Hidden => {}
+        },
+    }
+}
+
+/// The dail server this profile mirrors (ADR 0017, SRV-6): the link's details and actions
+/// (*Retry refused changes*, *Disconnect…*). Nothing without a link.
+fn server(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    actions: &mut SettingsActions,
+    queue: &mut Vec<Request>,
+) {
+    if state.link.is_none() {
+        return;
+    }
+    ui.add_space(t.m.space.lg);
+    ui::caption(ui, t, t.s(Key::DailServer));
+    ui::card(t).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        crate::topbar::link_fields(ui, t, state, t.lang);
+        ui.add_space(t.m.space.sm);
+        ui.horizontal_wrapped(|ui| {
+            for entry in app_front::actions::link_actions(state) {
                 if ui::secondary(ui, t, t.s(entry.label), None, true) {
-                    match entry.run {
-                        app_front::actions::Run::Pair => actions.pair = true,
-                        run => match run.flow(state) {
-                            Flow::Run(cmd) => queue.push(Request::user(cmd)),
-                            Flow::Ask(step) => actions.ask = Some(step),
-                            Flow::Password(id) => actions.password = Some(id),
-                            Flow::Wizard => actions.wizard = true,
-                            Flow::Hidden => {}
-                        },
-                    }
+                    run_entry(&entry, state, actions, queue);
+                }
+            }
+        });
+    });
+}
+
+/// *Devices* (ADR 0017, SRV-6), on a dail server or a device of one: each paired device with
+/// its role, pairing date and last connection and *Revoke…*, then *Pair a device…*. They come
+/// with the state (the server's diffs on a device), so the list follows without polling.
+fn devices(
+    ui: &mut Ui,
+    t: &Tokens,
+    state: &AppState,
+    (now_ms, zone): (i64, app_front::format::Zone),
+    actions: &mut SettingsActions,
+    queue: &mut Vec<Request>,
+) {
+    if !app_front::server::shows_devices(state) {
+        return;
+    }
+    ui.add_space(t.m.space.lg);
+    ui::caption(ui, t, t.s(Key::Devices));
+    ui.label(ui::text(
+        &t.type_scale.body_sm,
+        t.s(Key::DevicesHint),
+        t.text_muted,
+    ));
+    ui.add_space(t.m.space.xs);
+    let rows = app_front::server::devices(state, t.lang, now_ms, zone);
+    if rows.is_empty() {
+        ui.label(ui::text(
+            &t.type_scale.body_md,
+            t.s(Key::NoDevices),
+            t.text_secondary,
+        ));
+    }
+    for device in rows {
+        let detail = format!("{} · {} · {}", device.role, device.paired, device.seen);
+        row(ui, t, &device.name, &detail, |ui| {
+            for entry in app_front::actions::device_actions(state, device.id) {
+                if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                    run_entry(&entry, state, actions, queue);
                 }
             }
         });
     }
+    ui.add_space(t.m.space.sm);
+    ui.horizontal_wrapped(|ui| {
+        // The server's actions (SRV-QR1): *Pair a device…* opens the pairing dialog.
+        for entry in app_front::actions::server_actions(state) {
+            if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                run_entry(&entry, state, actions, queue);
+            }
+        }
+    });
 }
 
 /// A row of the page: a label and a description on the left, the control on the right.

@@ -192,18 +192,22 @@ const fn row(name: CommandName) -> Row {
         N::ApproveRequest | N::RejectRequest => Row(C, C, P),
         // Touch has no visible control for it (the back arrow shows only over other panes).
         N::ClearSearch => Row(C, C, P),
-        // The dail server's devices and the link to it (ADR 0017): only through the palette
-        // until SRV-6 builds the Devices page and the connection settings.
-        // *Pair a device…* in the Accounts settings of the GUI and the TUI
-        // (`actions::server_actions`): its dialog's *Pair* runs it (SRV-QR1). Phones pair as
-        // devices (SRV-7), so touch keeps the palette.
+        // The dail server (ADR 0017). *Pair a device…* in the Devices settings of the GUI and
+        // the TUI (`actions::server_actions`): its dialog's *Pair* runs it (SRV-QR1). Phones
+        // pair as devices (SRV-7), so touch keeps the palette for all of these.
         N::StartPairing => Row(C, C, P),
-        N::ListDevices
-        | N::RevokeDevice
-        | N::ConnectServer
-        | N::TrustServer
-        | N::DisconnectServer
-        | N::RetryOffline
-        | N::DismissOfflineRejection => Row(P, P, P),
+        // *Connect to a dail server instead* in the account wizards (SRV-6): its *Connect* and
+        // *Pair* buttons (the TUI's Enter on each step) submit them.
+        N::ConnectServer | N::TrustServer => Row(C, C, P),
+        // The shared lists (`actions::rejection_actions`, `link_actions`): *Retry all* and
+        // *Dismiss* next to a refused change in the problems (GUI: the status chip's popover;
+        // TUI: the Accounts settings' rows), *Retry refused changes* in the link details.
+        N::RetryOffline | N::DismissOfflineRejection => Row(C, C, P),
+        // *Disconnect…* (`actions::link_actions`: the GUI's link popover and settings, the TUI's
+        // Accounts settings) and *Revoke…* (`actions::device_actions`, the Devices settings)
+        // open the palette's confirmation.
+        N::DisconnectServer | N::RevokeDevice => Row(F, F, P),
+        // The Devices settings draw `state.devices` without running the query.
+        N::ListDevices => Row(P, P, P),
     }
 }

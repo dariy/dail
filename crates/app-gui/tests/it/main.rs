@@ -15,6 +15,7 @@ mod pairing;
 mod palette;
 mod reader;
 mod scale;
+mod server;
 mod settings;
 mod shell;
 mod style;

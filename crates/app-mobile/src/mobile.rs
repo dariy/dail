@@ -1945,7 +1945,7 @@ impl Mobile {
         let Some(problem) = status::problems(state, self.lang).into_iter().next() else {
             return self.update_banner(state);
         };
-        let action = problem.fix.map(|fix| {
+        let action = problem.fix.and_then(|fix| {
             let act = match fix {
                 Fix::Retry(account) => Act::Run(Command::SyncNow {
                     account: Some(account),
@@ -1955,12 +1955,15 @@ impl Mobile {
                 Fix::Trust(account) => {
                     Act::Action(app_front::actions::Run::TrustCertificate(account))
                 }
+                // A dail server's refusal (ADR 0017): phones are not devices before SRV-7, so
+                // the banner only tells (the palette retries or dismisses).
+                Fix::Refused(_) => return None,
             };
-            Button {
+            Some(Button {
                 icon: None,
                 label: fix.label(self.lang),
                 action: self.add(act),
-            }
+            })
         });
         Some(Banner {
             text: clean(&problem.text),

@@ -466,14 +466,29 @@ fn revoke_device(state: &AppState) -> Flow {
             let Some((id, name)) = devices.get(i).cloned() else {
                 return Flow::Hidden;
             };
-            ask(
-                crate::i18n::s(Key::RevokeThisDevice),
-                AskKind::Confirm(crate::i18n::f(Key::RevokeName, &[("name", &name)])),
-                move |_, choice| match choice {
-                    Choice::Yes => Flow::Run(Command::RevokeDevice { id, confirm: true }),
-                    _ => Flow::Hidden,
-                },
-            )
+            confirm_revoke(id, &name)
+        },
+    )
+}
+
+/// The confirmation step of `revoke_device` for device `id` (the *Devices* settings' *Revoke…*
+/// starts here).
+pub fn revoke_this_device(state: &AppState, id: app_core::DeviceId) -> Flow {
+    let name = state
+        .devices
+        .get(&id)
+        .map(|d| d.name.clone())
+        .unwrap_or_default();
+    confirm_revoke(id, &name)
+}
+
+fn confirm_revoke(id: app_core::DeviceId, name: &str) -> Flow {
+    ask(
+        crate::i18n::s(Key::RevokeThisDevice),
+        AskKind::Confirm(crate::i18n::f(Key::RevokeName, &[("name", name)])),
+        move |_, choice| match choice {
+            Choice::Yes => Flow::Run(Command::RevokeDevice { id, confirm: true }),
+            _ => Flow::Hidden,
         },
     )
 }
@@ -532,8 +547,8 @@ fn trust_server(state: &AppState) -> Flow {
     )
 }
 
-/// `disconnect_server`: the confirmation.
-fn disconnect_server(state: &AppState) -> Flow {
+/// `disconnect_server`: the confirmation (the link's *Disconnect…* starts here).
+pub fn disconnect_server(state: &AppState) -> Flow {
     let server = state
         .link
         .as_ref()

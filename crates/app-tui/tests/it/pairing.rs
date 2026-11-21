@@ -36,8 +36,12 @@ fn the_accounts_settings_pair_a_device_with_a_qr_code() {
     });
     let screen = t.screen();
     assert!(screen.contains("Pair a device…"), "{screen}");
-    t.key(KeyCode::Down); // the account, Add an account, Pair a device…
-    t.key(KeyCode::Down);
+    // The account, Add an account, then Devices (SRV-6): none paired yet, Pair a device….
+    let screen = t.screen();
+    assert!(screen.contains("No device is paired yet."), "{screen}");
+    for _ in 0..4 {
+        t.key(KeyCode::Down);
+    }
     t.key(KeyCode::Enter);
     let screen = t.screen();
     assert!(screen.contains("Pair which kind of device?"), "{screen}");

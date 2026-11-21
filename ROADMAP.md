@@ -1335,8 +1335,14 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-QR1 (S) [front][cli][tui][gui]: `app_front::qr` (`qrcode`) and `app_front::pairing` (the `dail://pair` URI
   and its strict parser); half-blocks in the terminal and the TUI, the *Pair a device…* dialog in the GUI; a round trip
   through `rqrr` in tests
-- [ ] SRV-6 (M) [front][gui][tui]: *Connect to a dail server* in the account wizards, the link in the status bar,
+- [x] SRV-6 (M) [front][gui][tui]: *Connect to a dail server* in the account wizards, the link in the status bar,
   offline rejections in the problems list, and *Devices* in settings
+  *(GUI: the wizard's first step and the Accounts settings' *Connect to a dail server*, a link chip in the top bar
+  with its details popover, refusals with *Retry all* / *Dismiss* in the status chip's popover, the *dail server*
+  and *Devices* cards in the Accounts settings; TUI: the setup's last choice, the link in the status line (a tap
+  opens the Accounts settings), refusals in the status line and `?`, the *dail server* and *Devices* rows in the
+  Accounts settings; touch: palette until SRV-7. `list_devices` stays palette-only: the Devices settings draw
+  `state.devices`. ARCHITECTURE §5.6 *In the front ends*, §7.1, §7.4.)*
 - [ ] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
   through `External::PickFiles`
 - [ ] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)

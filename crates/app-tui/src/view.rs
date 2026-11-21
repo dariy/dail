@@ -293,9 +293,9 @@ pub struct StatusParts<'a> {
 }
 
 /// The status line, `width` columns: the parts that fit, most important first — a send's
-/// countdown, the latest notice, problems (store, keyring, login, sync), pending and failed
-/// changes, the latest undoable action with `z`, a waiting update, and the sync state — then `? help` if there is
-/// room.
+/// countdown, the latest notice, problems (store, keyring, login, sync, a dail server's refusals),
+/// pending and failed changes, the latest undoable action with `z`, a waiting update, the link to
+/// a dail server, and the sync state — then `? help` if there is room.
 pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16) -> Line<'static> {
     use app_front::status;
     if let Some(prompt) = parts.prompt {
@@ -323,6 +323,7 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
             Some(status::Fix::Retry(_)) => s(Key::FixPaletteSync),
             Some(status::Fix::Test(_)) => s(Key::FixPaletteTest),
             Some(status::Fix::Trust(_)) => s(Key::FixPaletteTrust),
+            Some(status::Fix::Refused(_)) => s(Key::FixSettingsAccounts),
             None => "",
         };
         segments.push((format!("{}{fix}{more}", clean(&first.text)), bold()));
@@ -347,6 +348,15 @@ pub fn status(state: &AppState, now_ms: i64, parts: &StatusParts<'_>, width: u16
         segments.push((f(Key::BadgeSettings, &[("badge", &badge)]), bold()));
     } else if app_front::updates::ask_first_run(state) {
         segments.push((s(Key::UpdatesQuestion).to_owned(), Style::default()));
+    }
+    // The link to a dail server (ADR 0017): `Offline · 3 queued`; its details and actions are
+    // in the Accounts settings (a tap on the line opens them).
+    if let Some(link) = app_front::server::summary(state, parts.lang) {
+        let style = match link.tone {
+            app_front::server::Tone::Offline => bold(),
+            app_front::server::Tone::Online | app_front::server::Tone::Busy => Style::default(),
+        };
+        segments.push((link.text, style));
     }
     segments.push((status::sync_text(state, now_ms, parts.lang), dim()));
     if status::searching(state) {

@@ -15,6 +15,7 @@ mod palette;
 mod reader;
 mod run;
 mod send;
+mod server;
 mod settings;
 mod setup;
 mod shell;
