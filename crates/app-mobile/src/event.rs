@@ -34,6 +34,10 @@ pub enum Field {
     /// Account setup: the password. It never comes back in a frame: the presenter moves it
     /// into a `Secret` for the keyring.
     Password,
+    /// *Connect to a dail server*: the server (`host[:port]`), or a pasted `dail://pair` link.
+    Server,
+    /// *Connect to a dail server*: the 8-character pairing code.
+    Code,
 }
 
 /// One event from the host, in the order the user caused it. Kotlin never builds a command: it
@@ -173,6 +177,15 @@ pub enum UiEvent {
         /// The shared files' URIs (`EXTRA_STREAM`).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         files: Vec<String>,
+    },
+    /// A `dail://pair` link from outside the app (the system's deep link, the in-app scanner):
+    /// opens *Connect to a dail server* with it. The presenter reads it as untrusted input
+    /// (`app_front::pairing::parse_uri`) and contacts the server it names; the user still compares
+    /// the fingerprint and taps *Pair*. Ignored, with a note, on a phone that already has
+    /// accounts or a server.
+    PairLink {
+        /// The link, as read.
+        uri: String,
     },
 }
 

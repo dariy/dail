@@ -20,12 +20,12 @@
   "setup": {
     "actions": [
       {
-        "action": 6,
+        "action": 7,
         "label": "Next"
       }
     ],
     "back": {
-      "action": 7,
+      "action": 8,
       "label": "Cancel"
     },
     "busy": false,
@@ -47,6 +47,12 @@
         "action": 5,
         "hint": "Enter the servers yourself, or find them.",
         "label": "Other IMAP / SMTP",
+        "selected": false
+      },
+      {
+        "action": 6,
+        "hint": "Your accounts stay on a dail server you run (dail serve); this device mirrors its mail.",
+        "label": "Connect to a dail server",
         "selected": false
       }
     ],

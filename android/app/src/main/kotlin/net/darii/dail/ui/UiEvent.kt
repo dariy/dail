@@ -46,6 +46,12 @@ enum class Field(
 
     @SerialName("password")
     Password("password"),
+
+    @SerialName("server")
+    Server("server"),
+
+    @SerialName("code")
+    Code("code"),
 }
 
 /**
@@ -205,6 +211,13 @@ sealed interface UiEvent {
                 text?.let { put("text", it) }
                 if (files.isNotEmpty()) putJsonArray("files") { files.forEach { add(it) } }
             }
+    }
+
+    /** A `dail://pair` link from outside the app (the deep link, the scanner); Rust reads it. */
+    data class PairLink(
+        val uri: String,
+    ) : UiEvent {
+        override fun json() = event("pair_link") { put("uri", uri) }
     }
 }
 

@@ -148,6 +148,20 @@ fn frames() -> Vec<(String, Frame)> {
         text: "me@example.org".to_owned(),
     });
     out.push(("setup_address".to_owned(), phone.frame()));
+    // *Connect to a dail server* (SRV-7): the fingerprint to compare and the code, from a link.
+    let mut phone = Phone::new(AppState::default(), 360, 800);
+    phone.event(UiEvent::PairLink {
+        uri: format!(
+            "dail://pair?v=1&h=home.example&p=7443&c=abcd2345&fp={}&n=Laptop",
+            "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"
+        ),
+    });
+    phone.ingest(app_core::Event::ServerOffered {
+        host: "home.example".to_owned(),
+        port: 7443,
+        fingerprint: "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03".to_owned(),
+    });
+    out.push(("connect_compare".to_owned(), phone.frame()));
     for (name, section) in [
         ("settings_general", app_core::SettingsSection::General),
         ("settings_accounts", app_core::SettingsSection::Accounts),
@@ -253,6 +267,9 @@ fn events() -> Vec<UiEvent> {
             text: Some("Here".to_owned()),
             files: vec!["content://com.example.files/a.pdf".to_owned()],
         },
+        UiEvent::PairLink {
+            uri: "dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop".to_owned(),
+        },
     ];
     for event in &all {
         match event {
@@ -273,7 +290,8 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Key { .. }
             | UiEvent::KeyDown { .. }
             | UiEvent::Tick
-            | UiEvent::Share { .. } => {}
+            | UiEvent::Share { .. }
+            | UiEvent::PairLink { .. } => {}
         }
     }
     all

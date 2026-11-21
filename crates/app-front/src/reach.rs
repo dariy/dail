@@ -194,19 +194,21 @@ const fn row(name: CommandName) -> Row {
         N::ClearSearch => Row(C, C, P),
         // The dail server (ADR 0017). *Pair a device…* in the Devices settings of the GUI and
         // the TUI (`actions::server_actions`): its dialog's *Pair* runs it (SRV-QR1). Phones
-        // pair as devices (SRV-7), so touch keeps the palette for all of these.
+        // pair as devices (SRV-7) and draw no QR code, so touch keeps the palette.
         N::StartPairing => Row(C, C, P),
-        // *Connect to a dail server instead* in the account wizards (SRV-6): its *Connect* and
-        // *Pair* buttons (the TUI's Enter on each step) submit them.
-        N::ConnectServer | N::TrustServer => Row(C, C, P),
+        // *Connect to a dail server instead* in the account wizards (SRV-6), *Connect to a dail
+        // server* in the phone's setup (SRV-7): its *Connect* and *Pair* buttons (the TUI's
+        // Enter on each step) submit them.
+        N::ConnectServer | N::TrustServer => Row(C, C, C),
         // The shared lists (`actions::rejection_actions`, `link_actions`): *Retry all* and
         // *Dismiss* next to a refused change in the problems (GUI: the status chip's popover;
-        // TUI: the Accounts settings' rows), *Retry refused changes* in the link details.
-        N::RetryOffline | N::DismissOfflineRejection => Row(C, C, P),
+        // TUI: the Accounts settings' rows; touch: the problem banner and the Accounts
+        // settings' *dail server* group), *Retry refused changes* in the link details.
+        N::RetryOffline | N::DismissOfflineRejection => Row(C, C, C),
         // *Disconnect…* (`actions::link_actions`: the GUI's link popover and settings, the TUI's
-        // Accounts settings) and *Revoke…* (`actions::device_actions`, the Devices settings)
-        // open the palette's confirmation.
-        N::DisconnectServer | N::RevokeDevice => Row(F, F, P),
+        // and the phone's Accounts settings) and *Revoke…* (`actions::device_actions`, the
+        // Devices settings) open the palette's confirmation.
+        N::DisconnectServer | N::RevokeDevice => Row(F, F, F),
         // The Devices settings draw `state.devices` without running the query.
         N::ListDevices => Row(P, P, P),
     }

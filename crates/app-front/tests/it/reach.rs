@@ -74,6 +74,8 @@ const FLOW_TOUCH: &[&str] = &[
     "mark_mailbox_read",
     "move_threads",
     "set_search",
+    "revoke_device",
+    "disconnect_server",
 ];
 
 fn with(front: FrontEnd, value: Reach) -> Vec<&'static str> {
@@ -208,13 +210,7 @@ fn the_touch_gaps_are_pinned() {
             "approve_request",
             "reject_request",
             "list_devices",
-            "start_pairing",
-            "revoke_device",
-            "connect_server",
-            "trust_server",
-            "disconnect_server",
-            "retry_offline",
-            "dismiss_offline_rejection"
+            "start_pairing"
         ]
     );
     assert!(with(FrontEnd::Touch, Reach::Never).is_empty());
@@ -471,10 +467,11 @@ fn every_palette_entry_is_offered() {
     }
 }
 
-/// The dail server's lists (SRV-6) are drawn by the GUI and the TUI: what they offer has a
-/// control there; touch keeps the palette until SRV-7.
+/// The dail server's lists (SRV-6, SRV-7) are drawn by the GUI, the TUI and touch (but for
+/// `server_actions`' *Pair a device…*, which needs the pairing dialog's QR code): what they offer
+/// has a control there.
 #[test]
-fn what_the_server_lists_offer_has_a_control_on_the_gui_and_the_tui() {
+fn what_the_server_lists_offer_has_a_control_on_every_front_end() {
     use app_core::{
         Command, Device, DeviceRole, IdGen, LinkState, OfflineRejection, Origin, ServeInfo,
         ServerEndpoint,
@@ -535,8 +532,11 @@ fn what_the_server_lists_offer_has_a_control_on_the_gui_and_the_tui() {
     ] {
         assert!(names.contains(&name), "the fixtures reach {name:?}");
     }
-    for front in [FrontEnd::Gui, FrontEnd::Tui] {
-        for name in &names {
+    for front in FrontEnd::ALL.iter().copied() {
+        for name in names
+            .iter()
+            .filter(|n| front != FrontEnd::Touch || **n != CommandName::StartPairing)
+        {
             assert!(
                 matches!(reach(*name, front), Reach::Control | Reach::Flow),
                 "{front:?}: {} is in a server list, so it is not {:?}",
@@ -545,9 +545,10 @@ fn what_the_server_lists_offer_has_a_control_on_the_gui_and_the_tui() {
             );
         }
     }
-    // The wizards' connect step submits these.
+    // The wizards' and the phone setup's connect step submits these.
     for name in [CommandName::ConnectServer, CommandName::TrustServer] {
-        assert_eq!(reach(name, FrontEnd::Gui), Reach::Control);
-        assert_eq!(reach(name, FrontEnd::Tui), Reach::Control);
+        for front in FrontEnd::ALL.iter().copied() {
+            assert_eq!(reach(name, front), Reach::Control);
+        }
     }
 }

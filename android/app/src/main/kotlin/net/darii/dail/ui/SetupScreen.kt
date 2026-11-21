@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ fun SetupScreen(
             sheet.fields.forEach { SetupTextField(it, send) }
             sheet.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             sheet.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            sheet.fingerprints.forEach { FingerprintBlock(it) }
             if (sheet.busy) CircularProgressIndicator()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionButton(sheet.back, send)
@@ -79,6 +81,21 @@ fun SetupScreen(
                             TextButton(onClick = { send(UiEvent.Tap(button.action)) }) { Text(button.label) }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+/** A fingerprint to compare with the server's: its label, then its lines in a monospace font. */
+@Composable
+private fun FingerprintBlock(fingerprint: Fingerprint) {
+    Column {
+        Text(fingerprint.label, style = MaterialTheme.typography.labelMedium)
+        SelectionContainer {
+            Column {
+                fingerprint.lines.forEach {
+                    Text(it, style = MaterialTheme.typography.bodyLarge, fontFamily = Mono)
                 }
             }
         }
@@ -109,6 +126,14 @@ private fun SetupTextField(
             InputKind.Password -> {
                 KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false) to
                     ContentType.Password
+            }
+
+            InputKind.Code -> {
+                KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters,
+                    keyboardType = KeyboardType.Ascii,
+                    autoCorrectEnabled = false,
+                ) to null
             }
         }
     OutlinedTextField(

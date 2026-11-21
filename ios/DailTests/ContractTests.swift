@@ -73,6 +73,7 @@ final class ContractTests: XCTestCase {
             "share": .share(
                 mailto: "mailto:bob@example.org?subject=Hi", to: ["carol@example.org"], subject: "Photos",
                 text: "Here", files: ["content://com.example.files/a.pdf"]),
+            "pair_link": .pairLink("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
             "swipe": .swipe(9),
             "pinch": .pinch(zoomIn: true),
             "tap": .tap(7),

@@ -112,6 +112,8 @@ class ContractTest {
                             put("thread", "00000000-0000-0000-0000-000000000009")
                         },
                     ),
+                "pair_link" to
+                    UiEvent.PairLink("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
                 "pinch" to UiEvent.Pinch(zoomIn = true),
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
                 "share" to

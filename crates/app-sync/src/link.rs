@@ -843,6 +843,21 @@ impl RemoteSession {
         &self.link
     }
 
+    /// Dials the server now instead of waiting out the back-off, when the link is down (a
+    /// phone's network came back). Does nothing while it connects or is connected, or without
+    /// a pinned server.
+    pub fn dial_now(&self) {
+        let offline = self
+            .local
+            .state()
+            .link
+            .as_ref()
+            .is_some_and(|link| link.status == LinkStatus::Offline);
+        if offline && self.linked() && !self.link.is_online() {
+            self.link.reconnect();
+        }
+    }
+
     /// Whether the profile is linked to a server it can connect to (a pinned server).
     fn linked(&self) -> bool {
         pinned(&self.local.state()).is_some()

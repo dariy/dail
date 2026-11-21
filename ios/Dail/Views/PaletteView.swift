@@ -65,7 +65,7 @@ struct FrameTextField: View {
                     .keyboardType(kind == .email ? .emailAddress : kind == .server ? .URL : .default)
             }
         }
-        .textInputAutocapitalization(kind == .name ? .words : .never)
+        .textInputAutocapitalization(kind == .name ? .words : kind == .code ? .characters : .never)
         .autocorrectionDisabled(kind != .name)
         .focused($focused)
         .onAppear { load(); if field == .query || kind != nil { focused = true } }
@@ -80,7 +80,7 @@ struct FrameTextField: View {
         case .name: .name
         case .server: .URL
         case .password: .password
-        case nil: nil
+        case .code, nil: nil
         }
     }
 

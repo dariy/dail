@@ -77,7 +77,9 @@ const fn recipients(field: Field) -> Option<compose::Field> {
         | Field::Name
         | Field::Imap
         | Field::Smtp
-        | Field::Password => None,
+        | Field::Password
+        | Field::Server
+        | Field::Code => None,
     }
 }
 

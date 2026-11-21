@@ -1,0 +1,22 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&paired"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "home.example:7443",
+  "presets": [],
+  "fields": [],
+  "note": "Paired with home.example:7443: its certificate is pinned and this device now mirrors its mail.\nConnecting…",
+  "busy": false,
+  "actions": [
+    {
+      "label": "Close",
+      "action": 39
+    }
+  ],
+  "back": {
+    "label": "Close",
+    "action": 40
+  }
+}

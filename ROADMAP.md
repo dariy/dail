@@ -1343,7 +1343,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
   opens the Accounts settings), refusals in the status line and `?`, the *dail server* and *Devices* rows in the
   Accounts settings; touch: palette until SRV-7. `list_devices` stays palette-only: the Devices settings draw
   `state.devices`. ARCHITECTURE §5.6 *In the front ends*, §7.1, §7.4.)*
-- [ ] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
+- [x] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
   through `External::PickFiles`
 - [ ] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
 - [ ] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera

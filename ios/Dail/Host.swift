@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import UniformTypeIdentifiers
 
 /// What the app shows: opening, a frame, or why the session could not open.
 enum Screen {
@@ -123,6 +124,8 @@ final class Host: ObservableObject {
             if let url = external.args?.url.flatMap(URL.init(string:)) { UIApplication.shared.open(url) }
         case "haptic":
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case "pick_files":
+            if let draft = external.args?.draft { pick(draft: draft) }
         case "system_settings":
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
         default:
@@ -159,6 +162,42 @@ final class Host: ObservableObject {
         }
     }
 
+    /// *Attach*: the system's document picker, several files. `asCopy` puts each picked file in
+    /// the app's own sandbox, so no security-scoped URL has to outlive the picker. The host then
+    /// copies each one into `outgoing` and attaches it to `draft` (`background`'s `import`; on a
+    /// device of a dail server that uploads it), and the picker's copy is removed.
+    @MainActor
+    private func pick(draft: String) {
+        guard let root = Self.topController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.item], asCopy: true)
+        picker.allowsMultipleSelection = true
+        let importer = Importer { [weak self] urls in self?.attach(urls, to: draft) }
+        picker.delegate = importer
+        objc_setAssociatedObject(picker, &Importer.key, importer, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        root.present(picker, animated: true)
+    }
+
+    /// Hands each picked file to the host, off the main thread (an import blocks while it copies).
+    private func attach(_ urls: [URL], to draft: String) {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            let handle = ui.sync { self.handle }
+            for url in urls {
+                if handle > 0 {
+                    let task: JSON = .object([
+                        "import": .object([
+                            "draft": .string(draft),
+                            "name": .string(url.lastPathComponent),
+                            "source": .string(url.path),
+                        ]),
+                    ])
+                    // A file that cannot be copied shows in the snackbar (the host says so).
+                    _ = Native.background(handle: handle, task: task.text)
+                }
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
     @MainActor
     private static func topController() -> UIViewController? {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -171,6 +210,16 @@ final class Host: ObservableObject {
         if case let .object(fields) = answer, case let .string(error)? = fields["error"] { return error }
         return answer.text
     }
+}
+
+/// Takes the files the document picker picked.
+private final class Importer: NSObject, UIDocumentPickerDelegate {
+    static var key: UInt8 = 0
+    let picked: ([URL]) -> Void
+
+    init(picked: @escaping ([URL]) -> Void) { self.picked = picked }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { picked(urls) }
 }
 
 /// Removes the exported files' temporary folder when the exporter closes.

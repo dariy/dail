@@ -20,12 +20,12 @@
   "setup": {
     "actions": [
       {
-        "action": 50,
+        "action": 56,
         "label": "Find servers"
       }
     ],
     "back": {
-      "action": 51,
+      "action": 57,
       "icon": "arrow_back",
       "label": "Back"
     },
@@ -81,11 +81,11 @@
   "top_bar": {
     "actions": [
       {
-        "action": 48,
+        "action": 54,
         "label": "Add account"
       },
       {
-        "action": 49,
+        "action": 55,
         "label": "About"
       }
     ],

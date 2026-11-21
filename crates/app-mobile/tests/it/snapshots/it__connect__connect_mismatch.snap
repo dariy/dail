@@ -1,0 +1,38 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&mismatch"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "Server certificate (SHA-256)",
+  "presets": [],
+  "fields": [],
+  "error": "home.example:7443 shows another fingerprint than the pairing link. Do not pair: another machine may be answering in its place.",
+  "fingerprints": [
+    {
+      "label": "Server certificate (SHA-256)",
+      "lines": [
+        "5d41 402a bc4b 2a76 b971 9d91 1017 c592",
+        "ae2f 5e3c 8a1b 7d0f 4e6c 2a9b 8d7f 1e03"
+      ]
+    },
+    {
+      "label": "In the pairing link",
+      "lines": [
+        "0000 402a bc4b 2a76 b971 9d91 1017 c592",
+        "ae2f 5e3c 8a1b 7d0f 4e6c 2a9b 8d7f 1e03"
+      ]
+    }
+  ],
+  "busy": false,
+  "actions": [
+    {
+      "label": "Back",
+      "action": 23
+    }
+  ],
+  "back": {
+    "label": "Cancel",
+    "action": 24
+  }
+}

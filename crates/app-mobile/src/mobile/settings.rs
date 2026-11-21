@@ -721,11 +721,88 @@ impl Mobile {
             choices: Vec::new(),
             actions: vec![add],
         });
-        vec![SettingsGroup {
+        let mut groups = vec![SettingsGroup {
             title: i18n::s(Key::Accounts).to_owned(),
             hint: None,
             rows,
-        }]
+        }];
+        groups.extend(self.server_groups(state));
+        groups
+    }
+
+    /// An entry of `app_front::actions` as a settings button.
+    fn entry_link(&mut self, entry: app_front::actions::Entry) -> Button {
+        self.link(i18n::s(entry.label), Act::Action(entry.run))
+    }
+
+    /// The dail server under the accounts (ADR 0017, SRV-7), as the desktop's Accounts
+    /// settings: the link's details with *Retry refused changes* and *Disconnect…*, each refused
+    /// change with *Retry all* and *Dismiss*, then the paired devices with *Revoke…*.
+    fn server_groups(&mut self, state: &AppState) -> Vec<SettingsGroup> {
+        let (now, zone) = (self.now_ms(), self.zone());
+        let mut groups = Vec::new();
+        if state.link.is_some() {
+            let mut rows: Vec<SettingRow> = app_front::server::details(state, self.lang)
+                .into_iter()
+                .map(|field| SettingRow {
+                    label: field.label,
+                    value: field.lines.join("\n"),
+                    hint: None,
+                    choices: Vec::new(),
+                    actions: Vec::new(),
+                })
+                .collect();
+            for rejection in app_front::server::rejections(state, self.lang, now, zone) {
+                let actions = app_front::actions::rejection_actions(state, rejection.id)
+                    .into_iter()
+                    .map(|entry| self.entry_link(entry))
+                    .collect();
+                rows.push(SettingRow {
+                    label: rejection.text,
+                    value: rejection.when,
+                    hint: Some(rejection.error),
+                    choices: Vec::new(),
+                    actions,
+                });
+            }
+            let actions: Vec<Button> = app_front::actions::link_actions(state)
+                .into_iter()
+                .map(|entry| self.entry_link(entry))
+                .collect();
+            if let Some(last) = rows.last_mut() {
+                last.actions.extend(actions);
+            }
+            groups.push(SettingsGroup {
+                title: i18n::s(Key::DailServer).to_owned(),
+                hint: None,
+                rows,
+            });
+        }
+        let devices = app_front::server::devices(state, self.lang, now, zone);
+        if !devices.is_empty() {
+            let rows = devices
+                .into_iter()
+                .map(|device| {
+                    let actions = app_front::actions::device_actions(state, device.id)
+                        .into_iter()
+                        .map(|entry| self.entry_link(entry))
+                        .collect();
+                    SettingRow {
+                        label: device.name,
+                        value: device.role,
+                        hint: Some(format!("{} · {}", device.paired, device.seen)),
+                        choices: Vec::new(),
+                        actions,
+                    }
+                })
+                .collect();
+            groups.push(SettingsGroup {
+                title: i18n::s(Key::Devices).to_owned(),
+                hint: None,
+                rows,
+            });
+        }
+        groups
     }
 
     /// The Rules section (ADR 0015, SET-5): a row per sorting rule (on/off, *Edit…*,

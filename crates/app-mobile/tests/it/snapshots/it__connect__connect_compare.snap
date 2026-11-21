@@ -1,0 +1,38 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&compare"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "Pairing code",
+  "presets": [],
+  "fields": [
+    {
+      "field": "code",
+      "label": "Pairing code",
+      "hint": "ABCD2345",
+      "input": "code",
+      "value": {
+        "text": "",
+        "version": 0
+      }
+    }
+  ],
+  "note": "home.example:7443 shows this certificate fingerprint (SHA-256). Pair only if it is the one dail serve or Pair a device… shows on the server.\nThe 8-character code from dail serve pair or Pair a device…",
+  "fingerprints": [
+    {
+      "label": "Server certificate (SHA-256)",
+      "lines": [
+        "5d41 402a bc4b 2a76 b971 9d91 1017 c592",
+        "ae2f 5e3c 8a1b 7d0f 4e6c 2a9b 8d7f 1e03"
+      ]
+    }
+  ],
+  "busy": false,
+  "actions": [],
+  "back": {
+    "icon": "arrow_back",
+    "label": "Back",
+    "action": 29
+  }
+}

@@ -1178,7 +1178,31 @@ error) and `actions::link_actions` (*Retry refused changes*, *Disconnect…*, wh
 with `actions::rejection_actions` (*Retry all*: `retry_offline` re-queues every refusal; *Dismiss*). The *Devices*
 settings (`server::devices`, `server::shows_devices`: devices paired, or this front end can pair) list each device
 with its role, pairing date and last connection, `actions::device_actions` (*Revoke…*, confirms) and *Pair a
-device…* (`actions::server_actions`). Touch keeps the palette for all of them until SRV-7.
+device…* (`actions::server_actions`).
+
+**On phones** (SRV-7; `app-host`, `app-mobile`, §7.5, §7.6). The setup's first step on a profile without accounts
+offers *Connect to a dail server* beside the providers; *Next* opens `ConnectFlow` drawn into the setup sheet
+(`mobile/connect.rs`): the `server` field (a pasted `dail://pair` link is read at once and the field reloaded), the
+offered fingerprint as `SetupSheet.fingerprints` (groups of four, monospace, selectable; with a mismatch the link's
+too), the `code` field, a spinner while probing or pairing, *Try again* / *Enter another code*, *Close* once paired.
+Its commands go out as `Purpose::Connect`; a button runs only at the stage it was drawn for. `UiEvent::PairLink {uri}`
+is the entry point of a link from outside the app (the deep link of SRV-QR2, the scanner of SRV-QR3): the flow reads
+it and sends `connect_server` at once, so the user only compares and taps *Pair*; a phone with accounts or a server
+refuses it with a snackbar. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
+Synced 2m ago*), a refusal in the problem banner with *Retry all* and *Dismiss*, and under the Accounts settings a
+*dail server* group (the details, refusals, *Retry refused changes*, *Disconnect…*) and a *Devices* group (*Revoke…*).
+*Pair a device…* stays desktop-only: it draws the QR code.
+
+`app-host` opens every live profile with `Session::open_remote` (as the CLI does), the platform's secret store
+(Keystore, Keychain) for both pairing and the link, so a phone can pair from its first run. A profile with `[remote]`
+opens as `BackendChoice::Remote` (`Host::backend`; `"remote"` asked of a plain profile is `ERR311`), its link with
+100 bodies pre-loaded over one connection. Commands from notifications and the debug bridge, and `flush`, go through
+the `Connection`, so a device forwards them. The background `check` of a linked profile talks to no mail server: it
+dials the link if it is down, waits for it to settle and flushes (the queue replayed, the mirror current); the
+server polls, runs the rules and sends. `online` (the network came back) dials at once instead of after the back-off.
+A picked or shared file is copied into `outgoing` as before (Android: from the content URI's descriptor; iOS: the
+document picker's own copy), and `attach_file` names the copy, which `RemoteSession` uploads with `put_file` (25 MiB,
+the same limit the copy enforces, `ERR331`). The sweep keeps copies a queued `attach_file` still names.
 
 **Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
 (so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
@@ -1917,7 +1941,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
   mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
-  first `app_front::status` problem and its fix (none for a dail server's refusal, `Fix::Refused`: phones are devices only from SRV-7); with no problem, news with `info: true` and a second `dismiss` button:
+  first `app_front::status` problem and its fix (for a dail server's refusal, `Fix::Refused`, *Retry all* and a `dismiss` = *Dismiss* from `actions::rejection_actions`, SRV-7); with no problem, news with `info: true` and a second `dismiss` button:
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `menu`
   (below), `back` and `wants_tick`.
@@ -1986,7 +2010,11 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   setup's `Debug` leaves it out. A failed test offers another password and removes the half-added account first. It
   opens from the palette and keys (`add_account`, `set_password`), *Add an account*, the top bar's *Add account*
   without accounts, the banner's *re-enter password* fix (`Fix::Password`), and on its own once on a profile without
-  accounts.
+  accounts or a server. Its first step there also offers *Connect to a dail server* (SRV-7, `mobile/connect.rs`):
+  the same sheet then draws `app_front::connect::ConnectFlow` with `Field::{Server, Code}`, `InputKind::Code` and
+  `SetupSheet.fingerprints`; `UiEvent::PairLink` opens it from outside the app (§5.6 *On phones*). A linked phone's
+  top bar subtitle starts with the link (`server::summary`) and its Accounts settings add *dail server* and
+  *Devices* groups.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
@@ -2259,7 +2287,8 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   and answers `{"receipt": …}` or `{"rejected": …}`; `"state"` answers the `AppState`. `calls::background` takes a
   `Task`, an import or a `DebugTask`.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
-  `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
+  `sync_now` as `runtime` and waits until no account's `SyncStatus.pending` (on a device of a dail server it contacts
+  no mail server: it dials the link if down, waits for it to settle and flushes, §5.6 *On phones*); `flush` waits for the session's queued
   work; `sends` waits until no draft is scheduled or leaving (`Draft::is_outgoing`). `close()` shuts the session down after the queued requests.
 - **JNI.** `app_host::calls` holds the six calls in safe Rust, JSON in and out: `open(platform, config, wake, alert) -> {handle}` (Kotlin also passes the application context),
   `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
@@ -2314,7 +2343,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
   `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (the compact root's
   `sections` as 56 dp rows of glyph, label and hint, a folded one at reduced alpha; tabs only when `tabs` is not empty; `FilterChip`
-  choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
+  choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill; *Connect to a dail server*'s fingerprints in the theme's mono face, selectable; the `code` field capitalizes; picked files reach the server through the same `import`, SRV-7).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
   surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the
@@ -2440,7 +2469,12 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   the `\.blobs` environment value. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
   `copy`, `open_url`, `haptic`, `system_settings` and `save_files` (each file read with `blob`'s `attachment`
   request into a private temporary folder, then `UIDocumentPickerViewController(forExporting:asCopy: true)`; the
-  folder is removed when it closes); the other file ones wait for the compose wave.
+  folder is removed when it closes), and `pick_files` (SRV-7: `UIDocumentPickerViewController(forOpeningContentTypes:
+  [.item], asCopy: true)`, several files, so each is a copy in the app's sandbox and no security-scoped URL outlives
+  the picker; each goes to `dail_background`'s `import` off the main thread, which copies it into `outgoing` and
+  attaches it, then the picker's copy is removed); `import_files` waits for the compose wave. `SetupView` draws
+  `SetupSheet.fingerprints` (*Connect to a dail server*) as monospace, selectable lines under their label; the `code`
+  field capitalizes. `UiEvent.pairLink` is the entry point SRV-QR2's URL type will send.
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
   when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
   opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's

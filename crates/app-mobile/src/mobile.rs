@@ -33,6 +33,7 @@ use crate::frame::{
 };
 use crate::request::{Purpose, Reply, Request};
 
+mod connect;
 mod reader;
 pub use reader::preview_text;
 mod settings;
@@ -93,6 +94,8 @@ enum Act {
     Save(Option<String>, Vec<crate::event::SaveFile>),
     /// A button of the account setup.
     Setup(setup::SetupAct),
+    /// A button of *Connect to a dail server*, drawn at the flow's stage (`connect::tag`).
+    Connect(connect::ConnectAct, u8),
     /// Open the password form of an account.
     Reenter(AccountId),
     /// Ask to confirm removing an account (the palette's confirmation step).
@@ -278,6 +281,8 @@ pub struct Mobile {
     preview: Option<(MessageId, usize)>,
     /// The account setup, while open.
     setup: Option<setup::Setup>,
+    /// *Connect to a dail server*, while open (over the setup, if that is open too).
+    connect: Option<connect::Connect>,
     /// Whether the setup was opened on its own for a profile without accounts (once).
     offered: bool,
     /// Mark as read after a delay (UX-5, MISC-47): the desktop's timer, counted while visible.
@@ -375,6 +380,7 @@ impl Mobile {
             menu: None,
             preview: None,
             setup: None,
+            connect: None,
             offered: false,
             autoread: app_front::autoread::AutoRead::default(),
         }
@@ -593,9 +599,26 @@ impl Mobile {
                 }
                 Vec::new()
             }
+            UiEvent::Text {
+                field: field @ (Field::Server | Field::Code),
+                text,
+            } => {
+                if let Some(connect) = self.connect.as_mut() {
+                    connect.text(field, text);
+                }
+                Vec::new()
+            }
             UiEvent::Blur {
-                field: Field::Email | Field::Name | Field::Imap | Field::Smtp | Field::Password,
+                field:
+                    Field::Email
+                    | Field::Name
+                    | Field::Imap
+                    | Field::Smtp
+                    | Field::Password
+                    | Field::Server
+                    | Field::Code,
             } => Vec::new(),
+            UiEvent::PairLink { uri } => self.pair_link(&uri, state),
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
             UiEvent::Tick => self
@@ -637,6 +660,11 @@ impl Mobile {
                 }
             }
             match reply.purpose {
+                Purpose::Connect => {
+                    if let Some(connect) = self.connect.as_mut() {
+                        connect.accept(&reply, now);
+                    }
+                }
                 Purpose::Setup => {
                     if let Some(next) = self.setup.as_mut().and_then(|s| s.accept(&reply)) {
                         out.push(next);
@@ -686,6 +714,8 @@ impl Mobile {
             || self.notice.as_ref().is_some_and(|(_, until)| *until > now)
             || self.undo_until > now
             || self.compose.is_dirty()
+            // *Connect to a dail server* waits for the server (its failures count after a while).
+            || self.connect.as_ref().is_some_and(connect::Connect::is_waiting)
             // A thread is open: its unread messages may be marked read (MISC-47).
             || (state.view.thread.is_some() && state.settings.mark_read_after_ms > 0)
     }
@@ -774,6 +804,7 @@ impl Mobile {
                 Vec::new()
             }
             Act::Setup(act) => self.setup_act(act),
+            Act::Connect(act, at) => self.connect_act(act, at, state),
             Act::Reenter(account) => {
                 self.open_reenter(state, account);
                 Vec::new()
@@ -918,6 +949,9 @@ impl Mobile {
             }
             return Vec::new();
         }
+        if self.connect.is_some() {
+            return self.connect_back(state);
+        }
         if let Some(setup) = self.setup.as_mut() {
             if !setup.back() {
                 self.setup = None;
@@ -1042,6 +1076,7 @@ impl Mobile {
             && !panes.modal
             && !self.about
             && self.setup.is_none()
+            && self.connect.is_none()
             && !state.view.palette_open
             && self.result.is_none()
             && self.preview.is_none()
@@ -1101,7 +1136,10 @@ impl Mobile {
             }
         }
         self.revision += 1;
-        if !self.offered && state.accounts.is_empty() {
+        // A device of a dail server is set up: its mail comes from the server (SRV-7).
+        if !self.offered
+            && app_front::connect::availability(state) == app_front::connect::Availability::Open
+        {
             self.offered = true;
             self.open_setup();
         }
@@ -1169,6 +1207,7 @@ impl Mobile {
         let fab = (!self.about
             && page.is_none()
             && self.setup.is_none()
+            && self.connect.is_none()
             && !state.accounts.is_empty()
             && !kinds.contains(&PaneKind::Composer)
             && !kinds.contains(&PaneKind::Settings))
@@ -1184,7 +1223,10 @@ impl Mobile {
             crate::theme::frame_theme(&chosen)
         });
         let about = self.about.then(|| self.about_screen());
-        let setup = self.setup_sheet(state);
+        let setup = match self.connect_sheet(state) {
+            Some(sheet) => Some(sheet),
+            None => self.setup_sheet(state),
+        };
         let palette = self.palette_sheet(state);
         let result = self.result_view(state);
         if reader.is_none() {
@@ -1331,9 +1373,15 @@ impl Mobile {
             Some(PaneKind::Settings) => self.settings_title(state).to_owned(),
             Some(PaneKind::List) | None => list_title(state),
         };
-        let subtitle = (!state.accounts.is_empty())
+        let synced = (!state.accounts.is_empty())
             .then(|| status::sync_text(state, self.now_ms(), self.lang))
             .filter(|s| !s.is_empty());
+        // A device of a dail server: the link first (`Online`, `Offline · 3 queued`; SRV-7).
+        let subtitle = match (app_front::server::summary(state, self.lang), synced) {
+            (Some(link), Some(synced)) => Some(format!("{} · {synced}", link.text)),
+            (Some(link), None) => Some(link.text),
+            (None, synced) => synced,
+        };
         let navigation = match one {
             _ if state.accounts.is_empty() => None,
             Some(PaneKind::Reader | PaneKind::Composer | PaneKind::Drawer | PaneKind::Settings) => {
@@ -1945,7 +1993,7 @@ impl Mobile {
         let Some(problem) = status::problems(state, self.lang).into_iter().next() else {
             return self.update_banner(state);
         };
-        let action = problem.fix.and_then(|fix| {
+        let action = problem.fix.map(|fix| {
             let act = match fix {
                 Fix::Retry(account) => Act::Run(Command::SyncNow {
                     account: Some(account),
@@ -1955,21 +2003,32 @@ impl Mobile {
                 Fix::Trust(account) => {
                     Act::Action(app_front::actions::Run::TrustCertificate(account))
                 }
-                // A dail server's refusal (ADR 0017): phones are not devices before SRV-7, so
-                // the banner only tells (the palette retries or dismisses).
-                Fix::Refused(_) => return None,
+                // A dail server's refusal (ADR 0017): *Retry all* here, *Dismiss* beside it.
+                Fix::Refused(_) => Act::Run(Command::RetryOffline {}),
             };
-            Some(Button {
+            Button {
                 icon: None,
                 label: fix.label(self.lang),
                 action: self.add(act),
-            })
+            }
         });
+        // A refusal's second button: *Dismiss* of `actions::rejection_actions`.
+        let dismiss = match problem.fix {
+            Some(Fix::Refused(id)) => app_front::actions::rejection_actions(state, id)
+                .into_iter()
+                .nth(1)
+                .map(|entry| Button {
+                    icon: None,
+                    label: i18n::s(entry.label).to_owned(),
+                    action: self.add(Act::Action(entry.run)),
+                }),
+            _ => None,
+        };
         Some(Banner {
             text: clean(&problem.text),
             hint: problem.hint.map(|h| clean(&h)),
             action,
-            dismiss: None,
+            dismiss,
             info: false,
         })
     }

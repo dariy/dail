@@ -7269,6 +7269,14 @@ strings! {
         "Este perfil tem contas de e-mail, então não pode espelhar um servidor dail. Inicie o dail com outro perfil: dail --profile <nome>.",
         "Este perfil tem contas de correio, por isso não pode espelhar um servidor dail. Inicie o dail com outro perfil: dail --profile <nome>.",
         "Hoc profilum rationes epistularum habet, ergo servitorem dail imitari non potest. Incipe dail cum alio profilo: dail --profile <nomen>.";
+    PairLinkRefused:
+        "This phone already has mail accounts or a dail server, so the pairing link was not used.",
+        "Ce téléphone a déjà des comptes de messagerie ou un serveur dail : le lien d’association n’a pas été utilisé.",
+        "Este teléfono ya tiene cuentas de correo o un servidor dail, así que no se usó el enlace de vinculación.",
+        "Acest telefon are deja conturi de e-mail sau un server dail, așa că linkul de asociere nu a fost folosit.",
+        "Este celular já tem contas de e-mail ou um servidor dail, então o link de pareamento não foi usado.",
+        "Este telemóvel já tem contas de correio ou um servidor dail, por isso a ligação de emparelhamento não foi usada.",
+        "Hoc telephonum iam rationes epistularum aut servitorem dail habet, ergo nexus copulationis non adhibitus est.";
     ConnectAddressFooter:
         "Enter connect · Esc back",
         "Entrée se connecter · Échap retour",

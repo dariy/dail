@@ -1,0 +1,22 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&failed"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "home.example:7443",
+  "presets": [],
+  "fields": [],
+  "error": "Could not reach the server: connection refused",
+  "busy": false,
+  "actions": [
+    {
+      "label": "Try again",
+      "action": 23
+    }
+  ],
+  "back": {
+    "label": "Cancel",
+    "action": 24
+  }
+}

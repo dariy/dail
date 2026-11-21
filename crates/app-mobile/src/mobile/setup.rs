@@ -8,10 +8,14 @@
 //! password: the half-added account is removed first (`remove_account` with `confirm`; this
 //! setup created it a moment ago). [`Setup::reenter`] opens the password step for an existing
 //! account (a problem's *re-enter password* fix); another try keeps the account.
+//!
+//! On a profile without accounts the first step also offers *Connect to a dail server* (ADR 0017,
+//! SRV-7): *Next* then opens that flow (`super::connect`) over the setup.
 
 use app_core::{
     AccountId, AccountStatus, AppState, Command, CommandName, Endpoint, ProviderPreset, Secret,
 };
+use app_front::connect::{Availability, availability};
 use app_front::i18n::{self, Key};
 use app_front::text::clean;
 
@@ -58,6 +62,8 @@ pub(super) enum SetupAct {
     Open,
     /// Choose a provider.
     Preset(ProviderPreset),
+    /// Choose *Connect to a dail server* instead of a provider.
+    Server,
     /// On to the next step.
     Next,
     /// Back a step, else close.
@@ -78,6 +84,8 @@ pub(super) enum SetupAct {
 pub(super) struct Setup {
     step: Step,
     preset: ProviderPreset,
+    /// *Connect to a dail server* is chosen instead of `preset`.
+    server: bool,
     email: String,
     name: String,
     imap: String,
@@ -112,6 +120,7 @@ impl Setup {
         Self {
             step: Step::Preset,
             preset: ProviderPreset::Gmail,
+            server: false,
             email: String::new(),
             name: String::new(),
             imap: String::new(),
@@ -147,7 +156,14 @@ impl Setup {
             Field::Imap => self.imap = text,
             Field::Smtp => self.smtp = text,
             Field::Password => self.password = text,
-            Field::To | Field::Cc | Field::Bcc | Field::Subject | Field::Body | Field::Query => {}
+            Field::To
+            | Field::Cc
+            | Field::Bcc
+            | Field::Subject
+            | Field::Body
+            | Field::Query
+            | Field::Server
+            | Field::Code => {}
         }
     }
 
@@ -289,7 +305,11 @@ impl Setup {
     fn act(&mut self, act: SetupAct, out: &mut Vec<Request>) -> bool {
         match act {
             SetupAct::Open => {}
-            SetupAct::Preset(preset) => self.preset = preset,
+            SetupAct::Preset(preset) => {
+                self.preset = preset;
+                self.server = false;
+            }
+            SetupAct::Server => self.server = true,
             SetupAct::Next => match self.step {
                 Step::Preset => self.step = Step::Address,
                 Step::Address if self.address_problem().is_none() => self.step = Step::Password,
@@ -379,6 +399,16 @@ impl Mobile {
             });
             return out;
         }
+        // *Connect to a dail server* chosen: its flow opens over the setup.
+        if act == SetupAct::Next
+            && self
+                .setup
+                .as_ref()
+                .is_some_and(|s| s.step == Step::Preset && s.server)
+        {
+            self.open_connect();
+            return out;
+        }
         if let Some(setup) = self.setup.as_mut()
             && !setup.act(act, &mut out)
         {
@@ -445,9 +475,20 @@ impl Mobile {
                     presets.push(PresetChoice {
                         label: i18n::s(label).to_owned(),
                         hint: i18n::s(hint).to_owned(),
-                        selected: setup.preset == preset,
+                        selected: !setup.server && setup.preset == preset,
                         action: self.add(Act::Setup(SetupAct::Preset(preset))),
                     });
+                }
+                // SRV-7: a profile without accounts can mirror a dail server instead.
+                if availability(state) == Availability::Open {
+                    presets.push(PresetChoice {
+                        label: i18n::s(Key::ConnectToServer).to_owned(),
+                        hint: i18n::s(Key::ConnectToServerDetail).to_owned(),
+                        selected: setup.server,
+                        action: self.add(Act::Setup(SetupAct::Server)),
+                    });
+                } else {
+                    setup.server = false;
                 }
                 actions.push(self.setup_button(i18n::s(Key::Next), SetupAct::Next));
             }
@@ -566,6 +607,7 @@ impl Mobile {
             fields,
             note,
             error,
+            fingerprints: Vec::new(),
             busy,
             actions,
             back,

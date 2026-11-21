@@ -757,6 +757,8 @@ pub enum InputKind {
     Server,
     /// A password (masked; autofill: password).
     Password,
+    /// A short code to type (no autofill, no autocorrect, capitals).
+    Code,
 }
 
 /// A text field of the account setup.
@@ -807,12 +809,26 @@ pub struct SetupSheet {
     /// What is wrong (an invalid address, a failed login).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Certificate fingerprints to compare (*Connect to a dail server*): the one the server
+    /// offers, and with a mismatch the pairing link's too.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fingerprints: Vec<Fingerprint>,
     /// Whether it waits for the server (a spinner).
     pub busy: bool,
     /// The step's buttons, the main one last (*Next*, *Add and test*, *Sync now*, …).
     pub actions: Vec<Button>,
     /// *Back* or *Cancel*.
     pub back: Button,
+}
+
+/// A SHA-256 certificate fingerprint as the user compares it: groups of four hex digits, a line
+/// each of `lines`, drawn in a monospace font (selectable, so it can be copied).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct Fingerprint {
+    /// What it is (`Fingerprint`, `In the pairing link`).
+    pub label: String,
+    /// Its lines.
+    pub lines: Vec<String>,
 }
 
 /// A text field's content. The host reloads its field only when `version` changes, so a frame

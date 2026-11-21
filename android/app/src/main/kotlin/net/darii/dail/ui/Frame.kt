@@ -468,6 +468,9 @@ enum class InputKind {
 
     @SerialName("password")
     Password,
+
+    @SerialName("code")
+    Code,
 }
 
 @Serializable
@@ -495,9 +498,17 @@ data class SetupSheet(
     val fields: List<SetupField>,
     val note: String? = null,
     val error: String? = null,
+    val fingerprints: List<Fingerprint> = emptyList(),
     val busy: Boolean,
     val actions: List<Button>,
     val back: Button,
+)
+
+/** A certificate fingerprint to compare: its label and its lines of grouped hex digits. */
+@Serializable
+data class Fingerprint(
+    val label: String,
+    val lines: List<String>,
 )
 
 @Serializable

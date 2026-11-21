@@ -1,0 +1,29 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&address"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "Server",
+  "presets": [],
+  "fields": [
+    {
+      "field": "server",
+      "label": "Server",
+      "hint": "home.example.org:7443",
+      "input": "server",
+      "value": {
+        "text": "",
+        "version": 0
+      }
+    }
+  ],
+  "note": "host or host:port (port 7443 if none), or paste a dail://pair link",
+  "busy": false,
+  "actions": [],
+  "back": {
+    "icon": "arrow_back",
+    "label": "Back",
+    "action": 19
+  }
+}

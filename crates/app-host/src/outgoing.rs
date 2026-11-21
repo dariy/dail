@@ -2,6 +2,10 @@
 //! under a safe name before `attach_file` names the copy, because a content URI's permission
 //! ends with the activity and the engine reads attachments by path. Copies that no draft names
 //! are removed when the host opens.
+//!
+//! On a device of a dail server (ADR 0017) the copy is what `attach_file` uploads (`put_file`):
+//! at once while online, or on replay of the offline queue, so a copy a queued `attach_file`
+//! names stays too. The 25 MiB a draft may carry is also the server's upload limit.
 
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -10,6 +14,9 @@ use std::path::{Path, PathBuf};
 use app_core::AppState;
 use app_core::draft::MAX_ATTACHMENT_BYTES;
 use app_sync::{RandomSeeds, SeedSource};
+
+// A file the copy allows is one the dail server takes.
+const _: () = assert!(MAX_ATTACHMENT_BYTES as usize == app_sync::serve::MAX_UPLOAD_BYTES);
 
 /// Why a file was not copied.
 #[derive(Debug, thiserror::Error)]
@@ -58,16 +65,26 @@ fn copy(folder: &Path, file_name: &str, source: &Path) -> Result<PathBuf, Import
     Ok(path)
 }
 
-/// Removes the folders of `dir` that no draft's attachment lies in. Returns how many it removed.
+/// Removes the folders of `dir` that no draft's attachment and no queued `attach_file` (a
+/// device's offline queue, not uploaded yet) lies in. Returns how many it removed.
 pub fn sweep(dir: &Path, state: &AppState) -> usize {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return 0;
     };
+    let queued = state
+        .link
+        .iter()
+        .flat_map(|link| &link.queued)
+        .filter_map(|q| match &q.command {
+            app_core::Command::AttachFile { path, .. } => Some(Path::new(path.as_str())),
+            _ => None,
+        });
     let named: Vec<&Path> = state
         .drafts
         .values()
         .flat_map(|d| &d.attachments)
         .map(|a| Path::new(&a.path))
+        .chain(queued)
         .collect();
     let mut removed = 0;
     for entry in entries.flatten() {

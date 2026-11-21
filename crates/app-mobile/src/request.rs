@@ -13,6 +13,9 @@ pub enum Purpose {
     /// A command of the account setup (`add_account`, `set_password`, `discover_servers`): its
     /// result goes back to the setup sheet.
     Setup,
+    /// A command of *Connect to a dail server* (`connect_server`, `trust_server`,
+    /// `disconnect_server`): its result goes back to `app_front::connect::ConnectFlow`.
+    Connect,
     /// `get_thread` with bodies for the reader (`app_front::body`).
     Bodies(ThreadId),
 }

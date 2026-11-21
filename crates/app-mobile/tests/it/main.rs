@@ -8,6 +8,7 @@ mod background;
 mod budgets;
 mod bulk;
 mod composer;
+mod connect;
 mod contract;
 mod drawer;
 mod events;

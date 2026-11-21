@@ -27,6 +27,8 @@ enum UiEvent {
     case tick
     /// A `mailto:` link or a share from another app; Rust decides what the draft gets.
     case share(mailto: String?, to: [String], subject: String?, text: String?, files: [String])
+    /// A `dail://pair` link from outside the app (the deep link, the scanner); Rust reads it.
+    case pairLink(String)
 
     var json: JSON {
         switch self {
@@ -67,6 +69,7 @@ enum UiEvent {
             if let text { args["text"] = .string(text) }
             if !files.isEmpty { args["files"] = .array(files.map(JSON.string)) }
             return Self.event("share", args)
+        case let .pairLink(uri): return Self.event("pair_link", ["uri": .string(uri)])
         }
     }
 

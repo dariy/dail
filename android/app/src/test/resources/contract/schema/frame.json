@@ -958,8 +958,39 @@
           "const": "password",
           "description": "Account setup: the password. It never comes back in a frame: the presenter moves it\ninto a `Secret` for the keyring.",
           "type": "string"
+        },
+        {
+          "const": "server",
+          "description": "*Connect to a dail server*: the server (`host[:port]`), or a pasted `dail://pair` link.",
+          "type": "string"
+        },
+        {
+          "const": "code",
+          "description": "*Connect to a dail server*: the 8-character pairing code.",
+          "type": "string"
         }
       ]
+    },
+    "Fingerprint": {
+      "description": "A SHA-256 certificate fingerprint as the user compares it: groups of four hex digits, a line\neach of `lines`, drawn in a monospace font (selectable, so it can be copied).",
+      "properties": {
+        "label": {
+          "description": "What it is (`Fingerprint`, `In the pairing link`).",
+          "type": "string"
+        },
+        "lines": {
+          "description": "Its lines.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "lines"
+      ],
+      "type": "object"
     },
     "Fold": {
       "description": "The chevron of a folder that has folders below it, or of an account.",
@@ -1115,6 +1146,11 @@
         {
           "const": "password",
           "description": "A password (masked; autofill: password).",
+          "type": "string"
+        },
+        {
+          "const": "code",
+          "description": "A short code to type (no autofill, no autocorrect, capitals).",
           "type": "string"
         }
       ]
@@ -2365,6 +2401,13 @@
           "description": "The text fields of the step.",
           "items": {
             "$ref": "#/$defs/SetupField"
+          },
+          "type": "array"
+        },
+        "fingerprints": {
+          "description": "Certificate fingerprints to compare (*Connect to a dail server*): the one the server\noffers, and with a mismatch the pairing link's too.",
+          "items": {
+            "$ref": "#/$defs/Fingerprint"
           },
           "type": "array"
         },
