@@ -16,16 +16,16 @@
     "title": "Conversations",
     "total": 0
   },
-  "revision": 2,
+  "revision": 3,
   "setup": {
     "actions": [
       {
-        "action": 7,
+        "action": 13,
         "label": "Pair"
       }
     ],
     "back": {
-      "action": 8,
+      "action": 14,
       "icon": "arrow_back",
       "label": "Back"
     },
@@ -60,11 +60,11 @@
   "top_bar": {
     "actions": [
       {
-        "action": 5,
+        "action": 11,
         "label": "Add account"
       },
       {
-        "action": 6,
+        "action": 12,
         "label": "About"
       }
     ],

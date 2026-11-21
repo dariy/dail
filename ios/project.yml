@@ -6,6 +6,8 @@
 name: Dail
 options:
   bundleIdPrefix: net.darii
+  # The development region; the `.lproj` folders under Dail add the others (SRV-QR3).
+  developmentLanguage: en
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -45,9 +47,15 @@ targetTemplates:
       # libdail.a's system dependencies: the Keychain (security-framework) and getrandom's SecRandomCopyBytes.
       - sdk: Security.framework
       - sdk: CoreFoundation.framework
+      # The in-app QR code scanner (SRV-QR3): AVCaptureSession and its metadata output, no package.
+      - sdk: AVFoundation.framework
     settings:
       base:
         INFOPLIST_KEY_CFBundleDisplayName: dail
+        # SRV-QR3: the camera prompt's English text. Its translations are `Dail/<lang>.lproj/InfoPlist.strings`
+        # (en, fr, es, ro, pt-BR, pt-PT, la), which app-mobile's contract test writes from the i18n table
+        # (`NativeCameraPurpose`); XcodeGen makes each `.lproj` a variant group and a known region of the project.
+        INFOPLIST_KEY_NSCameraUsageDescription: dail uses the camera only to scan the QR code that pairs this device with your dail server.
         # The keys build settings cannot hold, merged with the generated ones: the `dail` URL scheme
         # (CFBundleURLTypes, named `<bundle id>.pair`) for `dail://pair` links (SRV-QR2).
         INFOPLIST_FILE: Info.plist

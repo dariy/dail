@@ -27,8 +27,14 @@ enum UiEvent {
     case tick
     /// A `mailto:` link or a share from another app; Rust decides what the draft gets.
     case share(mailto: String?, to: [String], subject: String?, text: String?, files: [String])
-    /// A `dail://pair` link from outside the app (the deep link, the scanner); Rust reads it.
+    /// A `dail://pair` link from outside the app (the deep link); Rust reads it.
     case pairLink(String)
+    /// The in-app scanner's first decoded QR code, as decoded (SRV-QR3); Rust reads it.
+    case scanned(String)
+    /// The user closed the scanner without a code.
+    case scanCancelled
+    /// The scanner could not run; Rust says why in the snackbar.
+    case scanFailed(ScanFailure)
 
     var json: JSON {
         switch self {
@@ -70,6 +76,9 @@ enum UiEvent {
             if !files.isEmpty { args["files"] = .array(files.map(JSON.string)) }
             return Self.event("share", args)
         case let .pairLink(uri): return Self.event("pair_link", ["uri": .string(uri)])
+        case let .scanned(text): return Self.event("scanned", ["text": .string(text)])
+        case .scanCancelled: return Self.event("scan_cancelled")
+        case let .scanFailed(reason): return Self.event("scan_failed", ["reason": .string(reason.rawValue)])
         }
     }
 
@@ -90,4 +99,14 @@ enum UiEvent {
         if let args { event["args"] = .object(args) }
         return .object(event)
     }
+}
+
+/// Why the scanner could not run (`app_mobile::event::ScanFailure`).
+enum ScanFailure: String {
+    /// The camera permission was refused or is restricted.
+    case denied
+    /// The device has no camera (the simulator).
+    case noCamera = "no_camera"
+    /// The camera did not start.
+    case failed
 }

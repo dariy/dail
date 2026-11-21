@@ -12,11 +12,11 @@ expression: "&paired"
   "actions": [
     {
       "label": "Close",
-      "action": 39
+      "action": 41
     }
   ],
   "back": {
     "label": "Close",
-    "action": 40
+    "action": 42
   }
 }

@@ -1346,7 +1346,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
   through `External::PickFiles`
 - [x] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
-- [ ] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera
+- [x] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera
   permission asked for when it opens
 - [ ] SRV-8 [user]: live check: `dail serve` under systemd on the home server with the `ai@darii.net` profile, the
   desktop over Tailscale, then the phone. Covers triage offline and reconnect, an MCP send approved from the phone,

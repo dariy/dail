@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import UIKit
 import UniformTypeIdentifiers
@@ -14,6 +15,8 @@ enum Screen {
 /// actor for SwiftUI to draw. Swift decides nothing: it sends what the user did.
 final class Host: ObservableObject {
     @Published private(set) var screen: Screen = .opening
+    /// The QR code scanner is on screen (SRV-QR3): `RootView` covers the frame with it.
+    @Published var scanning = false
     private let ui = DispatchQueue(label: "dail-ui", qos: .userInteractive)
     /// Touched on `ui` only.
     private var handle: Int32 = 0
@@ -141,10 +144,45 @@ final class Host: ObservableObject {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case "pick_files":
             if let draft = external.args?.draft { pick(draft: draft) }
+        case "scan_qr":
+            scan()
         case "system_settings":
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
         default:
             break
+        }
+    }
+
+    /// `scan_qr`: the scanner, after the camera permission, which is asked for here and only here.
+    /// Refused or restricted, or no camera (the simulator): Rust's snackbar says why.
+    @MainActor
+    private func scan() {
+        guard AVCaptureDevice.default(for: .video) != nil else { return send(.scanFailed(.noCamera)) }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            scanning = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted { self.scanning = true } else { self.send(.scanFailed(.denied)) }
+                }
+            }
+        default:
+            send(.scanFailed(.denied))
+        }
+    }
+
+    /// The scanner ended: its text, a cancel or why it could not run goes to Rust as it came.
+    @MainActor
+    func scanEnded(_ end: ScanEnd) {
+        guard scanning else { return }
+        scanning = false
+        switch end {
+        case let .scanned(text):
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            send(.scanned(text))
+        case .cancelled: send(.scanCancelled)
+        case let .failed(reason): send(.scanFailed(reason))
         }
     }
 

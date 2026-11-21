@@ -12,11 +12,11 @@ expression: "&failed"
   "actions": [
     {
       "label": "Try again",
-      "action": 23
+      "action": 24
     }
   ],
   "back": {
     "label": "Cancel",
-    "action": 24
+    "action": 25
   }
 }

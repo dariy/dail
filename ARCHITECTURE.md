@@ -1186,7 +1186,7 @@ offers *Connect to a dail server* beside the providers; *Next* opens `ConnectFlo
 offered fingerprint as `SetupSheet.fingerprints` (groups of four, monospace, selectable; with a mismatch the link's
 too), the `code` field, a spinner while probing or pairing, *Try again* / *Enter another code*, *Close* once paired.
 Its commands go out as `Purpose::Connect`; a button runs only at the stage it was drawn for. `UiEvent::PairLink {uri}`
-is the entry point of a link from outside the app (the deep link of SRV-QR2, the scanner of SRV-QR3): the flow reads
+is the entry point of a link from outside the app (the deep link of SRV-QR2): the flow reads
 it into the server field (server, code, the fingerprint to expect) and stops there; only the user's *Connect* sends
 `connect_server`, then the user compares and taps *Pair*; a phone with accounts or a server refuses it with a
 snackbar. The deep link (SRV-QR2: Android's `dail://pair` intent filter, iOS's `dail` URL type) lets
@@ -1195,7 +1195,15 @@ no parsing), `parse_uri` reads it, a link makes the phone connect nowhere before
 still waits for the user's *Pair*, and the server and Compare stages of a flow a link started carry `SetupSheet.warning` (*A link opened this pairing with {server}. Only continue if you just
 scanned or opened this code from your own dail server.*), dropped once the server field is edited. A link never
 replaces a flow under way: unless the open flow is still an empty server field, it is dropped with a snackbar (*A
-pairing is already under way…*), and the user finishes or cancels the open one first. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
+pairing is already under way…*), and the user finishes or cancels the open one first. The server stage of a phone
+that can pair (`availability` open) also offers *Scan QR code* (SRV-QR3, before *Connect*): it emits
+`External::ScanQr` and nothing else, and the host answers `UiEvent::Scanned {text}` (the first decoded QR code, as
+decoded), `ScanCancelled` or `ScanFailed {reason}` (`denied`, `no_camera`, `failed`; each a snackbar: a refused
+permission points to the system settings). An answer counts only after the presenter asked (a stray `scanned` is
+dropped). The text is as untrusted as a link (a poster can carry a code): `parse_uri` decides, and anything but a valid
+`dail://pair` link is never followed (*This QR code is not a dail pairing code.*); a valid one takes the link's path
+exactly (filled in, the warning, the user's *Connect*, then *Pair*), except that it replaces what was typed at the
+server stage the scan was asked from. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
 Synced 2m ago*), a refusal in the problem banner with *Retry all* and *Dismiss*, and under the Accounts settings a
 *dail server* group (the details, refusals, *Retry refused changes*, *Disconnect…*) and a *Devices* group (*Revoke…*).
 *Pair a device…* stays desktop-only: it draws the QR code.
@@ -2020,7 +2028,10 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   accounts or a server. Its first step there also offers *Connect to a dail server* (SRV-7, `mobile/connect.rs`):
   the same sheet then draws `app_front::connect::ConnectFlow` with `Field::{Server, Code}`, `InputKind::Code` and
   `SetupSheet.fingerprints`; `UiEvent::PairLink` opens it from outside the app (§5.6 *On phones*) at the server
-  stage, which with the Compare stage carries `SetupSheet.warning` (drawn bold in the error colour above the fields). A linked phone's
+  stage, which with the Compare stage carries `SetupSheet.warning` (drawn bold in the error colour above the fields).
+  The server stage's *Scan QR code* asks the host for its scanner (`External::ScanQr`; answers `scanned`,
+  `scan_cancelled`, `scan_failed`, §5.6 *On phones*); the scanner's own texts (title, hint, *Cancel*) come in
+  `Frame.labels`. A linked phone's
   top bar subtitle starts with the link (`server::summary`) and its Accounts settings add *dail server* and
   *Devices* groups.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
@@ -2132,6 +2143,19 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   cleared from the intent, `onCreate` reads the intent only without saved state, and not when Android relaunches
   the task from the recents screen (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`). A link that starts the app waits on
   dail-ui behind `open`.
+- **The QR code scanner** (SRV-QR3, `scan_qr`). `android.permission.CAMERA` (in `APK_PERMISSIONS`) with
+  `android.hardware.camera` and `.autofocus` not required; `MainActivity` sends `scan_failed` `no_camera` without
+  `FEATURE_CAMERA_ANY`, else asks for the permission (`RequestPermission`) only now, when not granted: refused, now or
+  for good (Android then answers at once), it sends `denied`. Granted, `ScannerScreen` (`Scanner.kt`) covers the frame
+  (which keeps its state underneath; the flag survives a recreation): CameraX (`camera-core`, `camera-camera2`,
+  `camera-lifecycle`, and `camera-compose`'s `CameraXViewfinder` for the preview, not `camera-view`, which brings
+  `camera-video`) binds the back camera (else the front one) to the activity, and `ImageAnalysis`
+  (`STRATEGY_KEEP_ONLY_LATEST`) hands each frame's Y plane to `QrDecoder`: zxing's pure-Java `MultiFormatReader`,
+  `QR_CODE` only, `ALSO_INVERTED` for a dark terminal's code, rows read at the plane's stride. The first text found
+  goes back as `scanned`, as decoded, with a haptic; Back and *Cancel* send `scan_cancelled`; a camera that does not
+  bind sends `failed`. Kotlin never looks at the text. No Play services, no ML Kit. camera-core carries two prebuilt
+  JNI libraries, `libimage_processing_util_jni.so` and `libsurface_util_jni.so` (AOSP, Apache-2.0, 16 KB-aligned),
+  in `PREBUILT_ALLOWLIST`: CameraX loads them for its YUV and surface helpers, so they are not stripped.
 - **The reader** (`app_mobile::mobile::reader`): the thread's messages, collapsed (sender, date, snippet) or expanded,
   a tap toggling (`expand_messages`/`collapse_messages`). An expanded body is `DocBlock`s: an HTML body's
   `app_core::document` (paragraphs, headings, lists, quotes, preformatted lines, tables, rules, folds), or plain
@@ -2392,7 +2416,8 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
   `app/lint.xml` turning off, with reasons, the checks that deliberate version updates make moot.
 - **The APK check** (`cargo xtask android apk-check`, over every APK under `app/build/outputs/apk`): `lib/` holds
-  only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
+  only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (Compose's `libandroidx.graphics.path.so`, CameraX's
+  `libimage_processing_util_jni.so` and `libsurface_util_jni.so`), each
   with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
   release APK is not debuggable and carries no debug bridge. Instrumented-test APKs are skipped.
 - **Licence lists** (`cargo xtask android licences`): `rust-crates.txt` from `cargo metadata` for both Android
@@ -2496,6 +2521,17 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   `DailApp`'s `.onOpenURL` sends `UiEvent.pairLink(opening:)`, the URL's `absoluteString` if it is a `dail://pair`
   link (the same prefix test as Android's) and nothing for other `dail://` URLs, through `Host.sendWhenOpen`, which
   keeps it until the session has opened; SwiftUI delivers each URL once. Rust reads it (§5.6 *On phones*).
+- **The QR code scanner** (SRV-QR3, `scan_qr`). `Host.scan` sends `scan_failed` `no_camera` without a video device
+  (the simulator), asks `AVCaptureDevice.requestAccess` only now when the status is `notDetermined`, sends `denied`
+  when refused or restricted, and otherwise sets `Host.scanning`, which `RootView` shows as a `fullScreenCover`:
+  `ScannerView`, an `AVCaptureSession` from the default video camera into an `AVCaptureVideoPreviewLayer` and an
+  `AVCaptureMetadataOutput` restricted to `.qr` (`ScannerController` through `UIViewControllerRepresentable`; the
+  session starts and stops on a queue of its own). The first string goes back as `scanned`, as decoded; *Cancel*
+  sends `scan_cancelled`. AVFoundation only, no package. The prompt is `NSCameraUsageDescription`
+  (`INFOPLIST_KEY_NSCameraUsageDescription` in `ios/project.yml`, English) with its translations in
+  `Dail/<lang>.lproj/InfoPlist.strings` for en, fr, es, ro, pt-BR, pt-PT and la: the app's first `.lproj` folders,
+  which XcodeGen turns into variant groups and known regions (`developmentLanguage: en`). app-mobile's contract test
+  writes them from the i18n table (`NativeCameraPurpose`) and checks the English setting, so they cannot drift.
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
   when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
   opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's
@@ -2766,4 +2802,5 @@ allowlist; bot PRs are merged like any other.
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |
 | QR codes | `qrcode` 0.15 (app-front; `default-features = false`, `std`: no `image`/`svg`/`pic`/`eps`), `rqrr` 0.11 (app-front tests only; no `img`) | The `dail://pair` QR code (ADR 0017, SRV-QR1); pure Rust; tests decode the matrix and the half-blocks back to the link |
+| QR code scanner | CameraX 1.7.0 (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-compose`), `com.google.zxing:core` 3.5.4 (Android); AVFoundation (iOS) | The in-app scanner (ADR 0017, SRV-QR3): AOSP's camera library and zxing's pure-Java decoder, Apache-2.0, no Play services or ML Kit; camera-core's two JNI prebuilts are in `PREBUILT_ALLOWLIST`; iOS needs no package |
 | Server certificate | `x509-cert` 0.3 (`builder`, `std`; app-sync) + `p256` (`pkcs8`) | The self-signed certificate of `dail serve` (ADR 0017), on p256 0.14's `der`/`spki`/`signature` line; pure Rust (`rcgen` needs ring or aws-lc) |

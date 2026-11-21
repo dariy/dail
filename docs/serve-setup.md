@@ -111,8 +111,10 @@ dail refuses a server whose fingerprint differs from the one in the link.
 ### A phone (Android, iPhone, iPad)
 
 On first run, choose **Connect to a dail server**. You can type the server and the code. You can also scan the QR code
-from `dail serve pair` or the **Pair a device…** dialog with the system camera; it opens dail through the `dail://pair`
-link. A link only fills in the form. Nothing is contacted until you tap **Connect**, and the screen names the server
+from `dail serve pair` or the **Pair a device…** dialog, in one of two ways:
+
+- tap **Scan QR code** in dail, which asks for camera access the first time;
+- use the system camera app, which opens dail through the `dail://pair` link. A link only fills in the form. Nothing is contacted until you tap **Connect**, and the screen names the server
 the link points to. Only continue if you opened the code yourself on your own server. The device token is kept in the
 Android Keystore or the iOS Keychain.
 

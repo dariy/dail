@@ -188,10 +188,22 @@ const APK_TASKS: &[&str] = &["assembleLiveRelease", "assembleDemoDebug"];
 const AAB_TASKS: &[&str] = &["bundleLiveRelease"];
 
 /// Native libraries an APK may carry besides `libdail.so`, each with why (AGENTS.md §5, ADR 0009).
-const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[(
-    "libandroidx.graphics.path.so",
-    "androidx.graphics:graphics-path (Apache-2.0), Compose's path iterator; built by AOSP",
-)];
+const PREBUILT_ALLOWLIST: &[(&str, &str)] = &[
+    (
+        "libandroidx.graphics.path.so",
+        "androidx.graphics:graphics-path (Apache-2.0), Compose's path iterator; built by AOSP",
+    ),
+    (
+        "libimage_processing_util_jni.so",
+        "androidx.camera:camera-core (Apache-2.0), CameraX's YUV and pixel-shift helpers for the \
+         QR code scanner (SRV-QR3); built by AOSP",
+    ),
+    (
+        "libsurface_util_jni.so",
+        "androidx.camera:camera-core (Apache-2.0), CameraX's surface format query for the QR code \
+         scanner (SRV-QR3); built by AOSP",
+    ),
+];
 
 /// The permissions every APK asks for, exactly. A new one is a decision: add it here with its item.
 /// The last is AndroidX core's guard for receivers registered as not exported.
@@ -206,6 +218,8 @@ const APK_PERMISSIONS: &[&str] = &[
     "android.permission.POST_NOTIFICATIONS",
     // A5: push, a `specialUse` foreground service.
     "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
+    // SRV-QR3: the in-app QR code scanner, asked for at run time when it opens.
+    "android.permission.CAMERA",
     "{app}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
 ];
 

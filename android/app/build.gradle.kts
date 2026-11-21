@@ -297,6 +297,12 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
     implementation(libs.kotlinx.serialization.json)
+    // SRV-QR3: the scanner. camera-compose draws the preview in Compose (no camera-view, which brings camera-video).
+    implementation(libs.camera.core)
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    implementation(libs.camera.compose)
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.runner)

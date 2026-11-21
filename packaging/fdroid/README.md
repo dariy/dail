@@ -43,3 +43,10 @@ The recipe was built locally on 2026-11-05, as above, for the arm64 build pinned
 (versionCode 100071): `fdroid lint` passes, the scanner finds nothing, and the unsigned APK carries only `libdail.so`
 and `libandroidx.graphics.path.so` (about 25 minutes on 4 cores). The x86_64 build differs only in its ABI. The recipe
 still names `v0.9.0`, which does not exist yet; step 1 applies. The inclusion request is the user's to open.
+
+Since SRV-QR3 the APK also carries CameraX's `libimage_processing_util_jni.so` and `libsurface_util_jni.so` (from
+`androidx.camera:camera-core`, Apache-2.0, built by AOSP), which `PREBUILT_ALLOWLIST` admits. They come the way
+`libandroidx.graphics.path.so` does: inside an AndroidX AAR from Google's Maven repository, which F-Droid's build server
+uses as a trusted repository, and AndroidX is not on its scanner's non-free list (Play services and ML Kit are, and dail
+uses neither: the scanner decodes with zxing's pure-Java core). The recipe has not been built with `fdroid build` again
+since; the next local build should confirm that the scanner still finds nothing.

@@ -33,6 +33,6 @@ expression: "&compare"
   "back": {
     "icon": "arrow_back",
     "label": "Back",
-    "action": 29
+    "action": 31
   }
 }

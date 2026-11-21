@@ -7293,6 +7293,62 @@ strings! {
         "Um link abriu este pareamento com {server}. Só continue se você acabou de escanear ou abrir este código do seu próprio servidor dail.",
         "Uma ligação abriu este emparelhamento com {server}. Só continue se acabou de ler ou abrir este código a partir do seu próprio servidor dail.",
         "Nexus hanc copulationem cum {server} aperuit. Perge solum si hanc notam modo ex tuo servitore dail legisti aut aperuisti.";
+    ScanQr:
+        "Scan QR code",
+        "Scanner le code QR",
+        "Escanear código QR",
+        "Scanați codul QR",
+        "Escanear código QR",
+        "Ler código QR",
+        "Notam QR perlege";
+    ScanNotPairing:
+        "This QR code is not a dail pairing code.",
+        "Ce code QR n’est pas un code d’association dail.",
+        "Este código QR no es un código de vinculación de dail.",
+        "Acest cod QR nu este un cod de asociere dail.",
+        "Este código QR não é um código de pareamento do dail.",
+        "Este código QR não é um código de emparelhamento do dail.",
+        "Haec nota QR non est nota copulationis dail.";
+    ScanDenied:
+        "dail may not use the camera, so it cannot scan. Allow camera access for dail in the system settings, then try again.",
+        "dail n’a pas accès à l’appareil photo : il ne peut pas scanner. Autorisez l’accès à l’appareil photo pour dail dans les réglages du système, puis réessayez.",
+        "dail no tiene permiso para usar la cámara, así que no puede escanear. Permite el acceso a la cámara para dail en los ajustes del sistema y vuelve a intentarlo.",
+        "dail nu are voie să folosească camera, așa că nu poate scana. Permiteți accesul la cameră pentru dail în setările sistemului, apoi încercați din nou.",
+        "O dail não tem permissão para usar a câmera, então não pode escanear. Permita o acesso à câmera para o dail nas configurações do sistema e tente novamente.",
+        "O dail não tem permissão para usar a câmara, por isso não pode ler o código. Permita o acesso à câmara para o dail nas definições do sistema e tente novamente.",
+        "dail cameram adhibere non licet, ergo notam legere non potest. In optionibus systematis dail cameram adhibere sine, deinde iterum conare.";
+    ScanNoCamera:
+        "This device has no camera to scan with. Paste the pairing link or type the server instead.",
+        "Cet appareil n’a pas d’appareil photo pour scanner. Collez plutôt le lien d’association ou saisissez le serveur.",
+        "Este dispositivo no tiene cámara para escanear. Pega el enlace de vinculación o escribe el servidor.",
+        "Acest dispozitiv nu are o cameră pentru scanare. Lipiți în schimb linkul de asociere sau introduceți serverul.",
+        "Este dispositivo não tem câmera para escanear. Cole o link de pareamento ou digite o servidor.",
+        "Este dispositivo não tem câmara para ler o código. Cole a ligação de emparelhamento ou introduza o servidor.",
+        "Hoc instrumentum cameram ad legendum non habet. Potius nexum copulationis insere aut servitorem inscribe.";
+    ScanCameraFailed:
+        "The camera did not start. Close other apps that use it and try again, or paste the pairing link.",
+        "L’appareil photo n’a pas démarré. Fermez les autres applications qui l’utilisent et réessayez, ou collez le lien d’association.",
+        "La cámara no se inició. Cierra las otras aplicaciones que la usan y vuelve a intentarlo, o pega el enlace de vinculación.",
+        "Camera nu a pornit. Închideți celelalte aplicații care o folosesc și încercați din nou sau lipiți linkul de asociere.",
+        "A câmera não iniciou. Feche os outros apps que a usam e tente novamente, ou cole o link de pareamento.",
+        "A câmara não arrancou. Feche as outras aplicações que a usam e tente novamente, ou cole a ligação de emparelhamento.",
+        "Camera non incepit. Alias applicationes quae ea utuntur claude et iterum conare, aut nexum copulationis insere.";
+    NativeScanHint:
+        "Point the camera at the QR code dail shows on the server.",
+        "Pointez l’appareil photo vers le code QR que dail affiche sur le serveur.",
+        "Apunta la cámara al código QR que dail muestra en el servidor.",
+        "Îndreptați camera spre codul QR pe care dail îl afișează pe server.",
+        "Aponte a câmera para o código QR que o dail mostra no servidor.",
+        "Aponte a câmara para o código QR que o dail mostra no servidor.",
+        "Cameram ad notam QR dirige quam dail in servitore ostendit.";
+    NativeCameraPurpose:
+        "dail uses the camera only to scan the QR code that pairs this device with your dail server.",
+        "dail n’utilise l’appareil photo que pour scanner le code QR qui associe cet appareil à votre serveur dail.",
+        "dail usa la cámara solo para escanear el código QR que vincula este dispositivo con tu servidor dail.",
+        "dail folosește camera doar pentru a scana codul QR care asociază acest dispozitiv cu serverul dumneavoastră dail.",
+        "O dail usa a câmera só para escanear o código QR que pareia este dispositivo com o seu servidor dail.",
+        "O dail usa a câmara só para ler o código QR que emparelha este dispositivo com o seu servidor dail.",
+        "dail camera solum utitur ut notam QR legat quae hoc instrumentum cum tuo servitore dail copulat.";
     ConnectAddressFooter:
         "Enter connect · Esc back",
         "Entrée se connecter · Échap retour",

@@ -20,10 +20,15 @@ expression: "&address"
   ],
   "note": "host or host:port (port 7443 if none), or paste a dail://pair link",
   "busy": false,
-  "actions": [],
+  "actions": [
+    {
+      "label": "Scan QR code",
+      "action": 19
+    }
+  ],
   "back": {
     "icon": "arrow_back",
     "label": "Back",
-    "action": 19
+    "action": 20
   }
 }

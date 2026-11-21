@@ -11,19 +11,29 @@
 //! [`Purpose::Connect`] and their replies go back to the flow.
 //!
 //! [`UiEvent::PairLink`](crate::UiEvent::PairLink) is the entry point of a link from outside the
-//! app (the deep link, the scanner): the flow reads it into the server field and waits. Any web
-//! page or app can open a `dail://pair` link, so nothing is contacted before the user's
-//! *Connect*, a flow it started says so on the server and Compare stages (`SetupSheet::warning`,
-//! with the server it names), and nothing but the user's *Pair* sends `trust_server`. A link never replaces a flow under way: unless the open flow is still an empty
-//! server field, the link is dropped with a snackbar (SRV-QR2).
+//! app (the deep link): the flow reads it into the server field and waits. Any web page or app can
+//! open a `dail://pair` link, so nothing is contacted before the user's *Connect*, a flow it
+//! started says so on the server and Compare stages (`SetupSheet::warning`, with the server it
+//! names), and nothing but the user's *Pair* sends `trust_server`. A link never replaces a flow
+//! under way: unless the open flow is still an empty server field, the link is dropped with a
+//! snackbar (SRV-QR2).
+//!
+//! The server stage's *Scan QR code* (SRV-QR3) asks the host for its scanner
+//! ([`External::ScanQr`]); the host sends back the decoded text
+//! ([`UiEvent::Scanned`](crate::UiEvent::Scanned)), a cancel or why it could not scan. The text is
+//! as untrusted as a link (any poster can carry a QR code): only a valid `dail://pair` link is
+//! used, and then exactly as a link from outside (the warning, the user's *Connect*), but it may
+//! replace what was typed at the server stage the scan was asked from. Any other text is never
+//! followed: a snackbar says it is not a pairing code.
 
 use app_core::AppState;
 use app_front::connect::{Availability, ConnectFlow, Retry, Stage, availability};
 use app_front::i18n::{self, Key};
+use app_front::pairing::parse_uri;
 use app_front::text::clean;
 
 use super::{Act, Mobile};
-use crate::event::Field;
+use crate::event::{External, Field, ScanFailure};
 use crate::frame::{Button, Fingerprint, InputKind, SetupField, SetupSheet, TextValue};
 use crate::request::{Purpose, Reply, Request};
 
@@ -42,6 +52,8 @@ pub(super) enum ConnectAct {
     Retry,
     /// *Close* once paired.
     Close,
+    /// *Scan QR code*: the host's scanner.
+    Scan,
 }
 
 /// The stage a button was drawn for: it runs only while the flow is still there.
@@ -135,12 +147,46 @@ impl Mobile {
     /// one): it is read by the flow's parser, nothing is sent before the user's *Connect*, the
     /// server and Compare stages warn, and it never replaces a flow under way.
     pub(super) fn pair_link(&mut self, uri: &str, state: &AppState) -> Vec<Request> {
+        self.read_link(uri, state, false)
+    }
+
+    /// The scanner's text (SRV-QR3), if this presenter asked for a scan: a valid `dail://pair`
+    /// link goes the way of [`Self::pair_link`], but replaces what was typed at the server stage
+    /// the scan was asked from; any other text only shows a snackbar.
+    pub(super) fn scanned(&mut self, text: &str, state: &AppState) -> Vec<Request> {
+        if !std::mem::take(&mut self.scanning) {
+            return Vec::new();
+        }
+        if parse_uri(text.trim()).is_err() {
+            self.notify(i18n::s(Key::ScanNotPairing));
+            return Vec::new();
+        }
+        self.read_link(text, state, true)
+    }
+
+    /// Why the scanner could not run, in the snackbar (if this presenter asked for a scan).
+    pub(super) fn scan_failed(&mut self, reason: ScanFailure) {
+        if !std::mem::take(&mut self.scanning) {
+            return;
+        }
+        self.notify(i18n::s(match reason {
+            ScanFailure::Denied => Key::ScanDenied,
+            ScanFailure::NoCamera => Key::ScanNoCamera,
+            ScanFailure::Failed => Key::ScanCameraFailed,
+        }));
+    }
+
+    /// The flow at the server with `uri` read. `scanned`: the user's own scan from the server
+    /// stage, which may replace what was typed there.
+    fn read_link(&mut self, uri: &str, state: &AppState, scanned: bool) -> Vec<Request> {
         let mut out = Vec::new();
         if availability(state) != Availability::Open {
             self.notify(i18n::s(Key::PairLinkRefused));
             return out;
         }
-        if self.connect.as_ref().is_some_and(|open| !open.is_idle()) {
+        let gives_way =
+            |open: &Connect| open.is_idle() || (scanned && *open.flow.stage() == Stage::Address);
+        if self.connect.as_ref().is_some_and(|open| !gives_way(open)) {
             self.notify(i18n::s(Key::PairLinkBusy));
             return out;
         }
@@ -174,6 +220,13 @@ impl Mobile {
         if tag(connect.flow.stage()) != at {
             return Vec::new();
         }
+        if act == ConnectAct::Scan {
+            if availability(state) == Availability::Open {
+                self.scanning = true;
+                self.externals.push(External::ScanQr);
+            }
+            return Vec::new();
+        }
         let mut out = Vec::new();
         match act {
             ConnectAct::Connect => {
@@ -193,6 +246,7 @@ impl Mobile {
             ConnectAct::Back | ConnectAct::Cancel | ConnectAct::Close => {
                 return self.connect_back(state);
             }
+            ConnectAct::Scan => {}
         }
         out
     }
@@ -282,6 +336,10 @@ impl Mobile {
                     text = format!("{text}\n{}", clean(read));
                 }
                 note = Some(text);
+                // The scanner, only while this phone can pair; the main button stays last.
+                if availability(state) == Availability::Open {
+                    actions.push(self.connect_button(i18n::s(Key::ScanQr), ConnectAct::Scan, at));
+                }
                 match flow.address_problem() {
                     None => actions.push(self.connect_button(
                         i18n::s(Key::Connect),

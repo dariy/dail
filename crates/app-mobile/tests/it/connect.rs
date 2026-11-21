@@ -10,8 +10,9 @@ use app_core::{
     Origin, ServerEndpoint,
 };
 use app_mobile::event::Field;
+use app_mobile::event::ScanFailure;
 use app_mobile::frame::{InputKind, SetupSheet};
-use app_mobile::{Purpose, UiEvent};
+use app_mobile::{External, Purpose, UiEvent};
 
 use crate::support::{Phone, advance, requests_of, synced_state};
 
@@ -68,7 +69,8 @@ fn the_first_run_offers_a_dail_server_and_pairs_with_it() {
     insta::assert_json_snapshot!("connect_address", &address);
     assert_eq!(address.fields[0].field, Field::Server);
     assert_eq!(address.fields[0].input, InputKind::Server);
-    assert!(address.actions.is_empty(), "nothing to connect to yet");
+    let labels: Vec<&str> = address.actions.iter().map(|b| b.label.as_str()).collect();
+    assert_eq!(labels, ["Scan QR code"], "nothing to connect to yet");
     phone.event(UiEvent::Text {
         field: Field::Server,
         text: "home.example".to_owned(),
@@ -207,7 +209,7 @@ fn a_bad_link_is_refused_without_repeating_it() {
     let note = address.note.unwrap();
     assert!(note.contains("Not a usable pairing link"), "{note}");
     assert!(!note.contains("EVIL"));
-    assert!(address.actions.is_empty());
+    assert!(address.actions.iter().all(|b| b.label != "Connect"));
 }
 
 #[test]
@@ -555,4 +557,182 @@ fn a_linked_phone_shows_its_link_refusals_and_devices() {
         "{cmds:?}"
     );
     assert!(phone.frame().palette.is_some());
+}
+
+/// Taps *Scan QR code* on the server stage: the host is asked for its scanner, and nothing else.
+fn scan(phone: &mut Phone) {
+    let address = sheet(phone);
+    phone.externals();
+    let cmds = phone.tap(button(&address, "Scan QR code"));
+    assert!(cmds.is_empty(), "a scan sends nothing");
+    assert_eq!(phone.externals(), [External::ScanQr]);
+}
+
+fn snackbar(phone: &mut Phone) -> Option<String> {
+    phone.frame().snackbar.map(|s| s.text)
+}
+
+#[test]
+fn the_scanner_is_offered_only_where_a_phone_can_pair() {
+    let mut phone = at_connect();
+    // Before the main button, which stays last.
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "home.example".to_owned(),
+    });
+    let labels: Vec<String> = sheet(&mut phone)
+        .actions
+        .into_iter()
+        .map(|b| b.label)
+        .collect();
+    assert_eq!(labels, ["Scan QR code", "Connect"]);
+    scan(&mut phone);
+    // Only the server stage has it.
+    phone.event(UiEvent::Scanned { text: link(FP) });
+    let address = sheet(&mut phone);
+    phone.tap(button(&address, "Connect"));
+    phone.ingest(offered(FP));
+    let compare = sheet(&mut phone);
+    assert!(compare.actions.iter().all(|b| b.label != "Scan QR code"));
+
+    // A phone with accounts or a server never shows it (nor the flow).
+    let mut phone = Phone::inbox(360, 800);
+    let frame = serde_json::to_string(&phone.frame()).unwrap();
+    assert!(!frame.contains("Scan QR code"));
+    // A flow whose phone got an account meanwhile: no scanner, and a stale tap does nothing.
+    let mut phone = at_connect();
+    let address = sheet(&mut phone);
+    phone.dispatch(Command::AddAccount {
+        preset: app_core::ProviderPreset::Gmail,
+        email: "bob@gmail.com".to_owned(),
+        display_name: None,
+        password: None,
+        imap: None,
+        smtp: None,
+    });
+    phone.externals();
+    phone.tap(button(&address, "Scan QR code"));
+    assert!(phone.externals().is_empty());
+    if let Some(sheet) = phone.frame().setup {
+        assert!(sheet.actions.iter().all(|b| b.label != "Scan QR code"));
+    }
+}
+
+#[test]
+fn a_scanned_pairing_code_waits_for_the_user_as_a_link_does() {
+    let mut phone = at_connect();
+    // Typed text at the server stage gives way to the user's own scan.
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "other.example".to_owned(),
+    });
+    scan(&mut phone);
+    phone.take();
+    phone.event(UiEvent::Scanned { text: link(FP) });
+    assert!(phone.take().is_empty(), "nothing is sent before Connect");
+    for _ in 0..3 {
+        phone.event(UiEvent::Tick);
+        phone.frame();
+    }
+    assert!(phone.take().is_empty(), "nor later");
+    let address = sheet(&mut phone);
+    assert_eq!(address.fields[0].value.text, "home.example:7443");
+    let warning = address.warning.as_deref().expect("a scanned code warns");
+    assert!(warning.contains("home.example:7443"), "{warning}");
+    assert!(warning.contains("your own dail server"), "{warning}");
+    assert_eq!(snackbar(&mut phone), None);
+    let cmds = phone.tap(button(&address, "Connect"));
+    assert_eq!(
+        cmds,
+        [Command::ConnectServer {
+            host: "home.example".into(),
+            port: 7443
+        }]
+    );
+    phone.ingest(offered(FP));
+    let compare = sheet(&mut phone);
+    assert!(compare.warning.is_some());
+    assert!(compare.note.unwrap().contains("It matches the fingerprint"));
+    assert_eq!(compare.fields[0].value.text, "ABCD2345");
+    assert!(
+        phone
+            .take()
+            .iter()
+            .all(|r| !matches!(r.cmd, Command::TrustServer { .. })),
+        "only the user's Pair trusts it"
+    );
+}
+
+#[test]
+fn scanned_text_that_is_no_pairing_code_is_never_followed() {
+    for text in [
+        "https://evil.example/pair",
+        "evil.example:7443",
+        "dail://pair?v=1&h=evil.example&p=7443&c=EVIL&fp=00&n=x",
+        "",
+    ] {
+        let mut phone = at_connect();
+        scan(&mut phone);
+        phone.take();
+        phone.event(UiEvent::Scanned {
+            text: text.to_owned(),
+        });
+        assert!(phone.take().is_empty(), "{text}");
+        assert!(phone.externals().is_empty(), "{text}");
+        assert_eq!(
+            snackbar(&mut phone).as_deref(),
+            Some("This QR code is not a dail pairing code."),
+            "{text}"
+        );
+        let address = sheet(&mut phone);
+        assert!(address.fields[0].value.text.is_empty(), "{text}");
+        assert_eq!(address.warning, None, "{text}");
+        assert!(!serde_json::to_string(&address).unwrap().contains("evil"));
+    }
+}
+
+#[test]
+fn a_scan_that_was_not_asked_for_or_did_not_happen_changes_nothing() {
+    // No scan asked for: a `scanned` event (from anywhere) is ignored.
+    let mut phone = at_connect();
+    phone.event(UiEvent::Scanned { text: link(FP) });
+    assert!(sheet(&mut phone).fields[0].value.text.is_empty());
+    assert_eq!(snackbar(&mut phone), None);
+    // Cancelled: the flow stays as it was, quietly, and a late result is ignored.
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "home.example".to_owned(),
+    });
+    scan(&mut phone);
+    phone.event(UiEvent::ScanCancelled);
+    phone.event(UiEvent::Scanned { text: link(OTHER) });
+    let address = sheet(&mut phone);
+    assert_eq!(address.fields[0].value.text, "home.example");
+    assert_eq!(address.warning, None);
+    assert_eq!(snackbar(&mut phone), None);
+    assert!(phone.take().iter().all(|r| r.purpose != Purpose::Connect));
+}
+
+#[test]
+fn a_scanner_that_cannot_run_says_why() {
+    for (reason, says) in [
+        (ScanFailure::Denied, "system settings"),
+        (ScanFailure::NoCamera, "no camera"),
+        (ScanFailure::Failed, "did not start"),
+    ] {
+        let mut phone = at_connect();
+        scan(&mut phone);
+        phone.event(UiEvent::ScanFailed { reason });
+        let text = snackbar(&mut phone).expect("a snackbar");
+        assert!(text.contains(says), "{reason:?}: {text}");
+        assert!(phone.take().iter().all(|r| r.purpose != Purpose::Connect));
+        // The server stage is still there, and the scan can be asked for again.
+        scan(&mut phone);
+    }
+    // Unasked, a failure shows nothing.
+    let mut phone = at_connect();
+    phone.event(UiEvent::ScanFailed {
+        reason: ScanFailure::Denied,
+    });
+    assert_eq!(snackbar(&mut phone), None);
 }

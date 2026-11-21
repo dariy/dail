@@ -11,6 +11,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- A5: push, a `specialUse` foreground service from Android 14; before it, a service of no type (STORE-14). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!--
+      SRV-QR3: the in-app QR code scanner, asked for at run time only when it opens. dail does not need
+      a camera: without one the scanner says so (and the setup still takes a pasted link).
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
 
     <application
         android:name=".DailApplication"

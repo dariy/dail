@@ -242,6 +242,8 @@ pub struct Mobile {
     /// The draft whose send this presenter scheduled, while it can be cancelled.
     sending: Option<DraftId>,
     externals: Vec<External>,
+    /// The presenter asked for the in-app scanner (`External::ScanQr`) and no answer came yet.
+    scanning: bool,
     /// The system's dark mode (`configure`).
     dark: bool,
     /// A hardware keyboard is attached (`configure`): places the settings' Keyboard (TCH-6).
@@ -361,6 +363,7 @@ impl Mobile {
             undo_until: 0,
             sending: None,
             externals: Vec::new(),
+            scanning: false,
             dark: false,
             keyboard: false,
             theme_sent: None,
@@ -619,6 +622,15 @@ impl Mobile {
                     | Field::Code,
             } => Vec::new(),
             UiEvent::PairLink { uri } => self.pair_link(&uri, state),
+            UiEvent::Scanned { text } => self.scanned(&text, state),
+            UiEvent::ScanCancelled => {
+                self.scanning = false;
+                Vec::new()
+            }
+            UiEvent::ScanFailed { reason } => {
+                self.scan_failed(reason);
+                Vec::new()
+            }
             UiEvent::Text { field, text } => self.compose.text(field, text, state, now),
             UiEvent::Blur { field } => self.compose.blur(field, state),
             UiEvent::Tick => self
@@ -2253,6 +2265,10 @@ fn native_labels() -> std::collections::BTreeMap<String, String> {
         Text::Subject,
         Text::Message,
         Text::Trash,
+        // The QR code scanner (SRV-QR3): its title, hint and button.
+        Text::ScanQr,
+        Text::NativeScanHint,
+        Text::Cancel,
     ]
     .into_iter()
     .map(|key| (i18n::english(key).to_owned(), i18n::s(key).to_owned()))

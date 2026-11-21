@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
@@ -22,9 +23,14 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -37,6 +43,7 @@ import net.darii.dail.ui.DailScreen
 import net.darii.dail.ui.DailTheme
 import net.darii.dail.ui.LocalBlobs
 import net.darii.dail.ui.SaveFile
+import net.darii.dail.ui.ScanFailure
 import net.darii.dail.ui.UiEvent
 import net.darii.dail.ui.color
 import net.darii.dail.ui.tr
@@ -67,6 +74,63 @@ class MainActivity : ComponentActivity() {
             if (uris.isEmpty()) return@registerForActivityResult
             io.execute { uris.forEach { host.import(draft, it) } }
         }
+
+    /**
+     * The QR code scanner is on screen (SRV-QR3). Process-scoped like the presenter's pending-scan
+     * flag (both live with the application's host): a recreation (rotation) keeps the scanner, and
+     * after process death both are gone, so no scanner reopens whose result Rust would drop.
+     */
+    private var scanning by mutableStateOf(scanOpen)
+
+    /**
+     * The camera permission, asked for when the scanner opens and only then. Refused (now, or for
+     * good, when Android no longer asks): Rust's snackbar says so and points to the settings.
+     */
+    private val camera =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) showScanner(true) else host.send(UiEvent.ScanFailed(ScanFailure.Denied))
+        }
+
+    private fun showScanner(open: Boolean) {
+        scanOpen = open
+        scanning = open
+    }
+
+    /** `scan_qr`: the scanner, after the permission if it is not granted yet. */
+    private fun scan() {
+        when {
+            !packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) -> {
+                host.send(UiEvent.ScanFailed(ScanFailure.NoCamera))
+            }
+
+            checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED -> {
+                showScanner(true)
+            }
+
+            else -> {
+                camera.launch(Manifest.permission.CAMERA)
+            }
+        }
+    }
+
+    /** The scanner ended: its text, a cancel or why it could not run goes to Rust as it came. */
+    private fun scanned(end: ScanEnd) {
+        showScanner(false)
+        when (end) {
+            is ScanEnd.Scanned -> {
+                window.decorView.performHapticFeedback(haptic)
+                host.send(UiEvent.Scanned(end.text))
+            }
+
+            ScanEnd.Cancelled -> {
+                host.send(UiEvent.ScanCancelled)
+            }
+
+            is ScanEnd.Failed -> {
+                host.send(UiEvent.ScanFailed(end.reason))
+            }
+        }
+    }
 
     /** The attachments the open "create document" or folder picker saves. */
     private var saving: Pair<String, List<SaveFile>>? = null
@@ -235,6 +299,10 @@ class MainActivity : ComponentActivity() {
                     runOnUiThread { window.decorView.performHapticFeedback(haptic) }
                 }
 
+                "scan_qr" -> {
+                    runOnUiThread { scan() }
+                }
+
                 "pick_files" -> {
                     external.args?.draft?.let { draft ->
                         runOnUiThread {
@@ -296,15 +364,19 @@ class MainActivity : ComponentActivity() {
             }
             CompositionLocalProvider(LocalBlobs provides host::blob) {
                 DailTheme(theme, dark) {
-                    DailScreen(
-                        screen,
-                        host::send,
-                        onRestart = { Diagnostics.restart(this) },
-                        onCopyDiagnostics = { error ->
-                            Diagnostics.copy(this, error)
-                            Toast.makeText(this, R.string.failed_copied, Toast.LENGTH_SHORT).show()
-                        },
-                    )
+                    Box(Modifier.fillMaxSize()) {
+                        DailScreen(
+                            screen,
+                            host::send,
+                            onRestart = { Diagnostics.restart(this@MainActivity) },
+                            onCopyDiagnostics = { error ->
+                                Diagnostics.copy(this@MainActivity, error)
+                                Toast.makeText(this@MainActivity, R.string.failed_copied, Toast.LENGTH_SHORT).show()
+                            },
+                        )
+                        // Over the frame, which keeps its state underneath; its Back is the scanner's.
+                        if (scanning) ScannerScreen(::scanned)
+                    }
                 }
             }
         }
@@ -405,6 +477,9 @@ class MainActivity : ComponentActivity() {
 
         const val TICK_MS = 1_000L
         const val PICKING = "picking"
+
+        /** [scanning] for the next activity of this process (never saved in a bundle). */
+        @Volatile var scanOpen = false
         const val ASKED_NOTIFICATIONS = "asked_notifications"
         const val HALF = 0.5f
         const val TRANSPARENT = android.graphics.Color.TRANSPARENT

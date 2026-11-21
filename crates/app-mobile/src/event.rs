@@ -178,7 +178,8 @@ pub enum UiEvent {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         files: Vec<String>,
     },
-    /// A `dail://pair` link from outside the app (the system's deep link, the in-app scanner):
+    /// A `dail://pair` link from outside the app (the system's deep link; the in-app scanner
+    /// sends `scanned`):
     /// opens *Connect to a dail server* with it. The presenter reads it as untrusted input
     /// (`app_front::pairing::parse_uri`) and contacts the server it names; the user still compares
     /// the fingerprint and taps *Pair*. Ignored, with a note, on a phone that already has
@@ -187,6 +188,33 @@ pub enum UiEvent {
         /// The link, as read.
         uri: String,
     },
+    /// The in-app scanner (`scan_qr`) decoded a QR code: its text, as decoded. The presenter
+    /// reads it as untrusted input: a valid `dail://pair` link fills in *Connect to a dail
+    /// server* as `pair_link` does (the user still taps *Connect*, then *Pair*); any other text
+    /// only shows a snackbar. Ignored unless the presenter asked for the scan.
+    Scanned {
+        /// The decoded text.
+        text: String,
+    },
+    /// The user closed the scanner without a code (Back, *Cancel*).
+    ScanCancelled,
+    /// The scanner could not run: the snackbar says why.
+    ScanFailed {
+        /// Why.
+        reason: ScanFailure,
+    },
+}
+
+/// Why the in-app scanner could not run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanFailure {
+    /// The user refused the camera permission (now or for good).
+    Denied,
+    /// The device has no camera (an emulator, a simulator).
+    NoCamera,
+    /// The camera did not start (in use, an error).
+    Failed,
 }
 
 const fn one() -> f32 {
@@ -249,6 +277,11 @@ pub enum External {
         /// `background_interval_mins`.
         interval_mins: u64,
     },
+    /// Open the in-app QR code scanner (*Scan QR code* on *Connect to a dail server*): ask for
+    /// the camera permission if it is not granted, then a full-screen preview that decodes QR
+    /// codes only. The host returns the first decoded text as `scanned`, or `scan_cancelled`, or
+    /// `scan_failed`. It decides nothing about the text.
+    ScanQr,
     /// Open a screen of the system's settings (a link in dail's settings).
     SystemSettings {
         /// Which screen.

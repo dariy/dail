@@ -19,6 +19,10 @@ struct RootView: View {
                         .environment(\.blobs, Blobs(load: host.blob))
                 }
             }
+            // SRV-QR3: the scanner over the frame; the system's dismissal is its Cancel.
+            .fullScreenCover(isPresented: $host.scanning, onDismiss: { host.scanEnded(.cancelled) }) {
+                ScannerView { host.scanEnded($0) }
+            }
             .onAppear { configure(geometry.size) }
             .onChange(of: geometry.size) { _, size in configure(size) }
             .onChange(of: scheme) { _, _ in configure(geometry.size) }

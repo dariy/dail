@@ -104,4 +104,12 @@ The newline-delimited JSON-RPC 2.0 of the profile socket, generalized over any b
     writes it through `PersistDelta::Remote`). A forwarded command returns the server's receipt; a refusal of what the
     mirror applied resets the mirror to a fresh snapshot. Until SRV-5b the runtime is online only: a server command
     while the link is down is refused with `ERR212` and nothing is applied (ARCHITECTURE §5.6).
+  - SRV-QR3: CameraX 1.7.0 (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-compose` for a Compose
+    preview; not `camera-view`, which brings `camera-video` and media3) and `com.google.zxing:core` 3.5.4, all
+    Apache-2.0, with checksums in `verification-metadata.xml`. `camera-core` ships two AOSP-built JNI libraries
+    (`libimage_processing_util_jni.so`, `libsurface_util_jni.so`) that CameraX loads itself, so they join
+    `PREBUILT_ALLOWLIST` beside Compose's graphics-path one, each with its reason (AGENTS.md §5); like it, they come
+    from Google's Maven repository, which F-Droid accepts for AndroidX. `android.permission.CAMERA` is asked for only
+    when the scanner opens. iOS uses AVFoundation, and its camera prompt is the app's first localised resource
+    (`InfoPlist.strings` in seven `.lproj` folders, written from the i18n table).
 - The wire format is public API like `Command` JSON (AGENTS.md §5): versioned through `hello.protocol`.
