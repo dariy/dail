@@ -1350,6 +1350,10 @@ impl Backend for MemoryBackend {
     fn get_blob<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Vec<u8>>, SyncError>> {
         Box::pin(async move { Ok(self.store.get_blob(id)?) })
     }
+
+    fn put_blob(&self, bytes: Vec<u8>) -> BoxFuture<'_, Result<Option<String>, SyncError>> {
+        Box::pin(async move { Ok(Some(self.store.put_blob(&bytes)?)) })
+    }
 }
 
 /// Whether the raw message has `Message-ID: <message_id>`.

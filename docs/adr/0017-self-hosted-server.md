@@ -78,8 +78,8 @@ The newline-delimited JSON-RPC 2.0 of the profile socket, generalized over any b
 - **Mirror mode.** While `state.link` is set, B applies server commands locally at once (optimistic) but emits no
   network effects. The server's next diff overwrites the result. Rules, polling and scheduled sends run only on the
   server.
-- **Offline.** Commands are queued in `state.link.queued` (persisted) and replayed in order on reconnect, after a fresh
-  snapshot. A rejected command becomes `state.link.rejected`, visible like any other problem (AGENTS.md §4).
+- **Offline.** Commands are queued in `state.link.queued` (persisted) and replayed in order on reconnect, before the
+  snapshot is taken (so the snapshot already holds them, and takes back only what the server refused). A rejected command becomes `state.link.rejected`, visible like any other problem (AGENTS.md §4).
   Destructive and UserOnly account commands are refused offline with a new error code instead of being queued.
   Outbound commands are queued, and the server applies its undo window when they arrive.
 - **Bodies offline.** B caches blobs in its own store and pre-loads the newest bodies through `blob`.

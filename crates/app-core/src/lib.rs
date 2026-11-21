@@ -52,8 +52,8 @@ pub use ids::{
     ThreadId,
 };
 pub use link::{
-    Device, DeviceRole, LinkState, LinkStatus, OfflineRejection, PAIRING_CODE_LEN, PAIRING_TTL_MS,
-    Placement, QueuedCommand, ServerEndpoint,
+    Device, DeviceRole, LinkState, LinkStatus, OfflinePolicy, OfflineQueue, OfflineRejection,
+    PAIRING_CODE_LEN, PAIRING_TTL_MS, Placement, QueuedCommand, ServerEndpoint,
 };
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};

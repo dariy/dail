@@ -2343,6 +2343,17 @@ fn translated_error(col: usize, err: &CoreError) -> String {
             ],
             &[&accounts.to_string()],
         ),
+        CoreError::RefusedOffline { command } => t(
+            [
+                "{} n’est pas mis en file d’attente tant que le serveur dail n’est pas connecté ; rien n’a été modifié, relancez-le quand la liaison sera en ligne",
+                "{} no se pone en cola mientras el servidor dail no está conectado; no se ha cambiado nada, vuelve a ejecutarlo cuando el enlace esté en línea",
+                "{} nu este pus în coadă cât timp serverul dail nu este conectat; nu s-a schimbat nimic, rulați-l din nou când legătura este online",
+                "{} não é colocado na fila enquanto o servidor dail não está conectado; nada foi alterado, execute-o de novo quando o vínculo estiver online",
+                "{} não é colocado na fila enquanto o servidor dail não estiver ligado; nada foi alterado, execute-o de novo quando a ligação estiver em linha",
+                "{} in ordinem non ponitur dum servitor dail coniunctus non est; nihil mutatum est, iterum exsequere cum nexus in linea erit",
+            ],
+            &[command],
+        ),
     }
 }
 

@@ -375,6 +375,12 @@ impl RemoteClient {
         Ok(Self { target, rpc, hello })
     }
 
+    /// Another connection to the same server, for requests that must not wait behind this
+    /// one's (pre-loading bodies).
+    pub async fn fork(&self) -> Result<Self, SyncError> {
+        Self::connect(self.target.clone()).await
+    }
+
     /// The server's answer to `hello`.
     pub const fn hello(&self) -> &Hello {
         &self.hello
@@ -383,8 +389,15 @@ impl RemoteClient {
     /// A request on the connection. A refusal is [`SyncError::Refused`] (the connection is
     /// fine); a lost or garbled connection is [`SyncError::Remote`].
     async fn call(&self, method: &str, params: Value) -> Result<Value, SyncError> {
+        // A body can be as large as the server's own requests may be (`put_file`, a blob in
+        // base64); a snapshot as large as `rpc::SNAPSHOT_LIMIT`; anything else is a receipt.
+        let limit = match method {
+            "blob" => crate::serve::MAX_LINE,
+            "state" => crate::rpc::SNAPSHOT_LIMIT,
+            _ => crate::rpc::RESPONSE_LIMIT,
+        };
         self.rpc
-            .call(method, params)
+            .call_limited(method, params, limit)
             .await
             .map_err(|err| match err {
                 CallError::Refused { code, message } => SyncError::Refused {

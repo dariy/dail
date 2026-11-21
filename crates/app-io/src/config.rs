@@ -263,8 +263,9 @@ impl Config {
             PersistDelta::Remote(server) => {
                 self.remote = server.as_ref().and_then(RemoteConfig::from_endpoint);
             }
-            // The mail cache and the synced settings live in `state.redb`, not in the config file.
-            PersistDelta::Mail(_) | PersistDelta::Synced(_) => {}
+            // The mail cache, the synced settings and a mirror's offline queue live in
+            // `state.redb`, not in the config file.
+            PersistDelta::Mail(_) | PersistDelta::Synced(_) | PersistDelta::OfflineQueue(_) => {}
         }
     }
 
@@ -400,6 +401,14 @@ impl ConfigStore {
         &self.path
     }
 
+    /// Whether the profile is a device of a dail server (`[remote]`, ADR 0017).
+    pub fn is_remote(&self) -> bool {
+        self.config
+            .lock()
+            .as_ref()
+            .is_some_and(|config| config.remote.is_some())
+    }
+
     /// The `[serve]` table (empty for a fresh profile).
     pub fn serve(&self) -> ServeConfig {
         self.config
@@ -435,7 +444,10 @@ impl Store for ConfigStore {
     }
 
     fn apply(&self, delta: &PersistDelta) -> Result<(), IoError> {
-        if matches!(delta, PersistDelta::Mail(_) | PersistDelta::Synced(_)) {
+        if matches!(
+            delta,
+            PersistDelta::Mail(_) | PersistDelta::Synced(_) | PersistDelta::OfflineQueue(_)
+        ) {
             return Ok(());
         }
         let mut guard = self.config.lock();

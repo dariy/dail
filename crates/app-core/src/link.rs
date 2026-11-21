@@ -7,10 +7,16 @@
 //! - every command still applies locally at once (optimistic), but the engine emits only the
 //!   effects that stay on the device ([`crate::Effect::is_device_local`]): the server is the only
 //!   one that talks to mail servers, runs rules, polls and sends;
-//! - a [`Placement::Server`] or [`Placement::ServerWithUpload`] command that is not a query and
-//!   succeeds while the link is not [`LinkStatus::Online`] is appended to [`LinkState::queued`],
-//!   to be replayed in order on reconnect. While the link is online it is not queued: the runtime
-//!   forwards it to the server itself (SRV-5);
+//! - while the link is not [`LinkStatus::Online`], a command's [`OfflinePolicy`] decides: a
+//!   [`OfflinePolicy::Queue`] command that succeeds is appended to [`LinkState::queued`], to be
+//!   replayed in order on reconnect; a [`OfflinePolicy::Refuse`] command is refused
+//!   (`error_014_refused_offline`) and changes nothing. While the link is online nothing is
+//!   queued here: the runtime forwards the command itself (SRV-5);
+//! - the runtime reports each replayed command's fate as [`crate::Event::QueuedDelivered`] or
+//!   [`crate::Event::QueuedRejected`] (moved to [`LinkState::rejected`]), and a forwarded command
+//!   whose answer was lost with the connection as [`crate::Event::Requeued`];
+//! - every change of the queue or the rejections goes to the device's store
+//!   ([`crate::PersistDelta::OfflineQueue`]), so they survive a restart;
 //! - the server's changes arrive as [`crate::Event::RemoteSynced`], whose
 //!   [`StateDiff`](crate::diff::StateDiff) overwrites the optimistic result.
 
@@ -47,6 +53,61 @@ impl Placement {
         match self {
             Self::Server | Self::ServerWithUpload => true,
             Self::Client | Self::ClientWithBlob => false,
+        }
+    }
+}
+
+/// What a command does while a mirror is not connected to its server (ADR 0017, SRV-5b):
+/// [`crate::registry::CommandName::offline_policy`], refined by [`crate::Command::offline_policy`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OfflinePolicy {
+    /// Applied to the mirror at once and queued for the server (`link.queued`), which runs it
+    /// on reconnect: mutations of mail, drafts, folders and rules, undo/redo, and sends (the
+    /// server starts their undo window when they arrive).
+    Queue,
+    /// Refused while offline (`error_014_refused_offline`), nothing applied or queued: what is
+    /// irreversible (destructive commands), what manages accounts, certificates, devices or
+    /// approvals on the server, and what only makes sense now (`sync_now`, `pull_settings`,
+    /// `push_settings`).
+    Refuse,
+    /// Not affected by the link: commands that run on the device, and queries, answered from
+    /// the mirror.
+    Local,
+}
+
+/// The persisted part of a link (`PersistDelta::OfflineQueue`): what waits for the server and
+/// what it refused. The rest of `link` comes from `[remote]` or the server.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OfflineQueue {
+    /// `LinkState::queued`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued: Vec<QueuedCommand>,
+    /// `LinkState::rejected`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rejected: Vec<OfflineRejection>,
+}
+
+impl OfflineQueue {
+    /// The queue and rejections of `link`.
+    pub fn of(link: &LinkState) -> Self {
+        Self {
+            queued: link.queued.clone(),
+            rejected: link.rejected.clone(),
+        }
+    }
+
+    /// Whether nothing waits and nothing was refused.
+    pub fn is_empty(&self) -> bool {
+        self.queued.is_empty() && self.rejected.is_empty()
+    }
+
+    /// Puts the queue and rejections into `state.link`; without a link (the profile is no
+    /// longer remote) there is nothing to restore.
+    pub fn apply_to(&self, state: &mut crate::AppState) {
+        if let Some(link) = state.link.as_mut() {
+            link.queued.clone_from(&self.queued);
+            link.rejected.clone_from(&self.rejected);
         }
     }
 }

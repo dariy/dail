@@ -47,8 +47,10 @@ pub enum SyncError {
     /// pinned one, or it refused or did not follow the protocol (ADR 0017).
     #[error("ERR211: dail server link: {0}")]
     Remote(String),
-    /// A command that runs on the dail server was submitted on a remote profile while the
-    /// server is not connected. Remote profiles queue nothing yet (ADR 0017, SRV-5a).
+    /// A command that runs on the dail server and is never queued offline was dispatched on a
+    /// remote profile, and the connection went away before it could be sent (ADR 0017). Since
+    /// SRV-5b the commands that are queued wait for the replay instead, and the ones refused
+    /// offline are the engine's `ERR014`.
     #[error(
         "ERR212: `{command}` runs on the dail server, which is not connected ({status}); nothing was changed, try again when the link is online"
     )]

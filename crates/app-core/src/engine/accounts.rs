@@ -361,7 +361,10 @@ impl Engine {
             | Event::LinkFailed { .. }
             | Event::ServerPaired { .. }
             | Event::ServeFailed { .. }
-            | Event::ServerOffered { .. } => {
+            | Event::ServerOffered { .. }
+            | Event::QueuedDelivered { .. }
+            | Event::QueuedRejected { .. }
+            | Event::Requeued { .. } => {
                 return Outcome::new(receipt);
             }
         };

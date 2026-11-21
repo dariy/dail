@@ -21,24 +21,35 @@ fn temp_dir_path(name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("dail-remote-{}-{name}", std::process::id()))
 }
 
-fn temp_dir(name: &str) -> PathBuf {
+pub(crate) fn temp_dir(name: &str) -> PathBuf {
     let dir = temp_dir_path(name);
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
-/// Short pauses, so a lost server is dialed again at once.
-fn options() -> RemoteOptions {
+/// Short pauses, so a lost server is dialed again at once; no pre-loading (see
+/// [`preloading`]).
+pub(crate) fn options() -> RemoteOptions {
     RemoteOptions {
         backoff_min: Duration::from_millis(50),
         backoff_max: Duration::from_millis(200),
         settle_timeout: Duration::from_secs(10),
+        preload_bodies: 0,
+        ..RemoteOptions::default()
+    }
+}
+
+/// [`options`] with the bodies of the newest `bodies` messages pre-loaded.
+pub(crate) fn preloading(bodies: usize) -> RemoteOptions {
+    RemoteOptions {
+        preload_bodies: bodies,
+        ..options()
     }
 }
 
 /// A server on `fixture` with alice's account synced.
-async fn server(name: &str, fixture: Fixture) -> TestServer {
+pub(crate) async fn server(name: &str, fixture: Fixture) -> TestServer {
     let server = TestServer::start(&temp_dir(name), MemoryBackend::from_fixture(fixture))
         .await
         .unwrap();
@@ -61,7 +72,7 @@ async fn server(name: &str, fixture: Fixture) -> TestServer {
 }
 
 /// A user device of `server`, online.
-async fn device(server: &TestServer) -> (Session, Connection) {
+pub(crate) async fn device(server: &TestServer) -> (Session, Connection) {
     let session = server
         .device(DeviceRole::User, 1, options())
         .await
@@ -75,7 +86,7 @@ async fn device(server: &TestServer) -> (Session, Connection) {
 }
 
 /// Waits until `check` holds for the device's state.
-async fn until(session: &Session, what: &str, check: impl Fn(&AppState) -> bool) {
+pub(crate) async fn until(session: &Session, what: &str, check: impl Fn(&AppState) -> bool) {
     let mut states = session.subscribe();
     let wait = async {
         loop {
@@ -93,7 +104,7 @@ async fn until(session: &Session, what: &str, check: impl Fn(&AppState) -> bool)
     }
 }
 
-fn thread(state: &AppState, subject: &str) -> ThreadId {
+pub(crate) fn thread(state: &AppState, subject: &str) -> ThreadId {
     state
         .threads
         .values()
@@ -103,14 +114,14 @@ fn thread(state: &AppState, subject: &str) -> ThreadId {
 }
 
 /// Whether any message of thread `id` is starred.
-fn starred(state: &AppState, id: ThreadId) -> bool {
+pub(crate) fn starred(state: &AppState, id: ThreadId) -> bool {
     state.threads[&id]
         .messages
         .iter()
         .any(|m| state.messages[m].flags.flagged)
 }
 
-fn status(session: &Session) -> Option<LinkStatus> {
+pub(crate) fn status(session: &Session) -> Option<LinkStatus> {
     session.state().link.as_ref().map(|link| link.status)
 }
 
@@ -456,7 +467,7 @@ async fn the_device_resyncs_after_the_server_restarts() {
 }
 
 #[tokio::test]
-async fn without_the_server_commands_for_it_are_refused_and_queries_use_the_mirror() {
+async fn without_the_server_commands_for_it_are_queued_and_queries_use_the_mirror() {
     let server = server("offline", Fixture::builtin("basic").unwrap()).await;
     let (device, conn) = device(&server).await;
     let q3 = thread(&device.state(), "Q3 numbers");
@@ -468,24 +479,29 @@ async fn without_the_server_commands_for_it_are_refused_and_queries_use_the_mirr
     .await;
     let link = device.state().link.clone().unwrap();
     assert!(link.error.is_some());
+    // Applied to the mirror and queued for the server (SRV-5b).
+    conn.submit(
+        Command::Star {
+            ids: vec![q3],
+            messages: Vec::new(),
+        },
+        Origin::Cli,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(starred(&device.state(), q3));
+    let queued = device.state().link.clone().unwrap().queued;
+    assert_eq!(queued.len(), 1);
+    assert_eq!(queued[0].command.name(), "star");
+    // What only makes sense now is refused, and nothing is queued.
     let refused = conn
-        .submit(
-            Command::Star {
-                ids: vec![q3],
-                messages: Vec::new(),
-            },
-            Origin::Cli,
-        )
+        .submit(Command::SyncNow { account: None }, Origin::Cli)
         .await
+        .unwrap()
         .unwrap_err();
-    assert!(matches!(refused, SyncError::NotOnline { .. }), "{refused}");
-    assert!(
-        refused.to_string().starts_with("ERR212: `star`"),
-        "{refused}"
-    );
-    // Nothing was applied or queued.
-    assert!(!starred(&device.state(), q3));
-    assert!(device.state().link.as_ref().unwrap().queued.is_empty());
+    assert_eq!(refused.code(), "ERR014", "{refused}");
+    assert_eq!(device.state().link.as_ref().unwrap().queued.len(), 1);
     // Queries are answered from the mirror; the device's own commands still run.
     let listed = conn
         .submit(
@@ -559,14 +575,14 @@ async fn the_device_token_is_never_in_state_errors_or_debug_output() {
 }
 
 /// Whether `backend` ever ran an SMTP submission.
-fn sent_mail(backend: &MemoryBackend) -> bool {
+pub(crate) fn sent_mail(backend: &MemoryBackend) -> bool {
     backend
         .executed()
         .iter()
         .any(|effect| matches!(effect, app_core::Effect::SmtpSend { .. }))
 }
 
-fn new_draft(account: app_core::AccountId) -> Command {
+pub(crate) fn new_draft(account: app_core::AccountId) -> Command {
     Command::CreateDraft {
         account,
         to: vec![app_core::Addr {
@@ -709,13 +725,16 @@ async fn before_the_first_snapshot_an_agents_send_creates_an_approval_and_sends_
         .await
         .unwrap();
     let session = &device.session;
-    // Through the link nothing goes out while it is down.
-    let refused = session
+    // Through the link nothing goes out while it is down: the command is queued.
+    session
         .connection()
         .submit(new_draft(account), Origin::Mcp)
         .await
-        .unwrap_err();
-    assert!(matches!(refused, SyncError::NotOnline { .. }), "{refused}");
+        .unwrap()
+        .unwrap();
+    let queued = session.state().link.clone().unwrap().queued;
+    assert_eq!(queued.len(), 1);
+    assert_eq!(queued[0].origin, Origin::Mcp);
     // The engine itself, in mirror mode: the send becomes an approval and no SMTP effect.
     let draft = session
         .submit(new_draft(account), Origin::Mcp)

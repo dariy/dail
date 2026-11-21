@@ -501,16 +501,29 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   mirror mode. While it is set, every input still applies locally (optimistic), but `dispatch` and `ingest` return only
   the effects for which `Effect::is_device_local()` holds: `persist_state`, `schedule_tick`, `inspect_attachment`,
   `save_attachments`, `compact_store` and the update effects. Mail-server, keyring, discovery, full-text-index and
-  `read_draft` effects belong to the server, so a mirror never polls, syncs, runs rules or sends. A successful
-  `server`/`server_with_upload` command that is not a query, dispatched while the link is not `online`, is appended to
-  `link.queued` as `QueuedCommand{request_id, seed /* the call's id_seed, as a decimal string */, origin, command,
-  queued_at_ms}` (the receipt lists `link`); while online it is not queued, as the runtime forwards it (SRV-5).
-  `OfflineRejection{request_id, command, code, error, at_ms}` records a queued command the server refused (SRV-5b).
+  `read_draft` effects belong to the server, so a mirror never polls, syncs, runs rules or sends. While the link is
+  not `online` (`connecting` or `offline`), `Command::offline_policy()` decides (SRV-5b; an exhaustive match on
+  `CommandName`, refined for `set_setting` by its key, pinned in `tests/it/link.rs`): **`queue`**, the mutations of
+  mail, drafts, folders and rules, undo/redo and `send_draft` (the server starts its undo window on arrival), succeed
+  locally and are appended to `link.queued` as `QueuedCommand{request_id, seed /* the call's id_seed, as a decimal
+  string */, origin, command, queued_at_ms}` (the receipt lists `link`); **`refuse`**, the destructive commands the
+  server runs, the account, identity, certificate and settings-account commands, `start_pairing`, `revoke_device`,
+  `approve_request`, `reject_request`, and `sync_now`, `pull_settings`, `push_settings` (only meaningful now), fail
+  with `error_014_refused_offline` (ERR014) and change nothing (a queued `start_pairing` would keep its code-bearing
+  seed in the state); **`local`**, every `client`/`client_with_blob` command and every query, run as usual. While
+  online nothing is queued, as the runtime forwards the command (SRV-5). The runtime reports a replayed command's fate
+  with `QueuedDelivered{request_id}` (it leaves the queue) or `QueuedRejected{request_id, code, error, at_ms}` (it
+  moves to `link.rejected` as `OfflineRejection{request_id, seed, origin, command, code, error, at_ms}`; `at_ms` is
+  the runtime's clock), and a forwarded command whose answer was lost, or that found older ones waiting, with
+  `Requeued{entry}` (appended with its request ID unless it is there already or is not `queue`); unknown request IDs
+  are ignored. Every change of the queue or the rejections emits `persist_state` of
+  `PersistDelta::OfflineQueue{queued, rejected}` (the `link` table of `state.redb`, §6), so they survive a restart.
   `LinkChanged{status}` sets the status and turns mirror mode on. `RemoteSynced{revision, diff, snapshot}` applies the
   diff (a `snapshot` first clears the shared state) and records `revision`; a non-snapshot diff whose revision is not
   newer is ignored (`data.stale`). It emits `persist_state` of the mirror's mail it changed (a diff's upserts and
   removals; for a snapshot, what differs from the mail before it), so an optimistic change a snapshot took back is
-  not left in the local store. Neither is recorded in history. Fixture: `tests/replay/remote_offline.jsonl`.
+  not left in the local store. Neither is recorded in history. Fixtures: `tests/replay/remote_offline.jsonl`,
+  `tests/replay/remote_replay.jsonl` (queue, refusals, delivered, rejected, retried).
 - **Pairing and the link** (SRV-2; fixture `tests/replay/devices.jsonl`). On the server, `state.devices:
   IndexMap<DeviceId, Device{id, name, role: user|agent, paired_at_ms, last_seen_ms?}>` is shared (part of `StateDiff`,
   so a paired desktop lists them); no token or token hash is in state (the server keeps the hash in `config.toml`,
@@ -956,8 +969,12 @@ serve` (§5.6) runs the server; remote profiles (§5.6 *Remote profiles*, `app_s
   `submit {origin, command, request_id, seed}` → as on the socket. Roles: `user` claims `gui`, `tui`, `cli`, `batch`;
   `agent` only `mcp` (and `mcp_allow_send` with `ServeOptions::allow_send`); others get `-32004`. `seed` (a `u128` as a
   decimal string) is the dispatch's `Ctx::id_seed` (`SessionClient::submit_seeded`), so IDs equal those the device made
-  offline. The answers to each device's last 1024 `request_id`s are kept (`REPLAY_MEMORY`, in memory): a resend gets
-  the stored answer without a dispatch;
+  offline. The answers to each device's last 1024 `request_id`s are kept (`REPLAY_MEMORY`): a resend gets
+  the stored answer without a dispatch. Those of commands that are not queries (and not `start_pairing`, whose
+  receipt holds the pairing code) are also written to `<profile>/serve/answers/<device-id>.json` (user-only
+  permissions, at most 1024, oldest first, rewritten after each such submission; read when the device first submits
+  after a start; removed on `revoke_device`), so a device's replay after a restart of the server is not dispatched
+  twice (SRV-5b);
   `preview`, `flush` as on the socket; `state` → `{revision, state}` (`state` is `StateDiff::snapshot`, so no `view`,
   `update` or `link`; `revision` is `AppState::revision`);
   `watch {since?, instance?}` → `null`, then only `changed {revision, diff}` after each burst of changes, starting with
@@ -1052,47 +1069,78 @@ undone with `disconnect_server`, so the profile is a plain one again. Each step 
 and offered fingerprints), revision, queued count, refused commands and last error: the owner's live link when it
 attaches, else the link of its own session once it has dialed (at most `RemoteOptions::settle_timeout`, 15 s).
 
-**Remote profiles** (SRV-5a, `app_sync::link`). Source of truth: `config.toml` `[remote] host, port, fingerprint,
-token` (§6). Opening the profile puts `state.link` = `{status: connecting, server: pinned}` (mirror mode, §4.7); the
-engine writes `[remote]` through `PersistDelta::Remote(Some(server))` when `server_paired` pins the server and removes
-it with `PersistDelta::Remote(None)` on `disconnect_server` of a pinned link (both `persist_state`, device-local).
+**Remote profiles** (SRV-5a, SRV-5b, `app_sync::link`). Source of truth: `config.toml` `[remote] host, port, fingerprint,
+token` (§6). Opening the profile puts `state.link` = `{status: connecting, server: pinned}` (mirror mode, §4.7), with
+the offline queue and rejections from `state.redb`'s `link` table and the mirrored accounts from its
+`mirror_accounts` table, so the cached mail opens offline after a restart (`remote_synced` persists the accounts it
+changed as `PersistDelta::Account`/`AccountRemoved`, which `ProfileStore` routes to `state.redb` while `[remote]` is
+set; `config.toml` keeps no accounts, ERR108 unchanged); the engine writes `[remote]` through
+`PersistDelta::Remote(Some(server))` when `server_paired` pins the server and removes it with
+`PersistDelta::Remote(None)` on `disconnect_server` of a pinned link (both `persist_state`, device-local).
 `state.link.server` mirrors `[remote]` while the process runs; nothing else writes the table.
 - **Session.** Every owner but `dail serve` opens its session with `Session::open_remote(inner, secrets, …)`
   (`runtime::open_owned`; the TUI, the GUI, `exec`, `batch`, `mcp`), so a plain profile becomes a device as soon as
   it is paired. `RemoteBackend` wraps the live (or memory) backend: the device-local effects run there; `get_blob`
-  falls back to the server's `blob` while online (open original, previews, `include_body` from the mirror), and
+  falls back to the server's `blob` while connected (open original, previews, `include_body` from the mirror), and
   `SaveAttachments` (`client_with_blob`) fetches the body from the server when the local store lacks it, then writes the
-  files locally (`saves::save_attachments`). Nothing is cached yet (SRV-5b).
+  files locally (`saves::save_attachments`). **Blob cache:** a body read from the server is kept in the device's own
+  blob store (`Backend::put_blob`: `blobs/` of §6, content-addressed) once its SHA-256 matches its ID (a body that does
+  not match is not kept), so it opens offline, and `compact_store` keeps it while the mirror names it.
 - **Link task.** Whenever `state.link.server` is pinned and has a token: `link_changed{connecting}`, the token from the
-  `SecretStore` (OS keyring; memory: `MemorySecrets`), `RemoteClient::connect` (dial + `hello`), `state` →
-  `remote_synced{snapshot: true}`, `watch{since: revision}`, then `link_changed{online}` and only then the client is
-  shared (so a forwarded command reaches the engine after `online` and is never queued). Each `changed` becomes
-  `remote_synced`, a `resync` a snapshot. A failed dial or a lost connection is `link_failed{error}` (offline, the error
-  in `link.error`; never the token), then a pause of `backoff_min` (1 s) doubling to `backoff_max` (60 s), reset after a
-  connection; a server restart (new `instance`) is a lost connection followed by a fresh snapshot. A link that is
-  removed or re-pinned ends the connection at once. The task is aborted (and the client dropped) when the session
-  shuts down.
+  `SecretStore` (OS keyring; memory: `MemorySecrets`), `RemoteClient::connect` (dial + `hello`); the client is shared
+  (queries go to the server); the **replay** of the queue; only then `state` → `remote_synced{snapshot: true}` and
+  `watch{since: revision}`, so the server has the device's offline work before its snapshot is taken and the snapshot
+  never takes it from the mirror (an offline draft stays, an open composer stays open); it takes back only what the
+  server refused. Then a replay of what was queued meanwhile, and `online`. A replay sends the entries of `link.queued` are sent in order, each with its own `request_id`, `seed` and `origin`
+  (`attach_file` first uploads its local file with `put_file` and sends the server's path; a file that is gone or too
+  large is a refusal). The server running it → `queued_delivered`; the server refusing it (its engine's rejection,
+  with its code, or a request refusal, `ERR213`) → `queued_rejected` with the error and the runtime's time, and the
+  replay goes on; a transport failure stops it and the rest waits for the next connection (the server answers a resent
+  `request_id` from memory, on disk across its restarts, §5.4). After each batch the task flushes the session and reads
+  the queue again, so what was queued meanwhile follows; only once the queue is empty does it report
+  `link_changed{online}` (until then the engine queues new commands behind the others). A later replay with refusals
+  ends with a fresh snapshot, which takes their optimistic changes back. A queued `undo`/`redo` runs against the
+  server's history when it arrives: right after the replayed commands it follows, that is the device's last change,
+  unless another device changed something in between (accepted, SRV-5b). While online, a non-empty queue (a `requeued`
+  command) is replayed the same way. Each `changed` becomes `remote_synced`, a `resync` a snapshot. **Pre-loading:**
+  after each (re)connect and replay a background task reads the bodies of the newest `RemoteOptions::preload_bodies`
+  (200) messages with a body on the server (INBOX first, then the other mailboxes, each newest first; none above
+  `PREFETCH_MAX_BYTES`; skipped on a metered network) that the local store lacks, over `preload_connections` (2)
+  connections of its own (the commands' connection is never blocked), and keeps them (blob cache). It stops with the
+  connection. A failed dial or a lost connection is `link_failed{error}` (offline, the error in `link.error`; never
+  the token), then a pause of `backoff_min` (1 s) doubling to `backoff_max` (60 s), reset after a connection; a server
+  restart (new `instance`) is a lost connection followed by a fresh snapshot. A link that is removed or re-pinned ends
+  the connection at once. The task is aborted (and the client dropped) when the session shuts down.
+- **Response limits.** A device reads an answer of at most `rpc::RESPONSE_LIMIT` (16 MiB), a `blob` answer of at most
+  the server's own request limit (`serve::MAX_LINE`: a 25 MiB upload in base64 and 64 KiB), a `state` answer or a
+  notification of at most `rpc::SNAPSHOT_LIMIT` (256 MiB); a longer line ends the connection.
 - **`Connection::Remote`** (`RemoteSession::submit(cmd, origin)`), by `Command::placement()`: `client` and
   `client_with_blob` → the local session only. Without a pinned link everything is local. A `server` query → the server
-  while online (its receipt, with bodies), else the mirror. Any other `server`/`server_with_upload` command while
-  online → dispatched locally first with a fresh seed (optimistic; the engine does not queue it, it is online), then
-  `submit {origin, command, request_id, seed}` with the same seed (so the server creates the same IDs) and
-  `request_id` = the seed as a UUID. **The server's answer is the one returned.** A server refusal of a command the
-  mirror accepted asks the link for a fresh snapshot (ingested before the call returns), so the optimistic change does
-  not stay; the caller gets the refusal (`link.rejected` stays for refused *queued* commands, SRV-5b). A transport
-  failure is returned as `ERR211` and drops the connection: the reconnect's snapshot says whether it was applied. A
-  refusal of the request itself (a JSON-RPC error: an origin the role may not claim, an upload too large) is
-  `ERR213` (`SyncError::Refused`) and keeps the link up; the mirror is reset by a snapshot as for a rejection. An
-  origin the device's role (from `hello`) may never claim is refused with `ERR213` before anything is applied.
-  `attach_file` uploads the file first (`put_file`, at most 25 MiB) and sends the server's path; the mirror keeps the
-  local one until the diff brings the server's. While not online a `server` command that is not a query is refused
-  with `ERR212` (`SyncError::NotOnline`) and nothing is applied or queued: 5a is online only; the engine's own queue
-  (`link.queued`) fills only through a session's direct `submit` (no runtime replays it yet). The caller's origin is
-  forwarded unchanged; the server enforces the device's role and the approvals (an agent's `send_draft` still needs
-  one). `preview` of a `server` command runs on the server while online; `flush` waits for the local effects, the
-  server's (`flush`), and a fresh snapshot, so a one-shot run ends with the server's state; `state`/`subscribe` are the
-  mirror's. One-shot runs (`runtime::connect`) wait until the link has connected or failed once
-  (`RemoteSession::wait_settled`) before their first command.
+  while connected (its receipt, with bodies), else the mirror. Any other `server`/`server_with_upload` command →
+  dispatched locally first with a fresh seed (optimistic). If the engine queued it (the link is not `online`) or
+  refused it offline (ERR014), that is the answer: the command waits for the replay. Else `submit {origin, command,
+  request_id, seed}` with the same seed (so the server creates the same IDs) and `request_id` = the seed as a UUID.
+  **The server's answer is the one returned.** A server refusal of a command the mirror accepted asks the link for a
+  fresh snapshot (ingested before the call returns), so the optimistic change does not stay; the caller gets the
+  refusal. A transport failure drops the connection and the command (if its policy is `queue`) is appended to the
+  queue with the same `request_id` (`requeued`), to be resent on reconnect; the caller gets the mirror's receipt.
+  A `queue` command that finds older ones still queued while online is appended behind them the same way, so the
+  order is kept. A `refuse` command that cannot be sent is `ERR211`, or `ERR212` (`SyncError::NotOnline`) if the
+  connection went away between the dispatch and the send. A refusal of the request itself (a JSON-RPC error: an origin
+  the role may not claim, an upload too large) is `ERR213` (`SyncError::Refused`) and keeps the link up; the mirror is
+  reset by a snapshot as for a rejection. An origin the device's role (from `hello`) may never claim is refused with
+  `ERR213` before anything is applied (offline it is checked on replay, and refused there). `attach_file` uploads the
+  file first while connected (`put_file`, at most 25 MiB; a local file that does not read is refused before anything
+  changes) and sends the server's path; the mirror keeps the local one until the diff brings the server's; queued, it
+  is uploaded at replay. The caller's origin is forwarded unchanged; the server enforces the device's role and the
+  approvals (an agent's `send_draft` still needs one). `preview` of a `server` command runs on the server while
+  connected; `flush` waits for the local effects and, while connected, for the queue to be replayed (at most the
+  settle timeout), the server's effects (`flush`) and a fresh snapshot, so a one-shot run ends with the server's state;
+  `state`/`subscribe` are the mirror's. One-shot runs (`runtime::connect`) wait until the link has connected (queue
+  replayed) or failed once (`RemoteSession::wait_settled`) before their first command.
+- **Rejections** stay in `link.rejected` (with the code, message, time, seed and origin) until `retry_offline` (back
+  to the end of the queue under new request IDs, same seed and origin) or `dismiss_offline_rejection`; `dail remote
+  status` counts them. Showing them in the front ends is SRV-6.
 
 **Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
 (so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
@@ -1112,13 +1160,14 @@ tailnet address with `--advertise <MagicDNS name>`, pairs a desktop, and covers 
 ```text
 <data_dir>/dail/profiles/<name>/          # directories::ProjectDirs (XDG on Linux, %APPDATA% on Windows)
   config.toml        # accounts (no secrets), settings, keymap overrides
-  state.redb         # tables: mailboxes, envelopes, threads, drafts, outbox, approvals, meta(schema_version)
+  state.redb         # tables: mailboxes, envelopes, threads, drafts, outbox, approvals, synced, link, mirror_accounts, quarantine, meta(schema_version)
   blobs/ab/cd…eml    # content-addressed raw messages (sha256)
   index/             # full-text index of downloaded bodies (tantivy, ADR 0005; derived, rebuildable)
   backups/20261020T081500Z/{config.toml,state.redb}   # daily, newest 7 (`store::backup`)
   state.redb.broken-<time>     # a cache that did not open, set aside (`dail doctor` lists them)
   logs/replay-YYYYMMDD.jsonl   # {"t":ms,"seed"?:u128,"origin":"mcp","input":{"command":…}|{"event":…}} — bodies/secrets redacted
-  serve/             # `dail serve` only (ADR 0017), 0700: key.p256 (raw P-256 scalar), cert.der, uploads/<id>/<name> (0600 files)
+  serve/             # `dail serve` only (ADR 0017), 0700: key.p256 (raw P-256 scalar), cert.der, uploads/<id>/<name> (0600 files),
+                     #   answers/<device-id>.json (0600: the last ≤1024 non-query answers per device, SRV-5b)
 ```
 
 Replay format (`app-core::replay`): `t` becomes `Ctx::now_ms`, `seed` becomes `Ctx::id_seed` (default `line << 64`), blank
@@ -1162,7 +1211,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
   routes `Mail` and `Synced` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document), `link` (one row `queue`: a remote profile's `OfflineQueue{queued, rejected}` JSON of `PersistDelta::OfflineQueue`, SRV-5b; added within version 1, absent row = nothing queued; restored only into the `state.link` that `[remote]` gives; an unreadable row is moved to `quarantine`, as the user's own work, keyed by the first 128 bits of its SHA-256), `mirror_accounts` (a remote profile's mirrored accounts by ID, SRV-5b; added within version 1; read only while `[remote]` is set) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
   (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
@@ -2347,7 +2396,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `set_password` | Mutation (no history; user only, §9) | `id, password` (write-only `Secret`) → status `unverified`, emits `PersistState`, `StoreSecret`, `VerifyAccount`; the result lands in `Account.status` | Wave 2 |
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
-| `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
+| `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling); on a mirror whose link is down refused with `ERR014`, never queued (§4.7) | M2, SRV-5b |
 | `pull_settings` | Mutation (no history) | `account?` (none: the settings account, `set_settings_account`, else the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
 | `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
 | `list_rules` | Query | — → `{rules: [{id, enabled, updated_ms, untrusted_content: {name, when, then}}], dirty}`; agents allowed | SET-4 |
@@ -2414,7 +2463,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `error_008_origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
 | `list_devices` | Query | — → `{devices: [{id, name, role: user\|agent, paired_at_ms, last_seen_ms?}]}` in pairing order (`state.devices`); agents allowed; placement `server` | SRV-2 |
-| `start_pairing` | Mutation (no history, like `sync_now`) | `role: user\|agent, name` (trimmed, 1–64 characters, no control characters, else `ERR002` on `name`) → `{code, role, name, expires_at_ms, undoable: false}`: `code` is 8 RFC 4648 base32 characters from 40 bits of `id_seed` (`link::pairing_code`), valid 10 minutes, in the receipt only (never in state; the audit line leaves out the call's seed); emits `OpenPairing{code: Secret, role, name, expires_at_ms}`; user only; placement `server` | SRV-2 |
+| `start_pairing` | Mutation (no history, like `sync_now`) | `role: user\|agent, name` (trimmed, 1–64 characters, no control characters, else `ERR002` on `name`) → `{code, role, name, expires_at_ms, undoable: false}`: `code` is 8 RFC 4648 base32 characters from 40 bits of `id_seed` (`link::pairing_code`), valid 10 minutes, in the receipt only (never in state; the audit line leaves out the call's seed); emits `OpenPairing{code: Secret, role, name, expires_at_ms}`; user only; placement `server`; on a mirror whose link is down refused with `ERR014` (as `revoke_device`), never queued (§4.7) | SRV-2, SRV-5b |
 | `revoke_device` | Destructive | `id, confirm` → `{revoked, name, undoable: false}`; without `confirm` `ERR006`, unknown `ERR004` (`device`); emits `RevokeDevice{id}`; user only; placement `server` | SRV-2 |
 | `connect_server` | Mutation (no history) | `host, port` → `{host, port, undoable: false}`: `link` with `server{host, port}`, status `connecting`, and `ProbeServer{host, port}`; a profile with accounts `ERR013`, a bad host or port 0 `ERR002`, a link already pinned `ERR005` (`server link`); user only; placement `client` | SRV-2 |
 | `trust_server` | Mutation (no history) | `fingerprint, code: Secret` → `{host, port, fingerprint, undoable: false}`: the fingerprint (hex, colons and case ignored) must equal `link.server.offered` (`ERR002` on `fingerprint`: none offered yet, mismatch, malformed), `code` 8 base32 characters (case ignored, `ERR002` on `code`); sets `server.pairing` to the fingerprint and `server.token` = `SecretRef::for_server(uuid(id_seed))` (a retry keeps the first one) and emits `PairWithServer{host, port, fingerprint, code, secret}`; the fingerprint is pinned (`server.fingerprint`) only by `ServerPaired`, and `LinkFailed` clears `pairing`, so a refused or expired code is retried with a new one; no link `ERR012`, already paired `ERR005`; user only; placement `client` | SRV-2 |
@@ -2453,9 +2502,13 @@ canonical form, which parses back to the same `Query`.
   `{"error":"error_005_already_exists","entity":"account","key":"…"}`, `{"error":"error_006_confirmation_required","command":"…"}`,
   `{"error":"error_008_origin_not_allowed","command":"approve_request","origin":"mcp"}`, `{"error":"error_009_not_sendable","draft":"…","reason":"…"}`,
   `{"error":"error_012_not_linked"}` (a link command on a profile without a dail server) or
-  `{"error":"error_013_profile_has_accounts","accounts":1}` (`connect_server` on a profile with mail accounts).
+  `{"error":"error_013_profile_has_accounts","accounts":1}` (`connect_server` on a profile with mail accounts) or
+  `{"error":"error_014_refused_offline","command":"empty_trash"}` (a command that is not queued, run on a mirror whose
+  link is down, §4.7).
 - Remote failures are state (`PendingOp.last_error`/`attempts`/`state`, `Account.status`, `SyncStatus.last_error`), not just logs.
   The GUI's status chip and `dail exec list_pending_ops` show them; `retry_pending_ops` and `discard_pending_op` act on them.
+  So are the commands a dail server refused when a device replayed its offline queue (`link.rejected`, with the
+  server's code and message, §5.6; `retry_offline` and `dismiss_offline_rejection` act on them).
 
 ## 11. Testing strategy
 
@@ -2476,7 +2529,7 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |
-| remote profiles | `app-testkit/tests/it/remote.rs` over `app_testkit::TestServer` (a real `DailServer` and `ServeHub` on loopback TLS over a `MemoryBackend` session; devices from `Session::open_remote` with `MemorySecrets`) | snapshot and diffs, forwarded commands with the device's seed (same IDs), a server refusal resets the mirror (and the store), a refused origin keeps the link up (`ERR213`), an agent's `send_draft` becomes an approval on the server and no device SMTP effect (before and after the first snapshot), `client` commands stay local, `attach_file` uploads, `save_attachments` fetches the body, resync after a server restart, `ERR212` while offline, the token never in state, errors or `Debug` |
+| remote profiles | `app-testkit/tests/it/remote.rs` over `app_testkit::TestServer` (a real `DailServer` and `ServeHub` on loopback TLS over a `MemoryBackend` session; devices from `Session::open_remote` with `MemorySecrets`) | snapshot and diffs, forwarded commands with the device's seed (same IDs), a server refusal resets the mirror (and the store), a refused origin keeps the link up (`ERR213`), an agent's `send_draft` becomes an approval on the server and no device SMTP effect (before and after the first snapshot), `client` commands stay local, `attach_file` uploads, `save_attachments` fetches the body, resync after a server restart, offline commands queued and `ERR014` refusals, the token never in state, errors or `Debug`; `remote_offline.rs` (SRV-5b): an offline triage persisted across a device restart and replayed in order, a refusal on replay kept in `link.rejected` while the others are delivered and `retry_offline`, a command during the replay goes after the queue, a send whose connection is lost is resent once, a resend after a server restart answered from `serve/answers/` (never a pairing code), `attach_file` uploaded at replay, pre-loaded bodies read offline |
 | smoke | `dail batch --backend memory tests/smoke/basic.jsonl`, then `dail serve --backend memory` on loopback paired by `dail remote add` (`xtask/src/smoke.rs`) | end-to-end JSON round trip and the dail server (gate 6) |
 | agent e2e | `app-cli/tests/e2e_agent.rs` (CI via `cargo test`) | an MCP client drives `dail mcp --backend memory --fixture basic --profile-dir …` over stdio: discovers tools and resources, is refused `add_account`, waits for the user's `dail account add` (attached over IPC), syncs, reads the inbox through resources, marks a thread read, archives another, replies and edits the draft; `send_draft` stays an approval request that the agent can't approve |
 | IPC & audit | `app-sync/tests/it/{ipc,audit}.rs`, `app-cli/tests/it/cli.rs`, `app-gui/tests/it/bridge.rs`, `app-tui/tests/it/attached.rs` | attach over a real local socket (origins, password hand-over, disconnects, `watch`), the profile lock; the shared bridge (tagged replies in order, an owned session shut down, an attached one left running, the owner going away); audit logs that replay to the live state; `exec` attaching to a running `dail mcp`; an attached agent's archive reaching the GUI's state snapshot and waking it; `dail replay` |

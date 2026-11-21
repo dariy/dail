@@ -163,16 +163,21 @@ impl Engine {
     /// rejected command leaves the state and the history untouched.
     ///
     /// In mirror mode (`state.link` set, ADR 0017) the command applies locally as usual, but only
-    /// the effects that stay on the device are returned, and a server command dispatched while
-    /// the link is not online is queued in `link.queued` (see [`crate::link`]).
+    /// the effects that stay on the device are returned. While the link is not online a command
+    /// is queued in `link.queued` or refused (`error_014_refused_offline`) as its
+    /// [`Command::offline_policy`] says, and a change of the queue is persisted (see
+    /// [`crate::link`]).
     pub fn dispatch(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
+        self.refuse_offline(&cmd)?;
         let prefs = self.state.view.prefs();
+        let queue = self.queue_mark();
         let queued = self.to_queue(&cmd);
         let mut outcome = self.dispatch_unsettled(cmd, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
         self.mirror(&mut outcome, queued, ctx);
+        self.persist_queue(queue, &mut outcome);
         Ok(outcome)
     }
 
@@ -243,10 +248,12 @@ impl Engine {
     pub fn ingest(&mut self, event: Event, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
         let prefs = self.state.view.prefs();
+        let queue = self.queue_mark();
         let mut outcome = self.ingest_unsettled(event, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
         self.mirror(&mut outcome, None, ctx);
+        self.persist_queue(queue, &mut outcome);
         Ok(outcome)
     }
 
@@ -382,6 +389,16 @@ impl Engine {
                 port,
                 fingerprint,
             } => Ok(self.ingest_server_offered(&host, port, &fingerprint, receipt)),
+            Event::QueuedDelivered { request_id } => {
+                Ok(self.ingest_queued_delivered(request_id, receipt))
+            }
+            Event::QueuedRejected {
+                request_id,
+                code,
+                error,
+                at_ms,
+            } => Ok(self.ingest_queued_rejected(request_id, code, error, at_ms, receipt)),
+            Event::Requeued { entry } => Ok(self.ingest_requeued(*entry, receipt)),
             Event::DraftSaved { draft, revision } => {
                 Ok(self.ingest_draft_saved(draft, Ok(revision), ctx, receipt))
             }

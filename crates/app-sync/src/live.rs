@@ -1086,6 +1086,20 @@ impl Backend for LiveBackend {
         })
     }
 
+    fn put_blob(&self, bytes: Vec<u8>) -> BoxFuture<'_, Result<Option<String>, SyncError>> {
+        let store = Arc::clone(&self.store);
+        Box::pin(async move {
+            tokio::task::spawn_blocking(move || store.put_blob(&bytes))
+                .await
+                .map_err(|err| SyncError::Effect {
+                    effect: "put_blob",
+                    reason: err.to_string(),
+                })?
+                .map(Some)
+                .map_err(SyncError::from)
+        })
+    }
+
     fn get_blob<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Vec<u8>>, SyncError>> {
         let store = Arc::clone(&self.store);
         let id = id.to_owned();

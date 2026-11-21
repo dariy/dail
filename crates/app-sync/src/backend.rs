@@ -27,4 +27,10 @@ pub trait Backend: Send + Sync + 'static {
         let _ = id;
         Box::pin(async { Ok(None) })
     }
+    /// Stores `bytes` as a blob and returns its content address (`None`: backends without a
+    /// blob store keep nothing). A remote profile caches the server's bodies with it (SRV-5b).
+    fn put_blob(&self, bytes: Vec<u8>) -> BoxFuture<'_, Result<Option<String>, SyncError>> {
+        drop(bytes);
+        Box::pin(async { Ok(None) })
+    }
 }

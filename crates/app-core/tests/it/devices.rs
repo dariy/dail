@@ -8,8 +8,9 @@
 use app_core::link::{is_pairing_code, pairing_code};
 use app_core::{
     Command, CommandName, CoreError, Ctx, Device, DeviceId, DeviceRole, Effect, Engine, Event,
-    LinkStatus, OfflineRejection, Origin, Outcome, PAIRING_TTL_MS, PersistDelta, Placement,
-    ReplayInput, ReplayRecord, RequestId, Secret, SecretRef, ServerEndpoint, StateDiff,
+    LinkStatus, OfflineQueue, OfflineRejection, Origin, Outcome, PAIRING_TTL_MS, PersistDelta,
+    Placement, ReplayInput, ReplayRecord, RequestId, Secret, SecretRef, ServerEndpoint, SettingKey,
+    StateDiff,
 };
 use serde_json::json;
 
@@ -488,7 +489,7 @@ fn devices_are_shared_with_the_mirrors() {
 }
 
 #[test]
-fn on_a_mirror_pairing_commands_are_queued_for_the_server() {
+fn on_a_mirror_pairing_commands_are_refused_offline_and_run_online() {
     let mut engine = offered();
     feed(
         &mut engine,
@@ -497,21 +498,41 @@ fn on_a_mirror_pairing_commands_are_queued_for_the_server() {
             status: LinkStatus::Offline,
         },
     );
-    let outcome = run(
+    let before = engine.state().link.clone();
+    // A queued `start_pairing` would keep its code-bearing seed in the state (SRV-5b).
+    let pairing = Command::StartPairing {
+        role: DeviceRole::User,
+        name: "Tablet".into(),
+    };
+    let err = run(&mut engine, 4, pairing.clone()).unwrap_err();
+    assert_eq!(
+        err,
+        CoreError::RefusedOffline {
+            command: "start_pairing".into()
+        }
+    );
+    assert_eq!(err.code(), "ERR014");
+    let revoke = Command::RevokeDevice {
+        id: DeviceId::from_uuid(uuid::Uuid::from_u128(9)),
+        confirm: true,
+    };
+    assert!(matches!(
+        run(&mut engine, 5, revoke).unwrap_err(),
+        CoreError::RefusedOffline { .. }
+    ));
+    assert_eq!(engine.state().link, before);
+    // Online the runtime forwards it; the mirror applies it with the seed the server will use.
+    feed(
         &mut engine,
-        4,
-        Command::StartPairing {
-            role: DeviceRole::User,
-            name: "Tablet".into(),
+        6,
+        Event::LinkChanged {
+            status: LinkStatus::Online,
         },
-    )
-    .unwrap();
-    // The server opens the code with the same seed, so it is the same code.
-    assert_eq!(outcome.receipt.data["code"], pairing_code(4 << 64));
+    );
+    let outcome = run(&mut engine, 7, pairing).unwrap();
+    assert_eq!(outcome.receipt.data["code"], pairing_code(7 << 64));
     assert!(outcome.effects.is_empty(), "{:?}", outcome.effects);
-    let queued = &engine.state().link.as_ref().unwrap().queued;
-    assert_eq!(queued.len(), 1);
-    assert_eq!(queued[0].seed, 4 << 64);
+    assert!(engine.state().link.as_ref().unwrap().queued.is_empty());
 }
 
 #[test]
@@ -916,7 +937,15 @@ fn disconnect_server_forgets_the_link_and_the_mirror() {
             snapshot: true,
         },
     );
-    run(&mut engine, 6, Command::SyncNow { account: None }).unwrap();
+    run(
+        &mut engine,
+        6,
+        Command::SetSetting {
+            key: SettingKey::PollSecs,
+            value: json!(120),
+        },
+    )
+    .unwrap();
     assert_eq!(engine.state().link.as_ref().unwrap().queued.len(), 1);
     assert_eq!(engine.state().devices.len(), 2);
     let token = engine
@@ -935,14 +964,18 @@ fn disconnect_server_forgets_the_link_and_the_mirror() {
         outcome.receipt.data,
         json!({ "disconnected": "home.example:7443", "lost": 1, "undoable": false })
     );
-    // `[remote]` leaves `config.toml`: the profile is a plain one again.
+    // `[remote]` leaves `config.toml`: the profile is a plain one again; the queue and the
+    // rejections leave `state.redb`.
     assert_eq!(
         outcome.effects,
         [
             Effect::PersistState {
                 delta: PersistDelta::Remote(None)
             },
-            Effect::DisconnectServer { secret: token }
+            Effect::DisconnectServer { secret: token },
+            Effect::PersistState {
+                delta: PersistDelta::OfflineQueue(OfflineQueue::default())
+            },
         ]
     );
     assert!(engine.state().link.is_none());
@@ -1009,7 +1042,13 @@ fn retry_offline_queues_the_refused_commands_under_new_request_ids() {
     assert_eq!(link.queued[0].request_id, first);
     // The agent's command stays the agent's.
     assert_eq!(link.queued[0].origin, Origin::Mcp);
-    assert!(outcome.effects.is_empty());
+    // The queue goes to the store (SRV-5b).
+    assert_eq!(
+        outcome.effects,
+        [Effect::PersistState {
+            delta: PersistDelta::OfflineQueue(OfflineQueue::of(link))
+        }]
+    );
     // Nothing left: still fine.
     let again = run(&mut engine, 21, Command::RetryOffline {}).unwrap();
     assert_eq!(again.receipt.data["retried"], json!([]));
@@ -1059,6 +1098,13 @@ fn none_of_them_is_undoable() {
     run(&mut engine, 20, Command::DismissOfflineRejection { id }).unwrap();
     run(&mut engine, 21, Command::RetryOffline {}).unwrap();
     run(&mut engine, 22, Command::ListDevices {}).unwrap();
+    feed(
+        &mut engine,
+        22,
+        Event::LinkChanged {
+            status: LinkStatus::Online,
+        },
+    );
     run(
         &mut engine,
         23,

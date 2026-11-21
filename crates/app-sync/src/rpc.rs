@@ -18,6 +18,13 @@ pub(crate) const METHOD_NOT_FOUND: i64 = -32601;
 pub(crate) const INVALID_PARAMS: i64 = -32602;
 pub(crate) const INTERNAL_ERROR: i64 = -32603;
 
+/// The longest answer [`RpcClient::call`] reads (16 MiB): receipts, previews, the small
+/// answers. A longer line ends the connection.
+pub const RESPONSE_LIMIT: usize = 16 * 1024 * 1024;
+/// The longest answer to a state snapshot ([`RpcClient::call_limited`] for `state`) and the
+/// longest notification of a stream (a `resync` carries one): 256 MiB.
+pub const SNAPSHOT_LIMIT: usize = 256 * 1024 * 1024;
+
 /// A boxed read half.
 pub(crate) type BoxRead = Box<dyn AsyncRead + Unpin + Send>;
 /// A boxed write half.
@@ -185,8 +192,19 @@ impl RpcClient {
         }
     }
 
-    /// Sends one request and waits for its answer's `result`.
+    /// Sends one request and waits for its answer's `result`, of at most [`RESPONSE_LIMIT`].
     pub async fn call(&self, method: &str, params: Value) -> Result<Value, CallError> {
+        self.call_limited(method, params, RESPONSE_LIMIT).await
+    }
+
+    /// Like [`RpcClient::call`], with an answer of at most `limit` bytes. A longer one is a
+    /// protocol error, and the connection is closed (it is no longer at the start of a line).
+    pub async fn call_limited(
+        &self,
+        method: &str,
+        params: Value,
+        limit: usize,
+    ) -> Result<Value, CallError> {
         let mut conn = self.inner.lock().await;
         let id = conn.next_id;
         conn.next_id += 1;
@@ -194,12 +212,16 @@ impl RpcClient {
         write_line(&mut conn.send, &request)
             .await
             .map_err(|_| CallError::Closed)?;
-        let line = conn
-            .lines
-            .next_line(usize::MAX)
-            .await
-            .map_err(|_| CallError::Closed)?
-            .ok_or(CallError::Closed)?;
+        let line = match conn.lines.next_line(limit).await {
+            Ok(Some(line)) => line,
+            Ok(None) => return Err(CallError::Closed),
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidData => {
+                // Nothing more can be read from the connection: make every later call fail.
+                let _ = conn.send.shutdown().await;
+                return Err(CallError::Protocol(format!("{method}: {err}")));
+            }
+            Err(_) => return Err(CallError::Closed),
+        };
         let mut response: Value = serde_json::from_str(&line)
             .map_err(|err| CallError::Protocol(format!("bad response: {err}")))?;
         if response["id"] != json!(id) {
@@ -224,7 +246,7 @@ impl RpcClient {
         method: &str,
         params: Value,
     ) -> Result<(Value, Notifications), CallError> {
-        let result = self.call(method, params).await?;
+        let result = self.call_limited(method, params, SNAPSHOT_LIMIT).await?;
         let conn = Arc::try_unwrap(self.inner)
             .map_err(|_| CallError::Protocol("the connection is shared".to_owned()))?
             .into_inner();
@@ -256,7 +278,7 @@ impl Notifications {
     /// that are not notifications are skipped. Cancel-safe.
     pub async fn next(&mut self) -> Option<(String, Value)> {
         loop {
-            let line = self.lines.next_line(usize::MAX).await.ok()??;
+            let line = self.lines.next_line(SNAPSHOT_LIMIT).await.ok()??;
             let Ok(mut value) = serde_json::from_str::<Value>(&line) else {
                 continue;
             };
@@ -286,5 +308,27 @@ mod tests {
         let mut reader = LineReader::new(b);
         a.write_all(b"three-is-too-long\n").await.unwrap();
         assert!(reader.next_line(8).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn an_answer_over_the_limit_is_refused_and_ends_the_connection() {
+        let (client, server) = tokio::io::duplex(4096);
+        let rpc = RpcClient::new(client);
+        let (read, mut send) = split(server);
+        let peer = tokio::spawn(async move {
+            let mut lines = LineReader::new(read);
+            while let Ok(Some(_)) = lines.next_line(1024).await {
+                let long = "x".repeat(200);
+                let answer = json!({ "jsonrpc": "2.0", "id": 1, "result": long });
+                if write_line(&mut send, &answer).await.is_err() {
+                    return;
+                }
+            }
+        });
+        let err = rpc.call_limited("blob", json!({}), 64).await.unwrap_err();
+        assert!(matches!(err, CallError::Protocol(_)), "{err:?}");
+        assert!(rpc.call("flush", Value::Null).await.is_err());
+        drop(rpc);
+        peer.await.unwrap();
     }
 }

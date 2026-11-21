@@ -1,0 +1,18 @@
+# Offline queue replay (ADR 0017, SRV-5b). Account: line 4; INBOX ..0005-..0; thread ..0006-..0. Line 8: offline.
+# Lines 9-10 are queued (request IDs ..0009-.., ..000a-..) and persisted; 11-12 are refused offline (ERR014), nothing queued.
+# The replay (13-16): 9 delivered, 10 rejected, then online; 17 retries it (new request ID ..0011-..), delivered at 18.
+{"t": 1700000000000, "origin": "cli", "input": {"command": {"cmd": "add_account", "args": {"preset": "hostinger", "email": "me@example.com"}}}}
+{"t": 1700000001000, "origin": "runtime", "input": {"event": {"event": "mailboxes_listed", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailboxes": [{"path": "INBOX", "delimiter": "/", "selectable": true}, {"path": "Archive", "delimiter": "/", "special_use": "archive", "selectable": true}]}}}}
+{"t": 1700000002000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000000", "uid_validity": 3, "uid_next": 2, "total": 1, "unread": 0, "envelopes": [{"uid": 1, "message_id_hdr": "one@x", "subject": "Plans", "date_ms": 1699000000000, "size": 120, "flags": {"seen": true}}]}}}}
+{"t": 1700000003000, "origin": "runtime", "input": {"event": {"event": "envelopes_fetched", "args": {"account": "00000000-0000-0004-0000-000000000000", "mailbox": "00000000-0000-0005-0000-000000000001", "uid_validity": 5, "uid_next": 9, "total": 0, "unread": 0, "envelopes": []}}}}
+{"t": 1700000004000, "origin": "runtime", "input": {"event": {"event": "link_changed", "args": {"status": "offline"}}}}
+{"t": 1700000009000, "origin": "gui", "input": {"command": {"cmd": "star", "args": {"ids": ["00000000-0000-0006-0000-000000000000"]}}}}
+{"t": 1700000010000, "origin": "gui", "input": {"command": {"cmd": "mark_unread", "args": {"ids": ["00000000-0000-0006-0000-000000000000"]}}}}
+{"t": 1700000011000, "origin": "cli", "input": {"command": {"cmd": "sync_now", "args": {}}}}
+{"t": 1700000012000, "origin": "gui", "input": {"command": {"cmd": "start_pairing", "args": {"role": "user", "name": "Tablet"}}}}
+{"t": 1700000013000, "origin": "runtime", "input": {"event": {"event": "link_changed", "args": {"status": "connecting"}}}}
+{"t": 1700000014000, "origin": "runtime", "input": {"event": {"event": "queued_delivered", "args": {"request_id": "00000000-0000-0009-0000-000000000000"}}}}
+{"t": 1700000015000, "origin": "runtime", "input": {"event": {"event": "queued_rejected", "args": {"request_id": "00000000-0000-000a-0000-000000000000", "code": "ERR004", "error": "ERR004: thread 00000000-0000-0006-0000-000000000000 not found", "at_ms": 1700000015000}}}}
+{"t": 1700000016000, "origin": "runtime", "input": {"event": {"event": "link_changed", "args": {"status": "online"}}}}
+{"t": 1700000017000, "origin": "gui", "input": {"command": {"cmd": "retry_offline", "args": {}}}}
+{"t": 1700000018000, "origin": "runtime", "input": {"event": {"event": "queued_delivered", "args": {"request_id": "00000000-0000-0011-0000-000000000000"}}}}

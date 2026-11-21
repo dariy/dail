@@ -1607,6 +1607,19 @@ impl Command {
         }
     }
 
+    /// What the command does while a mirror's link is down (ADR 0017): the name's policy,
+    /// except that `set_setting` of a device-local key is `local` (it follows
+    /// [`SettingKey::placement`]).
+    pub const fn offline_policy(&self) -> crate::link::OfflinePolicy {
+        if let Self::SetSetting { key, .. } = self
+            && !key.placement().on_server()
+        {
+            crate::link::OfflinePolicy::Local
+        } else {
+            self.command_name().offline_policy()
+        }
+    }
+
     /// The registry: one spec per command, in catalogue order.
     pub fn specs() -> Vec<CommandSpec> {
         CommandName::ALL.iter().map(|name| name.spec()).collect()

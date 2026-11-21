@@ -1330,7 +1330,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
   in `packaging/systemd/`, a Tailscale how-to, ARCHITECTURE §5.6 *Serving*; a smoke step against `--backend memory`
 - [x] SRV-5a (M) [sync][io][tk]: the remote profile (`[remote]`, a new golden), `RemoteClient`, `RemoteBackend`,
   `Connection::Remote`, online only
-- [ ] SRV-5b (M) [sync][io][tk]: the persisted offline queue and its replay, the blob cache and pre-loading, and the
+- [x] SRV-5b (M) [sync][io][tk]: the persisted offline queue and its replay, the blob cache and pre-loading, and the
   offline refusals (a new error code)
 - [ ] SRV-QR1 (S) [front][cli][tui][gui]: `app_front::qr` (`qrcode`) and `app_front::pairing` (the `dail://pair` URI
   and its strict parser); half-blocks in the terminal and the TUI, the *Pair a device…* dialog in the GUI; a round trip

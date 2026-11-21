@@ -15,7 +15,7 @@ use crate::ids::{
     AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, RequestId, RuleId,
     ThreadId,
 };
-use crate::link::{DeviceRole, Placement};
+use crate::link::{DeviceRole, OfflinePolicy, Placement};
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::state::{AppState, Pane};
@@ -1122,6 +1122,138 @@ impl CommandName {
             | Self::ListDevices
             | Self::StartPairing
             | Self::RevokeDevice => Placement::Server,
+        }
+    }
+
+    /// What the command does on a mirror whose link to its dail server is down (ADR 0017,
+    /// SRV-5b). `Local`: every command that runs on the device ([`Placement::Client`],
+    /// [`Placement::ClientWithBlob`]) and every query (answered from the mirror). `Refuse`
+    /// (`error_014_refused_offline`): the destructive commands the server runs, the commands
+    /// that manage accounts, certificates, the synced settings' account, paired devices and
+    /// approvals (an offline decision about them could be stale by the time it arrives, and a
+    /// queued `start_pairing` would keep its code-bearing seed in the state), and the ones
+    /// that only make sense now (`sync_now`, `pull_settings`, `push_settings`). `Queue`: the
+    /// rest, applied to the mirror and replayed in order on reconnect, sends included (the
+    /// server starts their undo window when they arrive). `set_setting` is `Queue` here;
+    /// [`crate::Command::offline_policy`] makes it `Local` for the device's own keys.
+    pub const fn offline_policy(self) -> OfflinePolicy {
+        match self {
+            Self::RemoveAccount
+            | Self::DeleteFolder
+            | Self::EmptyTrash
+            | Self::EmptyJunk
+            | Self::RevokeDevice
+            | Self::AddAccount
+            | Self::UpdateAccount
+            | Self::SetPassword
+            | Self::SetIdentity
+            | Self::RemoveIdentity
+            | Self::TrustCertificate
+            | Self::ForgetCertificate
+            | Self::SetSettingsAccount
+            | Self::PushSettings
+            | Self::PullSettings
+            | Self::SyncNow
+            | Self::StartPairing
+            | Self::ApproveRequest
+            | Self::RejectRequest => OfflinePolicy::Refuse,
+            Self::SetSetting
+            | Self::Undo
+            | Self::Redo
+            | Self::SetMailboxIdentity
+            | Self::CreateFolder
+            | Self::RenameFolder
+            | Self::SetDraftFrom
+            | Self::SetSyncWindow
+            | Self::SaveRule
+            | Self::DeleteRule
+            | Self::EnableRule
+            | Self::ApplyRules
+            | Self::ShowImagesFrom
+            | Self::HideImagesFrom
+            | Self::PinMailbox
+            | Self::UnpinMailbox
+            | Self::HideMailbox
+            | Self::ShowMailbox
+            | Self::MarkRead
+            | Self::MarkMailboxRead
+            | Self::MarkUnread
+            | Self::Star
+            | Self::Unstar
+            | Self::PinThreads
+            | Self::UnpinThreads
+            | Self::ArchiveThreads
+            | Self::TrashThreads
+            | Self::MarkJunk
+            | Self::MarkNotJunk
+            | Self::MoveThreads
+            | Self::RetryPendingOps
+            | Self::DiscardPendingOp
+            | Self::CreateDraft
+            | Self::Reply
+            | Self::ReplyAll
+            | Self::Forward
+            | Self::UpdateDraft
+            | Self::DiscardDraft
+            | Self::EditDraft
+            | Self::RestoreDraft
+            | Self::AttachFile
+            | Self::RemoveAttachment
+            | Self::SendDraft
+            | Self::CancelSend => OfflinePolicy::Queue,
+            Self::TestAccount
+            | Self::DiscoverServers
+            | Self::ListRules
+            | Self::ListMailboxes
+            | Self::ListThreads
+            | Self::GetThread
+            | Self::GetMessage
+            | Self::ListPendingOps
+            | Self::ListApprovals
+            | Self::Search
+            | Self::ListContacts
+            | Self::ListDevices
+            | Self::SaveAttachments
+            | Self::GetView
+            | Self::GetSettings
+            | Self::SetKeybinding
+            | Self::SetKeyPreset
+            | Self::SetTheme
+            | Self::CompactStore
+            | Self::CheckForUpdates
+            | Self::DownloadUpdate
+            | Self::InstallUpdate
+            | Self::SkipUpdateVersion
+            | Self::SetUpdatePolicy
+            | Self::OpenPalette
+            | Self::ClosePalette
+            | Self::OpenSettings
+            | Self::CloseSettings
+            | Self::OpenMailbox
+            | Self::OpenUnifiedInbox
+            | Self::SelectThreads
+            | Self::CheckThreads
+            | Self::UncheckThreads
+            | Self::OpenThread
+            | Self::CloseThread
+            | Self::ExpandMessages
+            | Self::CollapseMessages
+            | Self::SetSearch
+            | Self::ClearSearch
+            | Self::OpenComposer
+            | Self::CloseComposer
+            | Self::FocusPane
+            | Self::SetListFilter
+            | Self::FocusMailbox
+            | Self::ClearFocus
+            | Self::CollapseFolders
+            | Self::ExpandFolders
+            | Self::ToggleSidebar
+            | Self::ConnectServer
+            | Self::TrustServer
+            | Self::DisconnectServer
+            | Self::RetryOffline
+            | Self::DismissOfflineRejection => OfflinePolicy::Local,
         }
     }
 

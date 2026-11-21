@@ -3,7 +3,11 @@
 //! Tables map 128-bit IDs to JSON records: `mailboxes`, `messages` (envelopes), `threads`,
 //! `outbox` (pending ops), `drafts`, `approvals` (agents' send requests); `meta` holds `schema_version`;
 //! `synced` holds one row, `document`: the synced settings with their unpushed-changes flag
-//! (SET-4; absent in older profiles, which start with an empty document). Each [`MailDelta`] is applied in one ACID write transaction.
+//! (SET-4; absent in older profiles, which start with an empty document). `link` holds one row,
+//! `queue`: a mirror's commands queued for its dail server and those the server refused
+//! (SRV-5b; absent in older profiles, which have none). `mirror_accounts` holds a remote
+//! profile's mirrored accounts (the server's), so its cached mail opens after a restart offline
+//! (SRV-5b; read only while `[remote]` is set). Each [`MailDelta`] is applied in one ACID write transaction.
 //!
 //! An unreadable row of the cache proper (mailboxes, messages, threads) is skipped: sync
 //! fetches it again. An unreadable draft, queued operation or approval is the user's own work, so
@@ -13,8 +17,8 @@
 use std::path::{Path, PathBuf};
 
 use app_core::{
-    AppState, ApprovalRequest, Draft, Envelope, LocalSettings, MailDelta, Mailbox, PendingOp,
-    QuarantinedRow, Thread,
+    Account, AccountId, AppState, ApprovalRequest, Draft, Envelope, LocalSettings, MailDelta,
+    Mailbox, OfflineQueue, PendingOp, QuarantinedRow, Thread,
 };
 use redb::{Database, ReadableDatabase, ReadableTable, TableDefinition};
 use serde::Serialize;
@@ -35,6 +39,18 @@ const QUARANTINE: TableDefinition<u128, &[u8]> = TableDefinition::new("quarantin
 /// The synced settings document (SET-4): one row under [`SYNCED_ROW`].
 const SYNCED: TableDefinition<&str, &[u8]> = TableDefinition::new("synced");
 const SYNCED_ROW: &str = "document";
+/// A mirror's offline queue and rejections (SRV-5b): one row under [`LINK_ROW`].
+const LINK: TableDefinition<&str, &[u8]> = TableDefinition::new("link");
+const LINK_ROW: &str = "queue";
+/// A remote profile's mirrored accounts (SRV-5b), by account ID.
+const MIRROR_ACCOUNTS: TableDefinition<u128, &[u8]> = TableDefinition::new("mirror_accounts");
+/// The `quarantine` key of an unreadable [`LINK_ROW`]: the row has no ID of its own, so its
+/// content's (the first 128 bits of its SHA-256), as a row's ID keys the other tables' rows. A
+/// second bad row keeps the first.
+fn link_quarantine_key(raw: &[u8]) -> u128 {
+    let id = super::blob_id(raw);
+    u128::from_str_radix(id.get(..32).unwrap_or_default(), 16).unwrap_or_default()
+}
 const SCHEMA_VERSION: &str = "schema_version";
 
 /// The mail cache of one profile.
@@ -120,6 +136,8 @@ impl RedbStore {
         }
         // Additive within version 1, like `drafts`.
         txn.open_table(SYNCED).map_err(|e| self.err(e))?;
+        txn.open_table(LINK).map_err(|e| self.err(e))?;
+        txn.open_table(MIRROR_ACCOUNTS).map_err(|e| self.err(e))?;
         txn.open_table(META)
             .map_err(|e| self.err(e))?
             .insert(SCHEMA_VERSION, migrations::CURRENT)
@@ -131,6 +149,7 @@ impl RedbStore {
     fn quarantine(&self) -> Result<(), IoError> {
         let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
         let mut moved = self.quarantine_table::<Draft>(&txn, DRAFTS)?;
+        moved += self.quarantine_link(&txn)?;
         moved += self.quarantine_table::<PendingOp>(&txn, OUTBOX)?;
         moved += self.quarantine_table::<ApprovalRequest>(&txn, APPROVALS)?;
         if moved > 0 {
@@ -167,6 +186,34 @@ impl RedbStore {
             source.remove(*key).map_err(|e| self.err(e))?;
         }
         Ok(bad.len())
+    }
+
+    /// Moves an unreadable offline queue into `quarantine`: queued commands are the user's own
+    /// work.
+    fn quarantine_link(&self, txn: &redb::WriteTransaction) -> Result<usize, IoError> {
+        let mut table = txn.open_table(LINK).map_err(|e| self.err(e))?;
+        let bad = match table.get(LINK_ROW).map_err(|e| self.err(e))? {
+            Some(row) => match serde_json::from_slice::<OfflineQueue>(row.value()) {
+                Ok(_) => None,
+                Err(err) => Some((row.value().to_vec(), err.to_string())),
+            },
+            None => None,
+        };
+        let Some((raw, error)) = bad else {
+            return Ok(0);
+        };
+        let held = Held {
+            table: "link".to_owned(),
+            error,
+            raw: String::from_utf8_lossy(&raw).into_owned(),
+        };
+        let bytes = self.encode(&held)?;
+        txn.open_table(QUARANTINE)
+            .map_err(|e| self.err(e))?
+            .insert(link_quarantine_key(&raw), bytes.as_slice())
+            .map_err(|e| self.err(e))?;
+        table.remove(LINK_ROW).map_err(|e| self.err(e))?;
+        Ok(1)
     }
 
     /// The schema version recorded in the file.
@@ -223,6 +270,32 @@ impl RedbStore {
                         Ok(local) => local.apply_to(state),
                         Err(err) => {
                             tracing::warn!(error = %err, "skipping unreadable synced settings")
+                        }
+                    }
+                }
+            }
+            Err(redb::TableError::TableDoesNotExist(_)) => {}
+            Err(err) => return Err(self.err(err)),
+        }
+        // A remote profile's accounts come from the mirror (`[remote]` gave `state.link`).
+        if state.link.is_some() {
+            match txn.open_table(MIRROR_ACCOUNTS) {
+                Ok(_) => {
+                    for account in self.read_all::<Account>(&txn, MIRROR_ACCOUNTS)? {
+                        state.accounts.insert(account.id, account);
+                    }
+                }
+                Err(redb::TableError::TableDoesNotExist(_)) => {}
+                Err(err) => return Err(self.err(err)),
+            }
+        }
+        match txn.open_table(LINK) {
+            Ok(table) => {
+                if let Some(row) = table.get(LINK_ROW).map_err(|e| self.err(e))? {
+                    match serde_json::from_slice::<OfflineQueue>(row.value()) {
+                        Ok(queue) => queue.apply_to(state),
+                        Err(err) => {
+                            tracing::warn!(error = %err, "skipping unreadable offline queue")
                         }
                     }
                 }
@@ -349,6 +422,44 @@ impl RedbStore {
             .map_err(|e| self.err(e))?
             .insert(SYNCED_ROW, bytes.as_slice())
             .map_err(|e| self.err(e))?;
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Stores a mirrored account of a remote profile (SRV-5b).
+    pub fn put_mirror_account(&self, account: &Account) -> Result<(), IoError> {
+        let bytes = self.encode(account)?;
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        txn.open_table(MIRROR_ACCOUNTS)
+            .map_err(|e| self.err(e))?
+            .insert(account.id.as_uuid().as_u128(), bytes.as_slice())
+            .map_err(|e| self.err(e))?;
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Removes a mirrored account of a remote profile.
+    pub fn remove_mirror_account(&self, id: AccountId) -> Result<(), IoError> {
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        txn.open_table(MIRROR_ACCOUNTS)
+            .map_err(|e| self.err(e))?
+            .remove(id.as_uuid().as_u128())
+            .map_err(|e| self.err(e))?;
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Stores a mirror's offline queue and rejections (SRV-5b); an empty one removes the row.
+    pub fn put_offline_queue(&self, queue: &OfflineQueue) -> Result<(), IoError> {
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        {
+            let mut table = txn.open_table(LINK).map_err(|e| self.err(e))?;
+            if queue.is_empty() {
+                table.remove(LINK_ROW).map_err(|e| self.err(e))?;
+            } else {
+                let bytes = self.encode(queue)?;
+                table
+                    .insert(LINK_ROW, bytes.as_slice())
+                    .map_err(|e| self.err(e))?;
+            }
+        }
         txn.commit().map_err(|e| self.err(e))
     }
 

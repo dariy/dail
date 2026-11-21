@@ -152,11 +152,12 @@ impl Session {
         options: RemoteOptions,
     ) -> Result<Self, SyncError> {
         let link = RemoteLink::new(options);
-        let backend = Arc::new(RemoteBackend::new(inner, Arc::clone(&link)));
-        let mut session = Self::open_audited(backend, clock, Arc::clone(&seeds), audit).await?;
-        let task = link.spawn(session.client(), secrets);
+        let backend = Arc::new(RemoteBackend::new(Arc::clone(&inner), Arc::clone(&link)));
+        let mut session =
+            Self::open_audited(backend, Arc::clone(&clock), Arc::clone(&seeds), audit).await?;
+        let task = link.spawn(session.client(), secrets, Arc::clone(&clock), inner);
         session.remote = Some(RemoteParts {
-            session: RemoteSession::new(session.client(), link, seeds),
+            session: RemoteSession::new(session.client(), link, seeds, clock),
             task,
         });
         Ok(session)

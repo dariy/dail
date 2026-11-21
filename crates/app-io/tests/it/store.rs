@@ -538,3 +538,164 @@ fn a_saved_rule_survives_a_restart_unpushed() {
     assert!(state.synced.dirty, "the edit is still unpushed");
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// A remote profile's `[remote]` (ADR 0017).
+fn pinned_server() -> app_core::ServerEndpoint {
+    app_core::ServerEndpoint {
+        host: "home.example".into(),
+        port: 7443,
+        offered: None,
+        pairing: None,
+        fingerprint: Some("ab".repeat(32)),
+        token: Some(SecretRef::for_server(uuid::Uuid::from_u128(5))),
+    }
+}
+
+fn offline_queue() -> app_core::OfflineQueue {
+    let command = app_core::QueuedCommand {
+        request_id: app_core::RequestId::from_uuid(uuid::Uuid::from_u128(9 << 64)),
+        seed: 9 << 64,
+        origin: Origin::Gui,
+        command: app_core::Command::SyncNow { account: None },
+        queued_at_ms: 1_700_000_000_000,
+    };
+    app_core::OfflineQueue {
+        queued: vec![command.clone()],
+        rejected: vec![app_core::OfflineRejection {
+            request_id: app_core::RequestId::from_uuid(uuid::Uuid::from_u128(10 << 64)),
+            seed: 10 << 64,
+            origin: Origin::Mcp,
+            command: command.command,
+            code: "ERR004".into(),
+            error: "ERR004: gone".into(),
+            at_ms: 1_700_000_001_000,
+        }],
+    }
+}
+
+#[test]
+fn a_mirrors_offline_queue_survives_a_restart() {
+    let dir = scratch("offline-queue");
+    let dirs = ProfileDirs::at(&dir);
+    let queue = offline_queue();
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store
+            .apply(&PersistDelta::Remote(Some(pinned_server())))
+            .unwrap();
+        store
+            .apply(&PersistDelta::OfflineQueue(queue.clone()))
+            .unwrap();
+    }
+    let config = std::fs::read_to_string(dirs.config_file()).unwrap();
+    assert!(
+        !config.contains("sync_now"),
+        "the queue stays out of config.toml"
+    );
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap().unwrap();
+    let link = state.link.unwrap();
+    assert_eq!(link.queued, queue.queued);
+    assert_eq!(link.rejected, queue.rejected);
+    // Empty again: the row goes.
+    store
+        .apply(&PersistDelta::OfflineQueue(
+            app_core::OfflineQueue::default(),
+        ))
+        .unwrap();
+    drop(store);
+    let store = ProfileStore::open(&dirs).unwrap();
+    let link = store.load_snapshot().unwrap().unwrap().link.unwrap();
+    assert!(link.queued.is_empty() && link.rejected.is_empty());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_queue_without_remote_is_not_restored_and_an_unreadable_one_is_quarantined() {
+    let dir = scratch("offline-queue-bad");
+    let path = dir.join("state.redb");
+    {
+        let store = RedbStore::open(&path).unwrap();
+        store.put_offline_queue(&offline_queue()).unwrap();
+        // Without `[remote]` there is no link to put it in.
+        let mut state = AppState::default();
+        store.load_into(&mut state).unwrap();
+        assert!(state.link.is_none());
+    }
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        txn.open_table(redb::TableDefinition::<&str, &[u8]>::new("link"))
+            .unwrap()
+            .insert("queue", b"{not json".as_slice())
+            .unwrap();
+        txn.commit().unwrap();
+    }
+    drop(RedbStore::open(&path).unwrap());
+    // A second bad row does not overwrite the first in `quarantine`.
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        txn.open_table(redb::TableDefinition::<&str, &[u8]>::new("link"))
+            .unwrap()
+            .insert("queue", b"{also not json".as_slice())
+            .unwrap();
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState {
+        link: Some(app_core::LinkState::default()),
+        ..AppState::default()
+    };
+    store.load_into(&mut state).unwrap();
+    assert!(state.link.unwrap().queued.is_empty());
+    assert_eq!(state.status.quarantined.len(), 2);
+    assert!(
+        state
+            .status
+            .quarantined
+            .iter()
+            .all(|row| row.table == "link")
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_remote_profiles_mirrored_accounts_and_mail_survive_a_restart() {
+    let dir = scratch("mirror-accounts");
+    let dirs = ProfileDirs::at(&dir);
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store
+            .apply(&PersistDelta::Remote(Some(pinned_server())))
+            .unwrap();
+        store.apply(&PersistDelta::Account(account(1))).unwrap();
+        store.apply(&PersistDelta::Account(account(2))).unwrap();
+        store.apply(&PersistDelta::Mail(cache(1, 100))).unwrap();
+        store
+            .apply(&PersistDelta::AccountRemoved(account(2).id))
+            .unwrap();
+    }
+    // The accounts are the server's: `config.toml` keeps none (ERR108 stays meaningful).
+    let config = std::fs::read_to_string(dirs.config_file()).unwrap();
+    assert!(!config.contains("me1@example.org"), "{config}");
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap().unwrap();
+    assert!(state.link.is_some());
+    assert_eq!(
+        state.accounts.keys().copied().collect::<Vec<_>>(),
+        [account(1).id]
+    );
+    assert_eq!(state.messages.len(), 1, "the cached mail is kept");
+    assert_eq!(state.threads.len(), 1);
+    drop(store);
+    // Without `[remote]` (a plain profile again) the mirrored accounts are not read.
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store.apply(&PersistDelta::Remote(None)).unwrap();
+    }
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap();
+    assert!(state.is_none_or(|state| state.accounts.is_empty() && state.messages.is_empty()));
+    std::fs::remove_dir_all(dir).unwrap();
+}

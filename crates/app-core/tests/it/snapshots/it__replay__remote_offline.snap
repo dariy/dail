@@ -613,6 +613,32 @@ expression: first
                 }
               },
               "effect": "persist_state"
+            },
+            {
+              "args": {
+                "delta": {
+                  "table": "offline_queue",
+                  "value": {
+                    "queued": [
+                      {
+                        "command": {
+                          "args": {
+                            "ids": [
+                              "00000000-0000-0006-0000-000000000000"
+                            ]
+                          },
+                          "cmd": "star"
+                        },
+                        "origin": "gui",
+                        "queued_at_ms": 1700000005000,
+                        "request_id": "00000000-0000-0009-0000-000000000000",
+                        "seed": "166020696663385964544"
+                      }
+                    ]
+                  }
+                }
+              },
+              "effect": "persist_state"
             }
           ],
           "receipt": {

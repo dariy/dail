@@ -106,6 +106,15 @@ impl Store for ProfileStore {
         match delta {
             PersistDelta::Mail(mail) => self.cache.apply_mail(mail),
             PersistDelta::Synced(local) => self.cache.put_synced(local),
+            PersistDelta::OfflineQueue(queue) => self.cache.put_offline_queue(queue),
+            // A remote profile's accounts are the server's, mirrored: they live with the
+            // mirrored mail in `state.redb`, never in `config.toml` (SRV-5b).
+            PersistDelta::Account(account) if self.config.is_remote() => {
+                self.cache.put_mirror_account(account)
+            }
+            PersistDelta::AccountRemoved(id) if self.config.is_remote() => {
+                self.cache.remove_mirror_account(*id)
+            }
             PersistDelta::Settings(_)
             | PersistDelta::Account(_)
             | PersistDelta::AccountRemoved(_)

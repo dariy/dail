@@ -84,18 +84,22 @@ impl std::fmt::Debug for TestServer {
     }
 }
 
+/// A hub over `<dir>/config.toml`, as `dail serve` makes one when it starts.
+fn new_hub(dir: &Path) -> Result<Arc<ServeHub>, SyncError> {
+    let config = Arc::new(ConfigStore::open(dir.join("config.toml"))?);
+    Ok(Arc::new(ServeHub::new(config, Arc::new(SystemClock))))
+}
+
 impl TestServer {
     /// Starts a server in `dir` (its `config.toml` and `serve/`) over `backend`, on a free
     /// loopback port.
     pub async fn start(dir: &Path, backend: MemoryBackend) -> Result<Self, SyncError> {
         std::fs::create_dir_all(dir)
             .map_err(|err| SyncError::Serve(format!("{}: {err}", dir.display())))?;
-        let config = Arc::new(ConfigStore::open(dir.join("config.toml"))?);
-        let hub = Arc::new(ServeHub::new(config, Arc::new(SystemClock)));
         let mut server = Self {
             dir: dir.to_path_buf(),
             backend: Arc::new(backend),
-            hub,
+            hub: new_hub(dir)?,
             session: None,
             server: None,
             // Far from the devices' seeds, so that IDs never collide by accident.
@@ -119,12 +123,19 @@ impl TestServer {
             Arc::clone(&self.seeds) as Arc<dyn SeedSource>,
         )
         .await?;
+        self.session = Some(session);
+        self.listen().await
+    }
+
+    /// Serves the session on the port (the same one again after a stop).
+    async fn listen(&mut self) -> Result<(), SyncError> {
+        let session = self.session()?.client();
         let identity =
             ServerIdentity::load_or_create(&self.dir.join("serve"), &["127.0.0.1".to_owned()])?;
         let mut server = DailServer::start(
             &identity,
             Arc::clone(&self.hub),
-            session.client(),
+            session,
             Arc::clone(&self.seeds) as Arc<dyn SeedSource>,
             ServeOptions::new(self.dir.join("serve").join("uploads")),
         )?;
@@ -142,19 +153,36 @@ impl TestServer {
         };
         self.addr = bound;
         self.fingerprint = identity.fingerprint().to_owned();
-        self.session = Some(session);
         self.server = Some(server);
         Ok(())
     }
 
+    /// Stops listening (every connection closes); the session keeps running, so the test can
+    /// change the server's mail while its devices are offline.
+    pub fn stop_listening(&mut self) {
+        drop(self.server.take());
+    }
+
+    /// Listens again on the same port after [`TestServer::stop_listening`].
+    pub async fn listen_again(&mut self) -> Result<(), SyncError> {
+        self.listen().await
+    }
+
     /// Stops listening (every connection closes) and shuts the session down, then starts both
-    /// again on the same port: a new server instance over the same mail and devices.
+    /// again on the same port: a new server process over the same mail, devices and
+    /// `serve/` directory (the hub is new, so what it remembers comes from disk).
     pub async fn restart(&mut self) -> Result<(), SyncError> {
         drop(self.server.take());
         if let Some(session) = self.session.take() {
             session.shutdown().await?;
         }
+        self.hub = new_hub(&self.dir)?;
         self.run().await
+    }
+
+    /// The directory of the server's profile (`config.toml`, `serve/`).
+    pub fn dir(&self) -> &Path {
+        &self.dir
     }
 
     /// The server's session.
@@ -248,13 +276,27 @@ pub struct TestDevice {
     pub session: Session,
     /// Its keyring, with the device token.
     pub secrets: Arc<MemorySecrets>,
-    /// Its own backend: the effects it ran.
+    /// Its own backend: the effects it ran, and its store.
     pub backend: Arc<MemoryBackend>,
 }
 
 impl std::fmt::Debug for TestDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TestDevice").finish_non_exhaustive()
+    }
+}
+
+impl TestDevice {
+    /// Shuts the session down and opens a new one over the same backend and store, as dail
+    /// does when it starts again; its seeds count from `seed_start`.
+    pub async fn restart(self, seed_start: u64, options: RemoteOptions) -> Result<Self, SyncError> {
+        let Self {
+            session,
+            secrets,
+            backend,
+        } = self;
+        session.shutdown().await?;
+        open_session(backend, secrets, seed_start, options).await
     }
 }
 
@@ -267,6 +309,15 @@ pub async fn open_device(
     options: RemoteOptions,
 ) -> Result<TestDevice, SyncError> {
     let backend = Arc::new(MemoryBackend::new().with_store(MemoryStore::with_state(state)));
+    open_session(backend, secrets, seed_start, options).await
+}
+
+async fn open_session(
+    backend: Arc<MemoryBackend>,
+    secrets: Arc<MemorySecrets>,
+    seed_start: u64,
+    options: RemoteOptions,
+) -> Result<TestDevice, SyncError> {
     let session = Session::open_remote(
         Arc::clone(&backend) as Arc<dyn Backend>,
         Arc::clone(&secrets) as Arc<dyn app_sync::SecretStore>,

@@ -7,16 +7,28 @@ use serde_json::json;
 use super::certificates::sha256_hex;
 use super::{Engine, invalid, not_found};
 use crate::account::{Secret, SecretRef};
-use crate::command::{Command, CommandKind};
+use crate::command::Command;
 use crate::ctx::Ctx;
 use crate::diff::StateDiff;
 use crate::error::CoreError;
 use crate::event::{Effect, MailDelta, PersistDelta};
 use crate::history::History;
 use crate::ids::{IdGen, RequestId};
-use crate::link::{LinkStatus, QueuedCommand, ServerEndpoint, is_pairing_code};
+use crate::link::{
+    LinkStatus, OfflinePolicy, OfflineQueue, OfflineRejection, QueuedCommand, ServerEndpoint,
+    is_pairing_code,
+};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 use crate::synced::LocalSettings;
+
+/// The size and ends of the queue and the rejections, before an input (`Engine::queue_mark`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(super) struct QueueMark {
+    queued: usize,
+    rejected: usize,
+    first: Option<RequestId>,
+    last: Option<RequestId>,
+}
 
 /// The trimmed host of `connect_server`, or `error_002_invalid_argument`.
 fn server_host(host: &str) -> Result<String, CoreError> {
@@ -34,14 +46,129 @@ fn server_host(host: &str) -> Result<String, CoreError> {
 }
 
 impl Engine {
+    /// Refuses a command that is not queued while the link is down
+    /// ([`OfflinePolicy::Refuse`]), in mirror mode while the link is not online.
+    pub(super) fn refuse_offline(&self, cmd: &Command) -> Result<(), CoreError> {
+        let offline = self
+            .state
+            .link
+            .as_ref()
+            .is_some_and(|link| !link.is_online());
+        if offline && cmd.offline_policy() == OfflinePolicy::Refuse {
+            return Err(CoreError::RefusedOffline {
+                command: cmd.name().to_owned(),
+            });
+        }
+        Ok(())
+    }
+
     /// The copy of `cmd` to queue for the server if it succeeds: in mirror mode, while the link
-    /// is not online, for a command the server runs that is not a query (queries are answered
-    /// from the mirror). While online nothing is queued here: the runtime forwards the command.
+    /// is not online, for a command whose offline policy is [`OfflinePolicy::Queue`]. While
+    /// online nothing is queued here: the runtime forwards the command.
     pub(super) fn to_queue(&self, cmd: &Command) -> Option<Command> {
         let link = self.state.link.as_ref()?;
-        let queue =
-            !link.is_online() && cmd.placement().on_server() && cmd.kind() != CommandKind::Query;
+        let queue = !link.is_online() && cmd.offline_policy() == OfflinePolicy::Queue;
         queue.then(|| cmd.clone())
+    }
+
+    /// What tells whether an input changed the queue or the rejections: every change adds or
+    /// removes entries. No link counts as an empty queue.
+    pub(super) fn queue_mark(&self) -> QueueMark {
+        self.state
+            .link
+            .as_ref()
+            .map_or_else(QueueMark::default, |link| QueueMark {
+                queued: link.queued.len(),
+                rejected: link.rejected.len(),
+                first: link.queued.first().map(|q| q.request_id),
+                last: link.queued.last().map(|q| q.request_id),
+            })
+    }
+
+    /// Writes the queue and the rejections to the store if the input changed them, so that
+    /// they survive a restart (`persist_state` is device-local).
+    pub(super) fn persist_queue(&self, before: QueueMark, outcome: &mut Outcome) {
+        if self.queue_mark() != before {
+            let queue = self
+                .state
+                .link
+                .as_ref()
+                .map(OfflineQueue::of)
+                .unwrap_or_default();
+            outcome.effects.push(Effect::PersistState {
+                delta: PersistDelta::OfflineQueue(queue),
+            });
+        }
+    }
+
+    /// `queued_delivered`: the server ran a queued command; it leaves the queue.
+    pub(super) fn ingest_queued_delivered(
+        &mut self,
+        request_id: RequestId,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let Some(link) = self.state.link.as_mut() else {
+            return Outcome::new(receipt.with_data(json!({ "ignored": true })));
+        };
+        match link.queued.iter().position(|q| q.request_id == request_id) {
+            Some(index) => {
+                link.queued.remove(index);
+                Outcome::new(receipt.affecting(EntityRef::Link))
+            }
+            None => Outcome::new(receipt.with_data(json!({ "ignored": true }))),
+        }
+    }
+
+    /// `queued_rejected`: the server refused a queued command; it moves to the rejections.
+    pub(super) fn ingest_queued_rejected(
+        &mut self,
+        request_id: RequestId,
+        code: String,
+        error: String,
+        at_ms: i64,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let Some(link) = self.state.link.as_mut() else {
+            return Outcome::new(receipt.with_data(json!({ "ignored": true })));
+        };
+        match link.queued.iter().position(|q| q.request_id == request_id) {
+            Some(index) => {
+                let queued = link.queued.remove(index);
+                link.rejected.push(OfflineRejection {
+                    request_id,
+                    seed: queued.seed,
+                    origin: queued.origin,
+                    command: queued.command,
+                    code,
+                    error,
+                    at_ms,
+                });
+                Outcome::new(receipt.affecting(EntityRef::Link))
+            }
+            None => Outcome::new(receipt.with_data(json!({ "ignored": true }))),
+        }
+    }
+
+    /// `requeued`: a forwarded command whose answer was lost goes to the end of the queue, to
+    /// be sent again with its request ID.
+    pub(super) fn ingest_requeued(
+        &mut self,
+        entry: QueuedCommand,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let ignored =
+            |receipt: CommandReceipt| Outcome::new(receipt.with_data(json!({ "ignored": true })));
+        if entry.command.offline_policy() != OfflinePolicy::Queue {
+            return ignored(receipt);
+        }
+        let Some(link) = self.state.link.as_mut() else {
+            return ignored(receipt);
+        };
+        if link.queued.iter().any(|q| q.request_id == entry.request_id) {
+            return ignored(receipt);
+        }
+        link.queued.push(entry);
+        Outcome::new(receipt.affecting(EntityRef::Link))
     }
 
     /// Mirror mode's last step of every input: drops the effects that only the server runs and
@@ -419,19 +546,30 @@ impl Engine {
             return Outcome::new(receipt.with_data(serde_json::json!({ "stale": true })));
         }
         link.revision = revision;
-        let mail = if snapshot {
+        let (mail, accounts) = if snapshot {
             let old = MirroredMail::take(&mut self.state);
+            let old_accounts = self.state.accounts.clone();
             StateDiff::clear(&mut self.state);
             diff.apply(&mut self.state);
-            old.delta_to(&self.state)
+            let (upsert, removed) = changed(&old_accounts, &self.state.accounts);
+            (old.delta_to(&self.state), account_deltas(upsert, removed))
         } else {
             diff.apply(&mut self.state);
-            mail_delta(diff)
+            let upsert = diff.accounts.upsert.values().cloned().collect();
+            (
+                mail_delta(diff),
+                account_deltas(upsert, diff.accounts.remove.clone()),
+            )
         };
         if snapshot || diff.touches_messages() {
             self.messages_changed();
         }
-        let outcome = Outcome::new(receipt.affecting(EntityRef::Link));
+        // The mirrored accounts go to the local store too (not to `config.toml`: a remote
+        // profile has no accounts of its own), so the cached mail opens after a restart offline.
+        let mut outcome = Outcome::new(receipt.affecting(EntityRef::Link));
+        for delta in accounts {
+            outcome = outcome.with_effect(Effect::PersistState { delta });
+        }
         if mail.is_empty() {
             outcome
         } else {
@@ -440,6 +578,18 @@ impl Engine {
             })
         }
     }
+}
+
+/// The store changes of the mirrored accounts: removals, then upserts.
+fn account_deltas(
+    upsert: Vec<crate::account::Account>,
+    removed: Vec<crate::ids::AccountId>,
+) -> Vec<PersistDelta> {
+    removed
+        .into_iter()
+        .map(PersistDelta::AccountRemoved)
+        .chain(upsert.into_iter().map(PersistDelta::Account))
+        .collect()
 }
 
 /// The mail of a diff, as the store keeps it.

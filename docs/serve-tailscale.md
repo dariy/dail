@@ -46,8 +46,13 @@ keyring entry of the device token (the token itself is in the OS keyring). Every
 mirrors its mail: `dail --profile home tui`, `dail --profile home gui`, `dail --profile home exec …`, and
 `dail --profile home mcp` for an agent. Commands that change mail run on the server; what you look at (the open
 mailbox, the theme) stays on the device. If the server can't be reached, dail retries in the background and
-`dail --profile home remote status` shows the error. This version works online only: while the link is down, commands
-that run on the server are refused (`ERR212`) and nothing is queued; working offline comes later (ROADMAP SRV-5b).
+`dail --profile home remote status` shows the error. While the link is down you keep working on the mirror: triage,
+drafts and sends are applied at once and queued (they survive a restart of dail), then sent to the server in order
+when it is back; a command the server refuses then is kept aside (`remote status` counts it; `retry_offline` or
+`dismiss_offline_rejection` deal with it). What can't wait or must not be decided on a stale mirror (emptying the
+trash, deleting folders, accounts and certificates, pairing and revoking devices, approvals, `sync_now`) is refused
+offline with `ERR014` and nothing changes. The newest bodies (200, INBOX first) are kept on the device after each
+connection, so they open offline.
 
 ## Firewall
 

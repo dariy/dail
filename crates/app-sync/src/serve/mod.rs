@@ -96,8 +96,9 @@ pub const ORIGIN_REFUSED: i64 = -32004;
 
 /// The longest first line (`pair`, `hello`) before a device is authenticated.
 const MAX_FIRST_LINE: usize = 16 * 1024;
-/// The longest request line of an authenticated device: an upload in base64 and some room.
-const MAX_LINE: usize = MAX_UPLOAD_BYTES / 3 * 4 + 64 * 1024;
+/// The longest request line of an authenticated device: an upload in base64 and some room. A
+/// device reads a `blob` answer of at most this size too.
+pub(crate) const MAX_LINE: usize = MAX_UPLOAD_BYTES / 3 * 4 + 64 * 1024;
 /// How long the TLS handshake and the first request may take.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// `DeviceSeen` is reported at most this often per device.
@@ -252,16 +253,31 @@ struct OpenCode {
     expires_at_ms: i64,
 }
 
-/// The answers to a device's last submissions.
+/// The answers to a device's last submissions. The durable ones (not queries, not
+/// `start_pairing`, whose receipt holds the pairing code) are also in
+/// `<profile>/serve/answers/<device>.json`, so that a device's replay after a restart of the
+/// server is not dispatched twice (SRV-5b).
 #[derive(Default)]
 struct Replies {
     order: VecDeque<RequestId>,
-    answers: HashMap<RequestId, Value>,
+    answers: HashMap<RequestId, (Value, bool)>,
+}
+
+/// One remembered answer in `serve/answers/<device>.json`.
+#[derive(serde::Serialize, Deserialize)]
+struct StoredAnswer {
+    request_id: RequestId,
+    answer: Value,
 }
 
 impl Replies {
-    fn insert(&mut self, id: RequestId, answer: Value) {
-        if self.answers.insert(id, answer).is_none() {
+    fn get(&self, id: &RequestId) -> Option<&Value> {
+        self.answers.get(id).map(|(answer, _)| answer)
+    }
+
+    /// Remembers `answer`; `durable`: it goes to the device's answers file too.
+    fn insert(&mut self, id: RequestId, answer: Value, durable: bool) {
+        if self.answers.insert(id, (answer, durable)).is_none() {
             self.order.push_back(id);
             if self.order.len() > REPLAY_MEMORY
                 && let Some(oldest) = self.order.pop_front()
@@ -270,6 +286,52 @@ impl Replies {
             }
         }
     }
+
+    /// The durable answers, oldest first, as the answers file holds them.
+    fn durable(&self) -> Vec<StoredAnswer> {
+        self.order
+            .iter()
+            .filter_map(|id| match self.answers.get(id) {
+                Some((answer, true)) => Some(StoredAnswer {
+                    request_id: *id,
+                    answer: answer.clone(),
+                }),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The answers of a file written by [`Replies::durable`]; an unreadable file is skipped
+    /// (the device's next resend is then dispatched again, as before SRV-5b).
+    fn read(path: &std::path::Path) -> Self {
+        let mut replies = Self::default();
+        let stored = match std::fs::read(path) {
+            Ok(bytes) => serde_json::from_slice::<Vec<StoredAnswer>>(&bytes),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return replies,
+            Err(err) => {
+                tracing::warn!(path = %path.display(), error = %err, "cannot read the answers file");
+                return replies;
+            }
+        };
+        match stored {
+            Ok(stored) => {
+                for StoredAnswer { request_id, answer } in stored {
+                    replies.insert(request_id, answer, true);
+                }
+            }
+            Err(err) => {
+                tracing::warn!(path = %path.display(), error = %err, "skipping an unreadable answers file");
+            }
+        }
+        replies
+    }
+}
+
+/// Whether the answer to `cmd` is kept across restarts: a query is harmless to run again, and
+/// the receipt of `start_pairing` holds its pairing code, which never goes to disk.
+const fn durable_answer(cmd: &Command) -> bool {
+    !matches!(cmd.kind(), app_core::CommandKind::Query)
+        && !matches!(cmd, Command::StartPairing { .. })
 }
 
 #[derive(Default)]
@@ -289,6 +351,8 @@ struct HubState {
 pub struct ServeHub {
     config: Arc<ConfigStore>,
     clock: Arc<dyn Clock>,
+    /// `<profile>/serve/answers`: the durable answers of each device ([`Replies`]).
+    answers_dir: Option<PathBuf>,
     state: Mutex<HubState>,
 }
 
@@ -302,9 +366,14 @@ impl ServeHub {
     /// A hub whose paired devices live in `config` (`[[serve.devices]]`).
     pub fn new(config: Arc<ConfigStore>, clock: Arc<dyn Clock>) -> Self {
         let devices = config.serve().devices;
+        let answers_dir = config
+            .path()
+            .parent()
+            .map(|profile| profile.join("serve").join("answers"));
         Self {
             config,
             clock,
+            answers_dir,
             state: Mutex::new(HubState {
                 devices,
                 ..HubState::default()
@@ -345,16 +414,25 @@ impl ServeHub {
     /// Forgets device `id` (its token stops working at once), closes its connections and removes
     /// it from `config.toml`. Revoking an unknown device succeeds.
     pub async fn revoke(&self, id: DeviceId) -> Result<(), SyncError> {
-        {
+        let replies = {
             let mut state = self.state.lock();
             state.devices.retain(|device| device.id != id);
-            state.replies.remove(&id);
             state.seen.remove(&id);
             for (device, closing) in state.connections.values() {
                 if *device == id {
                     closing.send_replace(true);
                 }
             }
+            state.replies.remove(&id)
+        };
+        // A submission still running holds its replies: the file goes after it was written,
+        // and a later save sees the device gone (`save_replies`).
+        let _held = match &replies {
+            Some(replies) => Some(replies.lock().await),
+            None => None,
+        };
+        if let Some(path) = self.answers_file(id) {
+            let _ = tokio::fs::remove_file(path).await;
         }
         let config = Arc::clone(&self.config);
         tokio::task::spawn_blocking(move || {
@@ -486,8 +564,65 @@ impl ServeHub {
         due
     }
 
-    fn replies(&self, id: DeviceId) -> Arc<tokio::sync::Mutex<Replies>> {
-        Arc::clone(self.state.lock().replies.entry(id).or_default())
+    /// The answers file of device `id`.
+    fn answers_file(&self, id: DeviceId) -> Option<PathBuf> {
+        self.answers_dir
+            .as_ref()
+            .map(|dir| dir.join(format!("{}.json", id.as_uuid())))
+    }
+
+    /// The answers to `id`'s last submissions, read from its answers file the first time.
+    async fn replies(&self, id: DeviceId) -> Arc<tokio::sync::Mutex<Replies>> {
+        if let Some(replies) = self.state.lock().replies.get(&id) {
+            return Arc::clone(replies);
+        }
+        let loaded = match self.answers_file(id) {
+            Some(path) => tokio::task::spawn_blocking(move || Replies::read(&path))
+                .await
+                .unwrap_or_default(),
+            None => Replies::default(),
+        };
+        Arc::clone(
+            self.state
+                .lock()
+                .replies
+                .entry(id)
+                .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(loaded))),
+        )
+    }
+
+    /// Writes the durable answers of `id` (user-only permissions).
+    /// Called with the device's replies locked; a revoked device's file is not written again.
+    async fn save_replies(&self, id: DeviceId, replies: &Replies) {
+        let (Some(dir), Some(path)) = (self.answers_dir.clone(), self.answers_file(id)) else {
+            return;
+        };
+        if !self
+            .state
+            .lock()
+            .devices
+            .iter()
+            .any(|device| device.id == id)
+        {
+            return;
+        }
+        let bytes = match serde_json::to_vec(&replies.durable()) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                tracing::warn!(error = %err, "cannot encode the answers");
+                return;
+            }
+        };
+        let written = tokio::task::spawn_blocking(move || {
+            cert::ensure_private_dir(&dir)?;
+            cert::write_private(&path, &bytes)
+        })
+        .await;
+        match written {
+            Ok(Ok(())) => {}
+            Ok(Err(err)) => tracing::warn!(error = %err, "cannot save the answers"),
+            Err(err) => tracing::warn!(error = %err, "answers task failed"),
+        }
     }
 }
 
@@ -1005,25 +1140,32 @@ async fn submit(shared: &Shared, device: &ServeDevice, params: Value) -> Outcome
         .map_err(|err| (INVALID_PARAMS, format!("bad submit params: {err}")))?;
     check_origin(shared, device, params.origin)?;
     // One submission of a device at a time, so that a resend waits for the first answer.
-    let replies = shared.hub.replies(device.id);
+    let replies = shared.hub.replies(device.id).await;
     let mut replies = replies.lock().await;
-    if let Some(answer) = replies.answers.get(&extra.request_id) {
+    if let Some(answer) = replies.get(&extra.request_id) {
         return Ok(answer.clone());
     }
-    let reply = match Command::from_value(params.command) {
-        Ok(cmd) => match shared
-            .session
-            .submit_seeded(cmd, params.origin, seed)
-            .await
-            .map_err(internal)?
-        {
-            Ok(receipt) => SubmitReply::Ok(receipt),
-            Err(err) => SubmitReply::Rejected(err),
-        },
-        Err(err) => SubmitReply::Rejected(err),
+    let (reply, durable) = match Command::from_value(params.command) {
+        Ok(cmd) => {
+            let durable = durable_answer(&cmd);
+            let reply = match shared
+                .session
+                .submit_seeded(cmd, params.origin, seed)
+                .await
+                .map_err(internal)?
+            {
+                Ok(receipt) => SubmitReply::Ok(receipt),
+                Err(err) => SubmitReply::Rejected(err),
+            };
+            (reply, durable)
+        }
+        Err(err) => (SubmitReply::Rejected(err), false),
     };
     let answer = serde_json::to_value(reply).map_err(|err| (INTERNAL_ERROR, err.to_string()))?;
-    replies.insert(extra.request_id, answer.clone());
+    replies.insert(extra.request_id, answer.clone(), durable);
+    if durable {
+        shared.hub.save_replies(device.id, &replies).await;
+    }
     Ok(answer)
 }
 
@@ -1253,7 +1395,11 @@ mod tests {
     fn replies_keep_the_last_ones() {
         let mut replies = Replies::default();
         for n in 0..=REPLAY_MEMORY as u128 {
-            replies.insert(RequestId::from_uuid(uuid::Uuid::from_u128(n)), json!(n));
+            replies.insert(
+                RequestId::from_uuid(uuid::Uuid::from_u128(n)),
+                json!(n),
+                true,
+            );
         }
         assert_eq!(replies.answers.len(), REPLAY_MEMORY);
         assert!(
@@ -1282,6 +1428,35 @@ mod tests {
             paired_at_ms: 0,
         });
         (id, Base64UrlUnpadded::encode_string(&token))
+    }
+
+    #[tokio::test]
+    async fn a_revocation_removes_the_answers_and_a_later_save_does_not_bring_them_back() {
+        let hub = Arc::new(hub("answers-revoke"));
+        let (id, _token) = paired(&hub, 3);
+        let file = hub.answers_file(id).unwrap();
+        let replies = hub.replies(id).await;
+        let mut held = replies.lock().await;
+        held.insert(
+            RequestId::from_uuid(uuid::Uuid::from_u128(1)),
+            json!(1),
+            true,
+        );
+        // A revocation while the submission runs waits for it.
+        let revoking = tokio::spawn({
+            let hub = Arc::clone(&hub);
+            async move { hub.revoke(id).await }
+        });
+        tokio::task::yield_now().await;
+        hub.save_replies(id, &held).await;
+        drop(held);
+        revoking.await.unwrap().unwrap();
+        assert!(!file.exists(), "removed after the running save");
+        // A save after the revocation writes nothing.
+        let replies = hub.replies(id).await;
+        let held = replies.lock().await;
+        hub.save_replies(id, &held).await;
+        assert!(!file.exists());
     }
 
     #[tokio::test]

@@ -555,3 +555,371 @@ fn save_attachments_stays_on_the_device() {
     assert_eq!(names(&outcome.effects), ["save_attachments"]);
     assert!(m.engine.state().link.as_ref().unwrap().queued.is_empty());
 }
+
+// --- SRV-5b: the offline policy, refusals, the queue's events and its persistence. ---
+
+/// The commands refused while the link is down (`OfflinePolicy::Refuse`), pinned.
+const REFUSED_OFFLINE: [CommandName; 19] = [
+    // Destructive commands the server runs.
+    CommandName::RemoveAccount,
+    CommandName::DeleteFolder,
+    CommandName::EmptyTrash,
+    CommandName::EmptyJunk,
+    CommandName::RevokeDevice,
+    // Accounts, certificates and the synced settings' account.
+    CommandName::AddAccount,
+    CommandName::UpdateAccount,
+    CommandName::SetPassword,
+    CommandName::SetIdentity,
+    CommandName::RemoveIdentity,
+    CommandName::TrustCertificate,
+    CommandName::ForgetCertificate,
+    CommandName::SetSettingsAccount,
+    // Only meaningful now.
+    CommandName::PushSettings,
+    CommandName::PullSettings,
+    CommandName::SyncNow,
+    // Devices and approvals.
+    CommandName::StartPairing,
+    CommandName::ApproveRequest,
+    CommandName::RejectRequest,
+];
+
+#[test]
+fn offline_policy_table() {
+    use app_core::{AgentAccess, OfflinePolicy};
+    for &name in CommandName::ALL {
+        let policy = name.offline_policy();
+        let local = !name.placement().on_server() || name.kind() == CommandKind::Query;
+        assert_eq!(
+            policy == OfflinePolicy::Local,
+            local,
+            "{}: local iff it runs on the device or is a query",
+            name.as_str()
+        );
+        assert_eq!(
+            policy == OfflinePolicy::Refuse,
+            REFUSED_OFFLINE.contains(&name),
+            "{}",
+            name.as_str()
+        );
+        if name.placement().on_server() {
+            // Every destructive server command and every user-only one but `restore_draft`
+            // (the user's own draft, put back as it was) is refused.
+            let refused = name.kind() == CommandKind::Destructive
+                || (name.agent_access() == AgentAccess::UserOnly
+                    && name != CommandName::RestoreDraft);
+            if refused {
+                assert_eq!(policy, OfflinePolicy::Refuse, "{}", name.as_str());
+            }
+        }
+        if name != CommandName::SetSetting {
+            assert_eq!(name.example().offline_policy(), policy, "{}", name.as_str());
+        }
+    }
+    let pinned = [
+        (CommandName::SendDraft, OfflinePolicy::Queue),
+        (CommandName::CancelSend, OfflinePolicy::Queue),
+        (CommandName::AttachFile, OfflinePolicy::Queue),
+        (CommandName::RestoreDraft, OfflinePolicy::Queue),
+        (CommandName::Undo, OfflinePolicy::Queue),
+        (CommandName::ArchiveThreads, OfflinePolicy::Queue),
+        (CommandName::SaveRule, OfflinePolicy::Queue),
+        (CommandName::SaveAttachments, OfflinePolicy::Local),
+        (CommandName::Search, OfflinePolicy::Local),
+        (CommandName::DisconnectServer, OfflinePolicy::Local),
+        (CommandName::InstallUpdate, OfflinePolicy::Local),
+        (CommandName::RetryOffline, OfflinePolicy::Local),
+    ];
+    for (name, policy) in pinned {
+        assert_eq!(name.offline_policy(), policy, "{}", name.as_str());
+    }
+    // `set_setting` follows its key.
+    for &key in SettingKey::ALL {
+        let cmd = Command::SetSetting {
+            key,
+            value: json!(1),
+        };
+        let expected = if key.placement().on_server() {
+            OfflinePolicy::Queue
+        } else {
+            OfflinePolicy::Local
+        };
+        assert_eq!(cmd.offline_policy(), expected, "{key:?}");
+    }
+}
+
+#[test]
+fn offline_every_refused_command_changes_nothing() {
+    for status in [LinkStatus::Offline, LinkStatus::Connecting] {
+        let mut m = mirror(status);
+        let undo = m.engine.history().undo_len();
+        for name in REFUSED_OFFLINE {
+            let before = m.engine.state().clone();
+            let err = m.run(name.example()).unwrap_err();
+            assert_eq!(
+                err,
+                app_core::CoreError::RefusedOffline {
+                    command: name.as_str().to_owned()
+                },
+                "{}",
+                name.as_str()
+            );
+            assert_eq!(err.code(), "ERR014");
+            assert!(err.to_string().starts_with("ERR014: "), "{err}");
+            let after = m.engine.state();
+            assert_eq!(after.link, before.link, "{}: nothing queued", name.as_str());
+            assert_eq!(after.accounts, before.accounts);
+            assert_eq!(after.messages, before.messages);
+        }
+        assert_eq!(m.engine.history().undo_len(), undo);
+    }
+    // The wire form, as agents get it.
+    let json = serde_json::to_value(app_core::CoreError::RefusedOffline {
+        command: "sync_now".into(),
+    })
+    .unwrap();
+    assert_eq!(
+        json,
+        json!({ "error": "error_014_refused_offline", "command": "sync_now" })
+    );
+    // Online and without a link they run.
+    for mut m in [mirror(LinkStatus::Online), mailbox()] {
+        m.run(Command::SyncNow { account: None }).unwrap();
+    }
+}
+
+/// The queue's `persist_state`, if the outcome has one.
+fn persisted_queue(outcome: &app_core::Outcome) -> Option<app_core::OfflineQueue> {
+    outcome.effects.iter().find_map(|effect| match effect {
+        app_core::Effect::PersistState {
+            delta: app_core::PersistDelta::OfflineQueue(queue),
+        } => Some(queue.clone()),
+        _ => None,
+    })
+}
+
+fn request(seed: u128) -> app_core::RequestId {
+    app_core::RequestId::from_uuid(uuid::Uuid::from_u128(seed << 64))
+}
+
+#[test]
+fn the_replay_events_deliver_reject_and_requeue_in_order() {
+    let mut m = mirror(LinkStatus::Offline);
+    let (_, threads) = ids(&m);
+    let undo = m.engine.history().undo_len();
+    let first = m.seed;
+    let mut seeds = Vec::new();
+    for cmd in [
+        Command::Star {
+            ids: vec![threads[0]],
+            messages: vec![],
+        },
+        Command::ArchiveThreads {
+            ids: vec![threads[1]],
+            messages: vec![],
+        },
+        Command::MarkUnread {
+            ids: vec![threads[0]],
+            messages: vec![],
+        },
+    ] {
+        seeds.push(m.seed);
+        let outcome = m.run(cmd).unwrap();
+        // Every change of the queue goes to the store.
+        let queue = persisted_queue(&outcome).unwrap();
+        assert_eq!(queue.queued, m.engine.state().link.as_ref().unwrap().queued);
+    }
+    let link = m.engine.state().link.clone().unwrap();
+    let order: Vec<_> = link.queued.iter().map(|q| q.command.name()).collect();
+    assert_eq!(order, ["star", "archive_threads", "mark_unread"]);
+    assert_eq!(link.queued[0].request_id, request(first));
+
+    // Delivered: it leaves the queue.
+    let outcome = m.feed(Event::QueuedDelivered {
+        request_id: request(seeds[0]),
+    });
+    assert!(persisted_queue(&outcome).is_some());
+    // Refused: it moves to the rejections with the server's error and the runtime's time.
+    let outcome = m.feed(Event::QueuedRejected {
+        request_id: request(seeds[1]),
+        code: "ERR004".into(),
+        error: "ERR004: thread x not found".into(),
+        at_ms: 1_234,
+    });
+    assert!(persisted_queue(&outcome).is_some());
+    let link = m.engine.state().link.clone().unwrap();
+    assert_eq!(link.queued.len(), 1);
+    assert_eq!(link.queued[0].command.name(), "mark_unread");
+    assert_eq!(link.rejected.len(), 1);
+    let rejection = &link.rejected[0];
+    assert_eq!(rejection.request_id, request(seeds[1]));
+    assert_eq!(rejection.seed, seeds[1] << 64);
+    assert_eq!(rejection.code, "ERR004");
+    assert_eq!(rejection.at_ms, 1_234);
+    assert_eq!(rejection.command.name(), "archive_threads");
+
+    // Unknown request IDs are ignored and change nothing.
+    for event in [
+        Event::QueuedDelivered {
+            request_id: request(99),
+        },
+        Event::QueuedRejected {
+            request_id: request(99),
+            code: "ERR004".into(),
+            error: "gone".into(),
+            at_ms: 1,
+        },
+    ] {
+        let outcome = m.feed(event);
+        assert_eq!(outcome.receipt.data["ignored"], true);
+        assert!(persisted_queue(&outcome).is_none());
+    }
+
+    // A forwarded command whose answer was lost goes behind the queue, with its request ID.
+    let lost = app_core::QueuedCommand {
+        request_id: request(50),
+        seed: 50 << 64,
+        origin: app_core::Origin::Gui,
+        command: Command::Unstar {
+            ids: vec![threads[0]],
+            messages: vec![],
+        },
+        queued_at_ms: 7,
+    };
+    let outcome = m.feed(Event::Requeued {
+        entry: Box::new(lost.clone()),
+    });
+    assert!(persisted_queue(&outcome).is_some());
+    // Twice, or a command never queued: ignored.
+    let twice = m.feed(Event::Requeued {
+        entry: Box::new(lost.clone()),
+    });
+    assert_eq!(twice.receipt.data["ignored"], true);
+    let pairing = app_core::QueuedCommand {
+        request_id: request(51),
+        command: CommandName::StartPairing.example(),
+        ..lost.clone()
+    };
+    let refused = m.feed(Event::Requeued {
+        entry: Box::new(pairing),
+    });
+    assert_eq!(refused.receipt.data["ignored"], true);
+    // `retry_offline` puts the rejection after both.
+    m.run(Command::RetryOffline {}).unwrap();
+    let link = m.engine.state().link.clone().unwrap();
+    let order: Vec<_> = link.queued.iter().map(|q| q.command.name()).collect();
+    assert_eq!(order, ["mark_unread", "unstar", "archive_threads"]);
+    assert!(link.rejected.is_empty());
+    assert_eq!(link.queued[2].seed, seeds[1] << 64);
+    // None of it is undoable history: only the three commands are.
+    assert_eq!(m.engine.history().undo_len(), undo + 3);
+
+    // Without a link the events are ignored.
+    let mut plain = mailbox();
+    let outcome = plain.feed(Event::Requeued {
+        entry: Box::new(lost),
+    });
+    assert_eq!(outcome.receipt.data["ignored"], true);
+    assert!(plain.engine.state().link.is_none());
+}
+
+#[test]
+fn the_queue_survives_a_restart() {
+    let mut m = mirror(LinkStatus::Offline);
+    let (_, threads) = ids(&m);
+    let outcome = m
+        .run(Command::Star {
+            ids: vec![threads[0]],
+            messages: vec![],
+        })
+        .unwrap();
+    let queue = persisted_queue(&outcome).unwrap();
+    assert_eq!(queue.queued.len(), 1);
+    // A store that keeps snapshots applies the delta to the link `[remote]` gives it.
+    let mut stored = AppState {
+        link: Some(app_core::LinkState::default()),
+        ..AppState::default()
+    };
+    app_core::PersistDelta::OfflineQueue(queue.clone()).apply_to(&mut stored);
+    assert_eq!(stored.link.as_ref().unwrap().queued, queue.queued);
+    let restarted = app_core::Engine::new(stored);
+    assert_eq!(
+        restarted.state().link.as_ref().unwrap().queued,
+        queue.queued
+    );
+    // Without a link (no `[remote]` any more) nothing comes back.
+    let mut plain = AppState::default();
+    app_core::PersistDelta::OfflineQueue(queue.clone()).apply_to(&mut plain);
+    assert!(plain.link.is_none());
+    // Its JSON keeps the seed as a decimal string.
+    let json = serde_json::to_value(&queue).unwrap();
+    assert_eq!(
+        json["queued"][0]["seed"],
+        json!(queue.queued[0].seed.to_string())
+    );
+    assert_eq!(
+        serde_json::from_value::<app_core::OfflineQueue>(json).unwrap(),
+        queue
+    );
+}
+
+#[test]
+fn an_offline_send_is_queued() {
+    let mut m = mirror(LinkStatus::Offline);
+    let account = m.account;
+    let draft = m
+        .run(Command::CreateDraft {
+            account,
+            to: vec![app_core::Addr {
+                name: None,
+                email: "bob@example.com".into(),
+            }],
+            cc: vec![],
+            bcc: vec![],
+            subject: "Hi".into(),
+            body: "Hello".into(),
+        })
+        .unwrap();
+    let id: app_core::DraftId = serde_json::from_value(draft.receipt.data["id"].clone()).unwrap();
+    m.run(Command::SendDraft { id }).unwrap();
+    let link = m.engine.state().link.as_ref().unwrap();
+    let order: Vec<_> = link.queued.iter().map(|q| q.command.name()).collect();
+    assert_eq!(order, ["create_draft", "send_draft"]);
+}
+
+#[test]
+fn a_snapshot_persists_the_mirrored_accounts() {
+    let server = mailbox();
+    let account = server.account;
+    let mut device = mirror(LinkStatus::Offline);
+    device.engine = app_core::Engine::new(AppState {
+        link: Some(app_core::LinkState::default()),
+        ..AppState::default()
+    });
+    let snapshot = |state: &AppState| Event::RemoteSynced {
+        revision: 1,
+        diff: Box::new(StateDiff::snapshot(state)),
+        snapshot: true,
+    };
+    let outcome = device.feed(snapshot(server.engine.state()));
+    let stored: Vec<_> = outcome
+        .effects
+        .iter()
+        .filter_map(|effect| match effect {
+            app_core::Effect::PersistState {
+                delta: app_core::PersistDelta::Account(a),
+            } => Some(a.id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(stored, [account]);
+    // A snapshot without it removes it from the store.
+    let outcome = device.feed(snapshot(&AppState::default()));
+    assert!(outcome.effects.iter().any(|effect| matches!(
+        effect,
+        app_core::Effect::PersistState {
+            delta: app_core::PersistDelta::AccountRemoved(id)
+        } if *id == account
+    )));
+}

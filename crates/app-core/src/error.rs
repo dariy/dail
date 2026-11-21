@@ -111,6 +111,18 @@ pub enum CoreError {
         /// How many accounts the profile has.
         accounts: usize,
     },
+    /// The command needs the dail server now and is not queued while the link is down (ADR
+    /// 0017): a destructive command, one that manages accounts, certificates, devices or
+    /// approvals, or one that only makes sense now (`OfflinePolicy::Refuse`). Nothing was
+    /// changed; run it again once the link is online.
+    #[error(
+        "ERR014: {command} is not queued while the dail server is not connected; nothing was changed, run it again when the link is online"
+    )]
+    #[serde(rename = "error_014_refused_offline")]
+    RefusedOffline {
+        /// Name of the command.
+        command: String,
+    },
 }
 
 impl CoreError {
@@ -130,6 +142,7 @@ impl CoreError {
             Self::NothingToRedo => "ERR011",
             Self::NotLinked => "ERR012",
             Self::ProfileHasAccounts { .. } => "ERR013",
+            Self::RefusedOffline { .. } => "ERR014",
         }
     }
 }

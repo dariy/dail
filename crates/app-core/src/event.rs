@@ -558,6 +558,35 @@ pub enum Event {
         /// SHA-256 fingerprint of its certificate, hex.
         fingerprint: String,
     },
+    /// A command of `link.queued` reached the dail server on replay and ran there (ADR 0017,
+    /// SRV-5b): it leaves the queue. An unknown request ID is ignored.
+    QueuedDelivered {
+        /// The queued submission.
+        request_id: crate::ids::RequestId,
+    },
+    /// The dail server refused a command of `link.queued` on replay (ADR 0017, SRV-5b): it
+    /// moves to `link.rejected` with the error, for `retry_offline` or
+    /// `dismiss_offline_rejection`. An unknown request ID is ignored.
+    QueuedRejected {
+        /// The queued submission.
+        request_id: crate::ids::RequestId,
+        /// The error code (`ERR…`).
+        code: String,
+        /// The error message.
+        error: String,
+        /// When the server refused it, in Unix milliseconds (the runtime's clock).
+        at_ms: i64,
+    },
+    /// A command forwarded to the dail server while online whose answer was lost with the
+    /// connection, or that came while older commands still waited (ADR 0017, SRV-5b): appended
+    /// to `link.queued` with its request ID, seed and origin, so that the next connection sends
+    /// it again after them. The server answers a request ID it knows from memory, so the
+    /// command runs once. Ignored without a link, if the request ID is queued already, and for
+    /// a command that is never queued (`offline_policy` not `queue`).
+    Requeued {
+        /// The submission, as the queue keeps it.
+        entry: Box<crate::link::QueuedCommand>,
+    },
 }
 
 impl Event {
@@ -571,6 +600,9 @@ impl Event {
             Self::DevicePaired { .. } => "device_paired",
             Self::DeviceSeen { .. } => "device_seen",
             Self::ServerOffered { .. } => "server_offered",
+            Self::QueuedDelivered { .. } => "queued_delivered",
+            Self::QueuedRejected { .. } => "queued_rejected",
+            Self::Requeued { .. } => "requeued",
             Self::ServerPaired { .. } => "server_paired",
             Self::LinkFailed { .. } => "link_failed",
             Self::ServeFailed { .. } => "serve_failed",
@@ -1315,6 +1347,10 @@ pub enum PersistDelta {
     /// pairing completes (`server_paired`); `None` when the link is removed
     /// (`disconnect_server`).
     Remote(Option<crate::link::ServerEndpoint>),
+    /// The commands a mirror queued for its dail server and those the server refused on
+    /// replay (`link.queued`, `link.rejected`; the `link` table of `state.redb`, SRV-5b),
+    /// written whenever either changes.
+    OfflineQueue(crate::link::OfflineQueue),
 }
 
 /// Upserts and removals in the local mail cache. Removals are applied before upserts.
@@ -1434,6 +1470,7 @@ impl PersistDelta {
                 state.link.get_or_insert_with(Default::default).server = Some(server.clone());
             }
             Self::Remote(None) => state.link = None,
+            Self::OfflineQueue(queue) => queue.apply_to(state),
         }
     }
 }
