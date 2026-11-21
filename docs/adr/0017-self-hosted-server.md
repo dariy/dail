@@ -113,3 +113,54 @@ The newline-delimited JSON-RPC 2.0 of the profile socket, generalized over any b
     when the scanner opens. iOS uses AVFoundation, and its camera prompt is the app's first localised resource
     (`InfoPlist.strings` in seven `.lproj` folders, written from the i18n table).
 - The wire format is public API like `Command` JSON (AGENTS.md §5): versioned through `hello.protocol`.
+
+## Amendment 1 — accounts from devices (2026-11-21, proposed)
+
+Plan: `ROADMAP.md`, Wave 18.5 (SRV-9 to SRV-12).
+
+### Context
+The mail accounts live on the server. A paired user device can already send the account commands (`add_account`,
+`update_account`, `set_password`, `set_identity`, `remove_identity`, `remove_account`, `test_account`,
+`discover_servers`), because they are Server-placed and a `user` role may claim the `gui`, `tui`, `cli` and `batch`
+origins. But two things are missing:
+
+1. **A bug.** The wire form of a command (`wire_command`, app-sync) restores the real value of a `Secret` only for
+   `add_account`. `set_password` therefore reaches the server, or the owner of a local profile socket, as the literal
+   text `<redacted>`, which would then be stored as the password. The local socket has had this bug since Wave 1.
+2. **No choice per device.** Every device mirrors every account. A user wants, for example, a phone to carry 3 of the
+   server's 5 accounts while the desktop carries all 5.
+
+A device keeping accounts of its own next to the server's (a hybrid profile) was considered and left out: it would
+undo the rule that only the server talks to mail servers, and with it mirror mode, the offline queue and the
+"passwords only on the server" guarantee.
+
+### Decision
+- **Secrets on the wire.** Every `Secret` field of a `Command` is carried by the wire form. The commands that hold one
+  are named by an exhaustive match (no `_ =>`), so a new one cannot be forgotten. Receipts, logs and replay files keep
+  `<redacted>`.
+- **Account scope per device.** `Device` gains `accounts: AccountScope` (`All` | `Only(set of AccountId)`), kept by the
+  server in `state.devices` and in `config.toml` `[[serve.devices]]` (`accounts = [..]`; missing means `All`, so
+  existing servers keep their behaviour).
+  - `set_device_accounts {device, accounts}` sets it: UserOnly, Server-placed, refused offline. A device learns its own
+    `DeviceId` from the `hello` answer (`state.link.device`).
+  - `start_pairing` takes an optional `accounts`, so a phone can be paired with its scope chosen in advance.
+  - An account added from a scoped device joins that device's scope. Other scoped devices do not get it.
+- **The server enforces the scope.** It is not only a filter on the screen:
+  - `state`, `watch` diffs, `blob` and search answers for a device contain only its accounts and what belongs to them
+    (mailboxes, threads, messages, drafts, outbox, approvals, per-account status). A change of scope sends that device
+    a `resync`.
+  - A command from a device that names an account outside its scope is refused with a new error code.
+  - The device drops the mirror and the cached bodies of an account that leaves its scope.
+  - So an `agent` device limited to one account can neither read nor act on the others. A `user` device can widen
+    its own scope, so for user devices the scope is a choice of what to carry, not a security boundary.
+- **Front ends.** *Devices* in settings gets an account checklist per device. A linked device gets *Accounts on this
+  device* in its Accounts settings, and the *Pair a device…* dialog offers the choice. The account controls of a
+  linked device act on the server's accounts, and say so.
+
+### Consequences
+- A phone stores, downloads and pre-loads only the accounts it carries. A lost phone exposes fewer accounts.
+- `watch` computes a diff per scope instead of one for every watcher, and the server keeps one previous state per
+  scope.
+- The wire protocol gains the scope in `hello`'s answer and in `state`/`watch`. Protocol version 1 is not yet
+  released, so it stays 1. After the first release, a change like this needs version 2.
+- Rules, polling and scheduled sends still run for every account on the server, whatever the devices carry.

@@ -1354,6 +1354,36 @@ Design in ADR 0017. All new text ships in the 7 languages.
 
 ---
 
+## Wave 18.5 — Accounts from devices: "carry what you need"
+
+A paired device manages the server's accounts, and each device carries only the accounts it needs: a phone 3 of the
+server's 5, the desktop all of them. Design in ADR 0017, *Amendment 1*. All new text ships in the 7 languages.
+
+**Exit criteria**
+- From a paired phone, a user adds an account, changes its password and adds a sending address. All three work on the
+  server, and the password exists only there.
+- A phone scoped to 3 of 5 accounts stores, shows and pre-loads only those 3. A command naming one of the other 2 is
+  refused by the server.
+- Changing a device's scope takes effect at once on that device, online or at its next connection.
+
+- [ ] SRV-9 (S) [sync][tk]: every `Secret` of a command on the wire (an exhaustive match over the commands that hold
+  one; fixes `set_password` reaching the server and the local profile socket as `<redacted>`), and device-path tests
+  of every account command through `RemoteSession` that check what the server stores
+- [ ] SRV-10 (M) [core][io]: `AccountScope` on `Device` and `[[serve.devices]]` (`accounts`, missing = all),
+  `set_device_accounts` (UserOnly, Server, refused offline), `start_pairing {accounts?}`, `state.link.device` from
+  `hello`, an account added from a scoped device joins its scope; agent access, placement, offline policy, reach;
+  a replay fixture `device_scope.jsonl`
+- [ ] SRV-11 (M) [sync][tk]: the server enforces the scope: per-scope `state`, `watch` diffs, `blob` and search
+  answers, `resync` on a change of scope, out-of-scope commands refused (a new error code); the device drops the
+  mirror and cached bodies of an account that leaves its scope
+- [ ] SRV-12 (M) [front][gui][tui][mobile][kt][ios]: the account checklist per device in *Devices*, *Accounts on this
+  device* on a linked device, the choice in *Pair a device…*, account controls on a linked device labelled as acting
+  on the server
+- [ ] SRV-13 [user]: live check with the `ai@darii.net` server: a phone scoped to a subset, an account added and its
+  password changed from the phone, a scope change while the phone is offline
+
+---
+
 ## Roadmap — future waves (unordered within themes)
 
 **Touch** (review of 2026-11-11, P2)
