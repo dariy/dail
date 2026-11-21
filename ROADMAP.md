@@ -1345,7 +1345,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
   `state.devices`. ARCHITECTURE §5.6 *In the front ends*, §7.1, §7.4.)*
 - [x] SRV-7 (M) [host][mobile][kt][ios]: `BackendChoice::Remote` in app-host, the onboarding on phones, uploads
   through `External::PickFiles`
-- [ ] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
+- [x] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
 - [ ] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera
   permission asked for when it opens
 - [ ] SRV-8 [user]: live check: `dail serve` under systemd on the home server with the `ai@darii.net` profile, the

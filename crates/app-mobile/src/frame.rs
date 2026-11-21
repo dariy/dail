@@ -809,6 +809,10 @@ pub struct SetupSheet {
     /// What is wrong (an invalid address, a failed login).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// A caution to read before going on, drawn above the fields: a pairing that a
+    /// `dail://pair` link opened, and the server it names (SRV-QR2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warning: Option<String>,
     /// Certificate fingerprints to compare (*Connect to a dail server*): the one the server
     /// offers, and with a mismatch the pairing link's too.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

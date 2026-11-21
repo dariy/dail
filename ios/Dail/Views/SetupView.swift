@@ -34,6 +34,12 @@ struct SetupView: View {
                     }
                 }
             }
+            if let warning = sheet.warning {
+                Section {
+                    Label { Text(verbatim: warning).bold() } icon: { Image(systemName: "exclamationmark.triangle") }
+                        .foregroundStyle(.red)
+                }
+            }
             if !sheet.fields.isEmpty {
                 Section {
                     ForEach(sheet.fields, id: \.field) { field in

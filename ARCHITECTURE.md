@@ -1187,8 +1187,15 @@ offered fingerprint as `SetupSheet.fingerprints` (groups of four, monospace, sel
 too), the `code` field, a spinner while probing or pairing, *Try again* / *Enter another code*, *Close* once paired.
 Its commands go out as `Purpose::Connect`; a button runs only at the stage it was drawn for. `UiEvent::PairLink {uri}`
 is the entry point of a link from outside the app (the deep link of SRV-QR2, the scanner of SRV-QR3): the flow reads
-it and sends `connect_server` at once, so the user only compares and taps *Pair*; a phone with accounts or a server
-refuses it with a snackbar. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
+it into the server field (server, code, the fingerprint to expect) and stops there; only the user's *Connect* sends
+`connect_server`, then the user compares and taps *Pair*; a phone with accounts or a server refuses it with a
+snackbar. The deep link (SRV-QR2: Android's `dail://pair` intent filter, iOS's `dail` URL type) lets
+any web page or app open such a link, so the link is untrusted input: the hosts only forward its text (a prefix test,
+no parsing), `parse_uri` reads it, a link makes the phone connect nowhere before the user's *Connect*, `trust_server`
+still waits for the user's *Pair*, and the server and Compare stages of a flow a link started carry `SetupSheet.warning` (*A link opened this pairing with {server}. Only continue if you just
+scanned or opened this code from your own dail server.*), dropped once the server field is edited. A link never
+replaces a flow under way: unless the open flow is still an empty server field, it is dropped with a snackbar (*A
+pairing is already under way…*), and the user finishes or cancels the open one first. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
 Synced 2m ago*), a refusal in the problem banner with *Retry all* and *Dismiss*, and under the Accounts settings a
 *dail server* group (the details, refusals, *Retry refused changes*, *Disconnect…*) and a *Devices* group (*Revoke…*).
 *Pair a device…* stays desktop-only: it draws the QR code.
@@ -2012,7 +2019,8 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   without accounts, the banner's *re-enter password* fix (`Fix::Password`), and on its own once on a profile without
   accounts or a server. Its first step there also offers *Connect to a dail server* (SRV-7, `mobile/connect.rs`):
   the same sheet then draws `app_front::connect::ConnectFlow` with `Field::{Server, Code}`, `InputKind::Code` and
-  `SetupSheet.fingerprints`; `UiEvent::PairLink` opens it from outside the app (§5.6 *On phones*). A linked phone's
+  `SetupSheet.fingerprints`; `UiEvent::PairLink` opens it from outside the app (§5.6 *On phones*) at the server
+  stage, which with the Compare stage carries `SetupSheet.warning` (drawn bold in the error colour above the fields). A linked phone's
   top bar subtitle starts with the link (`server::summary`) and its Accounts settings add *dail server* and
   *Devices* groups.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
@@ -2117,6 +2125,13 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   dail can read; `net.darii.dail` and its suffixed authorities serve dail's own files); the rest are counted in the
   snackbar. Once the draft exists, `External::ImportFiles` hands the accepted URIs back, and each is copied and
   attached like a picked file. Without an account the snackbar says to add one.
+- **`dail://pair` links** (SRV-QR2). `MainActivity` (`singleTop`, so a link reaches the running activity through
+  `onNewIntent`, never a second one) takes `VIEW` of `dail://pair` (categories `DEFAULT` and `BROWSABLE`; a custom
+  scheme, so no `autoVerify`). `pairLink(data)` only tests the prefix (`dail://pair` then nothing, `?`, `/` or `#`)
+  and sends the text as `UiEvent::PairLink`; Rust reads it (§5.6 *On phones*). Each link is sent once: its data is
+  cleared from the intent, `onCreate` reads the intent only without saved state, and not when Android relaunches
+  the task from the recents screen (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`). A link that starts the app waits on
+  dail-ui behind `open`.
 - **The reader** (`app_mobile::mobile::reader`): the thread's messages, collapsed (sender, date, snippet) or expanded,
   a tap toggling (`expand_messages`/`collapse_messages`). An expanded body is `DocBlock`s: an HTML body's
   `app_core::document` (paragraphs, headings, lists, quotes, preformatted lines, tables, rules, folds), or plain
@@ -2474,7 +2489,13 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   the picker; each goes to `dail_background`'s `import` off the main thread, which copies it into `outgoing` and
   attaches it, then the picker's copy is removed); `import_files` waits for the compose wave. `SetupView` draws
   `SetupSheet.fingerprints` (*Connect to a dail server*) as monospace, selectable lines under their label; the `code`
-  field capitalizes. `UiEvent.pairLink` is the entry point SRV-QR2's URL type will send.
+  field capitalizes, and `SetupSheet.warning` is a bold red label with a warning glyph above the fields.
+- **`dail://pair` links** (SRV-QR2). `ios/Info.plist` (`INFOPLIST_FILE`, merged with the generated keys) declares
+  the `dail` URL type (`CFBundleURLName` `<bundle id>.pair`). Both the live and the demo app declare the scheme;
+  with both installed, iOS picks which one opens a link (left as it is: the demo is a test build).
+  `DailApp`'s `.onOpenURL` sends `UiEvent.pairLink(opening:)`, the URL's `absoluteString` if it is a `dail://pair`
+  link (the same prefix test as Android's) and nothing for other `dail://` URLs, through `Host.sendWhenOpen`, which
+  keeps it until the session has opened; SwiftUI delivers each URL once. Rust reads it (§5.6 *On phones*).
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
   when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
   opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's

@@ -40,6 +40,19 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mailto" />
             </intent-filter>
+            <!--
+              SRV-QR2: a `dail://pair` link (a QR code, a page, another app) only fills in the pairing
+              flow; Rust reads the link and the user still taps Connect, then Pair. A custom
+              scheme: no `autoVerify`. `singleTop` brings a link to the running activity (`onNewIntent`).
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="pair"
+                    android:scheme="dail" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />

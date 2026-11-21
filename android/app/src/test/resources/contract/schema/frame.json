@@ -2432,6 +2432,13 @@
         "title": {
           "description": "`Add an account` or `Change the password`.",
           "type": "string"
+        },
+        "warning": {
+          "description": "A caution to read before going on, drawn above the fields: a pairing that a\n`dail://pair` link opened, and the server it names (SRV-QR2).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

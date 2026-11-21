@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,6 +66,14 @@ fun SetupScreen(
                         Text(preset.hint, style = MaterialTheme.typography.bodySmall)
                     }
                 }
+            }
+            sheet.warning?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
             sheet.fields.forEach { SetupTextField(it, send) }
             sheet.note?.let { Text(it, style = MaterialTheme.typography.bodySmall) }

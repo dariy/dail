@@ -243,11 +243,40 @@ fn an_unreachable_server_fails_and_can_be_tried_again() {
     assert!(address.actions.iter().any(|b| b.label == "Connect"));
 }
 
+/// A link from outside the app, then the user's *Connect* on the server stage it stops at.
+fn link_and_connect(phone: &mut Phone, fp: &str) -> Vec<Command> {
+    phone.event(UiEvent::PairLink { uri: link(fp) });
+    let address = sheet(phone);
+    phone.tap(button(&address, "Connect"))
+}
+
 #[test]
-fn a_link_from_outside_contacts_its_server_at_once() {
+fn a_link_from_outside_waits_for_the_user_before_contacting_its_server() {
     let mut phone = Phone::new(AppState::default(), 360, 800);
-    // The deep link or the scanner (SRV-QR2, SRV-QR3) send this event.
+    // The deep link or the scanner (SRV-QR2, SRV-QR3) send this event: any page or app may.
     phone.event(UiEvent::PairLink { uri: link(FP) });
+    assert!(
+        phone.take().is_empty(),
+        "nothing is sent before the user acts"
+    );
+    for _ in 0..3 {
+        phone.event(UiEvent::Tick);
+        phone.frame();
+    }
+    assert!(phone.take().is_empty(), "nor later");
+    let address = sheet(&mut phone);
+    assert_eq!(address.title, "Connect to a dail server");
+    assert_eq!(address.fields[0].field, Field::Server);
+    assert_eq!(address.fields[0].value.text, "home.example:7443");
+    let warning = address.warning.as_deref().expect("a link's flow warns");
+    assert!(warning.contains("home.example:7443"), "{warning}");
+    assert!(warning.contains("your own dail server"), "{warning}");
+
+    // The user's *Connect*: only now connect_server, then Compare as before.
+    phone.take();
+    phone.event(UiEvent::Tap {
+        action: button(&address, "Connect"),
+    });
     let requests = phone.take();
     assert_eq!(requests.len(), 1);
     assert_eq!(requests[0].purpose, Purpose::Connect);
@@ -283,6 +312,119 @@ fn a_link_from_outside_contacts_its_server_at_once() {
             .text
             .contains("the pairing link was not used")
     );
+}
+
+#[test]
+fn a_link_from_outside_warns_on_compare_and_never_pairs_by_itself() {
+    let mut phone = Phone::new(AppState::default(), 360, 800);
+    link_and_connect(&mut phone, FP);
+    phone.ingest(offered(FP));
+    let compare = sheet(&mut phone);
+    let warning = compare.warning.as_deref().expect("a link's flow warns");
+    assert!(warning.contains("home.example:7443"), "{warning}");
+    assert!(warning.contains("your own dail server"), "{warning}");
+    assert!(
+        compare.actions.iter().any(|b| b.label == "Pair"),
+        "the link's code is filled in"
+    );
+    // Nothing goes to the server before the user's *Pair*: not trust_server, from any frame.
+    phone.take();
+    for _ in 0..3 {
+        phone.event(UiEvent::Tick);
+        phone.frame();
+    }
+    assert!(
+        phone
+            .take()
+            .iter()
+            .all(|r| !matches!(r.cmd, Command::TrustServer { .. }))
+    );
+    let compare = sheet(&mut phone);
+    let cmds = phone.tap(button(&compare, "Pair"));
+    assert!(matches!(cmds.as_slice(), [Command::TrustServer { .. }]));
+
+    // Typed by hand, the flow does not warn.
+    let mut phone = at_connect();
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "home.example".to_owned(),
+    });
+    let address = sheet(&mut phone);
+    assert_eq!(address.warning, None);
+    phone.tap(button(&address, "Connect"));
+    phone.ingest(offered(FP));
+    assert_eq!(sheet(&mut phone).warning, None);
+
+    // A link's server edited by hand is no longer the link's: no warning.
+    let mut phone = Phone::new(AppState::default(), 360, 800);
+    phone.event(UiEvent::PairLink { uri: link(FP) });
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "home.example:7444".to_owned(),
+    });
+    assert_eq!(sheet(&mut phone).warning, None);
+}
+
+#[test]
+fn a_link_does_not_replace_a_pairing_under_way() {
+    // At the Compare stage of a flow typed by hand: the link is dropped with a snackbar.
+    let mut phone = at_connect();
+    phone.event(UiEvent::Text {
+        field: Field::Server,
+        text: "home.example".to_owned(),
+    });
+    let address = sheet(&mut phone);
+    phone.tap(button(&address, "Connect"));
+    phone.ingest(offered(FP));
+    phone.take();
+    phone.event(UiEvent::PairLink {
+        uri: "dail://pair?v=1&h=evil.example&p=7443&c=abcd2345&fp=00&n=X".to_owned(),
+    });
+    assert!(phone.take().is_empty(), "no command for the dropped link");
+    let frame = phone.frame();
+    assert!(
+        frame
+            .snackbar
+            .unwrap()
+            .text
+            .contains("A pairing is already under way")
+    );
+    let compare = frame.setup.unwrap();
+    assert_eq!(compare.fields[0].field, Field::Code, "still at Compare");
+    assert_eq!(compare.warning, None);
+    assert!(!serde_json::to_string(&compare).unwrap().contains("evil"));
+
+    // A second link while the first one waits for the user's *Connect*: dropped too.
+    let mut phone = Phone::new(AppState::default(), 360, 800);
+    phone.event(UiEvent::PairLink { uri: link(FP) });
+    phone.event(UiEvent::PairLink { uri: link(OTHER) });
+    assert!(phone.take().is_empty());
+    assert!(
+        phone
+            .frame()
+            .snackbar
+            .unwrap()
+            .text
+            .contains("A pairing is already under way")
+    );
+    let address = sheet(&mut phone);
+    phone.tap(button(&address, "Connect"));
+    phone.ingest(offered(FP));
+    let compare = sheet(&mut phone);
+    assert!(compare.warning.is_some());
+    assert!(
+        compare.error.is_none(),
+        "the first link's fingerprint still applies"
+    );
+
+    // An empty server field gives way to the link, which waits there too.
+    let mut phone = at_connect();
+    phone.take();
+    phone.event(UiEvent::PairLink { uri: link(FP) });
+    assert!(phone.take().is_empty());
+    let address = sheet(&mut phone);
+    assert_eq!(address.fields[0].value.text, "home.example:7443");
+    assert!(address.warning.is_some());
 }
 
 /// The synced fixture as a mirror of a server, with one refused change and one paired device.

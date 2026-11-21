@@ -247,6 +247,9 @@ class MainActivity : ComponentActivity() {
         }
         host.open()
         if (savedInstanceState == null) {
+            // From the recents screen Android hands back the intent that started the task: a
+            // link in it was used then.
+            if ((intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0) link(intent)
             shared(intent)?.let(host::send)
             Notifier.opened(intent)?.let { host.send(UiEvent.Notification(it)) }
         }
@@ -312,8 +315,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        link(intent)
         shared(intent)?.let(host::send)
         Notifier.opened(intent)?.let { host.send(UiEvent.Notification(it)) }
+    }
+
+    /**
+     * A `dail://pair` link, sent once as `pair_link` (SRV-QR2): its data is then cleared, so
+     * neither a recreation nor a later look at the intent sends it again. `host.send` runs after
+     * the `open` queued before it, so a link that starts the app waits for the session.
+     */
+    private fun link(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val event = pairLink(intent.data?.toString()) ?: return
+        intent.data = null
+        host.send(event)
     }
 
     /**
@@ -394,6 +410,18 @@ class MainActivity : ComponentActivity() {
         const val TRANSPARENT = android.graphics.Color.TRANSPARENT
     }
 }
+
+/**
+ * A `dail://pair` link's text as the presenter's `pair_link` event, or `null` for any other data.
+ * Only a prefix test: reading the link (what it may contain, which server) is Rust's.
+ */
+fun pairLink(data: String?): UiEvent.PairLink? {
+    if (data == null || !data.startsWith(PAIR_PREFIX, ignoreCase = true)) return null
+    val rest = data.substring(PAIR_PREFIX.length)
+    return if (rest.isEmpty() || rest[0] in "?/#") UiEvent.PairLink(data) else null
+}
+
+private const val PAIR_PREFIX = "dail://pair"
 
 /**
  * A `mailto:` link or a share as the presenter's `share` event, or `null` for any other intent.

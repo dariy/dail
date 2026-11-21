@@ -73,6 +73,18 @@ enum UiEvent {
         }
     }
 
+    /// A URL the system opened the app with as `pair_link` (SRV-QR2), or nil for anything but a
+    /// `dail://pair` link. Only a prefix test: reading the link (what it may contain, which
+    /// server) is Rust's, so the text goes as it came.
+    static func pairLink(opening url: URL) -> UiEvent? {
+        let text = url.absoluteString
+        let prefix = "dail://pair"
+        guard text.count >= prefix.count, text.prefix(prefix.count).lowercased() == prefix else { return nil }
+        let rest = text.dropFirst(prefix.count)
+        guard rest.first.map({ "?/#".contains($0) }) ?? true else { return nil }
+        return .pairLink(text)
+    }
+
     private static func event(_ name: String, _ args: [String: JSON]? = nil) -> JSON {
         var event: [String: JSON] = ["event": .string(name)]
         if let args { event["args"] = .object(args) }

@@ -11,7 +11,11 @@
 //! [`Purpose::Connect`] and their replies go back to the flow.
 //!
 //! [`UiEvent::PairLink`](crate::UiEvent::PairLink) is the entry point of a link from outside the
-//! app (the deep link, the scanner): the flow reads it and contacts its server at once.
+//! app (the deep link, the scanner): the flow reads it into the server field and waits. Any web
+//! page or app can open a `dail://pair` link, so nothing is contacted before the user's
+//! *Connect*, a flow it started says so on the server and Compare stages (`SetupSheet::warning`,
+//! with the server it names), and nothing but the user's *Pair* sends `trust_server`. A link never replaces a flow under way: unless the open flow is still an empty
+//! server field, the link is dropped with a snackbar (SRV-QR2).
 
 use app_core::AppState;
 use app_front::connect::{Availability, ConnectFlow, Retry, Stage, availability};
@@ -59,9 +63,19 @@ pub(super) struct Connect {
     flow: ConnectFlow,
     /// Changes whenever the presenter replaces a field's text (a link that was read).
     version: u64,
+    /// A link from outside the app started the flow, and the server field was not edited since.
+    from_link: bool,
 }
 
 impl Connect {
+    /// Whether nothing was done in it yet: the server field, empty. Only such a flow gives way to
+    /// a link from outside the app.
+    fn is_idle(&self) -> bool {
+        *self.flow.stage() == Stage::Address
+            && self.flow.address.trim().is_empty()
+            && self.flow.code.trim().is_empty()
+    }
+
     /// Whether it waits for the server (the frame ticks, so a failure's grace time passes).
     pub(super) const fn is_waiting(&self) -> bool {
         self.flow.is_waiting()
@@ -76,6 +90,7 @@ impl Connect {
                     return;
                 }
                 let before = self.flow.address.chars().count();
+                self.from_link = false;
                 self.flow.address = text;
                 self.flow.address_edited();
                 if self.flow.address.chars().count() > before + 1 {
@@ -115,25 +130,33 @@ impl Mobile {
         self.connect = Some(Connect::default());
     }
 
-    /// A `dail://pair` link from outside the app: the flow with it read, its server contacted.
+    /// A `dail://pair` link from outside the app: the flow at the server with the link read
+    /// (server, code, the fingerprint to expect). The link is untrusted (any page or app can open
+    /// one): it is read by the flow's parser, nothing is sent before the user's *Connect*, the
+    /// server and Compare stages warn, and it never replaces a flow under way.
     pub(super) fn pair_link(&mut self, uri: &str, state: &AppState) -> Vec<Request> {
         let mut out = Vec::new();
         if availability(state) != Availability::Open {
             self.notify(i18n::s(Key::PairLinkRefused));
             return out;
         }
-        // A flow already under way gives way to the link.
+        if self.connect.as_ref().is_some_and(|open| !open.is_idle()) {
+            self.notify(i18n::s(Key::PairLinkBusy));
+            return out;
+        }
+        // An empty flow gives way to the link (it may still hold a link left unpinned).
         if let Some(mut old) = self.connect.take()
             && let Some(cmd) = old.flow.cancel(state)
         {
             out.push(connect_request(cmd));
         }
+        // Read only: nothing is contacted until the user taps *Connect* (a page must not make
+        // the phone connect anywhere).
         let mut connect = Connect::default();
         connect.flow.address = uri.trim().to_owned();
-        if let Some(cmd) = connect.flow.submit_address(state) {
-            out.push(connect_request(cmd));
-        }
+        connect.flow.read_address();
         connect.version += 1;
+        connect.from_link = !connect.flow.address.is_empty();
         self.connect = Some(connect);
         out
     }
@@ -240,6 +263,7 @@ impl Mobile {
         let mut fingerprints = Vec::new();
         let mut note = None;
         let mut error = None;
+        let mut warning = None;
         let mut actions = Vec::new();
         let mut busy = false;
         // From the setup's first step, Back goes there; from a link, the flow is all there is.
@@ -266,6 +290,9 @@ impl Mobile {
                     )),
                     Some(problem) if !flow.address.trim().is_empty() => error = Some(problem),
                     Some(_) => {}
+                }
+                if connect.from_link {
+                    warning = Some(i18n::f(Key::PairLinkWarning, &[("server", &server)]));
                 }
                 if self.setup.is_some() {
                     back = (i18n::s(Key::Back), ConnectAct::Back);
@@ -299,6 +326,9 @@ impl Mobile {
                 }
                 note = Some(format!("{text}\n{}", i18n::s(Key::ConnectCodeHint)));
                 fingerprints.push(fingerprint(Key::PairingFingerprint, offered));
+                if connect.from_link {
+                    warning = Some(i18n::f(Key::PairLinkWarning, &[("server", &server)]));
+                }
                 match flow.code_problem() {
                     None => {
                         actions.push(self.connect_button(i18n::s(Key::Pair), ConnectAct::Pair, at));
@@ -348,6 +378,7 @@ impl Mobile {
             fields,
             note,
             error,
+            warning,
             fingerprints,
             busy,
             actions,

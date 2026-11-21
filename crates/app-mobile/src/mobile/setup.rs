@@ -607,6 +607,7 @@ impl Mobile {
             fields,
             note,
             error,
+            warning: None,
             fingerprints: Vec::new(),
             busy,
             actions,

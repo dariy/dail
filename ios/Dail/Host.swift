@@ -17,6 +17,9 @@ final class Host: ObservableObject {
     private let ui = DispatchQueue(label: "dail-ui", qos: .userInteractive)
     /// Touched on `ui` only.
     private var handle: Int32 = 0
+    /// Events that came before the session opened (a link that launched the app), sent once it
+    /// has. Touched on `ui` only.
+    private var waiting: [UiEvent] = []
     private var listener: Listener?
     /// The theme of the last frame that carried one (frames carry it only when it changes).
     private var theme: FrameTheme?
@@ -73,6 +76,9 @@ final class Host: ObservableObject {
             self.listener = listener
             handle = Int32(opened)
             take(Native.frame(handle: handle))
+            let queued = waiting
+            waiting = []
+            queued.forEach { take(Native.event(handle: handle, event: $0.json.text)) }
         }
     }
 
@@ -80,6 +86,15 @@ final class Host: ObservableObject {
     func send(_ event: UiEvent) {
         ui.async { [self] in
             guard handle > 0 else { return }
+            take(Native.event(handle: handle, event: event.json.text))
+        }
+    }
+
+    /// Sends one event on dail-ui, or keeps it until the session has opened (an event that must
+    /// not be lost, like a `dail://pair` link that launched the app).
+    func sendWhenOpen(_ event: UiEvent) {
+        ui.async { [self] in
+            guard handle > 0 else { return waiting.append(event) }
             take(Native.event(handle: handle, event: event.json.text))
         }
     }

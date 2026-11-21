@@ -498,6 +498,8 @@ data class SetupSheet(
     val fields: List<SetupField>,
     val note: String? = null,
     val error: String? = null,
+    /** A caution above the fields: a pairing that a `dail://pair` link opened (SRV-QR2). */
+    val warning: String? = null,
     val fingerprints: List<Fingerprint> = emptyList(),
     val busy: Boolean,
     val actions: List<Button>,

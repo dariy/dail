@@ -156,6 +156,15 @@ fn frames() -> Vec<(String, Frame)> {
             "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"
         ),
     });
+    // A link waits for the user's *Connect* (SRV-QR2).
+    let connect = phone.frame().setup.unwrap();
+    let connect = connect
+        .actions
+        .iter()
+        .find(|b| b.label == "Connect")
+        .unwrap()
+        .action;
+    phone.tap(connect);
     phone.ingest(app_core::Event::ServerOffered {
         host: "home.example".to_owned(),
         port: 7443,

@@ -7277,6 +7277,22 @@ strings! {
         "Este celular já tem contas de e-mail ou um servidor dail, então o link de pareamento não foi usado.",
         "Este telemóvel já tem contas de correio ou um servidor dail, por isso a ligação de emparelhamento não foi usada.",
         "Hoc telephonum iam rationes epistularum aut servitorem dail habet, ergo nexus copulationis non adhibitus est.";
+    PairLinkBusy:
+        "A pairing is already under way, so the pairing link was not used. Finish or cancel it first.",
+        "Une association est déjà en cours : le lien d’association n’a pas été utilisé. Terminez-la ou annulez-la d’abord.",
+        "Ya hay una vinculación en curso, así que no se usó el enlace de vinculación. Termínala o cancélala primero.",
+        "O asociere este deja în curs, așa că linkul de asociere nu a fost folosit. Finalizați-o sau anulați-o mai întâi.",
+        "Já há um pareamento em andamento, então o link de pareamento não foi usado. Conclua ou cancele esse pareamento primeiro.",
+        "Já há um emparelhamento em curso, por isso a ligação de emparelhamento não foi usada. Conclua-o ou cancele-o primeiro.",
+        "Copulatio iam agitur, ergo nexus copulationis non adhibitus est. Eam prius perfice aut rescinde.";
+    PairLinkWarning:
+        "A link opened this pairing with {server}. Only continue if you just scanned or opened this code from your own dail server.",
+        "Un lien a ouvert cette association avec {server}. Ne continuez que si vous venez de scanner ou d’ouvrir ce code depuis votre propre serveur dail.",
+        "Un enlace abrió esta vinculación con {server}. Continúa solo si acabas de escanear o abrir este código desde tu propio servidor dail.",
+        "Un link a deschis această asociere cu {server}. Continuați doar dacă tocmai ați scanat sau ați deschis acest cod de pe propriul server dail.",
+        "Um link abriu este pareamento com {server}. Só continue se você acabou de escanear ou abrir este código do seu próprio servidor dail.",
+        "Uma ligação abriu este emparelhamento com {server}. Só continue se acabou de ler ou abrir este código a partir do seu próprio servidor dail.",
+        "Nexus hanc copulationem cum {server} aperuit. Perge solum si hanc notam modo ex tuo servitore dail legisti aut aperuisti.";
     ConnectAddressFooter:
         "Enter connect · Esc back",
         "Entrée se connecter · Échap retour",

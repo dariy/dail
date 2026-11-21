@@ -523,6 +523,8 @@ struct SetupSheet: Codable {
     let fields: [SetupField]
     let note: String?
     let error: String?
+    /// A caution above the fields: a pairing that a `dail://pair` link opened (SRV-QR2).
+    let warning: String?
     /// Fingerprints to compare (*Connect to a dail server*); absent elsewhere.
     let fingerprints: [Fingerprint]?
     let busy: Bool
