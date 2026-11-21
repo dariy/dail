@@ -231,6 +231,21 @@ pub struct Device {
     pub last_seen_ms: Option<i64>,
 }
 
+/// Where a running `dail serve` listens (ADR 0017, SRV-QR1): what a front end attached to it
+/// puts into the `dail://pair` URI of its QR code. Set by `Event::ServeListening` when the
+/// server starts listening; never stored, and shared with the mirrors (a device sees its
+/// server's).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ServeInfo {
+    /// The bound addresses (`ip:port`), in `--listen` order.
+    pub addresses: Vec<String>,
+    /// The hosts devices reach the server by (`--advertise`), in order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub advertise: Vec<String>,
+    /// SHA-256 fingerprint of the server's certificate, 64 lower-case hex digits.
+    pub fingerprint: String,
+}
+
 /// Characters of a pairing code (`start_pairing`): RFC 4648 base32, 5 bits each.
 pub const PAIRING_CODE_LEN: usize = 8;
 

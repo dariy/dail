@@ -53,7 +53,7 @@ pub use ids::{
 };
 pub use link::{
     Device, DeviceRole, LinkState, LinkStatus, OfflinePolicy, OfflineQueue, OfflineRejection,
-    PAIRING_CODE_LEN, PAIRING_TTL_MS, Placement, QueuedCommand, ServerEndpoint,
+    PAIRING_CODE_LEN, PAIRING_TTL_MS, Placement, QueuedCommand, ServeInfo, ServerEndpoint,
 };
 pub use listing::ThreadSummary;
 pub use mailbox::{FolderKey, Mailbox, MailboxRole, RemoteMailbox};

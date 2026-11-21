@@ -194,6 +194,13 @@ pub enum ServeCmd {
         /// The device's name, e.g. `Laptop` (1 to 64 characters).
         #[arg(long)]
         name: String,
+        /// Do not draw the QR code of the `dail://pair` link on the terminal.
+        #[arg(long)]
+        no_qr: bool,
+        /// The host the link (and its QR code) names, instead of the first advertised host, else
+        /// the first bound address that is not loopback or unspecified, else loopback.
+        #[arg(long)]
+        host: Option<String>,
     },
     /// List the paired devices (alias for `list_devices`).
     Devices,

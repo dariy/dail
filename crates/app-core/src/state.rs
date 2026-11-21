@@ -586,7 +586,7 @@ impl StatusState {
     /// (ADR 0017): its own store (`persist_error`, `quarantined`, `compaction`), its own network
     /// (`metered`) and the attachments it saved (`saves`, from the `client_with_blob`
     /// `save_attachments`). The rest is the server's: its keyring, sync, polls, fetches,
-    /// searches, discovery, certificate offers and pairing failures. A `StateDiff` never overwrites the device's
+    /// searches, discovery, certificate offers, pairing failures and where it listens. A `StateDiff` never overwrites the device's
     /// fields. Every field is named, so a new one has to be classified here.
     pub fn keep_device_local(&mut self, device: &Self) {
         let Self {
@@ -607,6 +607,7 @@ impl StatusState {
             metered,
             cert_offers: _,
             serve_error: _,
+            serve: _,
         } = device;
         self.persist_error.clone_from(persist_error);
         self.compaction.clone_from(compaction);
@@ -674,6 +675,10 @@ pub struct StatusState {
     /// pairs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub serve_error: Option<String>,
+    /// Where this profile's `dail serve` listens, while it runs (`Event::ServeListening`, ADR
+    /// 0017, SRV-QR1): the host, port and fingerprint of the *Pair a device…* QR code.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub serve: Option<crate::link::ServeInfo>,
 }
 
 /// A certificate that `trust_certificate` may add to an account (ADR 0016).

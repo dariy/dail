@@ -361,6 +361,7 @@ impl Engine {
             | Event::LinkFailed { .. }
             | Event::ServerPaired { .. }
             | Event::ServeFailed { .. }
+            | Event::ServeListening { .. }
             | Event::ServerOffered { .. }
             | Event::QueuedDelivered { .. }
             | Event::QueuedRejected { .. }

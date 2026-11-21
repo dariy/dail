@@ -6933,4 +6933,148 @@ strings! {
         "Descartar qual alteração recusada?",
         "Rejeitar que alteração recusada?",
         "Quam mutationem recusatam abicere?";
+    PairADevice:
+        "Pair a device…",
+        "Associer un appareil…",
+        "Vincular un dispositivo…",
+        "Asociați un dispozitiv…",
+        "Parear um dispositivo…",
+        "Emparelhar um dispositivo…",
+        "Instrumentum copula…";
+    Pair:
+        "Pair",
+        "Associer",
+        "Vincular",
+        "Asociați",
+        "Parear",
+        "Emparelhar",
+        "Copula";
+    PairingWaiting:
+        "Opening a pairing code…",
+        "Ouverture d’un code d’association…",
+        "Abriendo un código de vinculación…",
+        "Se deschide un cod de asociere…",
+        "Abrindo um código de pareamento…",
+        "A abrir um código de emparelhamento…",
+        "Nota copulationis aperitur…";
+    PairingCode:
+        "Pairing code",
+        "Code d’association",
+        "Código de vinculación",
+        "Cod de asociere",
+        "Código de pareamento",
+        "Código de emparelhamento",
+        "Nota copulationis";
+    PairingExpiresIn:
+        "Single use, valid for {time} more",
+        "Usage unique, valable encore {time}",
+        "De un solo uso, válido durante {time} más",
+        "De unică folosință, valabil încă {time}",
+        "Uso único, válido por mais {time}",
+        "Utilização única, válido durante mais {time}",
+        "Semel utenda, valet adhuc {time}";
+    PairingExpired:
+        "This code has expired. Pair again for a new one.",
+        "Ce code a expiré. Associez de nouveau pour en obtenir un autre.",
+        "Este código ha caducado. Vuelve a vincular para obtener uno nuevo.",
+        "Acest cod a expirat. Asociați din nou pentru unul nou.",
+        "Este código expirou. Pareie de novo para obter outro.",
+        "Este código expirou. Emparelhe de novo para obter outro.",
+        "Haec nota exspiravit. Iterum copula ut novam accipias.";
+    PairingFingerprint:
+        "Server certificate (SHA-256)",
+        "Certificat du serveur (SHA-256)",
+        "Certificado del servidor (SHA-256)",
+        "Certificatul serverului (SHA-256)",
+        "Certificado do servidor (SHA-256)",
+        "Certificado do servidor (SHA-256)",
+        "Testimonium servitoris (SHA-256)";
+    PairingAddress:
+        "Address: {address}",
+        "Adresse : {address}",
+        "Dirección: {address}",
+        "Adresă: {address}",
+        "Endereço: {address}",
+        "Endereço: {address}",
+        "Inscriptio: {address}";
+    PairingScanHint:
+        "Scan the QR code with dail on the device, or enter the code there. The device must show the same fingerprint.",
+        "Scannez le code QR avec dail sur l’appareil, ou saisissez-y le code. L’appareil doit afficher la même empreinte.",
+        "Escanea el código QR con dail en el dispositivo, o escribe allí el código. El dispositivo debe mostrar la misma huella.",
+        "Scanați codul QR cu dail pe dispozitiv sau introduceți codul acolo. Dispozitivul trebuie să arate aceeași amprentă.",
+        "Escaneie o código QR com o dail no dispositivo, ou digite o código nele. O dispositivo deve mostrar a mesma impressão digital.",
+        "Leia o código QR com o dail no dispositivo, ou introduza lá o código. O dispositivo tem de mostrar a mesma impressão digital.",
+        "Notam QR cum dail in instrumento perlege, aut notam ibi inscribe. Instrumentum eandem impressionem ostendere debet.";
+    PairingNoQr:
+        "No QR code: this dail does not know an address the device can reach. Start dail serve with --advertise <host>.",
+        "Pas de code QR : ce dail ne connaît aucune adresse que l’appareil peut joindre. Lancez dail serve avec --advertise <hôte>.",
+        "Sin código QR: este dail no conoce ninguna dirección a la que llegue el dispositivo. Inicia dail serve con --advertise <host>.",
+        "Fără cod QR: acest dail nu cunoaște nicio adresă la care dispozitivul să ajungă. Porniți dail serve cu --advertise <gazdă>.",
+        "Sem código QR: este dail não conhece um endereço que o dispositivo alcance. Inicie o dail serve com --advertise <host>.",
+        "Sem código QR: este dail não conhece um endereço que o dispositivo alcance. Inicie o dail serve com --advertise <anfitrião>.",
+        "Nulla nota QR: hic dail nullam inscriptionem novit quam instrumentum attingat. Incipe dail serve cum --advertise <hospes>.";
+    PairingFailed:
+        "Pairing failed: {error}",
+        "Échec de l’association : {error}",
+        "La vinculación falló: {error}",
+        "Asocierea a eșuat: {error}",
+        "O pareamento falhou: {error}",
+        "O emparelhamento falhou: {error}",
+        "Copulatio defecit: {error}";
+    PairAnother:
+        "Pair another device",
+        "Associer un autre appareil",
+        "Vincular otro dispositivo",
+        "Asociați alt dispozitiv",
+        "Parear outro dispositivo",
+        "Emparelhar outro dispositivo",
+        "Aliud instrumentum copula";
+    CopyCode:
+        "Copy code",
+        "Copier le code",
+        "Copiar el código",
+        "Copiați codul",
+        "Copiar código",
+        "Copiar código",
+        "Notam exscribe";
+    PairingCodeCopied:
+        "Code copied.",
+        "Code copié.",
+        "Código copiado.",
+        "Cod copiat.",
+        "Código copiado.",
+        "Código copiado.",
+        "Nota exscripta.";
+    PairFormFooter:
+        "Tab: kind of device · Enter: pair · Esc: close",
+        "Tab : type d’appareil · Entrée : associer · Échap : fermer",
+        "Tab: tipo de dispositivo · Intro: vincular · Esc: cerrar",
+        "Tab: tip de dispozitiv · Enter: asociați · Esc: închideți",
+        "Tab: tipo de dispositivo · Enter: parear · Esc: fechar",
+        "Tab: tipo de dispositivo · Enter: emparelhar · Esc: fechar",
+        "Tab: genus instrumenti · Enter: copula · Esc: claude";
+    PairOpenedFooter:
+        "n: pair another device · Esc: close",
+        "n : associer un autre appareil · Échap : fermer",
+        "n: vincular otro dispositivo · Esc: cerrar",
+        "n: asociați alt dispozitiv · Esc: închideți",
+        "n: parear outro dispositivo · Esc: fechar",
+        "n: emparelhar outro dispositivo · Esc: fechar",
+        "n: aliud instrumentum copula · Esc: claude";
+    PairingNoLink:
+        "No QR code: {error}",
+        "Pas de code QR : {error}",
+        "Sin código QR: {error}",
+        "Fără cod QR: {error}",
+        "Sem código QR: {error}",
+        "Sem código QR: {error}",
+        "Nulla nota QR: {error}";
+    PairingEnlarge:
+        "Enlarge the terminal to show the QR code.",
+        "Agrandissez le terminal pour afficher le code QR.",
+        "Amplía la terminal para mostrar el código QR.",
+        "Măriți terminalul pentru a afișa codul QR.",
+        "Aumente o terminal para mostrar o código QR.",
+        "Aumente o terminal para mostrar o código QR.",
+        "Terminale amplifica ut nota QR ostendatur.";
 }

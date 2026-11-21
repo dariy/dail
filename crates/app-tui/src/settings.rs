@@ -119,6 +119,15 @@ fn rows(state: &AppState, section: SettingsSection) -> Vec<Row> {
                 change: Some(CommandName::AddAccount),
                 rule: None,
             });
+            // The server's actions (SRV-QR1): *Pair a device…* opens the pairing dialog.
+            for entry in app_front::actions::server_actions(state) {
+                out.push(Row {
+                    key: s(entry.label).to_owned(),
+                    value: String::new(),
+                    change: Some(CommandName::StartPairing),
+                    rule: None,
+                });
+            }
             out
         }
         SettingsSection::General
@@ -350,6 +359,8 @@ pub struct Outcome {
     pub ask: Option<app_front::palette::Ask>,
     /// The account setup to open.
     pub wizard: bool,
+    /// The *Pair a device…* dialog to open.
+    pub pair: bool,
     /// The key was not the view's: let the keymap have it.
     pub unhandled: bool,
 }
@@ -411,6 +422,7 @@ impl SettingsView {
                     None => flow(name, state),
                 };
                 match (name, step) {
+                    (CommandName::StartPairing, _) => outcome.pair = true,
                     (CommandName::TestAccount, _) => {
                         if let Some(account) = state.accounts.values().nth(self.cursor) {
                             outcome

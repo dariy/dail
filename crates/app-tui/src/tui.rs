@@ -23,6 +23,7 @@ use ratatui::widgets::Paragraph;
 use crate::approvals::{self, ApprovalsView};
 use crate::composer::ComposerView;
 use crate::layout::{self, Slot};
+use crate::pairing::PairView;
 use crate::palette::{PaletteView, ResultView, overlay_area};
 use crate::reader::Reader;
 use crate::request::{Purpose, Reply, Request};
@@ -121,6 +122,8 @@ pub struct Tui {
     composer: ComposerView,
     /// The account setup, while it is open.
     setup: Option<Setup>,
+    /// The *Pair a device…* dialog, while it is open.
+    pair: Option<PairView>,
     external: Option<External>,
     /// Whether this TUI owns the session (closing it cancels a scheduled send).
     owns_session: bool,
@@ -159,6 +162,7 @@ impl Default for Tui {
             settings: crate::settings::SettingsView::default(),
             composer: ComposerView::default(),
             setup: None,
+            pair: None,
             external: None,
             owns_session: false,
             confirm_quit: false,
@@ -259,6 +263,7 @@ impl Tui {
             || !state.accounts.is_empty()
             || state.drafts.values().any(|d| d.send_at.is_some())
             || self.notice.is_some()
+            || self.pair.is_some()
     }
 
     /// Draws one frame of `state`, in the theme's colours when `tui_colors` asks for them and
@@ -327,6 +332,10 @@ impl Tui {
         }
         if let Some(result) = &mut self.result {
             result.draw(frame, overlay_area(body, borders, 90), borders);
+        }
+        if let Some(pair) = &self.pair {
+            let now = self.now_ms();
+            pair.draw(frame, overlay_area(body, true, 90), (now, self.no_color));
         }
         if state.view.palette_open {
             self.palette
@@ -473,6 +482,9 @@ impl Tui {
     /// calls it before each frame.
     pub fn refresh(&mut self, state: &AppState) -> Vec<Request> {
         self.palette.sync(state);
+        if let Some(pair) = &mut self.pair {
+            pair.dialog.sync(state);
+        }
         if state.approvals.is_empty() {
             self.approvals = None;
         }
@@ -558,6 +570,11 @@ impl Tui {
         self.setup.is_some()
     }
 
+    /// The *Pair a device…* dialog, while it is open.
+    pub fn pairing(&self) -> Option<&app_front::pairing::PairDialog> {
+        self.pair.as_ref().map(|p| &p.dialog)
+    }
+
     /// The palette's current second step, if it is at one.
     pub fn palette_step(&self) -> Option<&app_front::palette::Ask> {
         self.palette.step()
@@ -579,6 +596,20 @@ impl Tui {
     /// Handles one input event and returns the commands it issued, in order.
     pub fn input(&mut self, input: Input, state: &AppState) -> Vec<Request> {
         let requests = self.input_inner(input, state);
+        // A `start_pairing` from the palette or a key shows its code in the pairing dialog.
+        let requests: Vec<Request> = requests
+            .into_iter()
+            .map(|request| match &request.cmd {
+                Command::StartPairing { role, name } if request.purpose == Purpose::User => {
+                    self.pair = Some(PairView::submitted(*role, name, state));
+                    Request {
+                        purpose: Purpose::Pairing,
+                        ..request
+                    }
+                }
+                _ => request,
+            })
+            .collect();
         for request in &requests {
             self.autoread.note(&request.cmd);
         }
@@ -595,6 +626,12 @@ impl Tui {
     fn input_inner(&mut self, input: Input, state: &AppState) -> Vec<Request> {
         self.palette.sync(state);
         match input {
+            Input::Paste(text) if self.pair.is_some() => {
+                if let Some(pair) = &mut self.pair {
+                    pair.paste(&text);
+                }
+                Vec::new()
+            }
             Input::Paste(text) if self.setup.is_some() => {
                 if let Some(setup) = &mut self.setup {
                     setup.paste(&text);
@@ -633,6 +670,13 @@ impl Tui {
         if ctrl_c {
             self.request_quit(state);
             return Vec::new();
+        }
+        if let Some(pair) = &mut self.pair {
+            let outcome = pair.key(key, state);
+            if outcome.close {
+                self.pair = None;
+            }
+            return outcome.requests;
         }
         if let Some(setup) = &mut self.setup {
             let outcome = setup.key(key, state);
@@ -678,6 +722,9 @@ impl Tui {
             let outcome = self.settings.key(key, state);
             if outcome.wizard {
                 self.setup = Some(Setup::default());
+            }
+            if outcome.pair {
+                self.pair = Some(PairView::default());
             }
             if let Some(step) = outcome.ask {
                 self.palette.open_at(step);
@@ -804,7 +851,11 @@ impl Tui {
             result.scroll_by(step);
             return Vec::new();
         }
-        if state.view.palette_open || self.approvals.is_some() || self.confirm_quit {
+        if state.view.palette_open
+            || self.approvals.is_some()
+            || self.pair.is_some()
+            || self.confirm_quit
+        {
             return Vec::new();
         }
         let at = ratatui::layout::Position::new(mouse.column, mouse.row);
@@ -936,6 +987,16 @@ impl Tui {
                 Purpose::Bodies(thread) => {
                     let receipt = reply.result.as_ref().ok().and_then(|r| r.as_ref().ok());
                     self.bodies.accept(thread, receipt);
+                }
+                Purpose::Pairing => {
+                    if let Some(pair) = &mut self.pair {
+                        let result = match &reply.result {
+                            Ok(Ok(receipt)) => Ok(receipt),
+                            Ok(Err(err)) => Err(app_front::i18n::message(&err.to_string())),
+                            Err(err) => Err(format!("dail: {err}")),
+                        };
+                        pair.dialog.accept(result, state);
+                    }
                 }
                 Purpose::Setup => {
                     if let Some(setup) = &mut self.setup

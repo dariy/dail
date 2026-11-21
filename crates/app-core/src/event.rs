@@ -547,6 +547,17 @@ pub enum Event {
         /// Diagnostic.
         error: String,
     },
+    /// `dail serve` listens (ADR 0017, SRV-QR1): recorded in `status.serve`, for the QR code
+    /// of *Pair a device…*. A fingerprint that is not 64 hex digits is ignored.
+    ServeListening {
+        /// The bound addresses (`ip:port`).
+        addresses: Vec<String>,
+        /// The advertised hosts (`--advertise`).
+        #[serde(default)]
+        advertise: Vec<String>,
+        /// SHA-256 fingerprint of the server's certificate, hex.
+        fingerprint: String,
+    },
     /// A dail server answered `connect_server` (`Effect::ProbeServer`): the SHA-256
     /// fingerprint of its certificate is recorded in `link.server.offered`, for the user to
     /// compare before `trust_server`. Ignored if the link is to another server or gone.
@@ -606,6 +617,7 @@ impl Event {
             Self::ServerPaired { .. } => "server_paired",
             Self::LinkFailed { .. } => "link_failed",
             Self::ServeFailed { .. } => "serve_failed",
+            Self::ServeListening { .. } => "serve_listening",
             Self::CertificateOffered { .. } => "certificate_offered",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",

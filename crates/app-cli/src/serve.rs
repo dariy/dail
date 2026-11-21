@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use anyhow::{Context as _, bail};
-use app_core::{Command, DeviceId, Origin};
+use app_core::{Command, DeviceId, Event, Origin};
 use app_io::ProfileDirs;
 use app_sync::serve::{self, DailServer, ServeOptions, ServerIdentity};
 use app_sync::{Connection, IpcClient, IpcEndpoint, RandomSeeds};
@@ -51,7 +51,18 @@ pub async fn run(
 ) -> anyhow::Result<ExitCode> {
     match command {
         None => serve(global, args).await,
-        Some(ServeCmd::Pair { role, name }) => pair(global, (*role).into(), name).await,
+        Some(ServeCmd::Pair {
+            role,
+            name,
+            no_qr,
+            host,
+        }) => {
+            let qr = QrArgs {
+                show: !*no_qr,
+                host: host.as_deref(),
+            };
+            pair(global, (*role).into(), name, qr).await
+        }
         Some(ServeCmd::Devices) => devices(global).await,
         Some(ServeCmd::Revoke { id, yes }) => revoke(global, id, *yes).await,
     }
@@ -159,6 +170,16 @@ async fn start(
         "allow_send": args.allow_send,
     });
     write_private(&listening_file(root), &listening)?;
+    // The front ends attached to the server (and its devices' mirrors) learn where it listens,
+    // for the QR code of *Pair a device…* (SRV-QR1).
+    owned
+        .session
+        .ingest(Event::ServeListening {
+            addresses: bound.iter().map(ToString::to_string).collect(),
+            advertise: args.advertise.clone(),
+            fingerprint: identity.fingerprint().to_owned(),
+        })
+        .await?;
 
     let mut err = std::io::stderr().lock();
     writeln!(err, "dail serve: profile {}", root.display())?;
@@ -257,11 +278,74 @@ fn reachable_at(listening: &Value) -> Vec<String> {
     at
 }
 
+/// `dail serve pair`'s QR options.
+struct QrArgs<'a> {
+    /// Draw the QR code (when stderr is a terminal).
+    show: bool,
+    /// The host the link names instead of the chosen one.
+    host: Option<&'a str>,
+}
+
+/// The `dail://pair` link of a code opened on the server described by `listening`
+/// (`app_front::pairing::serve_endpoint`, or `host` with the first listener's port).
+fn pairing_uri(listening: &Value, host: Option<&str>, code: &str, name: &str) -> Option<String> {
+    let strings = |key: &str| -> Vec<String> {
+        listening[key]
+            .as_array()
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let serve = app_core::ServeInfo {
+        addresses: strings("addresses"),
+        advertise: host.map_or_else(|| strings("advertise"), |h| vec![h.to_owned()]),
+        fingerprint: listening["fingerprint"].as_str()?.to_owned(),
+    };
+    let endpoint = app_front::pairing::serve_endpoint(&serve)?;
+    let uri = app_front::pairing::PairingUri::new(
+        &endpoint.host,
+        endpoint.port,
+        code,
+        &endpoint.fingerprint,
+        name,
+    )
+    .ok()?;
+    Some(uri.to_uri())
+}
+
+/// The QR code of `uri` for stderr: half-blocks, black on bright white (ANSI) so that it scans
+/// whatever the terminal's colours; with `NO_COLOR` plain glyphs that draw the light modules
+/// (light text on a dark background, the common terminal default).
+fn qr_lines(uri: &str) -> Vec<String> {
+    use app_front::qr::{Ink, QUIET_ZONE, QrMatrix, half_blocks};
+    let Ok(matrix) = QrMatrix::encode(uri) else {
+        return Vec::new();
+    };
+    if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
+        half_blocks(&matrix, QUIET_ZONE, Ink::Light)
+    } else {
+        half_blocks(&matrix, QUIET_ZONE, Ink::Dark)
+            .into_iter()
+            .map(|line| format!("\x1b[30;107m{line}\x1b[0m"))
+            .collect()
+    }
+}
+
 async fn pair(
     global: &GlobalArgs,
     role: app_core::DeviceRole,
     name: &str,
+    qr: QrArgs<'_>,
 ) -> anyhow::Result<ExitCode> {
+    if let Some(host) = qr.host
+        && app_front::pairing::valid_host(host).is_err()
+    {
+        bail!("--host {host}: not a DNS name or an IP address");
+    }
     let (conn, listening) = attach_server(global).await?;
     let before = conn.state().await?.status.serve_error.clone();
     let result = conn
@@ -297,6 +381,8 @@ async fn pair(
     let expires_at_ms = data["expires_at_ms"].as_i64().unwrap_or_default();
     let fingerprint = listening["fingerprint"].as_str().unwrap_or_default();
     let at = reachable_at(&listening);
+    let device_name = data["name"].as_str().unwrap_or_default();
+    let uri = pairing_uri(&listening, qr.host, code, device_name);
     emit(
         global.pretty,
         &json!({
@@ -308,6 +394,7 @@ async fn pair(
             "expires_at_ms": expires_at_ms,
             "fingerprint": fingerprint,
             "addresses": at,
+            "uri": uri,
         }),
     )?;
     let now_ms = SystemTime::now()
@@ -329,6 +416,21 @@ async fn pair(
         err,
         "The device must show the same fingerprint before you enter the code."
     )?;
+    match &uri {
+        Some(uri) => {
+            writeln!(err, "Pairing link: {uri}")?;
+            if qr.show && std::io::stderr().is_terminal() {
+                writeln!(err, "Scan it with dail on the device:")?;
+                for line in qr_lines(uri) {
+                    writeln!(err, "{line}")?;
+                }
+            }
+        }
+        None => writeln!(
+            err,
+            "No pairing link: no address a device can dial (start dail serve with --advertise <host>, or pass --host)."
+        )?,
+    }
     Ok(ExitCode::SUCCESS)
 }
 
@@ -439,6 +541,29 @@ mod tests {
             ]
         );
         assert!(reachable_at(&json!({})).is_empty());
+    }
+
+    #[test]
+    fn the_pairing_link_names_the_first_dialable_host() {
+        let fp = "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03";
+        let listening = json!({
+            "addresses": ["0.0.0.0:7443"],
+            "advertise": ["home.tail1234.ts.net"],
+            "fingerprint": fp,
+        });
+        let uri = pairing_uri(&listening, None, "ABCD2345", "My phone").unwrap();
+        assert_eq!(
+            uri,
+            format!(
+                "dail://pair?v=1&h=home.tail1234.ts.net&p=7443&c=ABCD2345&fp={fp}&n=My%20phone"
+            )
+        );
+        let over = pairing_uri(&listening, Some("[fd7a::1]"), "ABCD2345", "x").unwrap();
+        assert!(over.contains("&h=fd7a%3A%3A1&"), "{over}");
+        let nowhere = json!({ "addresses": ["0.0.0.0:7443"], "fingerprint": fp });
+        assert_eq!(pairing_uri(&nowhere, None, "ABCD2345", "x"), None);
+        let lines = qr_lines(&uri);
+        assert!(lines.len() > 10);
     }
 
     #[test]

@@ -65,7 +65,7 @@ app-mcp    ← app-core, app-sync
 app-front  ← app-core                         (ADR 0004; no toolkit, no tokio)
 app-gui    ← app-core, app-sync, app-front, app-theme
 app-tui    ← app-core, app-sync, app-front, app-theme (ADR 0004, UI-16; app-gui and app-tui never depend on each other)
-app-cli    ← app-core, app-io, app-sync, app-mcp, app-gui, app-tui, app-testkit (ADR 0001: `--backend memory`)
+app-cli    ← app-core, app-io, app-sync, app-mcp, app-front, app-gui, app-tui, app-testkit (ADR 0001: `--backend memory`; ADR 0017: app-front's pairing link and QR code)
 app-mobile ← app-core, app-front, app-theme  (ADR 0009; no toolkit, no tokio, no JNI)
 app-host   ← app-core, app-io, app-sync, app-mobile (ADR 0010; app-testkit behind the `demo` feature, as ADR 0001)
 app-android← app-core, app-io, app-sync, app-host (ADR 0009, 0010; its `demo` feature turns on app-host's)

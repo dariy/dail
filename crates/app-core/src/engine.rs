@@ -380,6 +380,11 @@ impl Engine {
             Event::DevicePaired { device } => Ok(self.ingest_device_paired(device, receipt)),
             Event::DeviceSeen { id, at_ms } => Ok(self.ingest_device_seen(id, at_ms, receipt)),
             Event::ServeFailed { error } => Ok(self.ingest_serve_failed(error, receipt)),
+            Event::ServeListening {
+                addresses,
+                advertise,
+                fingerprint,
+            } => Ok(self.ingest_serve_listening(addresses, advertise, &fingerprint, receipt)),
             Event::LinkFailed { error } => Ok(self.ingest_link_failed(error, receipt)),
             Event::ServerPaired { fingerprint } => {
                 Ok(self.ingest_server_paired(&fingerprint, receipt))

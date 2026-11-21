@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 app-core.workspace = true
+app-front.workspace = true
 app-io.workspace = true
 app-sync.workspace = true
 app-mcp.workspace = true

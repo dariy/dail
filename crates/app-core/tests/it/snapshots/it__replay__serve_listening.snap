@@ -1,0 +1,109 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "after_triage": 0,
+      "background_interval_mins": 30,
+      "background_sync": 1,
+      "full_sync_secs": 900,
+      "history_cap": 200,
+      "initial_window": 500,
+      "language": 0,
+      "list_density": 0,
+      "mark_read_after_ms": 2000,
+      "notifications": 1,
+      "poll_secs": 120,
+      "stale_secs": 60,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "serve": {
+        "addresses": [
+          "0.0.0.0:7443"
+        ],
+        "advertise": [
+          "home.tail.ts.net"
+        ],
+        "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"
+      },
+      "sync": {}
+    },
+    "threads": {},
+    "update": {
+      "status": {
+        "state": "idle"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 2,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "serve_listening",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "ignored": true
+            },
+            "kind": null,
+            "name": "serve_listening",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

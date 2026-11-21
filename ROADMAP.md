@@ -1332,7 +1332,7 @@ Design in ADR 0017. All new text ships in the 7 languages.
   `Connection::Remote`, online only
 - [x] SRV-5b (M) [sync][io][tk]: the persisted offline queue and its replay, the blob cache and pre-loading, and the
   offline refusals (a new error code)
-- [ ] SRV-QR1 (S) [front][cli][tui][gui]: `app_front::qr` (`qrcode`) and `app_front::pairing` (the `dail://pair` URI
+- [x] SRV-QR1 (S) [front][cli][tui][gui]: `app_front::qr` (`qrcode`) and `app_front::pairing` (the `dail://pair` URI
   and its strict parser); half-blocks in the terminal and the TUI, the *Pair a device…* dialog in the GUI; a round trip
   through `rqrr` in tests
 - [ ] SRV-6 (M) [front][gui][tui]: *Connect to a dail server* in the account wizards, the link in the status bar,

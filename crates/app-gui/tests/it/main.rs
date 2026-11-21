@@ -11,6 +11,7 @@ mod composer;
 mod fonts;
 mod keys;
 mod layout;
+mod pairing;
 mod palette;
 mod reader;
 mod scale;

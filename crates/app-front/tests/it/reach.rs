@@ -106,7 +106,6 @@ fn the_gui_gaps_are_pinned() {
             "compact_store",
             "list_approvals",
             "list_devices",
-            "start_pairing",
             "revoke_device",
             "connect_server",
             "trust_server",
@@ -169,7 +168,6 @@ fn the_tui_gaps_are_pinned() {
             "compact_store",
             "list_approvals",
             "list_devices",
-            "start_pairing",
             "revoke_device",
             "connect_server",
             "trust_server",
@@ -304,6 +302,7 @@ fn run_name(run: &Run) -> CommandName {
         Run::RemoveAccount(_) => CommandName::RemoveAccount,
         Run::TrustCertificate(_) => CommandName::TrustCertificate,
         Run::ForgetCertificate(_) => CommandName::ForgetCertificate,
+        Run::Pair => CommandName::StartPairing,
     }
 }
 

@@ -194,8 +194,11 @@ const fn row(name: CommandName) -> Row {
         N::ClearSearch => Row(C, C, P),
         // The dail server's devices and the link to it (ADR 0017): only through the palette
         // until SRV-6 builds the Devices page and the connection settings.
+        // *Pair a device…* in the Accounts settings of the GUI and the TUI
+        // (`actions::server_actions`): its dialog's *Pair* runs it (SRV-QR1). Phones pair as
+        // devices (SRV-7), so touch keeps the palette.
+        N::StartPairing => Row(C, C, P),
         N::ListDevices
-        | N::StartPairing
         | N::RevokeDevice
         | N::ConnectServer
         | N::TrustServer

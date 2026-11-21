@@ -442,7 +442,7 @@ messages shown in a mailbox as one undo step; redo plans again over the restored
 - **Mirror events** (ADR 0017, §4.7): `LinkChanged{status}` and `RemoteSynced{revision, diff: StateDiff, snapshot?}`.
   `Effect::is_device_local()` (exhaustive) says which effects a mirror still runs.
 - **Pairing and link** (ADR 0017, SRV-2; §4.7): events `DevicePaired{device}`, `DeviceSeen{id, at_ms}`,
-  `ServeFailed{error}`, `ServerOffered{host, port, fingerprint}`, `ServerPaired{fingerprint}`, `LinkFailed{error}`; effects `OpenPairing{code,
+  `ServeFailed{error}`, `ServeListening{addresses, advertise, fingerprint}` (→ `status.serve`, §5.6), `ServerOffered{host, port, fingerprint}`, `ServerPaired{fingerprint}`, `LinkFailed{error}`; effects `OpenPairing{code,
   role, name, expires_at_ms}`, `RevokeDevice{id}` (the server's), `ProbeServer{host, port}`, `PairWithServer{host, port,
   fingerprint, code, secret}`, `DisconnectServer{secret?}` (the device's own, device-local).
 
@@ -495,7 +495,7 @@ A device with a remote profile runs its own engine over a *mirror* of a dail ser
   `updates`; `images_from`, `pinned_mailboxes`, `hidden_mailboxes`, `settings_account` and the engine and shared keys
   are the server's (a test pins each field's side to its command's placement). Device status: `persist_error`,
   `quarantined`, `compaction` (its own store), `metered` (its own network) and `saves` (`save_attachments`); the rest
-  (keyring, sync, polls, fetches, searches, discovery, certificate offers, `serve_error`) is the server's. `diff(a, b).apply(a)` gives
+  (keyring, sync, polls, fetches, searches, discovery, certificate offers, `serve_error`, `serve`) is the server's. `diff(a, b).apply(a)` gives
   `b` on every other field, order included (a proptest over random triage sessions).
 - **`state.link: Option<LinkState{status: connecting|online|offline, revision, queued, rejected}>`**: present only in
   mirror mode. While it is set, every input still applies locally (optimistic), but `dispatch` and `ingest` return only
@@ -1069,6 +1069,24 @@ undone with `disconnect_server`, so the profile is a plain one again. Each step 
 and offered fingerprints), revision, queued count, refused commands and last error: the owner's live link when it
 attaches, else the link of its own session once it has dialed (at most `RemoteOptions::settle_timeout`, 15 s).
 
+**Pairing link and QR code** (SRV-QR1, `app_front::pairing`, `app_front::qr`). Once listening, `dail serve` feeds
+`Event::ServeListening {addresses, advertise, fingerprint}`: `status.serve` (never stored; the server's in a
+`StateDiff`, so a mirror sees it). The link is `dail://pair?v=1&h=<host>&p=<port>&c=<code>&fp=<sha256 hex>&n=<name>`
+(`PairingUri::to_uri`: every byte of a value but RFC 3986 unreserved ones percent-encoded; `n` is the device name of
+`start_pairing`). `parse_uri` treats a scanned link as hostile: at most 1280 bytes (checked first); the prefix exactly
+`dail://pair?`; no fragment; only query characters raw; each of `v h p c fp n` exactly once, nothing else, `v=1`;
+strict percent-decoding to UTF-8; `h` a DNS name (LDH labels of 1–63, ≤ 253 bytes, last label not numeric;
+lower-cased), an IPv4 or a bare IPv6 address (no brackets, no zone; canonical text); `p` 1–65535 without leading
+zeros; `c` 8 base32 characters (upper-cased); `fp` 64 hex digits (lower-cased); `n` 1–64 characters without control,
+bidi or zero-width formatting characters, line separators or outer white space. Errors `ERR462`–`ERR474` never repeat
+the text. **Host in the link:** on a device mirroring a server, its own `link.server` host, port and pinned
+fingerprint; on the server (`status.serve`), the first valid advertised host with the first listener's port, else the
+first bound address neither loopback nor unspecified, else the first loopback one; none (only `0.0.0.0`): no link,
+the code alone. The QR code is at error correction M (`ERR461` beyond its capacity). `dail serve pair` adds `uri` to
+its JSON line, prints the link and, when stderr is a terminal and without `--no-qr`, its QR code in half-blocks, black
+on bright white through ANSI (with `NO_COLOR`: plain glyphs drawing the light modules, for a light-on-dark terminal);
+`--host <host>` names another host (checked as `h`).
+
 **Remote profiles** (SRV-5a, SRV-5b, `app_sync::link`). Source of truth: `config.toml` `[remote] host, port, fingerprint,
 token` (§6). Opening the profile puts `state.link` = `{status: connecting, server: pinned}` (mirror mode, §4.7), with
 the offline queue and rejections from `state.redb`'s `link` table and the mirrored accounts from its
@@ -1503,6 +1521,15 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   account with `remove_account {confirm: true}` and goes back) or *Keep it anyway*. For custom servers, *Find
   servers* runs `discover_servers` for the address and fills both fields from `status.discovery` (the note says where
   they were found, or that they must be typed); the TUI's setup does the same with Ctrl+F.
+- ***Pair a device…*** (`app_gui::pairing`, ADR 0017, SRV-QR1): a modal over `app_front::pairing::PairDialog`. Opened
+  by the Accounts settings' *Pair a device…* (`app_front::actions::server_actions`, shown while
+  `pairing::can_pair`), or by a `start_pairing` from the palette (its role and name questions; the shell re-tags the
+  command `Background::Pairing` and opens the dialog waiting for it). Form: role (radio), name, *Pair* →
+  `start_pairing`. Then the code (monospace, *Copy code* → clipboard, toast), role and name, the time left (repaints
+  each second; *expired* after), the address, the fingerprint in groups of four, and the QR code of the `dail://pair`
+  link: whole-pixel square modules, at least 4 px and about 264 pt with the 4-module quiet zone, black on white even in
+  dark themes. No known address: a hint to start `dail serve --advertise`. A refusal, or a new `status.serve_error`,
+  shows *Pairing failed*. *Pair another device* goes back to the form. The code lives only in the dialog.
 - **Approvals tray** (`app_gui::approvals`, cards from `app_front::approvals`): while `state.approvals` is not empty, a box at the top of the main pane
   (above the reader or composer) shows one card per request, oldest first: subject, sending account, every `To:`/`Cc:`/`Bcc:`
   address in full, the first 4 lines (at most 280 characters) of the text and every attachment with its full path and size
@@ -1799,6 +1826,13 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   `sync_now` for the account. After a failed login, `p` removes the half-added account (`remove_account {confirm:
   true}`) and asks for another password; `k` keeps it. Over a plain SSH login the keyring may be out of reach (see
   the Wave 1.5 known limitations in `ROADMAP.md`): the keyring error shows in the status line.
+- ***Pair a device…*** (`app_tui::pairing`, SRV-QR1): the GUI's dialog (§7.1) over the same `PairDialog`, from the
+  Accounts section's *Pair a device…* row (Enter) or a `start_pairing` from the palette (`Purpose::Pairing`). Form:
+  Tab/↑/↓ toggles the role, typed text and a paste go into the name, Enter submits. Then the code, the time left
+  (ticks each second), the address, the fingerprint, the scan hint and the QR code in half-blocks
+  (`app_front::qr::half_blocks`), black on white (explicit colours, which `colors::paint` keeps) so that it scans
+  whatever the terminal's theme; with `NO_COLOR` plain glyphs drawing the light modules (`Ink::Light`, scannable
+  on a light-on-dark terminal). `n` pairs another device, Esc/q/Enter close.
 - **Mouse and touch** (stretch): mouse capture is on from the start, so a phone's taps and swipes arrive as mouse
   events. A tap on a thread row selects it, a second tap opens it; a tap on a mailbox opens it; the wheel (a swipe)
   scrolls the list (without moving the selection; the list follows the cursor again once it moves) or the reader, and
@@ -2623,4 +2657,5 @@ allowlist; bot PRs are merged like any other.
 | Design tokens | `app-theme` (serde only) | Themes stay data, (de)serializable for theme files later (ADR 0008) |
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |
+| QR codes | `qrcode` 0.15 (app-front; `default-features = false`, `std`: no `image`/`svg`/`pic`/`eps`), `rqrr` 0.11 (app-front tests only; no `img`) | The `dail://pair` QR code (ADR 0017, SRV-QR1); pure Rust; tests decode the matrix and the half-blocks back to the link |
 | Server certificate | `x509-cert` 0.3 (`builder`, `std`; app-sync) + `p256` (`pkcs8`) | The self-signed certificate of `dail serve` (ADR 0017), on p256 0.14's `der`/`spki`/`signature` line; pure Rust (`rcgen` needs ring or aws-lc) |

@@ -1243,3 +1243,45 @@ fn disconnect_server_removes_the_mirror_from_the_store() {
     assert_eq!(names(&outcome.effects).last(), Some(&"disconnect_server"));
     assert!(engine.state().accounts.is_empty() && engine.state().messages.is_empty());
 }
+
+#[test]
+fn serve_listening_records_where_the_server_listens_and_mirrors_see_it() {
+    let mut engine = server();
+    let ignored = feed(
+        &mut engine,
+        3,
+        Event::ServeListening {
+            addresses: vec!["127.0.0.1:7443".into()],
+            advertise: Vec::new(),
+            fingerprint: "not hex".into(),
+        },
+    );
+    assert_eq!(ignored.receipt.data, json!({ "ignored": true }));
+    assert_eq!(engine.state().status.serve, None);
+    feed(
+        &mut engine,
+        4,
+        Event::ServeListening {
+            addresses: vec!["100.64.0.7:7443".into()],
+            advertise: vec!["home.tail.ts.net".into()],
+            fingerprint: FINGERPRINT.to_uppercase(),
+        },
+    );
+    let serve = engine.state().status.serve.clone().unwrap();
+    assert_eq!(serve.addresses, ["100.64.0.7:7443"]);
+    assert_eq!(serve.advertise, ["home.tail.ts.net"]);
+    assert_eq!(serve.fingerprint, FINGERPRINT);
+    assert_eq!(engine.history().undo_len(), 0);
+    // It is the server's: a device's mirror takes it from the snapshot.
+    let mut device = offered();
+    feed(
+        &mut device,
+        5,
+        Event::RemoteSynced {
+            revision: 1,
+            diff: Box::new(StateDiff::snapshot(engine.state())),
+            snapshot: true,
+        },
+    );
+    assert_eq!(device.state().status.serve, Some(serve));
+}

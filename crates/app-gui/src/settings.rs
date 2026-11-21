@@ -28,6 +28,8 @@ pub struct SettingsState {
 pub struct SettingsActions {
     /// Open the account wizard.
     pub wizard: bool,
+    /// Open the *Pair a device…* dialog.
+    pub pair: bool,
     /// Open the password form for this account.
     pub password: Option<AccountId>,
     /// Open the palette at this step (*Change…* on a key binding, *Install…* of an update).
@@ -197,9 +199,26 @@ impl SettingsState {
             });
             ui.add_space(t.m.space.sm);
         }
-        if ui::primary(ui, t, t.s(Key::AddAccount), None, true) {
-            actions.wizard = true;
-        }
+        ui.horizontal_wrapped(|ui| {
+            if ui::primary(ui, t, t.s(Key::AddAccount), None, true) {
+                actions.wizard = true;
+            }
+            // The server's actions (SRV-QR1): *Pair a device…* opens the pairing dialog.
+            for entry in app_front::actions::server_actions(state) {
+                if ui::secondary(ui, t, t.s(entry.label), None, true) {
+                    match entry.run {
+                        app_front::actions::Run::Pair => actions.pair = true,
+                        run => match run.flow(state) {
+                            Flow::Run(cmd) => queue.push(Request::user(cmd)),
+                            Flow::Ask(step) => actions.ask = Some(step),
+                            Flow::Password(id) => actions.password = Some(id),
+                            Flow::Wizard => actions.wizard = true,
+                            Flow::Hidden => {}
+                        },
+                    }
+                }
+            }
+        });
     }
 }
 

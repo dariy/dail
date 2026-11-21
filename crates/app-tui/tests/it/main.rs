@@ -10,6 +10,7 @@ mod keys;
 mod layout;
 mod list;
 mod mouse;
+mod pairing;
 mod palette;
 mod reader;
 mod run;

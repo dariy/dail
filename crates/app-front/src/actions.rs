@@ -50,6 +50,10 @@ pub enum Run {
     TrustCertificate(AccountId),
     /// Forget a certificate this account trusts: picks it.
     ForgetCertificate(AccountId),
+    /// *Pair a device…*: the GUI and the TUI open their pairing dialog
+    /// ([`crate::pairing::PairDialog`]) instead of [`Run::flow`], whose palette questions are
+    /// the fallback of a front end without one.
+    Pair,
 }
 
 impl Run {
@@ -70,6 +74,7 @@ impl Run {
             Self::RemoveAccount(id) => palette::remove_account(state, *id),
             Self::TrustCertificate(id) => palette::trust_certificate(state, Some(*id)),
             Self::ForgetCertificate(id) => palette::forget_certificate(state, Some(*id)),
+            Self::Pair => palette::start_pairing(),
         }
     }
 }
@@ -398,6 +403,17 @@ pub fn account_actions(state: &AppState, id: AccountId) -> Vec<Entry> {
     out
 }
 
+/// The actions of this dail server or of the server this profile mirrors (ADR 0017): *Pair a
+/// device…* while a pairing code can be opened ([`crate::pairing::can_pair`]). The GUI's and the
+/// TUI's Accounts settings show them; the Devices page is SRV-6.
+pub fn server_actions(state: &AppState) -> Vec<Entry> {
+    if crate::pairing::can_pair(state) {
+        vec![entry(Key::PairADevice, Icon::Link, Run::Pair, true)]
+    } else {
+        Vec::new()
+    }
+}
+
 /// The icons the lists use: the only way an entry gets one, so [`ICONS`] holds every name a
 /// list can return.
 macro_rules! icons {
@@ -445,4 +461,5 @@ icons! {
     Keyboard => "keyboard",
     Person => "person",
     CheckBox => "check_box",
+    Link => "link",
 }

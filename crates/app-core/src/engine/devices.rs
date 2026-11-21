@@ -1,5 +1,6 @@
 //! The devices paired with a dail server (ADR 0017): `list_devices`, `start_pairing`,
-//! `revoke_device`, and the runtime's `device_paired`, `device_seen` and `serve_failed`.
+//! `revoke_device`, and the runtime's `device_paired`, `device_seen`, `serve_failed` and
+//! `serve_listening`.
 
 use serde_json::json;
 
@@ -8,9 +9,10 @@ use crate::ctx::Ctx;
 use crate::error::CoreError;
 use crate::event::Effect;
 use crate::ids::DeviceId;
-use crate::link::{Device, DeviceRole, PAIRING_TTL_MS, pairing_code};
+use crate::link::{Device, DeviceRole, PAIRING_TTL_MS, ServeInfo, pairing_code};
 use crate::receipt::{CommandReceipt, EntityRef, Outcome};
 
+use super::certificates::sha256_hex;
 use super::{Engine, invalid, not_found};
 
 /// The longest device name, in characters.
@@ -130,6 +132,26 @@ impl Engine {
         receipt: CommandReceipt,
     ) -> Outcome {
         self.state.status.serve_error = Some(error);
+        Outcome::new(receipt.affecting(EntityRef::Status))
+    }
+
+    /// `serve_listening`: where the server listens, for the pairing QR code; a fingerprint
+    /// that is not SHA-256 hex is ignored.
+    pub(super) fn ingest_serve_listening(
+        &mut self,
+        addresses: Vec<String>,
+        advertise: Vec<String>,
+        fingerprint: &str,
+        receipt: CommandReceipt,
+    ) -> Outcome {
+        let Ok(fingerprint) = sha256_hex("fingerprint", fingerprint) else {
+            return Outcome::new(receipt.with_data(json!({ "ignored": true })));
+        };
+        self.state.status.serve = Some(ServeInfo {
+            addresses,
+            advertise,
+            fingerprint,
+        });
         Outcome::new(receipt.affecting(EntityRef::Status))
     }
 }

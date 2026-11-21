@@ -415,8 +415,9 @@ pub fn remove_account(state: &AppState, id: AccountId) -> Flow {
     )
 }
 
-/// `start_pairing`: which kind of device, then its name.
-fn start_pairing() -> Flow {
+/// `start_pairing`: which kind of device, then its name. The GUI and the TUI show the receipt
+/// (the code and its QR code) in their pairing dialog (`crate::pairing::PairDialog::submitted`).
+pub fn start_pairing() -> Flow {
     let roles = [app_core::DeviceRole::User, app_core::DeviceRole::Agent];
     options(
         crate::i18n::s(Key::PairWhichKindOfDevice),

@@ -14,6 +14,7 @@ pub mod document;
 pub mod images;
 pub mod keymap;
 pub mod list;
+pub mod pairing;
 pub mod palette;
 pub mod reader;
 pub mod selection;

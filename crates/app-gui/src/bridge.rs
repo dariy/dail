@@ -44,6 +44,8 @@ pub enum Background {
     WizardLookup,
     /// The password form's `set_password` (the test's result arrives in the account's status).
     WizardPassword,
+    /// `start_pairing` of the *Pair a device…* dialog (its reply carries the code).
+    Pairing,
 }
 
 /// A command and why it was submitted.
