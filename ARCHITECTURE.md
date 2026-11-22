@@ -1290,7 +1290,8 @@ steps + final state with `insta` and checks that replaying twice is identical.
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
   outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document), `link` (one row `queue`: a remote profile's `OfflineQueue{queued, rejected}` JSON of `PersistDelta::OfflineQueue`, SRV-5b; added within version 1, absent row = nothing queued; restored only into the `state.link` that `[remote]` gives; an unreadable row is moved to `quarantine`, as the user's own work, keyed by the first 128 bits of its SHA-256), `mirror_accounts` (a remote profile's mirrored accounts by ID, SRV-5b; added within version 1; read only while `[remote]` is set) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
   (mailboxes, messages, threads) are deleted when the store opens, with one warning per table; sync fetches them again. An unreadable draft,
-  queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
+  queued op or approval is moved at open into the `quarantine` table with its exact bytes (`{table, error, bytes}`,
+  `bytes` in standard base64; `lossy: true` on rows migrated from version 1, which kept lossy UTF-8 text), listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
   The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
   build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>` (a name ending in `-remote`
@@ -1338,8 +1339,9 @@ steps + final state with `insta` and checks that replaying twice is identical.
   more than an hour ago (`COMPACT_GRACE`: a body fetched just now may not have reached the engine yet), then runs redb's
   `compact()` (`RedbStore` holds its `Database` in an `RwLock`: transactions share it, compaction takes it alone).
   `MemoryStore` drops unused blobs at once; `ConfigStore` has nothing to compact. `status.compaction` shows the outcome.
-- `meta.schema_version` plus forward-only migrations in `app-io::store::migrations` (`CURRENT = 1`; `MIGRATIONS[n]` upgrades
-  `n+1 → n+2`, all pending ones run in the open transaction). A file written by a newer dail is refused (`SchemaTooNew`).
+- `meta.schema_version` plus forward-only migrations in `app-io::store::migrations` (`CURRENT = 2`; `MIGRATIONS[n]` upgrades
+  `n+1 → n+2`, all pending ones run in the open transaction). 1 → 2: `quarantine` rows hold base64 `bytes` instead of
+  lossy text `raw`. A file written by a newer dail is refused (`SchemaTooNew`).
 
 ## 7. Front-ends
 

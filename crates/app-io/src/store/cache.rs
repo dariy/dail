@@ -216,11 +216,7 @@ impl RedbStore {
         }
         let mut quarantine = txn.open_table(QUARANTINE).map_err(|e| self.err(e))?;
         for (key, raw, error) in &bad {
-            let held = Held {
-                table: name.clone(),
-                error: error.clone(),
-                raw: String::from_utf8_lossy(raw).into_owned(),
-            };
+            let held = Held::new(name.clone(), error.clone(), raw);
             let bytes = self.encode(&held)?;
             quarantine
                 .insert(*key, bytes.as_slice())
@@ -244,11 +240,7 @@ impl RedbStore {
         let Some((raw, error)) = bad else {
             return Ok(0);
         };
-        let held = Held {
-            table: "link".to_owned(),
-            error,
-            raw: String::from_utf8_lossy(&raw).into_owned(),
-        };
+        let held = Held::new("link".to_owned(), error, &raw);
         let bytes = self.encode(&held)?;
         txn.open_table(QUARANTINE)
             .map_err(|e| self.err(e))?
@@ -510,11 +502,25 @@ impl RedbStore {
     }
 }
 
-/// A quarantined row: where it came from, why it did not read, and its bytes as they were
-/// (rows are JSON, so text).
+/// A quarantined row: where it came from, why it did not read, and its bytes exactly as they were,
+/// in standard base64 (schema version 2; version 1 kept lossy text, see `migrations::v1_to_v2`).
+/// `lossy`: a row migrated from version 1, whose bytes went through that text.
 #[derive(Serialize, serde::Deserialize)]
 struct Held {
     table: String,
     error: String,
-    raw: String,
+    bytes: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    lossy: bool,
+}
+
+impl Held {
+    fn new(table: String, error: String, raw: &[u8]) -> Self {
+        Self {
+            table,
+            error,
+            bytes: <base64ct::Base64 as base64ct::Encoding>::encode_string(raw),
+            lossy: false,
+        }
+    }
 }

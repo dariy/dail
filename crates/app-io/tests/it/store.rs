@@ -299,7 +299,104 @@ fn unreadable_drafts_are_quarantined_not_dropped() {
     assert_eq!(held.len().unwrap(), 1);
     let raw = held.get(900).unwrap().unwrap();
     let raw: serde_json::Value = serde_json::from_slice(raw.value()).unwrap();
-    assert_eq!(raw["raw"], r#"{"id":"not a draft"}"#);
+    assert_eq!(held_bytes(&raw), br#"{"id":"not a draft"}"#);
+    assert!(raw.get("lossy").is_none());
+    drop(held);
+    drop(txn);
+    drop(db);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// The bytes of a `quarantine` row (schema version 2: standard base64 in `bytes`).
+fn held_bytes(row: &serde_json::Value) -> Vec<u8> {
+    use base64ct::Encoding as _;
+    base64ct::Base64::decode_vec(row["bytes"].as_str().unwrap()).unwrap()
+}
+
+/// The `quarantine` row under `key` of the database at `path`, as JSON.
+fn quarantine_row(path: &std::path::Path, key: u128) -> serde_json::Value {
+    let db = redb::Database::create(path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
+    let held = txn.open_table(table).unwrap();
+    let row = held.get(key).unwrap().unwrap();
+    serde_json::from_slice(row.value()).unwrap()
+}
+
+/// STORE-6: a quarantined row keeps its bytes exactly, also when they are not UTF-8 (a sealed
+/// record of an encrypting build: `"D1" | key_id | …`). Version 1 kept them as lossy text.
+#[test]
+fn quarantine_keeps_binary_bytes_exactly() {
+    let dir = scratch("quarantine-binary");
+    let path = dir.join("state.redb");
+    let sealed: &[u8] = b"D1\xd9\xe2\x4e\xa5\x00\xff\xfe sealed";
+    drop(RedbStore::open(&path).unwrap());
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        {
+            let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("drafts");
+            txn.open_table(table).unwrap().insert(900, sealed).unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    assert_eq!(state.status.quarantined.len(), 1);
+    drop(store);
+    assert_eq!(held_bytes(&quarantine_row(&path, 900)), sealed);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// Migration 1 → 2: a version 1 `quarantine` row (lossy text in `raw`) becomes base64 `bytes` of
+/// that text, marked `lossy`, and is still listed. A row of neither shape is left as it is.
+#[test]
+fn migration_1_to_2_rewrites_quarantine_rows_as_base64() {
+    let dir = scratch("migrate-quarantine");
+    let path = dir.join("state.redb");
+    drop(RedbStore::open(&path).unwrap());
+    {
+        // A version 1 file with one quarantined draft and one row of no known shape.
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        {
+            let meta: redb::TableDefinition<&str, u64> = redb::TableDefinition::new("meta");
+            txn.open_table(meta)
+                .unwrap()
+                .insert("schema_version", 1)
+                .unwrap();
+            let table: redb::TableDefinition<u128, &[u8]> =
+                redb::TableDefinition::new("quarantine");
+            let mut held = txn.open_table(table).unwrap();
+            let v1 = serde_json::json!({
+                "table": "drafts",
+                "error": "expected value at line 1 column 1",
+                "raw": "D1\u{fffd}\u{fffd}N\u{fffd}",
+            });
+            held.insert(900, serde_json::to_vec(&v1).unwrap().as_slice())
+                .unwrap();
+            held.insert(901, b"not json".as_slice()).unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    assert_eq!(store.schema_version().unwrap(), 2);
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    assert_eq!(state.status.quarantined.len(), 1);
+    assert_eq!(state.status.quarantined[0].table, "drafts");
+    assert_eq!(state.status.quarantined[0].key, uuid(900).to_string());
+    drop(store);
+    let row = quarantine_row(&path, 900);
+    assert_eq!(held_bytes(&row), "D1\u{fffd}\u{fffd}N\u{fffd}".as_bytes());
+    assert_eq!(row["lossy"], true);
+    assert!(row.get("raw").is_none());
+    let db = redb::Database::create(&path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
+    let held = txn.open_table(table).unwrap();
+    assert_eq!(held.get(901).unwrap().unwrap().value(), b"not json");
     drop(held);
     drop(txn);
     drop(db);

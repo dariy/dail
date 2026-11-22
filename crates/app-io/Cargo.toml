@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 ammonia.workspace = true
+base64ct.workspace = true
 app-core.workspace = true
 directories.workspace = true
 html2text.workspace = true

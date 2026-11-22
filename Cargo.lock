@@ -432,6 +432,7 @@ version = "0.1.9"
 dependencies = [
  "ammonia",
  "app-core",
+ "base64ct",
  "directories",
  "hayro",
  "html2text",
