@@ -9,8 +9,8 @@
 //! profile's mirrored accounts (the server's), so its cached mail opens after a restart offline
 //! (SRV-5b; read only while `[remote]` is set). Each [`MailDelta`] is applied in one ACID write transaction.
 //!
-//! An unreadable row of the cache proper (mailboxes, messages, threads) is skipped: sync
-//! fetches it again. An unreadable draft, queued operation or approval is the user's own work, so
+//! An unreadable row of the cache proper (mailboxes, messages, threads) is deleted when the store
+//! opens, with one warning per table: sync fetches it again. An unreadable draft, queued operation or approval is the user's own work, so
 //! opening the store moves it into `quarantine` with its raw bytes, and the state lists it
 //! (`StatusState::quarantined`). Nothing is ever dropped (STORE-6).
 
@@ -79,6 +79,7 @@ impl RedbStore {
         };
         store.migrate()?;
         store.quarantine()?;
+        store.drop_unreadable_cache()?;
         Ok(store)
     }
 
@@ -156,6 +157,47 @@ impl RedbStore {
             tracing::warn!(rows = moved, "quarantined unreadable rows");
         }
         txn.commit().map_err(|e| self.err(e))
+    }
+
+    /// Deletes the rows of `mailboxes`, `messages` and `threads` that do not read: they are a
+    /// copy of the server's mail, and sync fetches them again. Kept, they would be skipped with a
+    /// warning on every start.
+    fn drop_unreadable_cache(&self) -> Result<(), IoError> {
+        let txn = self.db.read().begin_write().map_err(|e| self.err(e))?;
+        self.drop_unreadable::<Mailbox>(&txn, MAILBOXES)?;
+        self.drop_unreadable::<Envelope>(&txn, MESSAGES)?;
+        self.drop_unreadable::<Thread>(&txn, THREADS)?;
+        txn.commit().map_err(|e| self.err(e))
+    }
+
+    fn drop_unreadable<T: DeserializeOwned>(
+        &self,
+        txn: &redb::WriteTransaction,
+        table: TableDefinition<u128, &[u8]>,
+    ) -> Result<(), IoError> {
+        let name = redb::TableHandle::name(&table).to_owned();
+        let mut rows = txn.open_table(table).map_err(|e| self.err(e))?;
+        let mut bad = Vec::new();
+        let mut first_error = None;
+        for row in rows.iter().map_err(|e| self.err(e))? {
+            let (key, value) = row.map_err(|e| self.err(e))?;
+            if let Err(err) = serde_json::from_slice::<T>(value.value()) {
+                bad.push(key.value());
+                first_error.get_or_insert_with(|| err.to_string());
+            }
+        }
+        for key in &bad {
+            rows.remove(*key).map_err(|e| self.err(e))?;
+        }
+        if let Some(error) = first_error {
+            tracing::warn!(
+                table = %name,
+                rows = bad.len(),
+                first_error = %error,
+                "deleted unreadable cache rows; sync fetches them again"
+            );
+        }
+        Ok(())
     }
 
     fn quarantine_table<T: DeserializeOwned>(

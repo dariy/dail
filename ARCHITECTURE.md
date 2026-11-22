@@ -1289,7 +1289,7 @@ steps + final state with `insta` and checks that replaying twice is identical.
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
   outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document), `link` (one row `queue`: a remote profile's `OfflineQueue{queued, rejected}` JSON of `PersistDelta::OfflineQueue`, SRV-5b; added within version 1, absent row = nothing queued; restored only into the `state.link` that `[remote]` gives; an unreadable row is moved to `quarantine`, as the user's own work, keyed by the first 128 bits of its SHA-256), `mirror_accounts` (a remote profile's mirrored accounts by ID, SRV-5b; added within version 1; read only while `[remote]` is set) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
-  (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
+  (mailboxes, messages, threads) are deleted when the store opens, with one warning per table; sync fetches them again. An unreadable draft,
   queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
   The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every

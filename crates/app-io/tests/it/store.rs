@@ -306,6 +306,51 @@ fn unreadable_drafts_are_quarantined_not_dropped() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// A cache row (mailbox, message, thread) that does not read is deleted when the store opens,
+/// so it is not skipped again on every start; the readable rows stay. Sync fetches it again.
+#[test]
+fn unreadable_cache_rows_are_deleted_on_open() {
+    use redb::ReadableTableMetadata as _;
+    let dir = scratch("drop-cache");
+    let path = dir.join("state.redb");
+    let delta = cache(1, 100);
+    {
+        let store = RedbStore::open(&path).unwrap();
+        store.apply_mail(&delta).unwrap();
+    }
+    {
+        // Rows that are not JSON, as a sealed record (`"D1" | key_id | …`) is.
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        for name in ["mailboxes", "messages", "threads"] {
+            let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new(name);
+            let mut rows = txn.open_table(table).unwrap();
+            rows.insert(900, b"D1\xd9\xe2\x4e\xa5sealed".as_slice())
+                .unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    let mut expected = AppState::default();
+    delta.apply_to(&mut expected);
+    assert_eq!(state, expected);
+    drop(store);
+
+    let db = redb::Database::create(&path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    for name in ["mailboxes", "messages", "threads"] {
+        let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new(name);
+        let rows = txn.open_table(table).unwrap();
+        assert_eq!(rows.len().unwrap(), 1, "{name}");
+        assert!(rows.get(900).unwrap().is_none(), "{name}");
+    }
+    drop(txn);
+    drop(db);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn newer_schema_is_refused() {
     let dir = scratch("schema");
