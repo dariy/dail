@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
-# Frees disk space in target/ without a full `cargo clean`.
+# Frees disk space in target/ without a full `cargo clean`, with cargo-sweep (`cargo install cargo-sweep --locked`).
 #
-# Every build unit (a crate built with one set of features/flags/target) leaves files named `<name>-<hash>` in
-# <profile>/.fingerprint, deps, build, examples and incremental. Each feature or flag change makes a new hash and the
-# old files stay. Cargo reads `.fingerprint/<name>-<hash>/*` each time the unit is part of a build, even if it is
-# fresh, so the access time of those files shows when the unit was last used. This script removes all files of units
-# not used for <days> days. After that, cargo rebuilds a removed unit only if a build needs it again.
+# Each change of features, flags, build mode, target or toolchain makes cargo build another copy of the crates it
+# affects, and the old copies stay in target/. This script runs, in order:
+#   1. `cargo sweep --time <days>`: removes the copies not used for <days> days.
+#   2. `cargo sweep --installed`: removes the copies made by toolchains rustup no longer has (after a toolchain update).
+#   3. Project additions: the temp dirs an interrupted rustc leaves in deps/, and with --cross the Android and iOS
+#      target dirs.
+# Cargo rebuilds a removed copy only if a build needs it again. The global cache (~/.cargo/registry, git) is cleaned
+# by cargo itself (automatic gc, stable since 1.88).
 #
 # Usage: scripts/sweep-target.sh [--days N] [--dry-run] [--cross] [--all]
-#   --days N   remove units not used for N days (default 7, at least 1)
+#   --days N   remove copies not used for N days (default 7)
 #   --dry-run  print what would be removed and how much, change nothing
 #   --cross    also remove the whole cross-target dirs (target/<triple>/: Android, iOS); `cargo xtask android|ios`
-#              rebuilds them
+#              rebuilds them. (`cargo clean --target <triple>` would remove all of target/.)
 #   --all      `cargo clean`: remove all of target/
-# The time check needs atime (`relatime`, the Linux default, updates it once a day). On a `noatime` mount the script
-# stops; use --all there.
 set -euo pipefail
 
 days=7
@@ -34,89 +35,53 @@ done
 case $days in ''|*[!0-9]*|0) echo "error: --days needs a whole number of at least 1, not '$days'" >&2; exit 2 ;; esac
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
 target="${CARGO_TARGET_DIR:-$root/target}"
 [ -d "$target" ] || { echo "nothing to do: $target does not exist"; exit 0; }
 
 size() { du -sh "$target" 2>/dev/null | cut -f1; }
 before=$(size)
 
-run() { if [ $dry -eq 1 ]; then echo "would remove: $*"; else rm -rf -- "$@"; fi; }
-
-# Cargo holds an exclusive lock on <profile>/.cargo-lock while it builds. Do not remove files under a running build.
-locked() { [ -e "$1/.cargo-lock" ] && ! flock -n "$1/.cargo-lock" true 2>/dev/null; }
-
 if [ $all -eq 1 ]; then
-    if [ $dry -eq 1 ]; then echo "would run: cargo clean ($before in $target)"; exit 0; fi
-    (cd "$root" && cargo clean)
-    echo "target/: $before -> $(size)"
+    if [ $dry -eq 1 ]; then cargo clean --dry-run; else cargo clean; echo "target/: $before -> $(size)"; fi
     exit 0
 fi
 
-mount_opts=$(findmnt -no OPTIONS --target "$target" 2>/dev/null || true)
-case ",$mount_opts," in
-    *,noatime,*) echo "error: $target is on a noatime mount; access times are not kept. Use --all." >&2; exit 1 ;;
-esac
+if ! cargo sweep --version >/dev/null 2>&1; then
+    echo "error: cargo-sweep is missing; install it with: cargo install cargo-sweep --locked" >&2
+    exit 1
+fi
 
+# Cargo holds an exclusive lock on <profile>/.cargo-lock while it builds; cargo-sweep does not check it.
+while IFS= read -r lock; do
+    if ! flock -n "$lock" true 2>/dev/null; then
+        echo "error: cargo is building in $(dirname "$lock"); run this again when it has finished" >&2
+        exit 1
+    fi
+done < <(find "$target" -mindepth 2 -maxdepth 3 -name .cargo-lock)
+
+dry_flag=()
+[ $dry -eq 1 ] && dry_flag=(--dry-run)
+run() { if [ $dry -eq 1 ]; then echo "would remove: $*"; else rm -rf -- "$@"; fi; }
+
+# 3a, first so that cargo-sweep does not scan what goes anyway.
 if [ $cross -eq 1 ]; then
     for dir in "$target"/*/; do
         dir=${dir%/}
-        # A triple dir holds profile dirs (debug/, release/) and nothing named like a profile itself.
+        # A triple dir holds profile dirs (debug/, release/); a profile dir holds .fingerprint.
         [ -d "$dir/debug" ] || [ -d "$dir/release" ] || continue
         [ -d "$dir/.fingerprint" ] && continue
-        if locked "$dir/debug" || locked "$dir/release"; then echo "skip $dir: cargo is building there"; continue; fi
         echo "cross target $(basename "$dir"): $(du -sh "$dir" | cut -f1)"
         run "$dir"
     done
 fi
 
-total_units=0
-total_stale=0
-# Profile dirs: target/<profile> and target/<triple>/<profile>, each with a .fingerprint dir.
-while IFS= read -r fp; do
-    profile=$(dirname "$fp")
-    [ -d "$profile" ] || continue                                    # removed above by --cross
-    [ $dry -eq 1 ] && [ $cross -eq 1 ] && [ "$(dirname "$profile")" != "$target" ] && continue  # would be
-    if locked "$profile"; then echo "skip ${profile#"$target"/}: cargo is building there"; continue; fi
+# 1 and 2. cargo-sweep takes one mode per call.
+cargo sweep "${dry_flag[@]}" --time "$days" "$root"
+cargo sweep "${dry_flag[@]}" --installed "$root"
 
-    # Units whose fingerprint files were read in the last <days> days.
-    live=$(find "$fp" -mindepth 2 -maxdepth 2 -type f -amin "-$((days * 1440))" -printf '%h\n' | sort -u |
-        sed -n 's/.*-\([0-9a-f]\{16\}\)$/\1/p')
-    all_units=$(find "$fp" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sed -n 's/.*-\([0-9a-f]\{16\}\)$/\1/p')
-    stale=$(comm -23 <(sort -u <<<"$all_units") <(sort -u <<<"$live"))
-    n_all=$(grep -c . <<<"$all_units" || true)
-    n_stale=$(grep -c . <<<"$stale" || true)
-    total_units=$((total_units + n_all))
-    total_stale=$((total_stale + n_stale))
-    echo "${profile#"$target"/}: $n_stale of $n_all units unused for $days+ days"
-    [ "$n_stale" -gt 0 ] || continue
+# 3b. rustcXXXXXX temp dirs older than a day.
+while IFS= read -r tmp; do run "$tmp"; done < <(
+    find "$target" -mindepth 3 -maxdepth 4 -path '*/deps/rustc*' -type d -mtime +0 2>/dev/null)
 
-    # Every entry whose name carries a stale hash: `name-<hash>`, `name-<hash>.ext`, `libname-<hash>.rlib`, ...
-    victims=$(mktemp)
-    for sub in .fingerprint deps build examples incremental; do
-        [ -d "$profile/$sub" ] || continue
-        find "$profile/$sub" -mindepth 1 -maxdepth 1 -printf '%p\n'
-    done | awk -v stale="$stale" '
-        BEGIN { n = split(stale, h, "\n"); for (i = 1; i <= n; i++) if (h[i] != "") keep[h[i]] = 1 }
-        {
-            name = $0; sub(/.*\//, "", name)
-            if (match(name, /-[0-9a-f]{16}(\.|$)/)) {
-                hash = substr(name, RSTART + 1, 16)
-                if (hash in keep) print
-            }
-        }' >"$victims"
-    # Left over by an interrupted rustc.
-    find "$profile/deps" -mindepth 1 -maxdepth 1 -type d -name 'rustc*' -mtime +0 -printf '%p\n' 2>/dev/null >>"$victims" || true
-
-    if [ $dry -eq 1 ]; then
-        echo "  would free $(tr '\n' '\0' <"$victims" | du -csh --files0-from=- 2>/dev/null | tail -1 | cut -f1)"
-    else
-        tr '\n' '\0' <"$victims" | xargs -0 -r rm -rf --
-    fi
-    rm -f "$victims"
-done < <(find "$target" -mindepth 2 -maxdepth 3 -type d -name .fingerprint | sort)
-
-if [ $dry -eq 1 ]; then
-    echo "dry run: $total_stale of $total_units units would be removed; target/ is $before"
-else
-    echo "removed $total_stale of $total_units units; target/: $before -> $(size)"
-fi
+if [ $dry -eq 1 ]; then echo "dry run: target/ is $before"; else echo "target/: $before -> $(size)"; fi
