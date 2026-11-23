@@ -574,7 +574,9 @@ fn the_ios_camera_prompt_is_the_tables_in_every_language() {
         "stale or missing InfoPlist.strings: {stale:?}; rerun with DAIL_UPDATE_CONTRACT=1"
     );
     // The development language's text, in the build settings, is the table's too.
-    let spec = std::fs::read_to_string(manifest.join("../../ios/project.yml")).unwrap();
+    let spec = std::fs::read_to_string(manifest.join("../../ios/project.yml"))
+        .unwrap()
+        .replace("\r\n", "\n");
     let english = text(Lang::English, Key::NativeCameraPurpose);
     assert!(
         spec.contains(&format!(
