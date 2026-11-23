@@ -88,11 +88,11 @@ impl Term {
     /// Draws a frame and returns the screen, one line per row (trailing spaces trimmed). Like
     /// the runner, it first queues the background requests the state calls for.
     pub fn screen(&mut self) -> String {
+        let _one = drawing();
         let state = self.engine.state().clone();
         let background = self.tui.refresh(&state);
         self.out.extend(background);
         let tui = &mut self.tui;
-        let _one = drawing();
         self.terminal.draw(|frame| tui.draw(frame, &state)).unwrap();
         let buffer = self.terminal.backend().buffer();
         let width = usize::from(buffer.area.width);
@@ -114,7 +114,10 @@ impl Term {
     /// Feeds an input event, then draws.
     pub fn input(&mut self, input: Input) {
         let state = self.engine.state().clone();
-        let requests = self.tui.input(input, &state);
+        let requests = {
+            let _one = drawing();
+            self.tui.input(input, &state)
+        };
         self.out.extend(requests);
         self.screen();
     }
@@ -160,7 +163,10 @@ impl Term {
                 });
             }
             let state = self.engine.state().clone();
-            let follow = self.tui.replies(replies, &state);
+            let follow = {
+                let _one = drawing();
+                self.tui.replies(replies, &state)
+            };
             self.out.extend(follow);
         }
         self.screen();
@@ -248,14 +254,17 @@ impl Term {
             undo_label: None,
         };
         let state = self.engine.state().clone();
-        let follow = self.tui.replies(
-            vec![Reply {
-                tag: Purpose::Bodies(thread),
-                name: app_core::CommandName::GetThread,
-                result: Ok(Ok(receipt)),
-            }],
-            &state,
-        );
+        let follow = {
+            let _one = drawing();
+            self.tui.replies(
+                vec![Reply {
+                    tag: Purpose::Bodies(thread),
+                    name: app_core::CommandName::GetThread,
+                    result: Ok(Ok(receipt)),
+                }],
+                &state,
+            )
+        };
         self.out.extend(follow);
         self.screen();
     }
@@ -348,9 +357,11 @@ fn enrich(engine: &mut Engine) {
     dispatch(engine, 509, Command::FocusPane { pane: Pane::List });
 }
 
-/// Held while a test draws. A frame sets the process's language (`i18n::set_current`) and then renders, so two
-/// tests drawing at once in this binary could render in each other's language (a French settings test made the
-/// setup snapshot French on Windows CI).
+/// Held while a test draws or feeds the TUI input or replies. A frame sets the process's language
+/// (`i18n::set_current`), and drawing, keys and replies all read it (palette rows are built from
+/// keys), so two tests at once in this binary could see each other's language (a French settings
+/// test made the setup snapshot French on Windows CI, and the palette parity test pick a French
+/// row).
 pub fn drawing() -> std::sync::MutexGuard<'static, ()> {
     static DRAWING: std::sync::Mutex<()> = std::sync::Mutex::new(());
     DRAWING

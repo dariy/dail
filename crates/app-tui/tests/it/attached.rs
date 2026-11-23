@@ -29,6 +29,8 @@ struct Attached {
 impl Attached {
     /// Hands the replies and background requests over, and draws. Returns the screen.
     fn frame(&mut self) -> String {
+        // Replies, background requests and the frame all read the process's language.
+        let _one = crate::support::drawing();
         let state = self.bridge.state();
         for r in self.tui.replies(self.bridge.replies(), &state) {
             self.bridge.submit(r.purpose, r.cmd);
@@ -37,7 +39,6 @@ impl Attached {
             self.bridge.submit(r.purpose, r.cmd);
         }
         let tui = &mut self.tui;
-        let _one = crate::support::drawing();
         self.terminal.draw(|f| tui.draw(f, &state)).unwrap();
         let buffer = self.terminal.backend().buffer();
         let width = usize::from(buffer.area.width);
@@ -50,10 +51,12 @@ impl Attached {
 
     fn key(&mut self, code: KeyCode, modifiers: KeyModifiers) {
         let state = self.bridge.state();
-        for r in self
-            .tui
-            .input(Input::Key(KeyEvent::new(code, modifiers)), &state)
-        {
+        let requests = {
+            let _one = crate::support::drawing();
+            self.tui
+                .input(Input::Key(KeyEvent::new(code, modifiers)), &state)
+        };
+        for r in requests {
             self.bridge.submit(r.purpose, r.cmd);
         }
         self.settle();
