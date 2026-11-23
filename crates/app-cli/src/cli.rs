@@ -2,7 +2,7 @@
 
 use std::fmt::Write as _;
 
-use app_core::{Command, ProviderPreset};
+use app_core::{Command, DeviceRole, ProviderPreset};
 use clap::{Args, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 
 /// Agent-first email client.
@@ -105,6 +105,22 @@ pub enum Sub {
     /// (`{"check","status":"ok|warn|fail","detail"}`); exit code 1 if any failed. With dail
     /// running on the profile, only what the running process reports is checked.
     Doctor,
+    /// Run the dail server (ADR 0017): own the profile headless (sync, rules, retries, the
+    /// outbox), let `dail exec`, `dail tui` and `dail mcp` attach through the profile socket, and
+    /// serve paired devices over TLS until Ctrl+C or SIGTERM. Without `--listen` it listens on
+    /// 127.0.0.1:7443 only. `dail serve pair` pairs a device.
+    #[command(args_conflicts_with_subcommands = true)]
+    Serve {
+        #[command(flatten)]
+        args: ServeArgs,
+        #[command(subcommand)]
+        command: Option<ServeCmd>,
+    },
+    /// Link this profile to a dail server as a device (ADR 0017).
+    Remote {
+        #[command(subcommand)]
+        command: RemoteCmd,
+    },
     /// Updates of dail (aliases for the update commands, ADR 0011).
     Update {
         #[command(subcommand)]
@@ -143,6 +159,100 @@ pub enum UpdateCmd {
         #[arg(long)]
         yes: bool,
     },
+}
+
+/// `dail serve [--listen …] [--advertise …] [--allow-send]`.
+#[derive(Debug, Args)]
+pub struct ServeArgs {
+    /// Address and port to listen on (repeatable; port 0 picks a free port). Default
+    /// 127.0.0.1:7443. Any address is allowed; one outside loopback and private networks
+    /// (RFC 1918, Tailscale's 100.64.0.0/10, IPv6 ULA) gets a warning.
+    #[arg(long, value_name = "ADDR:PORT")]
+    pub listen: Vec<std::net::SocketAddr>,
+    /// A name or address devices reach the server by, e.g. a Tailscale MagicDNS name
+    /// (repeatable). Shown by `dail serve pair` and written into the certificate.
+    #[arg(long, value_name = "HOST")]
+    pub advertise: Vec<String>,
+    /// Let agent devices send mail without the user's approval (origin `mcp_allow_send`), as
+    /// `dail mcp --allow-send` does. By default an agent's `send_draft` creates an approval
+    /// request.
+    #[arg(long)]
+    pub allow_send: bool,
+}
+
+/// `dail serve …`.
+#[derive(Debug, Subcommand)]
+pub enum ServeCmd {
+    /// Open a single-use pairing code on the running `dail serve` (alias for `start_pairing`,
+    /// valid 10 minutes). Prints the code, its expiry, the server's addresses and its
+    /// certificate fingerprint; on the device run `dail remote add`.
+    Pair {
+        /// What the device may do: `user` (GUI, TUI, CLI; may approve sends) or `agent` (MCP
+        /// only, under the agent policy).
+        #[arg(long, value_enum)]
+        role: RoleArg,
+        /// The device's name, e.g. `Laptop` (1 to 64 characters).
+        #[arg(long)]
+        name: String,
+        /// Do not draw the QR code of the `dail://pair` link on the terminal.
+        #[arg(long)]
+        no_qr: bool,
+        /// The host the link (and its QR code) names, instead of the first advertised host, else
+        /// the first bound address that is not loopback or unspecified, else loopback.
+        #[arg(long)]
+        host: Option<String>,
+    },
+    /// List the paired devices (alias for `list_devices`).
+    Devices,
+    /// Revoke a paired device (alias for `revoke_device`): its token stops working and its
+    /// connections close at once. Asks first unless `--yes` is given.
+    Revoke {
+        /// The device's ID (see `dail serve devices`).
+        id: String,
+        /// Revoke without asking.
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+/// `dail remote …`.
+#[derive(Debug, Subcommand)]
+pub enum RemoteCmd {
+    /// Pair this profile with a dail server (aliases for `connect_server` and `trust_server`).
+    /// The profile must have no accounts. Shows the certificate fingerprint the server presents
+    /// to compare with the one `dail serve` printed, then asks for the pairing code from
+    /// `dail serve pair`; `--fingerprint` and `--code` answer both for scripts. Once paired it is
+    /// a remote profile (`[remote]` in its `config.toml`): every front end on it connects to the
+    /// server.
+    Add {
+        /// The server as `host[:port]` (default port 7443; `[::1]:7443` for IPv6).
+        server: String,
+        /// The pairing code from `dail serve pair`.
+        #[arg(long)]
+        code: Option<String>,
+        /// The SHA-256 fingerprint `dail serve` printed (64 hex digits, colons allowed). The
+        /// server's certificate must match it exactly.
+        #[arg(long)]
+        fingerprint: Option<String>,
+    },
+    /// Print the link to the dail server: status, server, pinned fingerprint, revision, queued
+    /// commands and refused ones.
+    Status,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum RoleArg {
+    User,
+    Agent,
+}
+
+impl From<RoleArg> for DeviceRole {
+    fn from(role: RoleArg) -> Self {
+        match role {
+            RoleArg::User => Self::User,
+            RoleArg::Agent => Self::Agent,
+        }
+    }
 }
 
 #[derive(Debug, Args)]

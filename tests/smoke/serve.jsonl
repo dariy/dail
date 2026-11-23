@@ -1,0 +1,6 @@
+# Smoke test of `dail serve` (AGENTS.md §6, gate 5): `cargo xtask verify smoke` runs it against a
+# `dail serve --backend memory --profile-dir <dir>` child, through the profile socket, after a
+# device paired over TLS. Must exit 0 and print one JSON receipt per command line.
+{"cmd": "list_devices"}
+{"cmd": "start_pairing", "args": {"role": "agent", "name": "smoke agent"}}
+{"cmd": "get_settings"}

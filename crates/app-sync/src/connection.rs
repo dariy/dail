@@ -1,5 +1,6 @@
-//! `Connection`: a front-end's way to the engine, either its own session or the session of the
-//! process that owns the profile (attached over IPC, [`crate::ipc`]).
+//! `Connection`: a front-end's way to the engine, either its own session, the session of the
+//! process that owns the profile (attached over IPC, [`crate::ipc`]), or a remote profile's
+//! session, whose commands for the dail server are forwarded ([`crate::link`], ADR 0017).
 
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use tokio::sync::watch;
 
 use crate::error::SyncError;
 use crate::ipc::IpcClient;
+use crate::link::RemoteSession;
 use crate::session::{SessionClient, SubmitResult};
 
 /// Where a front-end's commands go.
@@ -17,6 +19,15 @@ pub enum Connection {
     Local(SessionClient),
     /// The session of another dail process (the GUI or `dail mcp`).
     Attached(IpcClient),
+    /// A session in this process of a profile that may be linked to a dail server: commands
+    /// that run on the server are forwarded to it while online ([`RemoteSession::submit`]).
+    Remote(RemoteSession),
+}
+
+impl From<SessionClient> for Connection {
+    fn from(client: SessionClient) -> Self {
+        Self::Local(client)
+    }
 }
 
 impl Connection {
@@ -26,6 +37,7 @@ impl Connection {
         match self {
             Self::Local(client) => client.submit(cmd, origin).await,
             Self::Attached(client) => client.submit(&cmd, origin).await,
+            Self::Remote(remote) => remote.submit(cmd, origin).await,
         }
     }
 
@@ -38,6 +50,7 @@ impl Connection {
         match self {
             Self::Local(client) => client.preview(cmd, origin).await,
             Self::Attached(client) => client.preview(&cmd, origin).await,
+            Self::Remote(remote) => remote.preview(cmd, origin).await,
         }
     }
 
@@ -46,6 +59,7 @@ impl Connection {
         match self {
             Self::Local(client) => client.flush().await,
             Self::Attached(client) => client.flush().await,
+            Self::Remote(remote) => remote.flush().await,
         }
     }
 
@@ -54,6 +68,7 @@ impl Connection {
         match self {
             Self::Local(client) => Ok(client.state()),
             Self::Attached(client) => client.state().await.map(Arc::new),
+            Self::Remote(remote) => Ok(remote.state()),
         }
     }
 
@@ -64,6 +79,7 @@ impl Connection {
         match self {
             Self::Local(client) => Ok(client.subscribe()),
             Self::Attached(client) => client.subscribe().await,
+            Self::Remote(remote) => Ok(remote.subscribe()),
         }
     }
 

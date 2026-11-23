@@ -98,6 +98,12 @@ impl ProfileDirs {
         self.root.join("draft-files")
     }
 
+    /// `serve/`: the key and certificate of `dail serve` and the files devices upload
+    /// (ADR 0017). User-only, like the profile.
+    pub fn serve_dir(&self) -> PathBuf {
+        self.root.join("serve")
+    }
+
     /// `lock`: single-instance lock (M7).
     pub fn lock_file(&self) -> PathBuf {
         self.root.join("lock")

@@ -55,6 +55,12 @@ expression: phone.frame()
         "hint": "Enter the servers yourself, or find them.",
         "selected": false,
         "action": 5
+      },
+      {
+        "label": "Connect to a dail server",
+        "hint": "Your accounts stay on a dail server you run (dail serve); this device mirrors its mail.",
+        "selected": false,
+        "action": 6
       }
     ],
     "fields": [],
@@ -62,12 +68,12 @@ expression: phone.frame()
     "actions": [
       {
         "label": "Next",
-        "action": 6
+        "action": 7
       }
     ],
     "back": {
       "label": "Cancel",
-      "action": 7
+      "action": 8
     }
   },
   "theme": {

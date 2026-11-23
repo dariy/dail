@@ -495,11 +495,11 @@ struct SettingRow: Codable {
 
 /// A text field of the composer, the palette or the account setup (`app_mobile::Field`).
 enum Field: String, Codable {
-    case to, cc, bcc, subject, body, query, email, name, imap, smtp, password
+    case to, cc, bcc, subject, body, query, email, name, imap, smtp, password, server, code
 }
 
 /// The kind of a setup field (`app_mobile::frame::InputKind`): keyboard and autofill.
-enum InputKind: String, Codable { case email, name, server, password }
+enum InputKind: String, Codable { case email, name, server, password, code }
 
 struct SetupField: Codable {
     let field: Field
@@ -523,9 +523,19 @@ struct SetupSheet: Codable {
     let fields: [SetupField]
     let note: String?
     let error: String?
+    /// A caution above the fields: a pairing that a `dail://pair` link opened (SRV-QR2).
+    let warning: String?
+    /// Fingerprints to compare (*Connect to a dail server*); absent elsewhere.
+    let fingerprints: [Fingerprint]?
     let busy: Bool
     let actions: [ActionButton]
     let back: ActionButton
+}
+
+/// A certificate fingerprint to compare: its label and its lines of grouped hex digits.
+struct Fingerprint: Codable {
+    let label: String
+    let lines: [String]
 }
 
 struct TextValue: Codable {

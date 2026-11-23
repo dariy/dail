@@ -25,6 +25,10 @@ use crate::store::MemoryStore;
 /// Where the fake writes the attachments `edit_draft` carries from server drafts (MISC-44d).
 pub const DRAFT_FILES_DIR: &str = "/draft-files";
 
+/// The SHA-256 fingerprint every fake dail server presents (`Effect::ProbeServer`, ADR 0017).
+pub const FAKE_SERVER_FINGERPRINT: &str =
+    "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03";
+
 /// A message accepted by the fake SMTP server.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SentMail {
@@ -174,6 +178,9 @@ impl MemoryBackend {
                 | Effect::SaveAttachments { .. }
                 | Effect::CompactStore { .. }
                 | Effect::SearchIndex { .. }
+                | Effect::OpenPairing { .. }
+                | Effect::RevokeDevice { .. }
+                | Effect::DisconnectServer { .. }
         );
         if networked && *self.offline.lock() {
             return Err(SyncError::Effect {
@@ -600,6 +607,48 @@ impl MemoryBackend {
             }
             Effect::InstallUpdate { version, path, .. } => {
                 Ok(vec![self.updates.lock().install(version, &path)])
+            }
+            // The fake dail server (ADR 0017): a code opens and a device is revoked silently
+            // (devices pair through `Event::DevicePaired`, which tests ingest).
+            Effect::OpenPairing { .. } | Effect::RevokeDevice { .. } => Ok(Vec::new()),
+            // Every server presents `FAKE_SERVER_FINGERPRINT`.
+            Effect::ProbeServer { host, port } => Ok(vec![Event::ServerOffered {
+                host,
+                port,
+                fingerprint: FAKE_SERVER_FINGERPRINT.to_owned(),
+            }]),
+            // A well-formed code pairs with a server whose certificate has the fake fingerprint;
+            // the fake token goes to the in-memory keyring.
+            Effect::PairWithServer {
+                fingerprint,
+                code,
+                secret,
+                ..
+            } => Ok(if fingerprint != FAKE_SERVER_FINGERPRINT {
+                vec![Event::LinkFailed {
+                    error: "the server's certificate does not match the pinned fingerprint"
+                        .to_owned(),
+                }]
+            } else if !app_core::link::is_pairing_code(code.expose()) {
+                vec![Event::LinkFailed {
+                    error: "the server refused the pairing code".to_owned(),
+                }]
+            } else {
+                self.keyring
+                    .lock()
+                    .insert(secret, Secret::new("fake-device-token"));
+                vec![
+                    Event::ServerPaired { fingerprint },
+                    Event::LinkChanged {
+                        status: app_core::LinkStatus::Online,
+                    },
+                ]
+            }),
+            Effect::DisconnectServer { secret } => {
+                if let Some(secret) = secret {
+                    self.keyring.lock().remove(&secret);
+                }
+                Ok(Vec::new())
             }
             Effect::ScheduleTick { .. } => Err(SyncError::Unsupported {
                 backend: self.name(),
@@ -1300,6 +1349,10 @@ impl Backend for MemoryBackend {
 
     fn get_blob<'a>(&'a self, id: &'a str) -> BoxFuture<'a, Result<Option<Vec<u8>>, SyncError>> {
         Box::pin(async move { Ok(self.store.get_blob(id)?) })
+    }
+
+    fn put_blob(&self, bytes: Vec<u8>) -> BoxFuture<'_, Result<Option<String>, SyncError>> {
+        Box::pin(async move { Ok(Some(self.store.put_blob(&bytes)?)) })
     }
 }
 

@@ -97,6 +97,31 @@ fn audit_records_hide_secrets_and_message_text() {
     assert_eq!(line["origin"], "mcp");
     assert_eq!(line["input"]["command"]["args"]["password"], "<redacted>");
 
+    // A pairing code (ADR 0017) is a secret too; `start_pairing`'s is derived from the seed,
+    // which its line leaves out.
+    let trust = ReplayRecord::new(
+        &ctx,
+        ReplayInput::Command(Command::TrustServer {
+            fingerprint: "ab".repeat(32),
+            code: Secret::new("ABCD2345"),
+        }),
+    );
+    let text = trust.redacted_line();
+    assert!(!text.contains("ABCD2345"), "{text}");
+    let line: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(line["input"]["command"]["args"]["code"], "<redacted>");
+    let pairing = ReplayRecord::new(
+        &ctx,
+        ReplayInput::Command(Command::StartPairing {
+            role: app_core::DeviceRole::User,
+            name: "Phone".into(),
+        }),
+    );
+    let text = pairing.redacted_line();
+    assert!(!text.contains(&app_core::link::pairing_code(42)), "{text}");
+    let line: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert!(line.get("seed").is_none(), "{text}");
+
     let draft = ReplayRecord::new(
         &ctx,
         ReplayInput::Command(Command::Reply {

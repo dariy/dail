@@ -4,12 +4,15 @@ mod accounts;
 mod approvals;
 mod backfill;
 mod certificates;
+mod devices;
+pub use devices::MAX_DEVICE_NAME_CHARS;
 mod draft_saves;
 mod drafts;
 mod folders;
 mod identities;
 mod images;
 mod keys;
+mod link;
 mod mailbox_prefs;
 mod moves;
 mod outbox;
@@ -158,12 +161,23 @@ impl Engine {
 
     /// User/agent intent. Validates, mutates, records history and returns the effects to run. A
     /// rejected command leaves the state and the history untouched.
+    ///
+    /// In mirror mode (`state.link` set, ADR 0017) the command applies locally as usual, but only
+    /// the effects that stay on the device are returned. While the link is not online a command
+    /// is queued in `link.queued` or refused (`error_014_refused_offline`) as its
+    /// [`Command::offline_policy`] says, and a change of the queue is persisted (see
+    /// [`crate::link`]).
     pub fn dispatch(&mut self, cmd: Command, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
+        self.refuse_offline(&cmd)?;
         let prefs = self.state.view.prefs();
+        let queue = self.queue_mark();
+        let queued = self.to_queue(&cmd);
         let mut outcome = self.dispatch_unsettled(cmd, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
+        self.mirror(&mut outcome, queued, ctx);
+        self.persist_queue(queue, &mut outcome);
         Ok(outcome)
     }
 
@@ -230,12 +244,16 @@ impl Engine {
     }
 
     /// Fact from the outside world (the result of an `Effect`). Never recorded in history.
+    /// In mirror mode only the effects that stay on the device are returned.
     pub fn ingest(&mut self, event: Event, ctx: &Ctx) -> Result<Outcome, CoreError> {
         self.state.revision.bump();
         let prefs = self.state.view.prefs();
+        let queue = self.queue_mark();
         let mut outcome = self.ingest_unsettled(event, ctx)?;
         self.settle_view();
         self.persist_view_prefs(&prefs, &mut outcome);
+        self.mirror(&mut outcome, None, ctx);
+        self.persist_queue(queue, &mut outcome);
         Ok(outcome)
     }
 
@@ -353,6 +371,39 @@ impl Engine {
                 Ok(Outcome::new(receipt.affecting(EntityRef::Status)))
             }
             Event::Closing {} => Ok(self.ingest_closing(ctx, receipt)),
+            Event::LinkChanged { status } => Ok(self.ingest_link_changed(status, receipt)),
+            Event::RemoteSynced {
+                revision,
+                diff,
+                snapshot,
+            } => Ok(self.ingest_remote_synced(revision, &diff, snapshot, receipt)),
+            Event::DevicePaired { device } => Ok(self.ingest_device_paired(device, receipt)),
+            Event::DeviceSeen { id, at_ms } => Ok(self.ingest_device_seen(id, at_ms, receipt)),
+            Event::ServeFailed { error } => Ok(self.ingest_serve_failed(error, receipt)),
+            Event::ServeListening {
+                addresses,
+                advertise,
+                fingerprint,
+            } => Ok(self.ingest_serve_listening(addresses, advertise, &fingerprint, receipt)),
+            Event::LinkFailed { error } => Ok(self.ingest_link_failed(error, receipt)),
+            Event::ServerPaired { fingerprint } => {
+                Ok(self.ingest_server_paired(&fingerprint, receipt))
+            }
+            Event::ServerOffered {
+                host,
+                port,
+                fingerprint,
+            } => Ok(self.ingest_server_offered(&host, port, &fingerprint, receipt)),
+            Event::QueuedDelivered { request_id } => {
+                Ok(self.ingest_queued_delivered(request_id, receipt))
+            }
+            Event::QueuedRejected {
+                request_id,
+                code,
+                error,
+                at_ms,
+            } => Ok(self.ingest_queued_rejected(request_id, code, error, at_ms, receipt)),
+            Event::Requeued { entry } => Ok(self.ingest_requeued(*entry, receipt)),
             Event::DraftSaved { draft, revision } => {
                 Ok(self.ingest_draft_saved(draft, Ok(revision), ctx, receipt))
             }
@@ -1050,6 +1101,26 @@ impl Engine {
                 .map(Applied::plain),
             Command::ApproveRequest { id } => self.approve_request(id, ctx, receipt),
             Command::RejectRequest { id } => self.reject_request(id, receipt).map(Applied::plain),
+            Command::ListDevices {} => Ok(Applied::plain(self.list_devices(receipt))),
+            Command::StartPairing { role, name } => self
+                .start_pairing(role, &name, ctx, receipt)
+                .map(Applied::plain),
+            Command::RevokeDevice { id, confirm } => {
+                self.revoke_device(id, confirm, receipt).map(Applied::plain)
+            }
+            Command::ConnectServer { host, port } => self
+                .connect_server(&host, port, receipt)
+                .map(Applied::plain),
+            Command::TrustServer { fingerprint, code } => self
+                .trust_server(&fingerprint, &code, ctx, receipt)
+                .map(Applied::plain),
+            Command::DisconnectServer { confirm } => {
+                self.disconnect_server(confirm, receipt).map(Applied::plain)
+            }
+            Command::RetryOffline {} => self.retry_offline(ctx, receipt).map(Applied::plain),
+            Command::DismissOfflineRejection { id } => self
+                .dismiss_offline_rejection(id, receipt)
+                .map(Applied::plain),
             // History commands are handled by `dispatch`; nested undo is not a thing.
             Command::Undo {} => Err(CoreError::NothingToUndo),
             Command::Redo {} => Err(CoreError::NothingToRedo),

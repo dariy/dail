@@ -11,8 +11,8 @@ use app_io::{ProfileDirs, ProfileStore};
 use app_mobile::event::SaveFile;
 use app_mobile::{External, Frame, Mobile, NoteAct, Purpose, Reply, Request, UiEvent};
 use app_sync::{
-    AuditLog, Backend, Bridge, LiveBackend, NetImap, NetVerifier, ProfileLock, RandomSeeds,
-    Session, SessionClient, SystemClock, Wake,
+    AuditLog, Backend, Bridge, Connection, LiveBackend, NetImap, NetVerifier, ProfileLock,
+    RandomSeeds, RemoteOptions, Session, SessionClient, SystemClock, Wake,
 };
 use serde::Serialize;
 use tokio::runtime::Runtime;
@@ -45,6 +45,11 @@ pub struct Host {
     runtime: Runtime,
     bridge: Mutex<Bridge<Purpose>>,
     client: SessionClient,
+    /// Where commands go: `Connection::Remote` for every profile this host opens, so the
+    /// commands for a dail server are forwarded (ADR 0017); the local session for a demo.
+    conn: Connection,
+    /// The backend the session runs over (`live` resolved to `remote` for a device).
+    backend: BackendChoice,
     mobile: Mutex<Mobile>,
     task: Mutex<Option<JoinHandle<()>>>,
     /// The alert watcher (`watch_alerts`).
@@ -104,16 +109,20 @@ impl Host {
                 "host root certificates"
             );
         }
-        let (session, lock) = match &config.backend {
-            BackendChoice::Live => {
+        let (session, lock, backend) = match &config.backend {
+            choice @ (BackendChoice::Live | BackendChoice::Remote) => {
                 let dirs = ProfileDirs::at(&config.profile_dir);
                 dirs.ensure()?;
                 let lock = ProfileLock::try_acquire(&dirs.lock_file())?
                     .ok_or_else(|| HostError::Locked(config.profile_dir.display().to_string()))?;
-                let session = runtime.block_on(open_live(&dirs, platform))?;
-                (session, Some(lock))
+                let (session, backend) = runtime.block_on(open_live(&dirs, platform, choice))?;
+                (session, Some(lock), backend)
             }
-            BackendChoice::Memory(fixture) => (runtime.block_on(open_demo(fixture))?, None),
+            BackendChoice::Memory(fixture) => (
+                runtime.block_on(open_demo(fixture))?,
+                None,
+                config.backend.clone(),
+            ),
         };
         if let Some(host) = update_host(platform) {
             // The running build, for update checks (ADR 0011); a due periodic check starts now.
@@ -127,11 +136,13 @@ impl Host {
         if removed > 0 {
             tracing::info!(removed, "removed outgoing copies no draft names");
         }
-        if matches!(config.backend, BackendChoice::Live) {
+        if !matches!(backend, BackendChoice::Memory(_)) {
             let dir = ProfileDirs::at(&config.profile_dir).draft_files_dir();
             app_sync::draft_files::sweep(&dir, &session.state());
         }
-        Ok(Self::start(runtime, session, lock, wake, alert, outgoing))
+        let mut host = Self::start(runtime, session, lock, wake, alert, outgoing);
+        host.backend = backend;
+        Ok(host)
     }
 
     /// Runs over an open `session` (opened on `runtime`), as the app with `Origin::Gui`; picked
@@ -155,6 +166,7 @@ impl Host {
         outgoing: PathBuf,
     ) -> Self {
         let client = session.client();
+        let conn = session.connection();
         let visible = Arc::new(AtomicBool::new(false));
         let alerts = runtime.spawn(watch_alerts(
             client.subscribe(),
@@ -166,6 +178,8 @@ impl Host {
             runtime,
             bridge: Mutex::new(bridge),
             client,
+            conn,
+            backend: BackendChoice::Live,
             mobile: Mutex::new(Mobile::default().with_zone(app_sync::clock::local_offset_ms)),
             task: Mutex::new(Some(task)),
             alerts,
@@ -184,10 +198,21 @@ impl Host {
         lock(&self.bridge).state()
     }
 
+    /// The backend the session runs over: `remote` for a device of a dail server (a profile
+    /// with `[remote]`), else as asked (a session given to [`Host::with_session`] counts as
+    /// `live`).
+    pub const fn backend(&self) -> &BackendChoice {
+        &self.backend
+    }
+
     /// One event from Kotlin: submits what it asks for and returns the next frame.
     pub fn event(&self, event: UiEvent) -> Output {
         if let UiEvent::Visible { visible } = event {
             self.visible.store(visible, Ordering::Relaxed);
+        }
+        // A network came back: a device dials its server now, not after the back-off.
+        if let (UiEvent::Online, Connection::Remote(remote)) = (&event, &self.conn) {
+            remote.dial_now();
         }
         if let UiEvent::Network { metered } = event {
             // A fact about the world, so an `Event`, not a command (STORE-8).
@@ -385,9 +410,19 @@ impl Host {
             return Ok(true);
         }
         let client = self.client.clone();
+        let conn = self.conn.clone();
         self.runtime.block_on(async move {
             let work = async {
                 match task {
+                    // A device of a dail server talks to no mail server: the server polls and
+                    // syncs. The check refreshes the link instead (SRV-7).
+                    Task::Check if linked(&client.state()) => {
+                        if let Connection::Remote(remote) = &conn {
+                            remote.dial_now();
+                            let _ = remote.wait_settled().await;
+                        }
+                        Ok(conn.flush().await?)
+                    }
                     Task::Check => {
                         // A rejection (no accounts) leaves nothing to wait for.
                         let _ = client
@@ -400,7 +435,7 @@ impl Host {
                             .map_err(|_| HostError::Closed)?;
                         Ok(())
                     }
-                    Task::Flush | Task::Push => Ok::<(), HostError>(client.flush().await?),
+                    Task::Flush | Task::Push => Ok::<(), HostError>(conn.flush().await?),
                     Task::Sends => {
                         let mut state = client.subscribe();
                         state
@@ -423,14 +458,14 @@ impl Host {
     /// Blocks.
     pub fn notification(&self, act: &NoteAct, limit: Duration) -> Result<bool, HostError> {
         let commands = act.commands(&self.state());
-        let client = self.client.clone();
+        let conn = self.conn.clone();
         self.runtime.block_on(async move {
             let work = async {
                 for command in commands {
                     // A rejection (the thread went meanwhile) leaves nothing to wait for.
-                    let _ = client.submit(command, Origin::Gui).await?;
+                    let _ = conn.submit(command, Origin::Gui).await?;
                 }
-                Ok::<(), HostError>(client.flush().await?)
+                Ok::<(), HostError>(conn.flush().await?)
             };
             match tokio::time::timeout(limit, work).await {
                 Ok(result) => result.map(|()| true),
@@ -456,10 +491,10 @@ impl Host {
                     Ok(command) => command,
                     Err(invalid) => return Ok(serde_json::json!({ "rejected": invalid })),
                 };
-                let client = self.client.clone();
+                let conn = self.conn.clone();
                 let result = self
                     .runtime
-                    .block_on(async move { client.submit(command, origin).await })?;
+                    .block_on(async move { conn.submit(command, origin).await })?;
                 Ok(match result {
                     Ok(receipt) => serde_json::json!({ "receipt": receipt }),
                     Err(rejected) => serde_json::json!({ "rejected": rejected }),
@@ -587,16 +622,50 @@ fn update_host(platform: Platform) -> Option<app_core::UpdateHost> {
     })
 }
 
+/// Whether `state`'s profile mirrors a dail server it is paired with (a pinned server).
+fn linked(state: &AppState) -> bool {
+    state
+        .link
+        .as_ref()
+        .and_then(|link| link.server.as_ref())
+        .is_some_and(app_core::ServerEndpoint::is_pinned)
+}
+
+/// The link of a phone to its dail server: as the desktop's, but fewer bodies pre-loaded over
+/// one connection of their own (battery and data; pre-loading pauses on a metered network).
+fn phone_link() -> RemoteOptions {
+    RemoteOptions {
+        preload_bodies: 100,
+        preload_connections: 1,
+        ..RemoteOptions::default()
+    }
+}
+
 /// How many days of replay logs a mobile host keeps (STORE-10).
 pub const REPLAY_KEEP_DAYS: i64 = 14;
 
 /// The profile's session, as `app-cli` opens it: store, keyring, servers, the full-text index
-/// and the audit log.
-async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, HostError> {
+/// and the audit log, as a possible device of a dail server (`Session::open_remote`): a profile
+/// with `[remote]` mirrors its server at once ([`BackendChoice::Remote`]), a plain one once
+/// *Connect to a dail server* pins one. The device token lives in the platform's secret store,
+/// which pairing writes and the link reads.
+async fn open_live(
+    dirs: &ProfileDirs,
+    platform: Platform,
+    choice: &BackendChoice,
+) -> Result<(Session, BackendChoice), HostError> {
     let store = ProfileStore::open(dirs)?;
+    let resolved = match (store.config().is_remote(), choice) {
+        (true, _) => BackendChoice::Remote,
+        (false, BackendChoice::Remote) => {
+            return Err(HostError::NotRemote(dirs.root().display().to_string()));
+        }
+        (false, _) => BackendChoice::Live,
+    };
+    let secrets = (platform.secrets)()?;
     let backend = LiveBackend::new(
         Arc::new(store),
-        (platform.secrets)()?,
+        Arc::clone(&secrets),
         Arc::new(NetVerifier::new()?),
         Arc::new(NetImap::new()?),
     )
@@ -620,13 +689,19 @@ async fn open_live(dirs: &ProfileDirs, platform: Platform) -> Result<Session, Ho
     if swept > 0 {
         tracing::info!(files = swept, "old replay logs swept");
     }
-    Ok(Session::open_audited(
+    let session = Session::open_remote(
         backend,
+        secrets,
         Arc::new(SystemClock),
         Arc::new(RandomSeeds),
         Some(audit),
+        phone_link(),
     )
-    .await?)
+    .await?;
+    if resolved == BackendChoice::Remote {
+        tracing::info!("a device of a dail server");
+    }
+    Ok((session, resolved))
 }
 
 /// The demo: a fake server over `fixture`, its first account added and synced, the inbox open.

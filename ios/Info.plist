@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The Info.plist keys that build settings cannot hold (arrays of dictionaries). The app targets name
+  it in INFOPLIST_FILE (ios/project.yml); with GENERATE_INFOPLIST_FILE, Xcode merges the
+  INFOPLIST_KEY_* settings into it.
+  SRV-QR2: the `dail` URL scheme, for `dail://pair` links (DailApp's onOpenURL).
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER).pair</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>dail</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

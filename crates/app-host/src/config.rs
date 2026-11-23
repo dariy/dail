@@ -32,13 +32,21 @@ pub struct Config {
     pub ca_certs: Vec<String>,
 }
 
-/// The session's backend: `"live"` or `{"memory": "<fixture>"}`.
+/// The session's backend: `"live"`, `"remote"` or `{"memory": "<fixture>"}`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BackendChoice {
-    /// The profile's store, the keyring and the mail servers.
+    /// The profile's store, the keyring and the mail servers. A profile with `[remote]` in its
+    /// `config.toml` opens as [`BackendChoice::Remote`] instead (`Host::backend` says which), so
+    /// the apps always send `"live"`. A plain profile can still become a device: its session
+    /// runs the link from the moment *Connect to a dail server* pins one (ADR 0017).
     #[default]
     Live,
+    /// A device of a dail server (ADR 0017, SRV-7): the profile's store as a mirror of the
+    /// server's state, the device token in the platform's secret store (Keystore, Keychain)
+    /// under `[remote].token`, and no mail server: the server syncs, runs the rules and sends.
+    /// Refused for a profile without `[remote]` (`ERR311`).
+    Remote,
     /// A fake server over a built-in fixture, its first account added and synced (the `demo`
     /// feature only).
     Memory(String),
@@ -120,7 +128,9 @@ pub struct PdfTile {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Task {
-    /// `sync_now` as `runtime`, then wait until no account is syncing.
+    /// `sync_now` as `runtime`, then wait until no account is syncing. On a device of a dail
+    /// server no mail server is contacted: the link is refreshed instead (dialed if it is
+    /// down, the offline queue replayed, the mirror brought up to the server's state).
     Check,
     /// Wait until the queued work (remote ops, draft saves, attachment saves) is done.
     Flush,

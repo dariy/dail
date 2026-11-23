@@ -2,7 +2,7 @@
 //! outbox. Remote failures are state (`ARCHITECTURE.md §10`), so a status bar is just their
 //! projection.
 
-use app_core::{AccountId, AccountStatus, AppState, OpState, ProviderPreset};
+use app_core::{AccountId, AccountStatus, AppState, OpState, ProviderPreset, RequestId};
 
 use crate::format;
 use crate::i18n::{self, Key, Lang, tr};
@@ -32,6 +32,9 @@ pub enum Fix {
     /// Trust a certificate the account's server offered (`trust_certificate`, after its step
     /// shows the certificate; ADR 0016).
     Trust(AccountId),
+    /// A command the dail server refused after an offline period (ADR 0017): the front end
+    /// draws [`crate::actions::rejection_actions`] for it (*Retry all*, *Dismiss*).
+    Refused(RequestId),
 }
 
 impl Fix {
@@ -42,6 +45,7 @@ impl Fix {
             Self::Retry(_) => Key::FixRetry,
             Self::Test(_) => Key::FixTest,
             Self::Trust(_) => Key::FixTrust,
+            Self::Refused(_) => Key::RetryAll,
         };
         tr(lang, key, &[])
     }
@@ -142,7 +146,7 @@ pub fn send_hint(state: &AppState, account: AccountId, error: &str, lang: Lang) 
 }
 
 /// The problems in `state`, most important first: store and keyring failures, failed logins,
-/// failed syncs.
+/// failed syncs, then the commands a dail server refused after an offline period (oldest first).
 pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
     let mut out = Vec::new();
     if let Some(error) = &state.status.persist_error {
@@ -213,6 +217,14 @@ pub fn problems(state: &AppState, lang: Lang) -> Vec<Problem> {
                 fix: Some(fix),
             });
         }
+    }
+    for rejection in state.link.iter().flat_map(|link| &link.rejected) {
+        out.push(Problem {
+            text: crate::server::rejection_text(rejection, lang),
+            detail: i18n::message_in(lang, &rejection.error),
+            hint: Some(tr(lang, Key::RefusedOfflineHint, &[])),
+            fix: Some(Fix::Refused(rejection.request_id)),
+        });
     }
     out
 }

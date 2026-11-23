@@ -353,7 +353,19 @@ impl Engine {
             | Event::MessageSent { .. }
             | Event::SendFailed { .. }
             | Event::SearchResults { .. }
-            | Event::SearchFailed { .. } => {
+            | Event::SearchFailed { .. }
+            | Event::LinkChanged { .. }
+            | Event::RemoteSynced { .. }
+            | Event::DevicePaired { .. }
+            | Event::DeviceSeen { .. }
+            | Event::LinkFailed { .. }
+            | Event::ServerPaired { .. }
+            | Event::ServeFailed { .. }
+            | Event::ServeListening { .. }
+            | Event::ServerOffered { .. }
+            | Event::QueuedDelivered { .. }
+            | Event::QueuedRejected { .. }
+            | Event::Requeued { .. } => {
                 return Outcome::new(receipt);
             }
         };

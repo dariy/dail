@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::account::{Account, Endpoint, ImapLogin, Secret, SecretRef, SmtpLogin};
 use crate::approval::ApprovalRequest;
 use crate::draft::{Draft, OutgoingMessage};
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, ThreadId};
 use crate::mailbox::{Mailbox, RemoteMailbox};
 use crate::message::{Addr, Envelope, RemoteEnvelope, Thread, UidFlags, UidRange};
 use crate::ops::{PendingOp, RemoteStep};
@@ -493,6 +493,111 @@ pub enum Event {
         /// Whether the network is metered.
         metered: bool,
     },
+    /// The connection to the dail server changed (ADR 0017). Turns mirror mode on
+    /// (`AppState::link`) if it was off.
+    LinkChanged {
+        /// The connection now.
+        status: crate::link::LinkStatus,
+    },
+    /// The dail server's state changed (ADR 0017): `diff` is applied to the mirror, overwriting
+    /// what the device applied optimistically, and `revision` is recorded in `link.revision`.
+    /// Turns mirror mode on if it was off. A diff whose revision is not newer than the mirror's
+    /// is ignored, unless it is a `snapshot`.
+    RemoteSynced {
+        /// The server's revision after the change.
+        revision: u64,
+        /// The change since the mirror's revision (or, for a snapshot, since an empty state).
+        diff: Box<crate::diff::StateDiff>,
+        /// The diff is a whole snapshot (a `resync`): the mirror's shared state is cleared before
+        /// it is applied.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        snapshot: bool,
+    },
+    /// The dail server paired a device (ADR 0017): it exchanged a code of `start_pairing` for a
+    /// token. The device joins `AppState::devices` (an existing entry with its ID is replaced).
+    DevicePaired {
+        /// The device.
+        device: crate::link::Device,
+    },
+    /// A paired device connected to the dail server (ADR 0017). An unknown device is ignored.
+    DeviceSeen {
+        /// The device.
+        id: DeviceId,
+        /// When it connected, in Unix milliseconds.
+        at_ms: i64,
+    },
+    /// The dail server accepted the pairing code of `trust_server` (`Effect::PairWithServer`)
+    /// and the device token is in the keyring (ADR 0017): `fingerprint` becomes the pinned one
+    /// (`link.server.fingerprint`). Ignored unless it is the fingerprint being paired with.
+    ServerPaired {
+        /// The pinned SHA-256 fingerprint, hex.
+        fingerprint: String,
+    },
+    /// Probing, pairing with or disconnecting from the dail server failed (ADR 0017): the link
+    /// goes offline with the error in `link.error`, and a pairing in progress ends (the
+    /// fingerprint stays offered, so `trust_server` can be run again). Without a link (after
+    /// `disconnect_server`) it is the keyring's error.
+    LinkFailed {
+        /// Diagnostic.
+        error: String,
+    },
+    /// The dail server could not open a pairing code or revoke a device (ADR 0017), e.g.
+    /// because this profile is not running `dail serve`: recorded in `status.serve_error`.
+    ServeFailed {
+        /// Diagnostic.
+        error: String,
+    },
+    /// `dail serve` listens (ADR 0017, SRV-QR1): recorded in `status.serve`, for the QR code
+    /// of *Pair a device…*. A fingerprint that is not 64 hex digits is ignored.
+    ServeListening {
+        /// The bound addresses (`ip:port`).
+        addresses: Vec<String>,
+        /// The advertised hosts (`--advertise`).
+        #[serde(default)]
+        advertise: Vec<String>,
+        /// SHA-256 fingerprint of the server's certificate, hex.
+        fingerprint: String,
+    },
+    /// A dail server answered `connect_server` (`Effect::ProbeServer`): the SHA-256
+    /// fingerprint of its certificate is recorded in `link.server.offered`, for the user to
+    /// compare before `trust_server`. Ignored if the link is to another server or gone.
+    ServerOffered {
+        /// The server's host, as given to `connect_server`.
+        host: String,
+        /// The server's port.
+        port: u16,
+        /// SHA-256 fingerprint of its certificate, hex.
+        fingerprint: String,
+    },
+    /// A command of `link.queued` reached the dail server on replay and ran there (ADR 0017,
+    /// SRV-5b): it leaves the queue. An unknown request ID is ignored.
+    QueuedDelivered {
+        /// The queued submission.
+        request_id: crate::ids::RequestId,
+    },
+    /// The dail server refused a command of `link.queued` on replay (ADR 0017, SRV-5b): it
+    /// moves to `link.rejected` with the error, for `retry_offline` or
+    /// `dismiss_offline_rejection`. An unknown request ID is ignored.
+    QueuedRejected {
+        /// The queued submission.
+        request_id: crate::ids::RequestId,
+        /// The error code (`ERR…`).
+        code: String,
+        /// The error message.
+        error: String,
+        /// When the server refused it, in Unix milliseconds (the runtime's clock).
+        at_ms: i64,
+    },
+    /// A command forwarded to the dail server while online whose answer was lost with the
+    /// connection, or that came while older commands still waited (ADR 0017, SRV-5b): appended
+    /// to `link.queued` with its request ID, seed and origin, so that the next connection sends
+    /// it again after them. The server answers a request ID it knows from memory, so the
+    /// command runs once. Ignored without a link, if the request ID is queued already, and for
+    /// a command that is never queued (`offline_policy` not `queue`).
+    Requeued {
+        /// The submission, as the queue keeps it.
+        entry: Box<crate::link::QueuedCommand>,
+    },
 }
 
 impl Event {
@@ -501,6 +606,18 @@ impl Event {
         match self {
             Self::Tick { .. } => "tick",
             Self::NetworkChanged { .. } => "network_changed",
+            Self::LinkChanged { .. } => "link_changed",
+            Self::RemoteSynced { .. } => "remote_synced",
+            Self::DevicePaired { .. } => "device_paired",
+            Self::DeviceSeen { .. } => "device_seen",
+            Self::ServerOffered { .. } => "server_offered",
+            Self::QueuedDelivered { .. } => "queued_delivered",
+            Self::QueuedRejected { .. } => "queued_rejected",
+            Self::Requeued { .. } => "requeued",
+            Self::ServerPaired { .. } => "server_paired",
+            Self::LinkFailed { .. } => "link_failed",
+            Self::ServeFailed { .. } => "serve_failed",
+            Self::ServeListening { .. } => "serve_listening",
             Self::CertificateOffered { .. } => "certificate_offered",
             Self::Persisted {} => "persisted",
             Self::PersistFailed { .. } => "persist_failed",
@@ -915,6 +1032,56 @@ pub enum Effect {
         /// The downloaded file.
         path: String,
     },
+    /// On a dail server (ADR 0017): accept `code` once, until `expires_at_ms`, in exchange for
+    /// a device token of a new device with `role` and `name`; report `DevicePaired` when a
+    /// device uses it. Five wrong attempts a minute from one peer burn it.
+    OpenPairing {
+        /// The single-use code (redacted in logs).
+        code: Secret,
+        /// What the device may do.
+        role: crate::link::DeviceRole,
+        /// The device's name.
+        name: String,
+        /// When the code expires, in Unix milliseconds.
+        expires_at_ms: i64,
+    },
+    /// On a dail server (ADR 0017): forget the device's token hash and close its connections.
+    RevokeDevice {
+        /// The device.
+        id: DeviceId,
+    },
+    /// On a device (ADR 0017): connect to the dail server at `host:port` without trusting it
+    /// and report the fingerprint of its certificate (`ServerOffered`), or `LinkChanged` to
+    /// `offline` if it cannot be reached.
+    ProbeServer {
+        /// The server's host.
+        host: String,
+        /// The server's port.
+        port: u16,
+    },
+    /// On a device (ADR 0017): connect to the server, accepting only the certificate with
+    /// `fingerprint`, exchange `code` for a device token and keep the token in the OS keyring
+    /// under `secret`; then report `ServerPaired` and `LinkChanged`, or `LinkFailed`. The token
+    /// never enters the engine.
+    PairWithServer {
+        /// The server's host.
+        host: String,
+        /// The server's port.
+        port: u16,
+        /// The pinned SHA-256 fingerprint of the server's certificate, lower-case hex.
+        fingerprint: String,
+        /// The pairing code (redacted in logs).
+        code: Secret,
+        /// Where the device token goes in the keyring.
+        secret: SecretRef,
+    },
+    /// On a device (ADR 0017): close the connection to the dail server, delete the device
+    /// token from the keyring and drop the mirror's local copy of the server's mail.
+    DisconnectServer {
+        /// The keyring entry of the device token; `None` if the device never paired.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        secret: Option<SecretRef>,
+    },
 }
 
 impl Effect {
@@ -949,6 +1116,57 @@ impl Effect {
             Self::CheckForUpdates { .. } => "check_for_updates",
             Self::DownloadUpdate { .. } => "download_update",
             Self::InstallUpdate { .. } => "install_update",
+            Self::OpenPairing { .. } => "open_pairing",
+            Self::RevokeDevice { .. } => "revoke_device",
+            Self::ProbeServer { .. } => "probe_server",
+            Self::PairWithServer { .. } => "pair_with_server",
+            Self::DisconnectServer { .. } => "disconnect_server",
+        }
+    }
+
+    /// Whether the effect stays on the device, so that a mirror of a dail server still runs it
+    /// (mirror mode, ADR 0017): writing the mirror to the local store, timers, inspecting a
+    /// file to upload, writing attachments into a local folder, compacting the local store and
+    /// updating the device's own dail, and the device's own link to the dail server (probing,
+    /// pairing with and disconnecting from it: the device's work, not the mail servers').
+    /// Everything else talks to mail servers, the keyring of account passwords, or works on
+    /// mail the server owns (its full-text index, reading a server draft) or its paired devices
+    /// (opening a pairing code, revoking a device), and only the server runs it.
+    pub const fn is_device_local(&self) -> bool {
+        match self {
+            Self::PersistState { .. }
+            | Self::ScheduleTick { .. }
+            | Self::InspectAttachment { .. }
+            | Self::SaveAttachments { .. }
+            | Self::CompactStore { .. }
+            | Self::CheckForUpdates { .. }
+            | Self::DownloadUpdate { .. }
+            | Self::InstallUpdate { .. }
+            | Self::ProbeServer { .. }
+            | Self::PairWithServer { .. }
+            | Self::DisconnectServer { .. } => true,
+            Self::StoreSecret { .. }
+            | Self::DeleteSecret { .. }
+            | Self::VerifyAccount { .. }
+            | Self::ListMailboxes { .. }
+            | Self::FetchEnvelopes { .. }
+            | Self::ResyncFlags { .. }
+            | Self::FetchBody { .. }
+            | Self::SmtpSend { .. }
+            | Self::SaveDraft { .. }
+            | Self::DeleteDraft { .. }
+            | Self::ManageFolder { .. }
+            | Self::ReadSettingsBlob { .. }
+            | Self::WriteSettingsBlob { .. }
+            | Self::ReadDraft { .. }
+            | Self::DiscoverServers { .. }
+            | Self::SearchIndex { .. }
+            | Self::FetchOlder { .. }
+            | Self::WatchMailbox { .. }
+            | Self::RunRemoteOp { .. }
+            | Self::SearchMailbox { .. }
+            | Self::OpenPairing { .. }
+            | Self::RevokeDevice { .. } => false,
         }
     }
 
@@ -956,6 +1174,10 @@ impl Effect {
     pub fn failure_event(&self, error: String) -> Event {
         match self {
             Self::PersistState { .. } => Event::PersistFailed { error },
+            Self::ProbeServer { .. }
+            | Self::PairWithServer { .. }
+            | Self::DisconnectServer { .. } => Event::LinkFailed { error },
+            Self::OpenPairing { .. } | Self::RevokeDevice { .. } => Event::ServeFailed { error },
             Self::CheckForUpdates { .. }
             | Self::DownloadUpdate { .. }
             | Self::InstallUpdate { .. } => Event::UpdateFailed { reason: error },
@@ -1132,6 +1354,15 @@ pub enum PersistDelta {
     /// The synced settings document as this device knows it, with its unpushed-changes flag
     /// (the `synced` table of `state.redb`, SET-4).
     Synced(crate::synced::LocalSettings),
+    /// The dail server this device is paired with (`[remote]` in `config.toml`, ADR 0017): its
+    /// host, port, pinned fingerprint and the keyring entry of the device token, written when
+    /// pairing completes (`server_paired`); `None` when the link is removed
+    /// (`disconnect_server`).
+    Remote(Option<crate::link::ServerEndpoint>),
+    /// The commands a mirror queued for its dail server and those the server refused on
+    /// replay (`link.queued`, `link.rejected`; the `link` table of `state.redb`, SRV-5b),
+    /// written whenever either changes.
+    OfflineQueue(crate::link::OfflineQueue),
 }
 
 /// Upserts and removals in the local mail cache. Removals are applied before upserts.
@@ -1247,6 +1478,11 @@ impl PersistDelta {
             Self::Mail(delta) => delta.apply_to(state),
             Self::View(prefs) => state.view.apply_prefs(prefs),
             Self::Synced(local) => local.apply_to(state),
+            Self::Remote(Some(server)) => {
+                state.link.get_or_insert_with(Default::default).server = Some(server.clone());
+            }
+            Self::Remote(None) => state.link = None,
+            Self::OfflineQueue(queue) => queue.apply_to(state),
         }
     }
 }

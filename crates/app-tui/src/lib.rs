@@ -12,6 +12,7 @@ pub mod document;
 pub mod editor;
 pub mod keys;
 pub mod layout;
+pub mod pairing;
 pub mod palette;
 pub mod reader;
 pub mod request;

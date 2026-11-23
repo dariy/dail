@@ -39,6 +39,12 @@ enum Native {
         return Data(bytesNoCopy: pointer, count: bytes.len, deallocator: .custom { _, _ in dail_bytes_free(bytes) })
     }
 
+    /// `dail_background`: a task (`{"import": …}` for a picked file), answered with JSON. Blocks:
+    /// never call it on the main thread.
+    static func background(handle: Int32, task: String) -> String {
+        take(task.withCString { dail_background(handle, $0) })
+    }
+
     /// `dail_close`: shuts the session down; the listener is not called afterwards.
     static func close(handle: Int32) {
         dail_close(handle)

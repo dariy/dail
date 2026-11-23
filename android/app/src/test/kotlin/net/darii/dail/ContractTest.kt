@@ -6,6 +6,7 @@ import kotlinx.serialization.json.put
 import net.darii.dail.ui.External
 import net.darii.dail.ui.Field
 import net.darii.dail.ui.Frame
+import net.darii.dail.ui.ScanFailure
 import net.darii.dail.ui.UiEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -103,6 +104,9 @@ class ContractTest {
                 "key_down" to UiEvent.KeyDown(33, 101, ctrl = false, shift = false, alt = false, meta = false),
                 "long_press" to UiEvent.LongPress(8),
                 "refresh" to UiEvent.Refresh,
+                "scan_cancelled" to UiEvent.ScanCancelled,
+                "scan_failed" to UiEvent.ScanFailed(ScanFailure.Denied),
+                "scanned" to UiEvent.Scanned("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
                 "online" to UiEvent.Online,
                 "network" to UiEvent.Network(true),
                 "notification" to
@@ -112,6 +116,8 @@ class ContractTest {
                             put("thread", "00000000-0000-0000-0000-000000000009")
                         },
                     ),
+                "pair_link" to
+                    UiEvent.PairLink("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
                 "pinch" to UiEvent.Pinch(zoomIn = true),
                 "scrolled" to UiEvent.Scrolled(first = 20, count = 12),
                 "share" to

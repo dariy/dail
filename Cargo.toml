@@ -116,6 +116,11 @@ parking_lot = "0.13"
 # --- TLS crypto (app-tls, ADR 0003) ---
 zeroize = "1" # wipes keys on drop (already in the tree via rustls)
 getrandom = "0.4" # the OS random source (already in the tree via uuid)
+# The self-signed certificate of `dail serve` (ADR 0017): RustCrypto, pure Rust, on the der 0.8 / spki 0.8 /
+# signature 3 line of p256 0.14. `builder` signs it with p256's ECDSA (and brings sha1 for the key identifiers).
+x509-cert = { version = "0.3", default-features = false, features = ["builder", "std"] }
+# Base64 for the dail server's wire (device tokens, blobs, uploads); constant-time, already in the tree via der.
+base64ct = { version = "1.8", features = ["alloc"] }
 
 # --- Network runtime (app-sync) — rustls with app-tls (ADR 0003), never ring/aws-lc/openssl ---
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util", "fs", "signal", "process"] }
@@ -191,11 +196,15 @@ ndk-context = "0.1"
 resvg = { version = "0.50", default-features = false }
 png = "0.18" # xtask only: the iOS icon as RGB without alpha (already in the tree via tiny-skia)
 anyhow = "1.0" # binaries (app-cli, xtask) only; libraries use thiserror
+# QR codes of the `dail://pair` URI (ADR 0017, SRV-QR1, app-front): the matrix only, no `image`/`svg`/`pic`/`eps`
+# renderers; `std` for `std::error::Error` on its errors.
+qrcode = { version = "0.15", default-features = false, features = ["std"] }
 
 # --- Testing ---
 insta = { version = "1.49", features = ["json"] }
 egui_kittest = { version = "0.37", default-features = false } # headless GUI tests via the AccessKit tree
 proptest = "1.12"
+rqrr = { version = "0.11", default-features = false } # tests only: decodes the QR codes of app_front::qr (no `img`)
 
 [profile.dev.package]
 # Dependencies: opt-level 2 keeps egui and mail parsing responsive in debug builds. They keep only line tables

@@ -44,6 +44,8 @@ const FLOW_GUI: &[&str] = &[
     "mark_mailbox_read",
     "set_search",
     "install_update",
+    "revoke_device",
+    "disconnect_server",
 ];
 const FLOW_TUI: &[&str] = &[
     "set_setting",
@@ -54,6 +56,8 @@ const FLOW_TUI: &[&str] = &[
     "save_rule",
     "install_update",
     "set_update_policy",
+    "revoke_device",
+    "disconnect_server",
 ];
 const FLOW_TOUCH: &[&str] = &[
     "set_keybinding",
@@ -70,6 +74,8 @@ const FLOW_TOUCH: &[&str] = &[
     "mark_mailbox_read",
     "move_threads",
     "set_search",
+    "revoke_device",
+    "disconnect_server",
 ];
 
 fn with(front: FrontEnd, value: Reach) -> Vec<&'static str> {
@@ -104,7 +110,8 @@ fn the_gui_gaps_are_pinned() {
             "focus_pane",
             "get_view",
             "compact_store",
-            "list_approvals"
+            "list_approvals",
+            "list_devices"
         ]
     );
     assert!(with(FrontEnd::Gui, Reach::Never).is_empty());
@@ -159,7 +166,8 @@ fn the_tui_gaps_are_pinned() {
             "clear_focus",
             "get_view",
             "compact_store",
-            "list_approvals"
+            "list_approvals",
+            "list_devices"
         ]
     );
     assert!(with(FrontEnd::Tui, Reach::Never).is_empty());
@@ -200,7 +208,9 @@ fn the_touch_gaps_are_pinned() {
             "install_update",
             "list_approvals",
             "approve_request",
-            "reject_request"
+            "reject_request",
+            "list_devices",
+            "start_pairing"
         ]
     );
     assert!(with(FrontEnd::Touch, Reach::Never).is_empty());
@@ -280,6 +290,9 @@ fn run_name(run: &Run) -> CommandName {
         Run::RemoveAccount(_) => CommandName::RemoveAccount,
         Run::TrustCertificate(_) => CommandName::TrustCertificate,
         Run::ForgetCertificate(_) => CommandName::ForgetCertificate,
+        Run::Pair => CommandName::StartPairing,
+        Run::Revoke(_) => CommandName::RevokeDevice,
+        Run::Disconnect => CommandName::DisconnectServer,
     }
 }
 
@@ -450,6 +463,92 @@ fn every_palette_entry_is_offered() {
                     name.as_str()
                 );
             }
+        }
+    }
+}
+
+/// The dail server's lists (SRV-6, SRV-7) are drawn by the GUI, the TUI and touch (but for
+/// `server_actions`' *Pair a device…*, which needs the pairing dialog's QR code): what they offer
+/// has a control there.
+#[test]
+fn what_the_server_lists_offer_has_a_control_on_every_front_end() {
+    use app_core::{
+        Command, Device, DeviceRole, IdGen, LinkState, OfflineRejection, Origin, ServeInfo,
+        ServerEndpoint,
+    };
+    use app_front::actions::{device_actions, link_actions, rejection_actions, server_actions};
+
+    let mut state = synced_state();
+    let mut ids = IdGen::new(5);
+    let device: app_core::DeviceId = ids.next_id();
+    state.devices.insert(
+        device,
+        Device {
+            id: device,
+            name: "Phone".into(),
+            role: DeviceRole::User,
+            paired_at_ms: 0,
+            last_seen_ms: None,
+        },
+    );
+    state.status.serve = Some(ServeInfo {
+        addresses: vec!["127.0.0.1:7443".into()],
+        advertise: Vec::new(),
+        fingerprint: "ab".repeat(32),
+    });
+    let refused: app_core::RequestId = ids.next_id();
+    state.link = Some(LinkState {
+        server: Some(ServerEndpoint {
+            host: "home.example".into(),
+            port: 7443,
+            fingerprint: Some("ab".repeat(32)),
+            ..ServerEndpoint::default()
+        }),
+        rejected: vec![OfflineRejection {
+            request_id: refused,
+            seed: 1,
+            origin: Origin::Gui,
+            command: Command::RetryOffline {},
+            code: "ERR004".into(),
+            error: "ERR004: gone".into(),
+            at_ms: 0,
+        }],
+        ..LinkState::default()
+    });
+    let runs: Vec<Run> = link_actions(&state)
+        .into_iter()
+        .chain(rejection_actions(&state, refused))
+        .chain(device_actions(&state, device))
+        .chain(server_actions(&state))
+        .map(|e| e.run)
+        .collect();
+    let names: HashSet<CommandName> = runs.iter().map(run_name).collect();
+    for name in [
+        CommandName::RetryOffline,
+        CommandName::DismissOfflineRejection,
+        CommandName::DisconnectServer,
+        CommandName::RevokeDevice,
+        CommandName::StartPairing,
+    ] {
+        assert!(names.contains(&name), "the fixtures reach {name:?}");
+    }
+    for front in FrontEnd::ALL.iter().copied() {
+        for name in names
+            .iter()
+            .filter(|n| front != FrontEnd::Touch || **n != CommandName::StartPairing)
+        {
+            assert!(
+                matches!(reach(*name, front), Reach::Control | Reach::Flow),
+                "{front:?}: {} is in a server list, so it is not {:?}",
+                name.as_str(),
+                reach(*name, front)
+            );
+        }
+    }
+    // The wizards' and the phone setup's connect step submits these.
+    for name in [CommandName::ConnectServer, CommandName::TrustServer] {
+        for front in FrontEnd::ALL.iter().copied() {
+            assert_eq!(reach(name, front), Reach::Control);
         }
     }
 }

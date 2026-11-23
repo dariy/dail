@@ -16,6 +16,6 @@ pub mod settings_blob;
 pub mod store;
 pub mod update;
 
-pub use config::{AccountConfig, Config, ConfigStore};
+pub use config::{AccountConfig, Config, ConfigStore, RemoteConfig, ServeConfig, ServeDevice};
 pub use profile::ProfileDirs;
 pub use store::{BlobDir, Compacted, IoError, ProfileStore, RedbStore, Store, blob_id};

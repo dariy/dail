@@ -39,4 +39,36 @@ pub enum SyncError {
     /// The session's engine task has stopped.
     #[error("ERR207: session closed")]
     SessionClosed,
+    /// The dail server could not start or serve (its key, certificate, listener, or paired
+    /// devices; ADR 0017).
+    #[error("ERR210: dail server: {0}")]
+    Serve(String),
+    /// Talking to a dail server failed: it could not be reached, its certificate is not the
+    /// pinned one, or it refused or did not follow the protocol (ADR 0017).
+    #[error("ERR211: dail server link: {0}")]
+    Remote(String),
+    /// A command that runs on the dail server and is never queued offline was dispatched on a
+    /// remote profile, and the connection went away before it could be sent (ADR 0017). Since
+    /// SRV-5b the commands that are queued wait for the replay instead, and the ones refused
+    /// offline are the engine's `ERR014`.
+    #[error(
+        "ERR212: `{command}` runs on the dail server, which is not connected ({status}); nothing was changed, try again when the link is online"
+    )]
+    NotOnline {
+        /// The command's name.
+        command: &'static str,
+        /// The link's status.
+        status: &'static str,
+    },
+    /// The dail server answered a request of this device with a refusal (a JSON-RPC error, such
+    /// as an origin its role may not claim). The link stays up (ADR 0017).
+    #[error("ERR213: the dail server refused `{method}`: {message}")]
+    Refused {
+        /// The request (`submit`, `preview`, …).
+        method: String,
+        /// The JSON-RPC error code.
+        code: i64,
+        /// The server's message.
+        message: String,
+    },
 }

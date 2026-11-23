@@ -184,7 +184,7 @@ one `tokio::mpsc` queue, so the engine needs no locks.
 
 ```rust
 // ids.rs — newtypes over Uuid / u64; all Copy + Ord + Serialize + JsonSchema
-AccountId, MailboxId, MessageId, ThreadId, DraftId, OpId, ApprovalId
+AccountId, MailboxId, MessageId, ThreadId, DraftId, OpId, ApprovalId, RuleId, RequestId /* a submission to a dail server */
 
 // state.rs
 pub struct AppState {
@@ -195,6 +195,7 @@ pub struct AppState {
     pub drafts:    IndexMap<DraftId, Draft>,
     pub outbox:    IndexMap<OpId, PendingOp>,          // remote ops not yet confirmed
     pub approvals: IndexMap<ApprovalId, ApprovalRequest>, // agent sends awaiting the user
+    pub devices:   IndexMap<DeviceId, Device>,         // paired with this profile as a dail server (ADR 0017, §4.7); shared
     pub view:      ViewState,                          // palette_open, mailbox, selected threads, checked threads, open thread,
                                                        // expanded: {MessageId: bool} (reader overrides), search,
                                                        // composer (open draft), focus: Pane, sidebar_collapsed
@@ -203,6 +204,8 @@ pub struct AppState {
     pub update:    UpdateState,                        // updates of dail (Wave 7, update.rs): host {version, target, install},
                                                        // status: idle|checking|available|downloading|ready|installing|installed|failed,
                                                        // last_check_ms, next_check_ms; the policy is settings.updates
+    pub synced:    SyncedState,                        // the settings document (ADR 0015)
+    pub link:      Option<LinkState>,                  // a mirror of a dail server only (ADR 0017, §4.7); device-local
     pub revision:  Revision,                           // counts engine inputs; not serialized, always compares equal:
                                                        // front-ends keep projections until it moves
 }
@@ -436,6 +439,12 @@ messages shown in a mailbox as one undo step; redo plans again over the restored
   recorded in history or written to the audit log. Sessions run it in their loop (`SessionClient::preview`, IPC method
   `preview`).
 - **IDs** — newtypes over `Uuid`, derived from `Ctx::id_seed` through `IdGen` (the n-th ID of a call is `seed + n`).
+- **Mirror events** (ADR 0017, §4.7): `LinkChanged{status}` and `RemoteSynced{revision, diff: StateDiff, snapshot?}`.
+  `Effect::is_device_local()` (exhaustive) says which effects a mirror still runs.
+- **Pairing and link** (ADR 0017, SRV-2; §4.7): events `DevicePaired{device}`, `DeviceSeen{id, at_ms}`,
+  `ServeFailed{error}`, `ServeListening{addresses, advertise, fingerprint}` (→ `status.serve`, §5.6), `ServerOffered{host, port, fingerprint}`, `ServerPaired{fingerprint}`, `LinkFailed{error}`; effects `OpenPairing{code,
+  role, name, expires_at_ms}`, `RevokeDevice{id}` (the server's), `ProbeServer{host, port}`, `PairWithServer{host, port,
+  fingerprint, code, secret}`, `DisconnectServer{secret?}` (the device's own, device-local).
 
 ### 4.4 Undo / redo semantics
 
@@ -463,6 +472,77 @@ when its draft is discarded, sent by the user directly or its account removed, a
 user never approves text they haven't seen; the user's own edits keep it. An agent's undo of a `cancel_send` asks too.
 `dail mcp --allow-send` submits as `Origin::McpAllowSend`, whose sends leave without approval. Requests persist in the
 `approvals` table (`MailDelta.approvals` / `removed_approvals`); a snapshot drops requests whose draft is gone.
+
+### 4.7 Mirror mode (ADR 0017, SRV-1)
+A device with a remote profile runs its own engine over a *mirror* of a dail server's state. Three pure pieces:
+
+- **`Command::placement()`** (`link.rs`): `server` | `client` | `server_with_upload` | `client_with_blob`, from the
+  exhaustive `CommandName::placement()`. `server`: mutations, sends, destructive, account, certificate, folder and rule
+  commands, undo/redo, the synced settings and queries over mail. `client`: every `View` command, `get_view`,
+  `get_settings`, the device's appearance (`set_theme`, `set_keybinding`, `set_key_preset`), `compact_store` (its own
+  store) and the update commands (its own binary). `attach_file` is `server_with_upload`, `save_attachments`
+  `client_with_blob`. `set_setting` follows its key (`SettingKey::placement()`): theme, text size, notifications, TUI
+  colours and the Android background checks stay on the device; the rest (what the server's engine uses and the shared
+  settings) goes to the server. `app-core/tests/it/link.rs` pins the table.
+- **`StateDiff`** (`diff.rs`): `diff(old, new)`, `apply`, `snapshot`, `is_empty`. Keyed collections (`accounts` …
+  `approvals`, `devices`) change entry by entry (`MapDiff{upsert, remove, order?}`, `order` only when removing and upserting alone
+  would not give the new key order); `settings`, `status` and `synced` are replaced whole when they changed. The
+  device-local `view`, `update` (each device updates its own dail) and `link` are never part of it. Nor are the
+  device's own fields of `settings` and `status`: `Settings::keep_device_local` and `StatusState::keep_device_local`
+  (exhaustive destructuring) put them back in `apply` and in `clear` before a snapshot, and `diff` compares only the
+  server fields. Device settings are those of `client` commands and keys: `theme`, `theme_light`, `theme_dark`,
+  `text_scale`, `notifications`, `tui_colors`, `background_sync`, `background_interval_mins`, `key_preset`, `keys`,
+  `updates`; `images_from`, `pinned_mailboxes`, `hidden_mailboxes`, `settings_account` and the engine and shared keys
+  are the server's (a test pins each field's side to its command's placement). Device status: `persist_error`,
+  `quarantined`, `compaction` (its own store), `metered` (its own network) and `saves` (`save_attachments`); the rest
+  (keyring, sync, polls, fetches, searches, discovery, certificate offers, `serve_error`, `serve`) is the server's. `diff(a, b).apply(a)` gives
+  `b` on every other field, order included (a proptest over random triage sessions).
+- **`state.link: Option<LinkState{status: connecting|online|offline, revision, queued, rejected}>`**: present only in
+  mirror mode. While it is set, every input still applies locally (optimistic), but `dispatch` and `ingest` return only
+  the effects for which `Effect::is_device_local()` holds: `persist_state`, `schedule_tick`, `inspect_attachment`,
+  `save_attachments`, `compact_store` and the update effects. Mail-server, keyring, discovery, full-text-index and
+  `read_draft` effects belong to the server, so a mirror never polls, syncs, runs rules or sends. While the link is
+  not `online` (`connecting` or `offline`), `Command::offline_policy()` decides (SRV-5b; an exhaustive match on
+  `CommandName`, refined for `set_setting` by its key, pinned in `tests/it/link.rs`): **`queue`**, the mutations of
+  mail, drafts, folders and rules, undo/redo and `send_draft` (the server starts its undo window on arrival), succeed
+  locally and are appended to `link.queued` as `QueuedCommand{request_id, seed /* the call's id_seed, as a decimal
+  string */, origin, command, queued_at_ms}` (the receipt lists `link`); **`refuse`**, the destructive commands the
+  server runs, the account, identity, certificate and settings-account commands, `start_pairing`, `revoke_device`,
+  `approve_request`, `reject_request`, and `sync_now`, `pull_settings`, `push_settings` (only meaningful now), fail
+  with `error_014_refused_offline` (ERR014) and change nothing (a queued `start_pairing` would keep its code-bearing
+  seed in the state); **`local`**, every `client`/`client_with_blob` command and every query, run as usual. While
+  online nothing is queued, as the runtime forwards the command (SRV-5). The runtime reports a replayed command's fate
+  with `QueuedDelivered{request_id}` (it leaves the queue) or `QueuedRejected{request_id, code, error, at_ms}` (it
+  moves to `link.rejected` as `OfflineRejection{request_id, seed, origin, command, code, error, at_ms}`; `at_ms` is
+  the runtime's clock), and a forwarded command whose answer was lost, or that found older ones waiting, with
+  `Requeued{entry}` (appended with its request ID unless it is there already or is not `queue`); unknown request IDs
+  are ignored. Every change of the queue or the rejections emits `persist_state` of
+  `PersistDelta::OfflineQueue{queued, rejected}` (the `link` table of `state.redb`, §6), so they survive a restart.
+  `LinkChanged{status}` sets the status and turns mirror mode on. `RemoteSynced{revision, diff, snapshot}` applies the
+  diff (a `snapshot` first clears the shared state) and records `revision`; a non-snapshot diff whose revision is not
+  newer is ignored (`data.stale`). It emits `persist_state` of the mirror's mail it changed (a diff's upserts and
+  removals; for a snapshot, what differs from the mail before it), so an optimistic change a snapshot took back is
+  not left in the local store. Neither is recorded in history. Fixtures: `tests/replay/remote_offline.jsonl`,
+  `tests/replay/remote_replay.jsonl` (queue, refusals, delivered, rejected, retried).
+- **Pairing and the link** (SRV-2; fixture `tests/replay/devices.jsonl`). On the server, `state.devices:
+  IndexMap<DeviceId, Device{id, name, role: user|agent, paired_at_ms, last_seen_ms?}>` is shared (part of `StateDiff`,
+  so a paired desktop lists them); no token or token hash is in state (the server keeps the hash in `config.toml`,
+  SRV-3). `start_pairing` returns its code in the receipt only and emits `OpenPairing`; `revoke_device` emits
+  `RevokeDevice`; the runtime reports `DevicePaired` and `DeviceSeen`, and `ServeFailed` (into the shared
+  `status.serve_error`, cleared by the next pairing) when it cannot open a code or revoke. On a device,
+  `link.server: Option<ServerEndpoint{host, port, offered?, pairing?, fingerprint?, token?: SecretRef}>` and `link.error`:
+  `connect_server` sets the server (and turns mirror mode on) and emits `ProbeServer`; `ServerOffered` records the
+  fingerprint the server presented (`offered`; an offer from another host or port is ignored); `trust_server` records
+  it as `pairing` and emits `PairWithServer`, whose runtime keeps the device token in the keyring under `server.token`
+  and reports `ServerPaired` (which pins `pairing` as `fingerprint` and emits `persist_state` of
+  `PersistDelta::Remote(Some(server))`, the `[remote]` table of §6; `disconnect_server` of a pinned link emits
+  `PersistDelta::Remote(None)`) and `LinkChanged`; `LinkFailed` sets the link
+  `offline` with `link.error` and ends a pairing in progress (`trust_server` can be retried with a new code) (without a link, after `disconnect_server`, it
+  is the keyring's error). `ProbeServer`, `PairWithServer` and `DisconnectServer` are device-local (the device's own
+  work with its server); `OpenPairing` and `RevokeDevice` are the server's. The live backend fails the four network
+  ones as unsupported until SRV-3/SRV-4 (the failure shows in `serve_error` or `link.error`) and deletes the token on
+  `DisconnectServer`; the fake backend opens codes and revokes silently, presents `FAKE_SERVER_FINGERPRINT` and pairs
+  any well-formed code. `OfflineRejection` carries the queued command's `seed` and `origin` for `retry_offline`.
 
 ### 4.5 Command registry
 
@@ -515,7 +595,8 @@ The **parity tests** (`app-core/tests/it/registry.rs`, `app-mcp/tests/it/parity.
   One-shot CLI runs abort the timer on shutdown, so they never poll;
 - the **IPC listener** (GUI and `dail mcp`, §5.4).
 
-`Backend` is a trait object with `Live` (IMAP/SMTP + redb) and `Memory` (app-testkit) implementations. Besides `execute(effect)` and
+`Backend` is a trait object with `Live` (IMAP/SMTP + redb) and `Memory` (app-testkit) implementations; a remote profile's
+session wraps one in `RemoteBackend` (`Session::open_remote`, §5.6). Besides `execute(effect)` and
 `load_state()` it offers `get_blob(id)`: the core can't read blobs, so `Session::submit` resolves the body references
 (`body: {state: "fetched", blob}`) of a `get_thread`/`get_message` receipt with `include_body` itself (`app_sync::bodies`): it
 parses each blob with `app_io::mime::parse_message` and puts `{text, text_source, attachments}` into the message's
@@ -814,7 +895,9 @@ or on Windows the named pipe `dail-<FNV-64 of the profile path>`; a stale socket
 `dail exec`, `dail batch`, `dail account add`, `dail tui` and `dail mcp` first `ipc::claim` the profile: connect to the socket
 (→ `Claim::Attached(IpcClient)`), else take the lock (→ `Claim::Owned`, open the profile here), else retry for up to 10 s
 (`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does. Front-ends talk
-to a `Connection`: `Local(SessionClient)` or `Attached(IpcClient)`. `SessionClient` is a cloneable handle of a `Session`
+to a `Connection`: `Local(SessionClient)`, `Attached(IpcClient)` or `Remote(RemoteSession)` (a session of this process
+that may be a device of a dail server, §5.6 *Remote profiles*; `Session::connection()` gives it, and the IPC listener
+serves it, so an attached `dail exec` is forwarded to the server like the owner's own commands). `SessionClient` is a cloneable handle of a `Session`
 (`Session::client`) that does not keep it alive: after `shutdown` its calls fail with `SessionClosed`. This way an agent
 always drives the same state the user is looking at, and the GUI repaints live when an agent archives a thread. With
 `--backend memory` a session is private unless `--profile-dir` is given, which then provides the lock and socket only.
@@ -838,6 +921,71 @@ and `mcp_allow_send` origins may be claimed, so a local client can't pose as the
 password (it must reach the owner's keyring; the socket is user-only); everywhere else `Secret` serializes as `<redacted>`.
 Transport failures are JSON-RPC errors (`-32600` bad request, `-32601` unknown method, `-32602` bad params or origin,
 `-32603` session closed).
+
+The framing (`app_sync::rpc`) is generic: `ipc::serve_stream` serves this protocol on any `AsyncRead + AsyncWrite`
+stream (the local socket, a pipe in tests), and `rpc::RpcClient` calls over any stream (`into_notifications` turns a
+connection into its notification stream after `watch`). Lines are read with a length limit where the peer is not
+trusted (`rpc::LineReader`).
+
+#### The dail server's transport (ADR 0017, SRV-3)
+`app_sync::serve` runs the same JSON-RPC over TLS for paired devices; `app_sync::remote` is the device side. `dail
+serve` (§5.6) runs the server; remote profiles (§5.6 *Remote profiles*, `app_sync::link`) run the device side.
+
+- **Identity** (`ServerIdentity::load_or_create(<profile>/serve, hosts)`): a P-256 key made once (`getrandom`) in
+  `serve/key.p256`, and a self-signed X.509 v3 end-entity certificate built with `x509-cert` and signed with `p256`'s
+  ECDSA in `serve/cert.der` (`CN=dail server`, `serverAuth`, SANs: the advertised hosts plus `localhost`, `127.0.0.1`,
+  `::1`; valid 20 years). Dir 0700, files 0600 on Unix. Kept across restarts even when the hosts change; made again only
+  when missing or not the key's. rustls signs with it through an `rustls::sign::SigningKey` in app-sync (app-tls loads
+  no private keys).
+- **Listener** (`DailServer::start(identity, hub, session, seeds, options)`, `listen(addr)` per address): tokio-rustls,
+  TLS 1.3 only, the app-tls provider, no client certificates. Any address; one outside loopback, RFC 1918, CGNAT
+  `100.64.0.0/10` and ULA `fc00::/7` (`serve::is_private_address`) gets a `warn!`. The handshake and the first request
+  must arrive within 10 s; the first line is at most 16 KiB, later lines at most an upload's size in base64. At most
+  8 connections per peer IP may be unauthenticated at once (`MAX_UNAUTHENTICATED_PER_IP`: in the handshake or before
+  `hello` is answered); further ones are closed as soon as they are accepted.
+- **Dialer** (`remote`): TLS 1.3 with a verifier that accepts only the certificate whose SHA-256 is the pinned
+  fingerprint (no web roots, names or dates; the handshake signature is still verified with the provider's
+  algorithms). `probe(host, port)` accepts any certificate, returns its fingerprint and sends nothing
+  (`Effect::ProbeServer` → `ServerOffered`). `pair(host, port, fingerprint, code)` exchanges a code for a token
+  (`Effect::PairWithServer`: the token goes to the keyring under `link.server.token`, then `ServerPaired`; a failure is
+  `LinkFailed` with a message that holds neither token nor code). `RemoteClient` (`connect` = dial + `hello`, `submit`,
+  `preview`, `flush`, `state`, `watch` on a connection of its own, `blob`, `put_file`) is what the link of a remote
+  profile uses (§5.6).
+- **Pairing** (`ServeHub`, shared by `LiveBackend::with_serve` and the listener): `Effect::OpenPairing` opens a code
+  (single use, until `expires_at_ms`, case and spaces ignored). A wrong or expired code counts against the peer's IP;
+  the 5th within a minute burns **every** open code (`MAX_WRONG_CODES`, `WRONG_CODE_WINDOW_MS`), so guessing needs a new
+  `start_pairing`. A valid code gives a token of 32 bytes from `getrandom` (base64url on the wire), a `DeviceId` from the
+  session's seed source, `Event::DevicePaired`, and a `[[serve.devices]]` row with the token's SHA-256. A `pair`
+  connection is closed after its answer. Tokens are checked by hashing the presented token and comparing with every
+  stored hash in constant time; the lookup and the connection's registration are one critical section, before
+  `hello` is answered, so a revocation either comes first or signals the connection. `Effect::RevokeDevice` removes the device from memory first (its token fails at once),
+  flips the revocation signal of each of its connections (they close mid-request or mid-watch), then removes the row.
+  Without a hub (`LiveBackend` not serving) both effects fail with `ERR210` → `serve_failed`.
+- **Protocol v1** (`serve::PROTOCOL`; the first request is `pair` or `hello`, anything else, a wrong token or another
+  protocol number gets an error and the connection is closed):
+  `pair {code}` → `{token, device: {id, name, role}, protocol, instance}`;
+  `hello {token, protocol, client_version}` → `{protocol, server_version, instance, device}` (`instance`: a UUID per
+  server process, so a device sees a restart);
+  `submit {origin, command, request_id, seed}` → as on the socket. Roles: `user` claims `gui`, `tui`, `cli`, `batch`;
+  `agent` only `mcp` (and `mcp_allow_send` with `ServeOptions::allow_send`); others get `-32004`. `seed` (a `u128` as a
+  decimal string) is the dispatch's `Ctx::id_seed` (`SessionClient::submit_seeded`), so IDs equal those the device made
+  offline. The answers to each device's last 1024 `request_id`s are kept (`REPLAY_MEMORY`): a resend gets
+  the stored answer without a dispatch. Those of commands that are not queries (and not `start_pairing`, whose
+  receipt holds the pairing code) are also written to `<profile>/serve/answers/<device-id>.json` (user-only
+  permissions, at most 1024, oldest first, rewritten after each such submission; read when the device first submits
+  after a start; removed on `revoke_device`), so a device's replay after a restart of the server is not dispatched
+  twice (SRV-5b);
+  `preview`, `flush` as on the socket; `state` → `{revision, state}` (`state` is `StateDiff::snapshot`, so no `view`,
+  `update` or `link`; `revision` is `AppState::revision`);
+  `watch {since?, instance?}` → `null`, then only `changed {revision, diff}` after each burst of changes, starting with
+  the change since `since` when that state is among the last 16 the server saw and `instance` is its own, else
+  `resync {revision, state}` (a snapshot);
+  `blob {id}` (64 hex) → `{bytes}` (base64) or `null`;
+  `put_file {name, bytes}` → `{path}`: at most 25 MiB (`MAX_UPLOAD_BYTES`, `-32003` beyond), stored as
+  `serve/uploads/<uuid>/<name>` with `app_io::mime::safe_file_name`, for `attach_file`. `serve::sweep_uploads`
+  removes the folders no draft names once they are a day old (`UPLOAD_MAX_AGE`); `dail serve` runs it at start.
+  Each answered request reports `DeviceSeen` at most once a minute per device. Error codes: `-32001` not authorized,
+  `-32002` protocol mismatch, `-32003` too large, `-32004` origin refused, plus the socket's.
 
 ### 5.5 Updates of dail (Wave 7, ADR 0011)
 
@@ -872,17 +1020,231 @@ badge in the top bar (it opens that section) and the question as a callout over 
 first rows of the general settings and in the status line; the phones as the frame's banner. The policy is saved as
 `[settings.updates]` in `config.toml` (`checks`, `interval_hours` 1–720, `skipped_version`).
 
+### 5.6 Serving (`dail serve`, ADR 0017, SRV-4)
+
+**Process.** `dail serve [--listen <addr:port>]… [--advertise <host>]… [--allow-send]` owns the profile headless, like
+the GUI (`runtime::own`): it refuses to start while another dail owns the profile ("already running"). It opens the
+live session with `LiveBackend::with_serve(hub)`, the `ServeHub` sharing the profile's `ConfigStore`
+(`ProfileStore::config`, so `[[serve.devices]]` and the rest of `config.toml` never overwrite each other), listens on
+the profile socket (§5.4: `dail exec`, `batch`, `tui`, `mcp` and `dail serve pair` attach) and starts a `DailServer`
+with a listener per `--listen`. At start it sweeps old uploads (§5.4), and prints to stderr the profile, each bound
+address and the certificate's SHA-256 fingerprint. It logs through `tracing` to stderr (`DAIL_LOG`, default
+`warn,app_sync=info`: listeners, pairings, revocations; never a code or token), without colours unless stderr is a
+terminal. Ctrl+C or SIGTERM (Unix; on Windows only Ctrl+C) stop it: the listeners close, the session shuts down (drafts saved, running work
+finished), the lock is released, exit 0. It never updates itself (`dail update` does, when run by hand).
+
+- **Listen.** Default `127.0.0.1:7443`: loopback only, so nothing is reachable from the network until the user names
+  an address. 7443 is unprivileged and not a common service's port; `dail remote add` dials it when no port is given.
+  Port 0 picks a free port. Any address is accepted; one outside private networks gets the listener's warning.
+- **`--advertise <host>`**: the names devices reach the server by (a Tailscale MagicDNS name). They go into the
+  certificate's SANs when it is made (devices pin the fingerprint, not names) and into `dail serve pair`'s output.
+- **`--allow-send`** sets `ServeOptions::allow_send`: agent devices may then claim `mcp_allow_send`, the origin
+  `dail mcp --allow-send` uses, so an agent's `send_draft` skips the approval exactly as there. Without it an agent
+  device submitting as `mcp_allow_send` gets `-32004`. User devices are unaffected (they may approve anyway).
+- **Files** under `<profile>/serve/` (0700): `key.p256` and `cert.der` (§5.4), `uploads/`, and `listening.json`
+  (0600: `pid`, the bound `addresses`, `advertise`, `fingerprint`, `allow_send`), written once listening and removed
+  on a clean stop; `dail serve pair` reads it. Every owner of the profile (GUI, TUI, `dail mcp`, a one-shot `exec`)
+  removes it when it takes the lock, so a file left by a crash is gone before another owner listens: while the
+  profile is owned, the file exists only if the owner is `dail serve`, and `pair` attached to another owner refuses
+  ("is not `dail serve`").
+- **`--backend memory`** needs `--profile-dir` (the socket and `config.toml` live there). The CLI's memory backend
+  (`runtime::MemoryServe`) fakes the mail servers, but the dail server is real: codes and revocations run on the hub,
+  the devices kept in `config.toml` are listed at start, and a memory *device* probes and pairs over TLS for real,
+  keeping its token in memory. The smoke gate runs this way (AGENTS.md §6, step 5).
+
+**Pairing.** `dail serve pair --role user|agent --name <name>` attaches to the running server only (never opens the
+profile: a code is useless without the listener) and submits `start_pairing` as `cli`. It prints one JSON line
+`{"ok","name":"pairing","code","role","device_name","expires_at_ms","fingerprint","addresses"}` (`addresses`: each
+advertised host with the first listener's port, then each bound address) and the same for people on stderr. The code
+is meant to be read by the user (ADR 0017); it is never logged. On the device, `dail remote add <host[:port]>`
+submits `connect_server`, waits for the probe, shows the offered fingerprint (in lines of 16 bytes) and asks whether
+it matches the one `dail serve` printed, asks for the code, then submits `trust_server` and waits for
+`server_paired` or `link_failed`. `--fingerprint <hex>` (colons allowed; it must equal the offered one, else the
+command refuses) and `--code` answer both for scripts; without a terminal both are required. A profile with accounts
+is refused by the engine (`error_013_profile_has_accounts`, ERR013), with a hint to use another profile. A pairing that does not complete is
+undone with `disconnect_server`, so the profile is a plain one again. Each step prints its receipt; the last line is
+`{"ok","name":"remote","link"}`. After pairing the profile holds `state.link` (pinned fingerprint, the token's
+`SecretRef`; the token is in the OS keyring), `[remote]` in its `config.toml`, and is a remote profile (below).
+`dail remote status` prints `{"name":"remote_status","linked",…}` with the link's status, server (host, port, pinned
+and offered fingerprints), revision, queued count, refused commands and last error: the owner's live link when it
+attaches, else the link of its own session once it has dialed (at most `RemoteOptions::settle_timeout`, 15 s).
+
+**Pairing link and QR code** (SRV-QR1, `app_front::pairing`, `app_front::qr`). Once listening, `dail serve` feeds
+`Event::ServeListening {addresses, advertise, fingerprint}`: `status.serve` (never stored; the server's in a
+`StateDiff`, so a mirror sees it). The link is `dail://pair?v=1&h=<host>&p=<port>&c=<code>&fp=<sha256 hex>&n=<name>`
+(`PairingUri::to_uri`: every byte of a value but RFC 3986 unreserved ones percent-encoded; `n` is the device name of
+`start_pairing`). `parse_uri` treats a scanned link as hostile: at most 1280 bytes (checked first); the prefix exactly
+`dail://pair?`; no fragment; only query characters raw; each of `v h p c fp n` exactly once, nothing else, `v=1`;
+strict percent-decoding to UTF-8; `h` a DNS name (LDH labels of 1–63, ≤ 253 bytes, last label not numeric;
+lower-cased), an IPv4 or a bare IPv6 address (no brackets, no zone; canonical text); `p` 1–65535 without leading
+zeros; `c` 8 base32 characters (upper-cased); `fp` 64 hex digits (lower-cased); `n` 1–64 characters without control,
+bidi or zero-width formatting characters, line separators or outer white space. Errors `ERR462`–`ERR474` never repeat
+the text. **Host in the link:** on a device mirroring a server, its own `link.server` host, port and pinned
+fingerprint; on the server (`status.serve`), the first valid advertised host with the first listener's port, else the
+first bound address neither loopback nor unspecified, else the first loopback one; none (only `0.0.0.0`): no link,
+the code alone. The QR code is at error correction M (`ERR461` beyond its capacity). `dail serve pair` adds `uri` to
+its JSON line, prints the link and, when stderr is a terminal and without `--no-qr`, its QR code in half-blocks, black
+on bright white through ANSI (with `NO_COLOR`: plain glyphs drawing the light modules, for a light-on-dark terminal);
+`--host <host>` names another host (checked as `h`).
+
+**Remote profiles** (SRV-5a, SRV-5b, `app_sync::link`). Source of truth: `config.toml` `[remote] host, port, fingerprint,
+token` (§6). Opening the profile puts `state.link` = `{status: connecting, server: pinned}` (mirror mode, §4.7), with
+the offline queue and rejections from `state.redb`'s `link` table and the mirrored accounts from its
+`mirror_accounts` table, so the cached mail opens offline after a restart (`remote_synced` persists the accounts it
+changed as `PersistDelta::Account`/`AccountRemoved`, which `ProfileStore` routes to `state.redb` while `[remote]` is
+set; `config.toml` keeps no accounts, ERR108 unchanged); the engine writes `[remote]` through
+`PersistDelta::Remote(Some(server))` when `server_paired` pins the server and removes it with
+`PersistDelta::Remote(None)` on `disconnect_server` of a pinned link (both `persist_state`, device-local).
+`state.link.server` mirrors `[remote]` while the process runs; nothing else writes the table.
+- **Session.** Every owner but `dail serve` opens its session with `Session::open_remote(inner, secrets, …)`
+  (`runtime::open_owned`; the TUI, the GUI, `exec`, `batch`, `mcp`), so a plain profile becomes a device as soon as
+  it is paired. `RemoteBackend` wraps the live (or memory) backend: the device-local effects run there; `get_blob`
+  falls back to the server's `blob` while connected (open original, previews, `include_body` from the mirror), and
+  `SaveAttachments` (`client_with_blob`) fetches the body from the server when the local store lacks it, then writes the
+  files locally (`saves::save_attachments`). **Blob cache:** a body read from the server is kept in the device's own
+  blob store (`Backend::put_blob`: `blobs/` of §6, content-addressed) once its SHA-256 matches its ID (a body that does
+  not match is not kept), so it opens offline, and `compact_store` keeps it while the mirror names it.
+- **Link task.** Whenever `state.link.server` is pinned and has a token: `link_changed{connecting}`, the token from the
+  `SecretStore` (OS keyring; memory: `MemorySecrets`), `RemoteClient::connect` (dial + `hello`); the client is shared
+  (queries go to the server); the **replay** of the queue; only then `state` → `remote_synced{snapshot: true}` and
+  `watch{since: revision}`, so the server has the device's offline work before its snapshot is taken and the snapshot
+  never takes it from the mirror (an offline draft stays, an open composer stays open); it takes back only what the
+  server refused. Then a replay of what was queued meanwhile, and `online`. A replay sends the entries of `link.queued` are sent in order, each with its own `request_id`, `seed` and `origin`
+  (`attach_file` first uploads its local file with `put_file` and sends the server's path; a file that is gone or too
+  large is a refusal). The server running it → `queued_delivered`; the server refusing it (its engine's rejection,
+  with its code, or a request refusal, `ERR213`) → `queued_rejected` with the error and the runtime's time, and the
+  replay goes on; a transport failure stops it and the rest waits for the next connection (the server answers a resent
+  `request_id` from memory, on disk across its restarts, §5.4). After each batch the task flushes the session and reads
+  the queue again, so what was queued meanwhile follows; only once the queue is empty does it report
+  `link_changed{online}` (until then the engine queues new commands behind the others). A later replay with refusals
+  ends with a fresh snapshot, which takes their optimistic changes back. A queued `undo`/`redo` runs against the
+  server's history when it arrives: right after the replayed commands it follows, that is the device's last change,
+  unless another device changed something in between (accepted, SRV-5b). While online, a non-empty queue (a `requeued`
+  command) is replayed the same way. Each `changed` becomes `remote_synced`, a `resync` a snapshot. **Pre-loading:**
+  after each (re)connect and replay a background task reads the bodies of the newest `RemoteOptions::preload_bodies`
+  (200) messages with a body on the server (INBOX first, then the other mailboxes, each newest first; none above
+  `PREFETCH_MAX_BYTES`; skipped on a metered network) that the local store lacks, over `preload_connections` (2)
+  connections of its own (the commands' connection is never blocked), and keeps them (blob cache). It stops with the
+  connection. A failed dial or a lost connection is `link_failed{error}` (offline, the error in `link.error`; never
+  the token), then a pause of `backoff_min` (1 s) doubling to `backoff_max` (60 s), reset after a connection; a server
+  restart (new `instance`) is a lost connection followed by a fresh snapshot. A link that is removed or re-pinned ends
+  the connection at once. The task is aborted (and the client dropped) when the session shuts down.
+- **Response limits.** A device reads an answer of at most `rpc::RESPONSE_LIMIT` (16 MiB), a `blob` answer of at most
+  the server's own request limit (`serve::MAX_LINE`: a 25 MiB upload in base64 and 64 KiB), a `state` answer or a
+  notification of at most `rpc::SNAPSHOT_LIMIT` (256 MiB); a longer line ends the connection.
+- **`Connection::Remote`** (`RemoteSession::submit(cmd, origin)`), by `Command::placement()`: `client` and
+  `client_with_blob` → the local session only. Without a pinned link everything is local. A `server` query → the server
+  while connected (its receipt, with bodies), else the mirror. Any other `server`/`server_with_upload` command →
+  dispatched locally first with a fresh seed (optimistic). If the engine queued it (the link is not `online`) or
+  refused it offline (ERR014), that is the answer: the command waits for the replay. Else `submit {origin, command,
+  request_id, seed}` with the same seed (so the server creates the same IDs) and `request_id` = the seed as a UUID.
+  **The server's answer is the one returned.** A server refusal of a command the mirror accepted asks the link for a
+  fresh snapshot (ingested before the call returns), so the optimistic change does not stay; the caller gets the
+  refusal. A transport failure drops the connection and the command (if its policy is `queue`) is appended to the
+  queue with the same `request_id` (`requeued`), to be resent on reconnect; the caller gets the mirror's receipt.
+  A `queue` command that finds older ones still queued while online is appended behind them the same way, so the
+  order is kept. A `refuse` command that cannot be sent is `ERR211`, or `ERR212` (`SyncError::NotOnline`) if the
+  connection went away between the dispatch and the send. A refusal of the request itself (a JSON-RPC error: an origin
+  the role may not claim, an upload too large) is `ERR213` (`SyncError::Refused`) and keeps the link up; the mirror is
+  reset by a snapshot as for a rejection. An origin the device's role (from `hello`) may never claim is refused with
+  `ERR213` before anything is applied (offline it is checked on replay, and refused there). `attach_file` uploads the
+  file first while connected (`put_file`, at most 25 MiB; a local file that does not read is refused before anything
+  changes) and sends the server's path; the mirror keeps the local one until the diff brings the server's; queued, it
+  is uploaded at replay. The caller's origin is forwarded unchanged; the server enforces the device's role and the
+  approvals (an agent's `send_draft` still needs one). `preview` of a `server` command runs on the server while
+  connected; `flush` waits for the local effects and, while connected, for the queue to be replayed (at most the
+  settle timeout), the server's effects (`flush`) and a fresh snapshot, so a one-shot run ends with the server's state;
+  `state`/`subscribe` are the mirror's. One-shot runs (`runtime::connect`) wait until the link has connected (queue
+  replayed) or failed once (`RemoteSession::wait_settled`) before their first command.
+- **Rejections** stay in `link.rejected` (with the code, message, time, seed and origin) until `retry_offline` (back
+  to the end of the queue under new request IDs, same seed and origin) or `dismiss_offline_rejection`; `dail remote
+  status` counts them. The front ends show them as problems (SRV-6, §7.1, §7.4).
+
+**In the front ends** (SRV-6; `app_front::connect`, `app_front::server`, the shared lists of `app_front::actions`).
+The account wizards of the GUI and the TUI offer *Connect to a dail server instead* on a profile without accounts:
+`ConnectFlow` (`Address` → `Probing` → `Compare` or `Mismatch` → `Pairing` → `Paired`, or `Failed` with a retry of
+the address or the code) runs the steps of `dail remote add` as replies and state arrive. The server is
+`host[:port]` (`connect::parse_server`: `dail remote add`'s rules, port 7443 by default, the host a DNS name or an
+IP address) or a pasted `dail://pair` link (`pairing::parse_uri`, untrusted): the link fills the server and the code
+and sets the fingerprint the server must offer; any other offer is `Mismatch` and nothing is trusted. The offered
+fingerprint is shown in groups of four, eight a line (as *Pair a device…*); `trust_server` takes the code as a
+`Secret` (the field is emptied). A failure counts only after the command's reply and either the attempt seen in
+progress, a new error, or `connect::GRACE_MS` (1.5 s), since a retry can fail with the same text and a front end can
+see a state older than the reply. Given up before pairing, the flow removes its unpinned link (`disconnect_server`).
+The link's status (`server::summary`: *Online*, *Connecting…*, *Offline · 3 queued*) is in the GUI's top bar and the
+TUI's status line, with its details (`server::details`: server, connection, pinned certificate, revision, queued, last
+error) and `actions::link_actions` (*Retry refused changes*, *Disconnect…*, which confirms in the palette). Each
+`link.rejected` entry is a problem (`status::problems`, `Fix::Refused`: the command's title, the translated error)
+with `actions::rejection_actions` (*Retry all*: `retry_offline` re-queues every refusal; *Dismiss*). The *Devices*
+settings (`server::devices`, `server::shows_devices`: devices paired, or this front end can pair) list each device
+with its role, pairing date and last connection, `actions::device_actions` (*Revoke…*, confirms) and *Pair a
+device…* (`actions::server_actions`).
+
+**On phones** (SRV-7; `app-host`, `app-mobile`, §7.5, §7.6). The setup's first step on a profile without accounts
+offers *Connect to a dail server* beside the providers; *Next* opens `ConnectFlow` drawn into the setup sheet
+(`mobile/connect.rs`): the `server` field (a pasted `dail://pair` link is read at once and the field reloaded), the
+offered fingerprint as `SetupSheet.fingerprints` (groups of four, monospace, selectable; with a mismatch the link's
+too), the `code` field, a spinner while probing or pairing, *Try again* / *Enter another code*, *Close* once paired.
+Its commands go out as `Purpose::Connect`; a button runs only at the stage it was drawn for. `UiEvent::PairLink {uri}`
+is the entry point of a link from outside the app (the deep link of SRV-QR2): the flow reads
+it into the server field (server, code, the fingerprint to expect) and stops there; only the user's *Connect* sends
+`connect_server`, then the user compares and taps *Pair*; a phone with accounts or a server refuses it with a
+snackbar. The deep link (SRV-QR2: Android's `dail://pair` intent filter, iOS's `dail` URL type) lets
+any web page or app open such a link, so the link is untrusted input: the hosts only forward its text (a prefix test,
+no parsing), `parse_uri` reads it, a link makes the phone connect nowhere before the user's *Connect*, `trust_server`
+still waits for the user's *Pair*, and the server and Compare stages of a flow a link started carry `SetupSheet.warning` (*A link opened this pairing with {server}. Only continue if you just
+scanned or opened this code from your own dail server.*), dropped once the server field is edited. A link never
+replaces a flow under way: unless the open flow is still an empty server field, it is dropped with a snackbar (*A
+pairing is already under way…*), and the user finishes or cancels the open one first. The server stage of a phone
+that can pair (`availability` open) also offers *Scan QR code* (SRV-QR3, before *Connect*): it emits
+`External::ScanQr` and nothing else, and the host answers `UiEvent::Scanned {text}` (the first decoded QR code, as
+decoded), `ScanCancelled` or `ScanFailed {reason}` (`denied`, `no_camera`, `failed`; each a snackbar: a refused
+permission points to the system settings). An answer counts only after the presenter asked (a stray `scanned` is
+dropped). The text is as untrusted as a link (a poster can carry a code): `parse_uri` decides, and anything but a valid
+`dail://pair` link is never followed (*This QR code is not a dail pairing code.*); a valid one takes the link's path
+exactly (filled in, the warning, the user's *Connect*, then *Pair*), except that it replaces what was typed at the
+server stage the scan was asked from. A linked phone shows the link before the sync time in the top bar's subtitle (*Online ·
+Synced 2m ago*), a refusal in the problem banner with *Retry all* and *Dismiss*, and under the Accounts settings a
+*dail server* group (the details, refusals, *Retry refused changes*, *Disconnect…*) and a *Devices* group (*Revoke…*).
+*Pair a device…* stays desktop-only: it draws the QR code.
+
+`app-host` opens every live profile with `Session::open_remote` (as the CLI does), the platform's secret store
+(Keystore, Keychain) for both pairing and the link, so a phone can pair from its first run. A profile with `[remote]`
+opens as `BackendChoice::Remote` (`Host::backend`; `"remote"` asked of a plain profile is `ERR311`), its link with
+100 bodies pre-loaded over one connection. Commands from notifications and the debug bridge, and `flush`, go through
+the `Connection`, so a device forwards them. The background `check` of a linked profile talks to no mail server: it
+dials the link if it is down, waits for it to settle and flushes (the queue replayed, the mirror current); the
+server polls, runs the rules and sends. `online` (the network came back) dials at once instead of after the back-off.
+A picked or shared file is copied into `outgoing` as before (Android: from the content URI's descriptor; iOS: the
+document picker's own copy), and `attach_file` names the copy, which `RemoteSession` uploads with `put_file` (25 MiB,
+the same limit the copy enforces, `ERR331`). The sweep keeps copies a queued `attach_file` still names.
+
+**Roles and revocation.** Roles are those of the protocol (§5.4): `user` devices may act as GUI, TUI, CLI and batch
+(so they can approve), `agent` devices only as MCP. `dail serve devices` prints `list_devices`'s receipt; `dail serve
+revoke <id> [--yes]` submits `revoke_device {confirm: true}` after asking on the terminal (without one, `--yes` is
+required; exit 2). Both attach to the running server or, when none runs, open the profile with the hub (no listener),
+so a lost phone can be revoked while the server is stopped and the revocation still reaches `config.toml`.
+
+**Running it.** `packaging/systemd/dail-serve.service` is a user unit (`ExecStart=%h/.local/bin/dail serve …`,
+`Restart=on-failure`, SIGTERM to stop, the sandboxing options a user unit can use); `packaging/systemd/README.md`
+covers installing, `loginctl enable-linger`, logs and the keyring: on Linux account passwords come only from the
+Secret Service on the session bus, which must be reachable and unlocked without a login (no file fallback, no
+prompt; a locked keyring shows as each account's login error). `docs/serve-tailscale.md` runs the server on a
+tailnet address with `--advertise <MagicDNS name>`, pairs a desktop, and covers the firewall.
+
 ## 6. Storage (`app-io`)
 
 ```text
 <data_dir>/dail/profiles/<name>/          # directories::ProjectDirs (XDG on Linux, %APPDATA% on Windows)
   config.toml        # accounts (no secrets), settings, keymap overrides
-  state.redb         # tables: mailboxes, envelopes, threads, drafts, outbox, approvals, meta(schema_version)
+  state.redb         # tables: mailboxes, envelopes, threads, drafts, outbox, approvals, synced, link, mirror_accounts, quarantine, meta(schema_version)
   blobs/ab/cd…eml    # content-addressed raw messages (sha256)
   index/             # full-text index of downloaded bodies (tantivy, ADR 0005; derived, rebuildable)
   backups/20261020T081500Z/{config.toml,state.redb}   # daily, newest 7 (`store::backup`)
   state.redb.broken-<time>     # a cache that did not open, set aside (`dail doctor` lists them)
   logs/replay-YYYYMMDD.jsonl   # {"t":ms,"seed"?:u128,"origin":"mcp","input":{"command":…}|{"event":…}} — bodies/secrets redacted
+  serve/             # `dail serve` only (ADR 0017), 0700: key.p256 (raw P-256 scalar), cert.der, uploads/<id>/<name> (0600 files),
+                     #   answers/<device-id>.json (0600: the last ≤1024 non-query answers per device, SRV-5b)
 ```
 
 Replay format (`app-core::replay`): `t` becomes `Ctx::now_ms`, `seed` becomes `Ctx::id_seed` (default `line << 64`), blank
@@ -906,7 +1268,14 @@ steps + final state with `insta` and checks that replaying twice is identical.
   senders whose inline images show), `[view]` (the saved part of `ViewState`, `ViewPrefs`: `sidebar_collapsed`, `collapsed` folder keys as `[[view.collapsed]]`, `focused`, `list_filter`; only
   written when not all default; UX-1) and one `[[account]]`
   table per account (`id, display_name, email, preset, imap, smtp, secret` — `SecretRef` only; `status` is runtime state
-  and not saved). Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
+  and not saved). A profile that serves (ADR 0017) also has `[[serve.devices]]` (`id, name, role, token_sha256,
+  paired_at_ms`; absent otherwise); it loads into `state.devices`, and only `dail serve` writes it
+  (`ConfigStore::update_serve`, under the same lock as every other change). A remote profile (ADR 0017, §5.6) has
+  `[remote]` (`host, port, fingerprint` — the pinned SHA-256, 64 lower-case hex — and `[remote.token]`, the
+  `SecretRef` of the device token; absent otherwise), which loads into `state.link` (`connecting`, the pinned server)
+  and is written by `PersistDelta::Remote`. A remote profile has no accounts: a config with both is refused at open
+  (`IoError::RemoteWithAccounts`, `ERR108`), `ConfigStore` never writes one, and it ignores `Account`/`AccountRemoved`
+  deltas while `[remote]` is set (the mirror's accounts are the server's). Golden profile: `v0.1.9-remote`. Saves are atomic and durable (`store::backup::write_atomic`: write `config.toml.tmp`, flush it to
   disk, rename it over, flush the directory on Unix); blobs are written the same way, and redb commits are durable.
 - Crash safety (`app_io::store::backup`): `ProfileStore::open` (under the profile lock) opens `config.toml` and
   `state.redb`; a `state.redb` that does not open (a torn or foreign file; not a newer schema) is renamed
@@ -919,17 +1288,19 @@ steps + final state with `insta` and checks that replaying twice is identical.
   routes `Mail` and `Synced` deltas to `RedbStore`, the rest to `ConfigStore`, blobs to `BlobDir`; on load it merges both and drops cache
   entries of accounts missing from the config) and `MemoryStore` (app-testkit, blobs in a map).
 - `RedbStore` (`state.redb`): tables `mailboxes`, `messages`, `threads`, `outbox`, `drafts` (`u128` ID → JSON record; the
-  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
-  (mailboxes, messages, threads) are skipped with a warning on load; sync fetches them again. An unreadable draft,
-  queued op or approval is moved at open into the `quarantine` table with its raw bytes, listed in
+  outbox and the drafts are loaded in `created_ms` order; `drafts` was added within schema version 1, opening creates it), `synced` (one row `document`: the `LocalSettings` JSON of `PersistDelta::Synced`, SET-4; added within version 1, absent row = empty document), `link` (one row `queue`: a remote profile's `OfflineQueue{queued, rejected}` JSON of `PersistDelta::OfflineQueue`, SRV-5b; added within version 1, absent row = nothing queued; restored only into the `state.link` that `[remote]` gives; an unreadable row is moved to `quarantine`, as the user's own work, keyed by the first 128 bits of its SHA-256), `mirror_accounts` (a remote profile's mirrored accounts by ID, SRV-5b; added within version 1; read only while `[remote]` is set) and `meta` (`schema_version`). Each `MailDelta` is one ACID write transaction (removals, then upserts). Unreadable cache records
+  (mailboxes, messages, threads) are deleted when the store opens, with one warning per table; sync fetches them again. An unreadable draft,
+  queued op or approval is moved at open into the `quarantine` table with its exact bytes (`{table, error, bytes}`,
+  `bytes` in standard base64; `lossy: true` on rows migrated from version 1, which kept lossy UTF-8 text), listed in
   `status.quarantined` and shown as a problem (`status::problems`) by every front-end; it is never dropped (STORE-6).
   The golden profiles in `crates/app-io/testdata/golden/` (`app-io`'s `tests/it/golden.rs`) are opened by every
-  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>`.
+  build with nothing lost; a store build adds its own with `DAIL_GOLDEN_FREEZE=<version>` (a name ending in `-remote`
+  freezes a remote profile, checked for its `[remote]` link instead of mail).
 - `BlobDir` (`blobs/`): `blob_id` = lower-case hex SHA-256; stored at `blobs/<2 hex>/<62 hex>.eml`, written via a temporary
   file and rename, deduplicated by content. IDs other than 64 lower-case hex digits are rejected, so an ID can't escape the dir.
 - Persistence is an `Effect` (`PersistState{delta}`), so the engine stays pure. `PersistDelta` is `Settings`, `Account`,
   `AccountRemoved`, `View(ViewPrefs)` (emitted by `dispatch`/`ingest` whenever the input changed `view.prefs()`; never in
-  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
+  undo history; `ConfigStore` writes it, `RedbStore` never sees it), `Synced(LocalSettings)` (rule edits, merged pulls, push start and failure; `RedbStore` only), `Remote(Option<ServerEndpoint>)` (the `[remote]` table; `ConfigStore` only, ADR 0017) or `Mail(MailDelta)` (`mailboxes`, `messages`, `threads`, `ops`, `drafts` upserted; `removed_mailboxes`,
   `removed_messages`, `removed_threads`, `removed_ops`, `removed_drafts`; removals apply first; `ConfigStore` ignores it).
 - MIME (`app_io::mime`): `summarize_headers` / `remote_envelope` for envelopes (message IDs lose whitespace and control
   characters, which mail-parser keeps between `<` and `>`); `parse_message(raw) → ParsedMessage {headers,
@@ -968,8 +1339,9 @@ steps + final state with `insta` and checks that replaying twice is identical.
   more than an hour ago (`COMPACT_GRACE`: a body fetched just now may not have reached the engine yet), then runs redb's
   `compact()` (`RedbStore` holds its `Database` in an `RwLock`: transactions share it, compaction takes it alone).
   `MemoryStore` drops unused blobs at once; `ConfigStore` has nothing to compact. `status.compaction` shows the outcome.
-- `meta.schema_version` plus forward-only migrations in `app-io::store::migrations` (`CURRENT = 1`; `MIGRATIONS[n]` upgrades
-  `n+1 → n+2`, all pending ones run in the open transaction). A file written by a newer dail is refused (`SchemaTooNew`).
+- `meta.schema_version` plus forward-only migrations in `app-io::store::migrations` (`CURRENT = 2`; `MIGRATIONS[n]` upgrades
+  `n+1 → n+2`, all pending ones run in the open transaction). 1 → 2: `quarantine` rows hold base64 `bytes` instead of
+  lossy text `raw`. A file written by a newer dail is refused (`SchemaTooNew`).
 
 ## 7. Front-ends
 
@@ -1004,8 +1376,9 @@ mouse); on touch keys never count. `app-front/tests/it/reach.rs` pins the `Palet
 unless `NEVER` names its ADR (today none: touch has no approvals screen, ADR 0009, but its palette offers them). It also checks that every
 command the action lists (`thread_actions`, `mailbox_actions`, `account_actions`, `message_actions`) can return is
 `Control` or `Flow` where they are drawn (touch draws all but `account_actions`; `mailbox_actions` in the drawer's
-folder sheet, TCH-4), that every command with a default key is `Control` on the TUI, and that every
-`Palette` entry is offered by the palette.
+folder sheet, TCH-4), and the dail server's lists (`link_actions`, `rejection_actions`, `device_actions`,
+`server_actions`, SRV-6) on the GUI and the TUI, that every command with a default key is `Control` on the TUI,
+and that every `Palette` entry is offered by the palette.
 
 ### 7.1 GUI (`app-gui`)
 ```text
@@ -1115,7 +1488,7 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   runs `open_settings`; collapsed, a 56 px rail of named icon buttons:
   expand, compose, the current account's role mailboxes, settings), then the top bar (the search pill, which runs
   `open_palette`; `/` still opens the palette at its search step), then the list and the reader. The sidebar and the
-  top bar draw with the theme's chrome group. There is no status bar.
+  top bar draw with the theme's chrome group. There is no status bar: the top bar holds the status (below).
 - **Status** (`app_gui::topbar` over `app_front::status`, a projection of `status`, the accounts and the outbox), in the
   top bar: a status dot (filled when synced, a ring while syncing, a crossed ring when a login failed: shape, not
   colour) and `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs
@@ -1130,6 +1503,12 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   in the composer. The TUI shows the same hint in `?` and names the palette command in the status line; its setup
   re-enters a password the same way. The list footer shows the latest undoable action's `undo_label` with *Undo z*
   until an `undo`/`redo` goes through, else the key hints, and the number of conversations on the right.
+  On a device of a dail server (ADR 0017, SRV-6) a link chip (`app_front::server::summary`: *Online*, *Connecting…*,
+  *Offline · 3 queued*, with a link, sync or cloud-off icon) sits left of the status chip; its popover shows the
+  details (`server::details`, the fingerprint in monospace) and `actions::link_actions` (*Retry refused changes*,
+  *Disconnect…* → the palette's confirmation). A command the server refused after an offline period is a problem in
+  the status chip's popover: its title, the error and the time, with *Retry all* and *Dismiss*
+  (`actions::rejection_actions`).
 - **Toasts:** `send_draft` shows *Sending in N s* with *Cancel send* until the window closes; rejections and runtime
   failures show the command's title and the error.
 - **Desktop notifications** (`app_front::alerts`, delivered by `app_gui::desktop`): while the window is not focused,
@@ -1209,7 +1588,28 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   Verified: *Sync now* (`sync_now` for the account). Failed: the error, *Try another password* (removes the half-added
   account with `remove_account {confirm: true}` and goes back) or *Keep it anyway*. For custom servers, *Find
   servers* runs `discover_servers` for the address and fills both fields from `status.discovery` (the note says where
-  they were found, or that they must be typed); the TUI's setup does the same with Ctrl+F.
+  they were found, or that they must be typed); the TUI's setup does the same with Ctrl+F. On a profile without
+  accounts (`connect::availability`) the first step also offers *Connect to a dail server instead* (ADR 0017,
+  SRV-6), as does the Accounts settings' *Connect to a dail server*: the wizard then draws `app_front::connect::
+  ConnectFlow` (§5.6 *In the front ends*): *Server* (a paste of a `dail://pair` link is read at once, a typed one on
+  *Connect*), a spinner while probing, the offered fingerprint with the code field and *Pair* (*It matches the
+  pairing link* for a link), the mismatch with both fingerprints and *Back*, the failure with *Try again* / *Enter
+  another code*, then *Paired with …*. Its commands go out as `Background::Connect`. Closing it before pairing
+  removes the unpinned link. The wizard no longer opens by itself on a device of a server whose mail has not
+  arrived yet.
+- **dail server and Devices** (Accounts settings, SRV-6): on a device, a *dail server* card with the link's details
+  and `actions::link_actions`; on a server or a device (`server::shows_devices`), *Devices*: a row per device (name;
+  role · paired · last seen) with *Revoke…* (`actions::device_actions`, the palette confirms), *No device is paired
+  yet.* when empty, and *Pair a device…*.
+- ***Pair a device…*** (`app_gui::pairing`, ADR 0017, SRV-QR1): a modal over `app_front::pairing::PairDialog`. Opened
+  by the Devices settings' *Pair a device…* (`app_front::actions::server_actions`, shown while
+  `pairing::can_pair`), or by a `start_pairing` from the palette (its role and name questions; the shell re-tags the
+  command `Background::Pairing` and opens the dialog waiting for it). Form: role (radio), name, *Pair* →
+  `start_pairing`. Then the code (monospace, *Copy code* → clipboard, toast), role and name, the time left (repaints
+  each second; *expired* after), the address, the fingerprint in groups of four, and the QR code of the `dail://pair`
+  link: whole-pixel square modules, at least 4 px and about 264 pt with the 4-module quiet zone, black on white even in
+  dark themes. No known address: a hint to start `dail serve --advertise`. A refusal, or a new `status.serve_error`,
+  shows *Pairing failed*. *Pair another device* goes back to the form. The code lives only in the dialog.
 - **Approvals tray** (`app_gui::approvals`, cards from `app_front::approvals`): while `state.approvals` is not empty, a box at the top of the main pane
   (above the reader or composer) shows one card per request, oldest first: subject, sending account, every `To:`/`Cc:`/`Bcc:`
   address in full, the first 4 lines (at most 280 characters) of the text and every attachment with its full path and size
@@ -1315,6 +1715,12 @@ folder sheet, TCH-4), that every command with a default key is `Control` on the 
   registry command: like `replay` and `schema`, it inspects the installation rather than the mail.
 - `dail account password --email <addr> [--password-stdin]` dispatches `set_password` with a password read the same
   way, waits for the login test and prints `account_status` like `add`; exit code `1` unless verified.
+- `dail serve [--listen <addr:port>]… [--advertise <host>]… [--allow-send]` runs the dail server until Ctrl+C or
+  SIGTERM; `dail serve pair --role user|agent --name <name>` (attached to it), `dail serve devices` and `dail serve
+  revoke <id> [--yes]` are aliases for `start_pairing`, `list_devices` and `revoke_device`. `dail remote add
+  <host[:port]> [--fingerprint <hex>] [--code <code>]` pairs the profile as a device (`connect_server`,
+  `trust_server`) and `dail remote status` prints the link. See §5.6. Their text for people (stderr) is English, like
+  every other CLI message; the JSON lines are the interface.
 - `dail exec --help` lists the registry; `dail schema --command <name>` prints one spec (with `kind` and `agents`) and its
   args schema.
 - `dail replay <log> [--state]`: see §6 (audit log).
@@ -1431,9 +1837,18 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   countdown *Sending in N s · z cancels* of a send this TUI scheduled, the latest notice (a rejected command's title
   and error, or a runtime failure, for 6 s — the GUI's toasts), the first problem (store, keyring, login, sync;
   `app_front::status::problems`, `+N more`), `N pending · M failed (retry: palette)`, the latest undoable action
-  (`app_front::notice::LastAction`) with `z undo`, and the sync state; `? help` on the right when there is room.
+  (`app_front::notice::LastAction`) with `z undo`, the link to a dail server (`app_front::server::summary`, bold
+  while offline: *Offline · 3 queued*; SRV-6) and the sync state; `? help` on the right when there is room. A
+  command the server refused offline is a problem (*Refused by the server: Archive (settings › Accounts)*); a tap on
+  the line of a device opens the Accounts settings, where the link's details and actions are.
   `?` opens a read-only view with the full text of the current problems, every registry key a plain terminal
   delivers with its command's title, and the TUI-local keys.
+- **dail server** (Accounts settings, SRV-6): on a device, a *dail server* group of rows: the link's details
+  (`server::details`; the fingerprint on two rows), each refused command (title; error · time) with its *Retry all*
+  and *Dismiss* rows (`actions::rejection_actions`), then *Retry refused changes* and *Disconnect…*
+  (`actions::link_actions`); then *Devices* (`server::shows_devices`): a row per device (name; role · paired · last
+  seen) with *Revoke…*, and *Pair a device…*. Enter on an action row runs its entry (a confirmation opens the
+  palette). On a profile without accounts the section has *Connect to a dail server*, which opens the setup there.
 - **Send** (Ctrl+S, or *Send* in the palette) writes typed text back first, then `send_draft`: the status line counts
   *Sending in N s · z cancels* down while the draft is read-only (`z` undoes the send, `cancel_send`). *Attach file*
   in the palette takes a typed path (`~/` is the home directory; there is no file dialog: over SSH it would open on the
@@ -1498,8 +1913,20 @@ registry, keymap and palette flows as the GUI (`app-front`, ADR 0004); it never 
   drawn as `•` and moved straight into `add_account`'s write-only `Secret` (the field is empty afterwards) → the
   setup's own `test_account` (`Purpose::Setup`), whose result arrives in the account's `status` → Enter runs
   `sync_now` for the account. After a failed login, `p` removes the half-added account (`remove_account {confirm:
-  true}`) and asks for another password; `k` keeps it. Over a plain SSH login the keyring may be out of reach (see
+  true}`) and asks for another password; `k` keeps it. On a profile without accounts the first step's last choice is
+  *Connect to a dail server instead* (SRV-6): `app_front::connect::ConnectFlow` as in the GUI (§7.1), typed text into
+  *Server* (a paste of a `dail://pair` link is read at once), Enter connects, then the fingerprint and *Pairing code*
+  (letters upper-cased), Enter pairs, Esc goes back (or gives up, removing the unpinned link); the TUI ticks while it
+  waits. Without accounts but linked to a server, the first-run screen says the server's mail shows up once
+  connected. Over a plain SSH login the keyring may be out of reach (see
   the Wave 1.5 known limitations in `ROADMAP.md`): the keyring error shows in the status line.
+- ***Pair a device…*** (`app_tui::pairing`, SRV-QR1): the GUI's dialog (§7.1) over the same `PairDialog`, from the
+  Accounts section's *Pair a device…* row under *Devices* (Enter) or a `start_pairing` from the palette (`Purpose::Pairing`). Form:
+  Tab/↑/↓ toggles the role, typed text and a paste go into the name, Enter submits. Then the code, the time left
+  (ticks each second), the address, the fingerprint, the scan hint and the QR code in half-blocks
+  (`app_front::qr::half_blocks`), black on white (explicit colours, which `colors::paint` keeps) so that it scans
+  whatever the terminal's theme; with `NO_COLOR` plain glyphs drawing the light modules (`Ink::Light`, scannable
+  on a light-on-dark terminal). `n` pairs another device, Esc/q/Enter close.
 - **Mouse and touch** (stretch): mouse capture is on from the start, so a phone's taps and swipes arrive as mouse
   events. A tap on a thread row selects it, a second tap opens it; a tap on a mailbox opens it; the wheel (a swipe)
   scrolls the list (without moving the selection; the list follows the cursor again once it moves) or the reader, and
@@ -1531,7 +1958,7 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   compact and medium windows, a permanent first pane on expanded ones, a rail there after `toggle_sidebar`; a real
   mailbox's item has `long_press`, absent on *All inboxes* and the footer: TCH-4, below), `list`,
   `reader` (below), `link`, `composer` (below), `settings` (below, in place of the list and the detail), `setup` (below), `fab` (compose), `banner` (the
-  first `app_front::status` problem and its fix; with no problem, news with `info: true` and a second `dismiss` button:
+  first `app_front::status` problem and its fix (for a dail server's refusal, `Fix::Refused`, *Retry all* and a `dismiss` = *Dismiss* from `actions::rejection_actions`, SRV-7); with no problem, news with `info: true` and a second `dismiss` button:
   the first-run question about update checks, or a new version with *Open* = the release page and *Skip*), `snackbar` (a send counting down with Undo = `cancel_send`, a
   rejection, or the latest undoable action with Undo for 6 s), `theme`, `about`, `palette`, `result` (below), `menu`
   (below), `back` and `wants_tick`.
@@ -1600,7 +2027,15 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   setup's `Debug` leaves it out. A failed test offers another password and removes the half-added account first. It
   opens from the palette and keys (`add_account`, `set_password`), *Add an account*, the top bar's *Add account*
   without accounts, the banner's *re-enter password* fix (`Fix::Password`), and on its own once on a profile without
-  accounts.
+  accounts or a server. Its first step there also offers *Connect to a dail server* (SRV-7, `mobile/connect.rs`):
+  the same sheet then draws `app_front::connect::ConnectFlow` with `Field::{Server, Code}`, `InputKind::Code` and
+  `SetupSheet.fingerprints`; `UiEvent::PairLink` opens it from outside the app (§5.6 *On phones*) at the server
+  stage, which with the Compare stage carries `SetupSheet.warning` (drawn bold in the error colour above the fields).
+  The server stage's *Scan QR code* asks the host for its scanner (`External::ScanQr`; answers `scanned`,
+  `scan_cancelled`, `scan_failed`, §5.6 *On phones*); the scanner's own texts (title, hint, *Cancel*) come in
+  `Frame.labels`. A linked phone's
+  top bar subtitle starts with the link (`server::summary`) and its Accounts settings add *dail server* and
+  *Devices* groups.
 - **Theme** (`app_mobile::theme`, ADR 0008). `theme` comes in the first frame and again whenever it changes: the
   theme the settings choose for the system's dark mode (`configure`'s `dark`), as the GUI chooses it (`theme` 0
   follows the system, 1 light, 2 dark, the legacy 3 and 4 the high-contrast pair; an unknown name falls back). It
@@ -1703,6 +2138,26 @@ with `Origin::Gui` and hands its frames to Compose as JSON.
   dail can read; `net.darii.dail` and its suffixed authorities serve dail's own files); the rest are counted in the
   snackbar. Once the draft exists, `External::ImportFiles` hands the accepted URIs back, and each is copied and
   attached like a picked file. Without an account the snackbar says to add one.
+- **`dail://pair` links** (SRV-QR2). `MainActivity` (`singleTop`, so a link reaches the running activity through
+  `onNewIntent`, never a second one) takes `VIEW` of `dail://pair` (categories `DEFAULT` and `BROWSABLE`; a custom
+  scheme, so no `autoVerify`). `pairLink(data)` only tests the prefix (`dail://pair` then nothing, `?`, `/` or `#`)
+  and sends the text as `UiEvent::PairLink`; Rust reads it (§5.6 *On phones*). Each link is sent once: its data is
+  cleared from the intent, `onCreate` reads the intent only without saved state, and not when Android relaunches
+  the task from the recents screen (`FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`). A link that starts the app waits on
+  dail-ui behind `open`.
+- **The QR code scanner** (SRV-QR3, `scan_qr`). `android.permission.CAMERA` (in `APK_PERMISSIONS`) with
+  `android.hardware.camera` and `.autofocus` not required; `MainActivity` sends `scan_failed` `no_camera` without
+  `FEATURE_CAMERA_ANY`, else asks for the permission (`RequestPermission`) only now, when not granted: refused, now or
+  for good (Android then answers at once), it sends `denied`. Granted, `ScannerScreen` (`Scanner.kt`) covers the frame
+  (which keeps its state underneath; the flag survives a recreation): CameraX (`camera-core`, `camera-camera2`,
+  `camera-lifecycle`, and `camera-compose`'s `CameraXViewfinder` for the preview, not `camera-view`, which brings
+  `camera-video`) binds the back camera (else the front one) to the activity, and `ImageAnalysis`
+  (`STRATEGY_KEEP_ONLY_LATEST`) hands each frame's Y plane to `QrDecoder`: zxing's pure-Java `MultiFormatReader`,
+  `QR_CODE` only, `ALSO_INVERTED` for a dark terminal's code, rows read at the plane's stride. The first text found
+  goes back as `scanned`, as decoded, with a haptic; Back and *Cancel* send `scan_cancelled`; a camera that does not
+  bind sends `failed`. Kotlin never looks at the text. No Play services, no ML Kit. camera-core carries two prebuilt
+  JNI libraries, `libimage_processing_util_jni.so` and `libsurface_util_jni.so` (AOSP, Apache-2.0, 16 KB-aligned),
+  in `PREBUILT_ALLOWLIST`: CameraX loads them for its YUV and surface helpers, so they are not stripped.
 - **The reader** (`app_mobile::mobile::reader`): the thread's messages, collapsed (sender, date, snippet) or expanded,
   a tap toggling (`expand_messages`/`collapse_messages`). An expanded body is `DocBlock`s: an HTML body's
   `app_core::document` (paragraphs, headings, lists, quotes, preformatted lines, tables, rules, folds), or plain
@@ -1873,7 +2328,8 @@ install kind, `open` ingests `UpdateHostDetected` (this crate's version, target 
   and answers `{"receipt": …}` or `{"rejected": …}`; `"state"` answers the `AppState`. `calls::background` takes a
   `Task`, an import or a `DebugTask`.
 - **`background(Task, limit)`** (a job's thread, blocks at most `limit`, 3 minutes for Kotlin): `check` submits
-  `sync_now` as `runtime` and waits until no account's `SyncStatus.pending`; `flush` waits for the session's queued
+  `sync_now` as `runtime` and waits until no account's `SyncStatus.pending` (on a device of a dail server it contacts
+  no mail server: it dials the link if down, waits for it to settle and flushes, §5.6 *On phones*); `flush` waits for the session's queued
   work; `sends` waits until no draft is scheduled or leaving (`Draft::is_outgoing`). `close()` shuts the session down after the queued requests.
 - **JNI.** `app_host::calls` holds the six calls in safe Rust, JSON in and out: `open(platform, config, wake, alert) -> {handle}` (Kotlin also passes the application context),
   `event`, `frame`, `blob` (bytes or `null`), `background(task) -> {done}`, `close`. A handle is a small integer into a
@@ -1928,7 +2384,7 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   `ui/DailScreen.kt` the banner card, the snackbar and `OverflowMenu` (a bar's `overflow`: an `IconButton` with the
   `more_horiz` glyph and a `DropdownMenu` of text items, used by the top bar, the bulk bar and the reader toolbar), `ui/SettingsScreen.kt` the settings (the compact root's
   `sections` as 56 dp rows of glyph, label and hint, a folded one at reduced alpha; tabs only when `tabs` is not empty; `FilterChip`
-  choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill).
+  choices), `ui/SetupScreen.kt` the account setup (its fields set `contentType` for autofill; *Connect to a dail server*'s fingerprints in the theme's mono face, selectable; the `code` field capitalizes; picked files reach the server through the same `import`, SRV-7).
 - **Theme** (`ui/DailTheme.kt`). Material 3 from the frame's theme, the last one `Host` received: the content roles
   fill the colour scheme's slots (`inverse_bg` → primary, `canvas` → background, `base` → surface, `raised` →
   surface variant, `border_strong` → outline, `danger` → error, …), the chrome roles the top bar, the type scale the
@@ -1962,7 +2418,8 @@ lifecycle that Dependabot keeps current. compileSdk 37.2 (Compose 1.12 needs it)
   Apache-2.0, MIT and BSD; Spotless runs ktlint (`.editorconfig`); Android Lint treats warnings as errors, with
   `app/lint.xml` turning off, with reasons, the checks that deliberate version updates make moot.
 - **The APK check** (`cargo xtask android apk-check`, over every APK under `app/build/outputs/apk`): `lib/` holds
-  only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (so far Compose's `libandroidx.graphics.path.so`), each
+  only `libdail.so` and the prebuilts of `PREBUILT_ALLOWLIST` (Compose's `libandroidx.graphics.path.so`, CameraX's
+  `libimage_processing_util_jni.so` and `libsurface_util_jni.so`), each
   with its reason; every `.so` is 16 KB-aligned (`zipalign -c -P 16`); the permissions equal `APK_PERMISSIONS`; a
   release APK is not debuggable and carries no debug bridge. Instrumented-test APKs are skipped.
 - **Licence lists** (`cargo xtask android licences`): `rust-crates.txt` from `cargo metadata` for both Android
@@ -2054,7 +2511,29 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
   the `\.blobs` environment value. Icons map the frame's Material names to SF Symbols, with the label for VoiceOver. Externals:
   `copy`, `open_url`, `haptic`, `system_settings` and `save_files` (each file read with `blob`'s `attachment`
   request into a private temporary folder, then `UIDocumentPickerViewController(forExporting:asCopy: true)`; the
-  folder is removed when it closes); the other file ones wait for the compose wave.
+  folder is removed when it closes), and `pick_files` (SRV-7: `UIDocumentPickerViewController(forOpeningContentTypes:
+  [.item], asCopy: true)`, several files, so each is a copy in the app's sandbox and no security-scoped URL outlives
+  the picker; each goes to `dail_background`'s `import` off the main thread, which copies it into `outgoing` and
+  attaches it, then the picker's copy is removed); `import_files` waits for the compose wave. `SetupView` draws
+  `SetupSheet.fingerprints` (*Connect to a dail server*) as monospace, selectable lines under their label; the `code`
+  field capitalizes, and `SetupSheet.warning` is a bold red label with a warning glyph above the fields.
+- **`dail://pair` links** (SRV-QR2). `ios/Info.plist` (`INFOPLIST_FILE`, merged with the generated keys) declares
+  the `dail` URL type (`CFBundleURLName` `<bundle id>.pair`). Both the live and the demo app declare the scheme;
+  with both installed, iOS picks which one opens a link (left as it is: the demo is a test build).
+  `DailApp`'s `.onOpenURL` sends `UiEvent.pairLink(opening:)`, the URL's `absoluteString` if it is a `dail://pair`
+  link (the same prefix test as Android's) and nothing for other `dail://` URLs, through `Host.sendWhenOpen`, which
+  keeps it until the session has opened; SwiftUI delivers each URL once. Rust reads it (§5.6 *On phones*).
+- **The QR code scanner** (SRV-QR3, `scan_qr`). `Host.scan` sends `scan_failed` `no_camera` without a video device
+  (the simulator), asks `AVCaptureDevice.requestAccess` only now when the status is `notDetermined`, sends `denied`
+  when refused or restricted, and otherwise sets `Host.scanning`, which `RootView` shows as a `fullScreenCover`:
+  `ScannerView`, an `AVCaptureSession` from the default video camera into an `AVCaptureVideoPreviewLayer` and an
+  `AVCaptureMetadataOutput` restricted to `.qr` (`ScannerController` through `UIViewControllerRepresentable`; the
+  session starts and stops on a queue of its own). The first string goes back as `scanned`, as decoded; *Cancel*
+  sends `scan_cancelled`. AVFoundation only, no package. The prompt is `NSCameraUsageDescription`
+  (`INFOPLIST_KEY_NSCameraUsageDescription` in `ios/project.yml`, English) with its translations in
+  `Dail/<lang>.lproj/InfoPlist.strings` for en, fr, es, ro, pt-BR, pt-PT and la: the app's first `.lproj` folders,
+  which XcodeGen turns into variant groups and known regions (`developmentLanguage: en`). app-mobile's contract test
+  writes them from the i18n table (`NativeCameraPurpose`) and checks the English setting, so they cannot drift.
 - **Palette, setup and settings** (`PaletteView`, `SetupView`, `SettingsPane`). `SettingsPane` draws the tabs only
   when there are some and the compact root's `sections` as a plain list of buttons (label, hint, folded ones at reduced
   opacity; no glyphs yet: IOS-6 draws it properly). Text fields are the presenter's
@@ -2097,7 +2576,7 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `set_password` | Mutation (no history; user only, §9) | `id, password` (write-only `Secret`) → status `unverified`, emits `PersistState`, `StoreSecret`, `VerifyAccount`; the result lands in `Account.status` | Wave 2 |
 | `remove_account` | Destructive | `id, confirm` (also emits `DeleteSecret`) | M1 |
 | `discover_servers` | Query | `email` → emits `DiscoverServers{email, domain}`: HTTPS autoconfig at `autoconfig.<domain>`, `<domain>/.well-known/autoconfig`, then Mozilla's ISPDB (ADR 0006); the servers (or why not) land in `status.discovery`, and asking again for the same address returns the servers found (`state: found`, no new lookup); nothing is configured | Wave 2 |
-| `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling) | M2 |
+| `sync_now` | Mutation (no history) | `account?` (lists mailboxes → fetches each; skips accounts still syncing; starts polling); on a mirror whose link is down refused with `ERR014`, never queued (§4.7) | M2, SRV-5b |
 | `pull_settings` | Mutation (no history) | `account?` (none: the settings account, `set_settings_account`, else the first account) → `{account, started}`; emits `ReadSettingsBlob{account, imap, path, known?}` unless a pull runs; the newest server copy is merged into `synced.settings` (`SettingsRead`), an invalid or oversized one is ignored with its error in `synced.error`; agents allowed | SET-2 |
 | `push_settings` | Mutation (no history; user only, ADR 0015) | — → `{account, path, bytes}`; needs a finished pull (`synced.pulled_ms`); prunes and emits `WriteSettingsBlob{account, imap, path, document, date_ms}`; `SettingsWritten` pulls again | SET-2 |
 | `list_rules` | Query | — → `{rules: [{id, enabled, updated_ms, untrusted_content: {name, when, then}}], dirty}`; agents allowed | SET-4 |
@@ -2163,6 +2642,13 @@ credential store and the logs. It builds and is tested on every host; the iOS-on
 | `get_view` | Query | — → the `ViewState` (`palette_open, mailbox, selected, thread, search?, composer, focus, sidebar_collapsed, collapsed?, focused?, filter?`); also the MCP resource `dail://state/view` | M7 |
 | `list_approvals` | Query | — → `{approvals: [{id, draft, account, origin, requested_ms, message: <draft as in create_draft>}]}`, oldest first | M7 |
 | `approve_request` / `reject_request` | Mutation | `id` (user only: GUI/TUI/CLI/batch origin, else `error_008_origin_not_allowed`). Approve → the `send_draft` receipt plus `approved` (undoable: cancels the send); reject → `{rejected, draft, undoable: false}` (no history) | M7 |
+| `list_devices` | Query | — → `{devices: [{id, name, role: user\|agent, paired_at_ms, last_seen_ms?}]}` in pairing order (`state.devices`); agents allowed; placement `server` | SRV-2 |
+| `start_pairing` | Mutation (no history, like `sync_now`) | `role: user\|agent, name` (trimmed, 1–64 characters, no control characters, else `ERR002` on `name`) → `{code, role, name, expires_at_ms, undoable: false}`: `code` is 8 RFC 4648 base32 characters from 40 bits of `id_seed` (`link::pairing_code`), valid 10 minutes, in the receipt only (never in state; the audit line leaves out the call's seed); emits `OpenPairing{code: Secret, role, name, expires_at_ms}`; user only; placement `server`; on a mirror whose link is down refused with `ERR014` (as `revoke_device`), never queued (§4.7) | SRV-2, SRV-5b |
+| `revoke_device` | Destructive | `id, confirm` → `{revoked, name, undoable: false}`; without `confirm` `ERR006`, unknown `ERR004` (`device`); emits `RevokeDevice{id}`; user only; placement `server` | SRV-2 |
+| `connect_server` | Mutation (no history) | `host, port` → `{host, port, undoable: false}`: `link` with `server{host, port}`, status `connecting`, and `ProbeServer{host, port}`; a profile with accounts `ERR013`, a bad host or port 0 `ERR002`, a link already pinned `ERR005` (`server link`); user only; placement `client` | SRV-2 |
+| `trust_server` | Mutation (no history) | `fingerprint, code: Secret` → `{host, port, fingerprint, undoable: false}`: the fingerprint (hex, colons and case ignored) must equal `link.server.offered` (`ERR002` on `fingerprint`: none offered yet, mismatch, malformed), `code` 8 base32 characters (case ignored, `ERR002` on `code`); sets `server.pairing` to the fingerprint and `server.token` = `SecretRef::for_server(uuid(id_seed))` (a retry keeps the first one) and emits `PairWithServer{host, port, fingerprint, code, secret}`; the fingerprint is pinned (`server.fingerprint`) only by `ServerPaired`, and `LinkFailed` clears `pairing`, so a refused or expired code is retried with a new one; no link `ERR012`, already paired `ERR005`; user only; placement `client` | SRV-2 |
+| `disconnect_server` | Destructive | `confirm` → `{disconnected: "host:port"?, lost: <queued commands>, undoable: false}`: clears `link`, the mirrored shared state (`StateDiff::clear`) and the history; emits `PersistState` removals of the mirrored accounts and mail (and the settings and synced document if they changed), so they don't come back from the store, then `DisconnectServer{secret?}`; without `confirm` `ERR006`, no link `ERR012`; user only; placement `client` | SRV-2 |
+| `retry_offline` / `dismiss_offline_rejection` | Mutation (no history, like `retry_pending_ops` / `discard_pending_op`) | — / `id: RequestId`. Retry → `{retried: [new request IDs]}`: every `link.rejected` entry goes to the end of `link.queued` with its seed and origin (an agent's command stays the agent's) under a new request ID from `id_seed` (the server answers a known request ID from memory, so the old one would only bring back the refusal). Dismiss → `{dismissed, command}`; unknown `ERR004` (`offline rejection`). No link `ERR012`; agents allowed; placement `client` | SRV-2 |
 
 Search query language (pure parser in `app-core::search`, `Query::parse` → `Query { terms: [Term { negated, condition }] }`):
 `from: to: cc: subject: is:unread|read|starred has:attachment in:<mailbox> before:YYYY-MM-DD after: "phrase" -negation`.
@@ -2179,7 +2665,7 @@ canonical form, which parses back to the same `Query`.
 |---|---|
 | Prompt injection via email | `untrusted_content` envelopes; MCP instructions; agents can't escalate via content; no auto-actions on content in the MVP |
 | Agent sends mail | `Origin::Mcp` + `send_draft` (also via `undo` of a `cancel_send` or `redo` of an approval) → `ApprovalRequest`, unless `--allow-send`; `approve_request`/`reject_request` refused from agent origins (`error_008_origin_not_allowed`); an agent's edit withdraws its request; IPC clients can't claim the `gui` origin (§5.4) |
-| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request`, `install_update` → `error_008_origin_not_allowed` (`install_update` runs downloaded code; `save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
+| Agent goes beyond triage and drafting | One policy per command in the registry (`CommandSpec.agents`: `allowed`, `approval`, `user_only`; ADR 0002), enforced by `Engine::dispatch`. User only: `add_account`, `update_account`, `set_password`, `set_identity`, `remove_identity`, `save_attachments`, `restore_draft`, `approve_request`, `reject_request`, `install_update`, and the dail server's pairing and link (`start_pairing`, `revoke_device`, `connect_server`, `trust_server`, `disconnect_server`, ADR 0017) → `error_008_origin_not_allowed` (`install_update` runs downloaded code; `save_attachments` writes files where the caller says; an agent could plant one that gets run). `undo`/`redo` apply the engine's own history and are not checked again. The policy binds the MCP origins: a process that runs `dail exec` as the user (or claims `cli` on the profile socket) is the user |
 | Agent exfiltrates local files | `attach_file` takes any readable path. The file leaves the machine when the draft is sent (agent sends need approval; the card lists attachments with their paths) and when the draft is saved to its account's Drafts mailbox, on a server only the user sets up (`add_account`/`update_account` are user only). An agent can't hand the engine a draft with a forged attachment check: `restore_draft` is user only, and it checks every attachment again anyway |
 | Agent mass-deletes | No permanent delete in the MVP besides `remove_account` (agents may run it: `Destructive`, needs `confirm`, MCP `destructiveHint`); trash is undoable |
 | Credential leak | Keyring only; `SecretRef` in state; `Secret` redacts itself in `Debug` and `Serialize` (receipts, effects, replay logs); the password goes only to the servers of its account, which agents can't change |
@@ -2194,9 +2680,15 @@ canonical form, which parses back to the same `Query`.
   agents get structured errors such as `{"error":"error_004_not_found","entity":"thread","id":"…"}`,
   `{"error":"error_007_no_mailbox_for_role","account":"…","role":"trash"}`,
   `{"error":"error_005_already_exists","entity":"account","key":"…"}`, `{"error":"error_006_confirmation_required","command":"…"}`,
-  `{"error":"error_008_origin_not_allowed","command":"approve_request","origin":"mcp"}` or `{"error":"error_009_not_sendable","draft":"…","reason":"…"}`.
+  `{"error":"error_008_origin_not_allowed","command":"approve_request","origin":"mcp"}`, `{"error":"error_009_not_sendable","draft":"…","reason":"…"}`,
+  `{"error":"error_012_not_linked"}` (a link command on a profile without a dail server) or
+  `{"error":"error_013_profile_has_accounts","accounts":1}` (`connect_server` on a profile with mail accounts) or
+  `{"error":"error_014_refused_offline","command":"empty_trash"}` (a command that is not queued, run on a mirror whose
+  link is down, §4.7).
 - Remote failures are state (`PendingOp.last_error`/`attempts`/`state`, `Account.status`, `SyncStatus.last_error`), not just logs.
   The GUI's status chip and `dail exec list_pending_ops` show them; `retry_pending_ops` and `discard_pending_op` act on them.
+  So are the commands a dail server refused when a device replayed its offline queue (`link.rejected`, with the
+  server's code and message, §5.6; `retry_offline` and `dismiss_offline_rejection` act on them).
 
 ## 11. Testing strategy
 
@@ -2217,7 +2709,8 @@ dependencies again (a GUI one is ~0.2 GB), so a new test file is a module, never
 | live (opt-in) | `#[ignore]`, `DAIL_IT_{HOSTINGER,GMAIL}_{EMAIL,PASSWORD}`, `DAIL_IT_KEYRING=1`, `DAIL_IT_TLS=1` | `app-sync/tests/it/live_it.rs`: preset login (and wrong-password rejection) on Hostinger + Gmail, OS keyring round trip, app-tls handshakes with Gmail and Hostinger (IMAP 993, SMTP 465 and 587 STARTTLS; TLS 1.3, ChaCha20-Poly1305, X25519; no credentials); run with `cargo test -p app-sync --test it live_it -- --ignored`. Optional Stalwart/GreenMail via Docker later |
 | offline | `app-testkit/tests/it/offline.rs`, `proptest` | triage with the server unreachable (`set_offline`), reconnect, and the fake server matches what the user sees; random sessions (commands, undo, offline toggles, virtual time) converge, and undoing everything restores the server |
 | TUI | `app-tui/tests`, ratatui `TestBackend`, `insta` | `Tui` over a real `Engine` (requests dispatched with `Origin::Tui`, replies fed back, a thread-local clock): layout snapshots at 40×20, 80×24 and 120×40; list, reader, palette (every registry command reached by keys), status and help, approvals, composer, sending, mouse, account setup; the sanitizer across every widget (`untrusted.rs`); terminal keys (every bound command has a key a plain terminal delivers); the event loop over a real session (quit, hang-up, signal); attached over IPC end to end; the editor's private file (`editor.rs` unit tests) |
-| smoke | `dail batch --backend memory tests/smoke/basic.jsonl` | end-to-end JSON round trip (gate 6) |
+| remote profiles | `app-testkit/tests/it/remote.rs` over `app_testkit::TestServer` (a real `DailServer` and `ServeHub` on loopback TLS over a `MemoryBackend` session; devices from `Session::open_remote` with `MemorySecrets`) | snapshot and diffs, forwarded commands with the device's seed (same IDs), a server refusal resets the mirror (and the store), a refused origin keeps the link up (`ERR213`), an agent's `send_draft` becomes an approval on the server and no device SMTP effect (before and after the first snapshot), `client` commands stay local, `attach_file` uploads, `save_attachments` fetches the body, resync after a server restart, offline commands queued and `ERR014` refusals, the token never in state, errors or `Debug`; `remote_offline.rs` (SRV-5b): an offline triage persisted across a device restart and replayed in order, a refusal on replay kept in `link.rejected` while the others are delivered and `retry_offline`, a command during the replay goes after the queue, a send whose connection is lost is resent once, a resend after a server restart answered from `serve/answers/` (never a pairing code), `attach_file` uploaded at replay, pre-loaded bodies read offline |
+| smoke | `dail batch --backend memory tests/smoke/basic.jsonl`, then `dail serve --backend memory` on loopback paired by `dail remote add` (`xtask/src/smoke.rs`) | end-to-end JSON round trip and the dail server (gate 6) |
 | agent e2e | `app-cli/tests/e2e_agent.rs` (CI via `cargo test`) | an MCP client drives `dail mcp --backend memory --fixture basic --profile-dir …` over stdio: discovers tools and resources, is refused `add_account`, waits for the user's `dail account add` (attached over IPC), syncs, reads the inbox through resources, marks a thread read, archives another, replies and edits the draft; `send_draft` stays an approval request that the agent can't approve |
 | IPC & audit | `app-sync/tests/it/{ipc,audit}.rs`, `app-cli/tests/it/cli.rs`, `app-gui/tests/it/bridge.rs`, `app-tui/tests/it/attached.rs` | attach over a real local socket (origins, password hand-over, disconnects, `watch`), the profile lock; the shared bridge (tagged replies in order, an owned session shut down, an attached one left running, the owner going away); audit logs that replay to the live state; `exec` attaching to a running `dail mcp`; an attached agent's archive reaching the GUI's state snapshot and waking it; `dail replay` |
 
@@ -2310,3 +2803,6 @@ allowlist; bot PRs are merged like any other.
 | Design tokens | `app-theme` (serde only) | Themes stay data, (de)serializable for theme files later (ADR 0008) |
 | Fuzzy | `nucleo-matcher` | Helix's matcher; fast palette |
 | IPC | `interprocess` | Cross-platform local sockets / named pipes |
+| QR codes | `qrcode` 0.15 (app-front; `default-features = false`, `std`: no `image`/`svg`/`pic`/`eps`), `rqrr` 0.11 (app-front tests only; no `img`) | The `dail://pair` QR code (ADR 0017, SRV-QR1); pure Rust; tests decode the matrix and the half-blocks back to the link |
+| QR code scanner | CameraX 1.7.0 (`camera-core`, `camera-camera2`, `camera-lifecycle`, `camera-compose`), `com.google.zxing:core` 3.5.4 (Android); AVFoundation (iOS) | The in-app scanner (ADR 0017, SRV-QR3): AOSP's camera library and zxing's pure-Java decoder, Apache-2.0, no Play services or ML Kit; camera-core's two JNI prebuilts are in `PREBUILT_ALLOWLIST`; iOS needs no package |
+| Server certificate | `x509-cert` 0.3 (`builder`, `std`; app-sync) + `p256` (`pkcs8`) | The self-signed certificate of `dail serve` (ADR 0017), on p256 0.14's `der`/`spki`/`signature` line; pure Rust (`rcgen` needs ring or aws-lc) |

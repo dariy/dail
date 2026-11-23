@@ -65,6 +65,8 @@ pub struct Shell {
     docked: Option<app_core::DraftId>,
     toasts: Toasts,
     wizard: Wizard,
+    /// The *Pair a device…* dialog (SRV-QR1).
+    pairing: crate::pairing::Pairing,
     settings: crate::settings::SettingsState,
     /// The last query result the user asked for, shown as `app_front::result`'s view or raw.
     result: Option<QueryResult>,
@@ -97,6 +99,7 @@ impl Default for Shell {
             docked: None,
             toasts: Toasts::default(),
             wizard: Wizard::default(),
+            pairing: crate::pairing::Pairing::default(),
             settings: crate::settings::SettingsState::default(),
             result: None,
             clock: system_now_ms,
@@ -196,6 +199,21 @@ impl Shell {
         replies: Vec<Reply>,
     ) -> Vec<Request> {
         let queue = self.frame_body(ui, state, replies);
+        // A `start_pairing` from the palette or a key shows its code in the pairing dialog.
+        let queue: Vec<Request> = queue
+            .into_iter()
+            .map(|request| match &request.cmd {
+                Command::StartPairing { role, name } if request.purpose == Purpose::User => {
+                    self.pairing.submitted(*role, name, state);
+                    ui.ctx().request_repaint();
+                    Request {
+                        purpose: Purpose::Background(Background::Pairing),
+                        ..request
+                    }
+                }
+                _ => request,
+            })
+            .collect();
         // Auto-advance after triage (UX-12): the neighbour opens right after.
         let mut queue: Vec<Request> = queue
             .into_iter()
@@ -233,6 +251,15 @@ impl Shell {
         let mut queue: Vec<Request> = Vec::new();
         let now = ui.input(|i| i.time);
         for reply in &replies {
+            if reply.purpose == Purpose::Background(Background::Pairing) {
+                let result = match &reply.result {
+                    Ok(Ok(receipt)) => Ok(receipt),
+                    Ok(Err(err)) => Err(app_front::i18n::message(&err.to_string())),
+                    Err(err) => Err(format!("dail: {err}")),
+                };
+                self.pairing.accept(result, state);
+                continue;
+            }
             self.on_reply(reply, now, &mut queue);
         }
         for notice in self.notices.drain(..) {
@@ -266,8 +293,14 @@ impl Shell {
         if let Some(account) = asked.password {
             self.wizard.reenter(state, account);
         }
-        self.wizard.show(&ctx, &t, state, &mut queue);
-        if !state.view.palette_open && !self.wizard.is_open() {
+        self.wizard.show(&ctx, &t, state, now_ms, &mut queue);
+        let paired = self.pairing.show(&ctx, &t, state, now_ms, &mut queue);
+        if let Some(code) = paired.copy {
+            ctx.copy_text(code);
+            self.toasts
+                .push(t.s(Key::PairingCodeCopied), ToastKind::Info, now);
+        }
+        if !state.view.palette_open && !self.wizard.is_open() && !self.pairing.is_open() {
             let actions = self.keys.handle(&ctx, state);
             if !actions.is_empty() {
                 // Typed text goes first, so that e.g. Ctrl+Enter sends what is on screen.
@@ -337,9 +370,13 @@ impl Shell {
             .frame(bar.stroke(egui::Stroke::new(t.m.stroke.hairline, chrome.border_subtle)))
             .show(ui, |ui| {
                 ui.style_mut().visuals = theme::chrome_visuals(&t);
-                topbar::show(ui, &chrome, state, now_ms, self.lang, &mut queue)
+                topbar::show(ui, &chrome, state, (now_ms, zone), self.lang, &mut queue)
             });
-        match top.inner {
+        if let Some(step) = top.inner.ask {
+            self.palette.open_at(step);
+            queue.push(Request::user(Command::OpenPalette {}));
+        }
+        match top.inner.fix {
             Some(app_front::status::Fix::Password(account)) => self.wizard.reenter(state, account),
             Some(app_front::status::Fix::Trust(account)) => {
                 if let app_front::palette::Flow::Ask(step) =
@@ -366,6 +403,13 @@ impl Shell {
                 .inner;
             if page.wizard {
                 self.wizard.open();
+            }
+            if page.connect {
+                self.wizard.connect();
+            }
+            if page.pair {
+                self.pairing.open();
+                ctx.request_repaint();
             }
             if let Some(account) = page.password {
                 self.wizard.reenter(state, account);

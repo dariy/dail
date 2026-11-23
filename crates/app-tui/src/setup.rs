@@ -9,11 +9,17 @@
 //!
 //! [`Setup::reenter`] opens the same password step for an existing account (`set_password`:
 //! keyring, then a login test); another try keeps the account.
+//!
+//! *Connect to a dail server instead* (ADR 0017, SRV-6), the last choice of the first step on a
+//! profile without accounts (or [`Setup::connect`]), draws `app_front::connect::ConnectFlow`: the
+//! server or a pasted `dail://pair` link, `connect_server`, the offered fingerprint to compare
+//! with the code, `trust_server`, paired. Its commands go out as [`Purpose::Setup`].
 
 use crate::text::{f, s};
 use app_core::{
     AccountId, AccountStatus, AppState, Command, CommandName, Endpoint, ProviderPreset, Secret,
 };
+use app_front::connect::{Availability, ConnectFlow, Retry, Stage as Connect, availability};
 use app_front::i18n::Key;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -55,6 +61,8 @@ pub enum Step {
     Password,
     /// `add_account` + `test_account` sent; waiting for the status.
     Test,
+    /// *Connect to a dail server* instead of an account (SRV-6).
+    Server,
 }
 
 /// What a key in the wizard led to.
@@ -78,6 +86,8 @@ pub struct Setup {
     /// Changing the password of `account` (which exists) instead of adding one.
     existing: bool,
     error: Option<String>,
+    /// *Connect to a dail server* (its code is never shown in `Debug`).
+    flow: ConnectFlow,
 }
 
 impl Default for Setup {
@@ -91,6 +101,7 @@ impl Default for Setup {
             account: None,
             existing: false,
             error: None,
+            flow: ConnectFlow::default(),
         }
     }
 }
@@ -109,6 +120,50 @@ impl Setup {
     /// The current step.
     pub const fn step(&self) -> Step {
         self.step
+    }
+
+    /// The setup at *Connect to a dail server* (the settings' row).
+    pub fn connect() -> Self {
+        Self {
+            step: Step::Server,
+            ..Self::default()
+        }
+    }
+
+    /// The *Connect to a dail server* flow.
+    pub const fn connect_flow(&self) -> &ConnectFlow {
+        &self.flow
+    }
+
+    /// Whether it waits for the server (the runner then ticks).
+    pub const fn is_waiting(&self) -> bool {
+        matches!(self.step, Step::Server) && self.flow.is_waiting()
+    }
+
+    /// Follows the state (the connect flow's probe and pairing). The TUI calls it before each
+    /// frame.
+    pub fn sync(&mut self, state: &AppState, now_ms: i64) {
+        if self.step == Step::Server {
+            self.flow.sync(state, now_ms);
+        }
+    }
+
+    /// Given up (Esc on the first step of the flow, or a cancel): the request that removes the
+    /// link the flow left unpinned.
+    fn give_up(&mut self, state: &AppState, out: &mut Outcome) {
+        if let Some(cmd) = self.flow.cancel(state) {
+            out.requests.push(Request {
+                purpose: Purpose::Setup,
+                cmd,
+            });
+        }
+        out.close = true;
+    }
+
+    /// How many choices the first step has: the presets, and *Connect to a dail server
+    /// instead* on a profile that can.
+    fn choices(state: &AppState) -> usize {
+        PRESETS.len() + usize::from(availability(state) == Availability::Open)
     }
 
     fn preset(&self) -> ProviderPreset {
@@ -195,7 +250,21 @@ impl Setup {
 
     /// Takes the reply to the wizard's `add_account`: then tests the login (the test's own reply
     /// is only its start; the result arrives in the account's status).
-    pub fn accept(&mut self, reply: &Reply) -> Option<Request> {
+    pub fn accept(&mut self, reply: &Reply, now_ms: i64) -> Option<Request> {
+        if reply.tag == Purpose::Setup
+            && matches!(
+                reply.name,
+                CommandName::ConnectServer | CommandName::TrustServer
+            )
+        {
+            let result = match &reply.result {
+                Ok(Ok(receipt)) => Ok(receipt),
+                Ok(Err(err)) => Err(app_front::i18n::message(&err.to_string())),
+                Err(err) => Err(format!("dail: {err}")),
+            };
+            self.flow.accept(result, now_ms);
+            return None;
+        }
         if reply.tag == Purpose::Setup
             && matches!(
                 reply.name,
@@ -249,6 +318,7 @@ impl Setup {
                 }
             }
             Step::Password => self.password.push_str(line),
+            Step::Server => self.flow.paste(text),
             Step::Preset | Step::Test => {}
         }
     }
@@ -269,10 +339,15 @@ impl Setup {
         match self.step {
             Step::Preset => match key.code {
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Tab => {
-                    self.preset = (self.preset + 1).min(PRESETS.len() - 1);
+                    self.preset = (self.preset + 1).min(Self::choices(state) - 1);
                 }
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::BackTab => {
                     self.preset = self.preset.saturating_sub(1);
+                }
+                KeyCode::Enter if self.preset >= PRESETS.len() => {
+                    self.preset = 0;
+                    self.flow = ConnectFlow::default();
+                    self.step = Step::Server;
                 }
                 KeyCode::Enter => {
                     self.step = Step::Address;
@@ -352,6 +427,7 @@ impl Setup {
                     }
                 }
             },
+            Step::Server => self.server_key(key, typed, state, &mut out),
             Step::Test => {
                 let status = self
                     .account
@@ -386,13 +462,188 @@ impl Setup {
         out
     }
 
+    /// A key at *Connect to a dail server*.
+    fn server_key(
+        &mut self,
+        key: KeyEvent,
+        typed: Option<char>,
+        state: &AppState,
+        out: &mut Outcome,
+    ) {
+        let mut submit = None;
+        match self.flow.stage().clone() {
+            Connect::Address => match key.code {
+                KeyCode::Enter => submit = self.flow.submit_address(state),
+                KeyCode::Esc => {
+                    self.give_up(state, out);
+                    out.close = false;
+                    self.flow = ConnectFlow::default();
+                    self.step = Step::Preset;
+                }
+                KeyCode::Backspace => {
+                    self.flow.address.pop();
+                    self.flow.address_edited();
+                }
+                _ => {
+                    if let Some(c) = typed {
+                        self.flow.address.push(c);
+                        self.flow.address_edited();
+                    }
+                }
+            },
+            Connect::Compare { .. } => match key.code {
+                KeyCode::Enter => submit = self.flow.submit_code(state),
+                KeyCode::Esc => self.flow.back(),
+                KeyCode::Backspace => {
+                    self.flow.code.pop();
+                }
+                _ => {
+                    if let Some(c) = typed.filter(char::is_ascii_alphanumeric) {
+                        self.flow.code.push(c.to_ascii_uppercase());
+                    }
+                }
+            },
+            Connect::Probing | Connect::Pairing => {
+                if key.code == KeyCode::Esc {
+                    self.give_up(state, out);
+                }
+            }
+            Connect::Mismatch { .. } => match key.code {
+                KeyCode::Enter => self.flow.retry(),
+                KeyCode::Esc => self.give_up(state, out),
+                _ => {}
+            },
+            Connect::Failed { .. } => match key.code {
+                KeyCode::Enter => self.flow.retry(),
+                KeyCode::Esc => self.give_up(state, out),
+                _ => {}
+            },
+            Connect::Paired => {
+                if matches!(key.code, KeyCode::Enter | KeyCode::Esc) {
+                    out.close = true;
+                }
+            }
+        }
+        if let Some(cmd) = submit {
+            out.requests.push(Request {
+                purpose: Purpose::Setup,
+                cmd,
+            });
+        }
+    }
+
+    /// The lines and footer of *Connect to a dail server*.
+    fn server_lines(&self, state: &AppState, lines: &mut Vec<(String, Style)>) -> &'static str {
+        let server = self.flow.server();
+        let fingerprint = |lines: &mut Vec<(String, Style)>, label: &str, fp: &str| {
+            lines.push((label.to_owned(), dim()));
+            for line in app_front::connect::fingerprint_lines(fp) {
+                lines.push((format!("  {line}"), bold()));
+            }
+        };
+        match self.flow.stage() {
+            Connect::Address => {
+                let value = clean(&self.flow.address);
+                lines.push((format!("{}: {value}▏", s(Key::ConnectServerLabel)), bold()));
+                lines.push((s(Key::ConnectAddressHint).to_owned(), dim()));
+                if let Some(note) = self.flow.note() {
+                    lines.push((clean(note), Style::default()));
+                }
+                if let Some(problem) = self
+                    .flow
+                    .address_problem()
+                    .filter(|_| !self.flow.address.trim().is_empty())
+                {
+                    lines.push((problem, dim()));
+                }
+                s(Key::ConnectAddressFooter)
+            }
+            Connect::Probing => {
+                lines.push((
+                    f(Key::ConnectProbing, &[("server", &clean(&server))]),
+                    dim(),
+                ));
+                s(Key::ConnectWaitFooter)
+            }
+            Connect::Compare {
+                fingerprint: offered,
+                matches_link,
+            } => {
+                lines.push((
+                    f(Key::ConnectCompare, &[("server", &clean(&server))]),
+                    Style::default(),
+                ));
+                fingerprint(lines, s(Key::PairingFingerprint), offered);
+                if *matches_link {
+                    lines.push((format!("✓ {}", s(Key::ConnectMatchesLink)), bold()));
+                }
+                lines.push((String::new(), Style::default()));
+                lines.push((
+                    format!("{}: {}▏", s(Key::PairingCode), clean(&self.flow.code)),
+                    bold(),
+                ));
+                lines.push((s(Key::ConnectCodeHint).to_owned(), dim()));
+                if let Some(problem) = self
+                    .flow
+                    .code_problem()
+                    .filter(|_| !self.flow.code.is_empty())
+                {
+                    lines.push((problem, dim()));
+                }
+                s(Key::ConnectCodeFooter)
+            }
+            Connect::Mismatch { offered, expected } => {
+                lines.push((
+                    f(Key::ConnectMismatch, &[("server", &clean(&server))]),
+                    bold(),
+                ));
+                fingerprint(lines, s(Key::PairingFingerprint), offered);
+                fingerprint(lines, s(Key::ConnectLinkFingerprint), expected);
+                s(Key::ConnectRetryFooter)
+            }
+            Connect::Pairing => {
+                lines.push((
+                    f(Key::ConnectPairing, &[("server", &clean(&server))]),
+                    dim(),
+                ));
+                s(Key::ConnectWaitFooter)
+            }
+            Connect::Paired => {
+                lines.push((
+                    f(Key::ConnectPaired, &[("server", &clean(&server))]),
+                    bold(),
+                ));
+                if let Some(summary) = app_front::server::summary(state, app_front::i18n::current())
+                {
+                    lines.push((summary.text, dim()));
+                }
+                s(Key::ConnectDoneFooter)
+            }
+            Connect::Failed { error, retry } => {
+                lines.push((clean(error), bold()));
+                lines.push((
+                    match retry {
+                        Retry::Address => s(Key::TryAgain),
+                        Retry::Code => s(Key::AnotherCode),
+                    }
+                    .to_owned(),
+                    dim(),
+                ));
+                s(Key::ConnectRetryFooter)
+            }
+        }
+    }
+
     /// Draws the wizard over `area`.
     pub fn draw(&self, frame: &mut Frame, area: Rect, state: &AppState, borders: bool) {
         frame.render_widget(Clear, area);
+        let title = if self.step == Step::Server {
+            s(Key::ConnectToServer)
+        } else {
+            s(Key::AddAccountTitle)
+        };
         let block = if borders {
-            Block::bordered()
-                .border_style(bold())
-                .title(s(Key::AddAccountTitle))
+            Block::bordered().border_style(bold()).title(title)
         } else {
             Block::new()
         };
@@ -405,8 +656,11 @@ impl Setup {
             Step::Address => s(Key::Step2),
             Step::Password => s(Key::Step3),
             Step::Test => s(Key::Step4),
+            Step::Server => "",
         };
-        if self.existing {
+        if self.step == Step::Server {
+            lines.push((s(Key::ConnectToServer).to_owned(), bold()));
+        } else if self.existing {
             lines.push((
                 f(Key::ChangePasswordOf, &[("email", &clean(&self.fields[0]))]),
                 bold(),
@@ -417,13 +671,16 @@ impl Setup {
         lines.push((String::new(), Style::default()));
         let footer = match self.step {
             Step::Preset => {
-                for (i, (_, title, hint)) in PRESETS.iter().enumerate() {
+                let connect = (availability(state) == Availability::Open)
+                    .then_some((Key::ConnectToServerInstead, Key::ConnectToServerDetail));
+                let choices = PRESETS.iter().map(|(_, title, hint)| (*title, *hint));
+                for (i, (title, hint)) in choices.chain(connect).enumerate() {
                     let here = i == self.preset;
                     lines.push((
-                        format!("{} {}", if here { "›" } else { " " }, s(*title)),
+                        format!("{} {}", if here { "›" } else { " " }, s(title)),
                         if here { reverse() } else { Style::default() },
                     ));
-                    lines.push((format!("    {}", s(*hint)), dim()));
+                    lines.push((format!("    {}", s(hint)), dim()));
                 }
                 s(Key::ChooseFooter)
             }
@@ -504,6 +761,7 @@ impl Setup {
                     }
                 }
             }
+            Step::Server => self.server_lines(state, &mut lines),
         };
         if let Some(error) = &self.error {
             lines.push((String::new(), Style::default()));

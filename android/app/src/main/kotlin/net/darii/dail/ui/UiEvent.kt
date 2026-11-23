@@ -46,6 +46,12 @@ enum class Field(
 
     @SerialName("password")
     Password("password"),
+
+    @SerialName("server")
+    Server("server"),
+
+    @SerialName("code")
+    Code("code"),
 }
 
 /**
@@ -206,6 +212,46 @@ sealed interface UiEvent {
                 if (files.isNotEmpty()) putJsonArray("files") { files.forEach { add(it) } }
             }
     }
+
+    /** A `dail://pair` link from outside the app (the deep link, the scanner); Rust reads it. */
+    data class PairLink(
+        val uri: String,
+    ) : UiEvent {
+        override fun json() = event("pair_link") { put("uri", uri) }
+    }
+
+    /** The in-app scanner's first decoded QR code, as decoded (SRV-QR3); Rust reads it. */
+    data class Scanned(
+        val text: String,
+    ) : UiEvent {
+        override fun json() = event("scanned") { put("text", text) }
+    }
+
+    /** The user closed the scanner without a code. */
+    data object ScanCancelled : UiEvent {
+        override fun json() = event("scan_cancelled")
+    }
+
+    /** The scanner could not run; Rust says why in the snackbar. */
+    data class ScanFailed(
+        val reason: ScanFailure,
+    ) : UiEvent {
+        override fun json() = event("scan_failed") { put("reason", reason.wire) }
+    }
+}
+
+/** Why the scanner could not run (`app_mobile::event::ScanFailure`). */
+enum class ScanFailure(
+    val wire: String,
+) {
+    /** The camera permission was refused (now or for good). */
+    Denied("denied"),
+
+    /** The device has no camera. */
+    NoCamera("no_camera"),
+
+    /** The camera did not start. */
+    Failed("failed"),
 }
 
 private fun event(

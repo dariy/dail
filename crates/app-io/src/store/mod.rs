@@ -63,6 +63,17 @@ pub enum IoError {
     /// A blob ID is not a lower-case hex SHA-256.
     #[error("ERR107: invalid blob id `{0}`")]
     InvalidBlobId(String),
+    /// `config.toml` links the profile to a dail server (`[remote]`) and also has accounts
+    /// (ADR 0017).
+    #[error(
+        "ERR108: {path}: a profile linked to a dail server ([remote]) has no accounts of its own, but this one has {accounts}; remove the [remote] table or the accounts, or use another profile"
+    )]
+    RemoteWithAccounts {
+        /// The config file.
+        path: String,
+        /// How many accounts it has.
+        accounts: usize,
+    },
 }
 
 impl IoError {

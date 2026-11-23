@@ -1,0 +1,8 @@
+---
+source: crates/app-front/tests/it/result.rs
+expression: doc
+---
+ResultDoc {
+    title: "Show paired devices",
+    sections: [],
+}

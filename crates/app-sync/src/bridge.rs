@@ -60,7 +60,8 @@ impl<T: Send + 'static> Bridge<T> {
         origin: Origin,
         wake: Wake,
     ) -> (Self, JoinHandle<()>) {
-        let conn = Connection::Local(session.client());
+        // `Connection::Remote` for a remote profile's session (ADR 0017).
+        let conn = session.connection();
         let state = session.subscribe();
         Self::spawn(runtime, conn, state, Some(session), origin, wake)
     }

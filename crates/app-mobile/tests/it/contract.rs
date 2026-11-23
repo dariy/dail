@@ -148,6 +148,30 @@ fn frames() -> Vec<(String, Frame)> {
         text: "me@example.org".to_owned(),
     });
     out.push(("setup_address".to_owned(), phone.frame()));
+    // *Connect to a dail server* (SRV-7): the fingerprint to compare and the code, from a link.
+    let mut phone = Phone::new(AppState::default(), 360, 800);
+    phone.event(UiEvent::PairLink {
+        uri: format!(
+            "dail://pair?v=1&h=home.example&p=7443&c=abcd2345&fp={}&n=Laptop",
+            "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03"
+        ),
+    });
+    // A link waits for the user's *Connect* (SRV-QR2), next to *Scan QR code* (SRV-QR3).
+    out.push(("connect_address".to_owned(), phone.frame()));
+    let connect = phone.frame().setup.unwrap();
+    let connect = connect
+        .actions
+        .iter()
+        .find(|b| b.label == "Connect")
+        .unwrap()
+        .action;
+    phone.tap(connect);
+    phone.ingest(app_core::Event::ServerOffered {
+        host: "home.example".to_owned(),
+        port: 7443,
+        fingerprint: "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03".to_owned(),
+    });
+    out.push(("connect_compare".to_owned(), phone.frame()));
     for (name, section) in [
         ("settings_general", app_core::SettingsSection::General),
         ("settings_accounts", app_core::SettingsSection::Accounts),
@@ -253,6 +277,16 @@ fn events() -> Vec<UiEvent> {
             text: Some("Here".to_owned()),
             files: vec!["content://com.example.files/a.pdf".to_owned()],
         },
+        UiEvent::PairLink {
+            uri: "dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop".to_owned(),
+        },
+        UiEvent::Scanned {
+            text: "dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop".to_owned(),
+        },
+        UiEvent::ScanCancelled,
+        UiEvent::ScanFailed {
+            reason: app_mobile::event::ScanFailure::Denied,
+        },
     ];
     for event in &all {
         match event {
@@ -273,7 +307,11 @@ fn events() -> Vec<UiEvent> {
             | UiEvent::Key { .. }
             | UiEvent::KeyDown { .. }
             | UiEvent::Tick
-            | UiEvent::Share { .. } => {}
+            | UiEvent::Share { .. }
+            | UiEvent::PairLink { .. }
+            | UiEvent::Scanned { .. }
+            | UiEvent::ScanCancelled
+            | UiEvent::ScanFailed { .. } => {}
         }
     }
     all
@@ -314,6 +352,7 @@ fn externals() -> Vec<External> {
         External::SystemSettings {
             screen: app_mobile::event::SystemScreen::Battery,
         },
+        External::ScanQr,
     ];
     for external in &all {
         match external {
@@ -325,7 +364,8 @@ fn externals() -> Vec<External> {
             | External::Copy { .. }
             | External::SaveFiles { .. }
             | External::Schedule { .. }
-            | External::SystemSettings { .. } => {}
+            | External::SystemSettings { .. }
+            | External::ScanQr => {}
         }
     }
     all
@@ -487,4 +527,61 @@ fn every_icon_in_the_frames_has_a_glyph() {
         );
     }
     assert!(missing.is_empty(), "icons without a glyph: {missing:?}");
+}
+
+/// The iOS camera prompt (`NSCameraUsageDescription`, SRV-QR3) in every language, from the table
+/// (`NativeCameraPurpose`): `ios/Dail/<lang>.lproj/InfoPlist.strings`. A stale or missing file
+/// fails; `DAIL_UPDATE_CONTRACT=1` rewrites them.
+#[test]
+fn the_ios_camera_prompt_is_the_tables_in_every_language() {
+    use app_front::i18n::{Key, Lang, text};
+    let manifest = std::env::var_os("CARGO_MANIFEST_DIR")
+        .map_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")), PathBuf::from);
+    let ios = manifest.join("../../ios/Dail");
+    let update = std::env::var_os("DAIL_UPDATE_CONTRACT").is_some_and(|v| v == "1");
+    let mut stale = Vec::new();
+    for (folder, lang) in [
+        ("en", Lang::English),
+        ("fr", Lang::French),
+        ("es", Lang::Spanish),
+        ("ro", Lang::Romanian),
+        ("pt-BR", Lang::PortugueseBrazil),
+        ("pt-PT", Lang::PortuguesePortugal),
+        ("la", Lang::Latin),
+    ] {
+        let prompt = text(lang, Key::NativeCameraPurpose);
+        assert!(!prompt.contains(['"', '\\']), "{folder}: escape it");
+        let want = format!(
+            "/* The camera permission prompt (SRV-QR3), from app-front's i18n table \
+             (NativeCameraPurpose).\n   Written by app-mobile's contract test: rerun it with \
+             DAIL_UPDATE_CONTRACT=1, never edit by hand. */\n\
+             \"NSCameraUsageDescription\" = \"{prompt}\";\n"
+        );
+        let path = ios.join(format!("{folder}.lproj/InfoPlist.strings"));
+        if update {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, &want).unwrap();
+        } else if std::fs::read_to_string(&path)
+            .ok()
+            .map(|t| t.replace("\r\n", "\n"))
+            != Some(want)
+        {
+            stale.push(folder);
+        }
+    }
+    assert!(
+        stale.is_empty(),
+        "stale or missing InfoPlist.strings: {stale:?}; rerun with DAIL_UPDATE_CONTRACT=1"
+    );
+    // The development language's text, in the build settings, is the table's too.
+    let spec = std::fs::read_to_string(manifest.join("../../ios/project.yml"))
+        .unwrap()
+        .replace("\r\n", "\n");
+    let english = text(Lang::English, Key::NativeCameraPurpose);
+    assert!(
+        spec.contains(&format!(
+            "INFOPLIST_KEY_NSCameraUsageDescription: {english}\n"
+        )),
+        "ios/project.yml's NSCameraUsageDescription is not the table's English"
+    );
 }

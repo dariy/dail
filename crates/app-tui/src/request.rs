@@ -11,6 +11,8 @@ pub enum Purpose {
     Bodies(ThreadId),
     /// The account setup's `add_account` (its reply carries the new account's ID).
     Setup,
+    /// `start_pairing` of the *Pair a device…* dialog (its reply carries the code).
+    Pairing,
 }
 
 /// A command and why it was submitted.

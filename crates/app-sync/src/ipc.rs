@@ -22,15 +22,16 @@
 //! changes (coalesced), until either side closes it. A client watches on a connection of its own
 //! and reads `state` again on its request connection ([`IpcClient::subscribe`]).
 //!
+//! The framing is [`crate::rpc`]'s and works over any byte stream ([`serve_stream`]); the dail
+//! server ([`crate::serve`]) speaks the same protocol over TLS.
+//!
 //! Only the `tui`, `cli`, `batch`, `mcp` and `mcp_allow_send` origins may be claimed by a client: a local process
 //! can't pose as the GUI or as the runtime. (`tui` and `cli` may approve agent sends, like the GUI; a process that
 //! can open the user's socket acts as the user anyway, `ARCHITECTURE.md §9`.)
 
 use std::fs::{File, OpenOptions};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll};
 use std::time::Duration;
 
 use app_core::{AppState, Command, CoreError, Origin};
@@ -39,12 +40,17 @@ use interprocess::local_socket::traits::tokio::{Listener as _, Stream as _};
 use interprocess::local_socket::{ListenerOptions, Name};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, Lines, ReadBuf};
-use tokio::sync::{Mutex, watch};
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::sync::watch;
 use tokio::task::{JoinHandle, JoinSet};
 
+use crate::connection::Connection;
 use crate::error::SyncError;
-use crate::session::{SessionClient, SubmitResult};
+use crate::rpc::{
+    self, BoxRead, BoxWrite, CallError, INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST,
+    LineReader, METHOD_NOT_FOUND, Request, RpcClient,
+};
+use crate::session::SubmitResult;
 
 /// How long [`claim`] waits for a busy profile (another process holds the lock but does not
 /// listen yet, or is a short `dail exec`).
@@ -52,12 +58,6 @@ pub const CLAIM_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Pause between attempts while a profile is busy.
 const CLAIM_RETRY: Duration = Duration::from_millis(50);
-
-/// JSON-RPC error codes.
-const INVALID_REQUEST: i64 = -32600;
-const METHOD_NOT_FOUND: i64 = -32601;
-const INVALID_PARAMS: i64 = -32602;
-const INTERNAL_ERROR: i64 = -32603;
 
 /// The exclusive lock of a profile directory, held while the process owns the profile. The OS
 /// releases it when the file is closed, also when the process dies.
@@ -165,27 +165,17 @@ pub async fn claim(root: &Path) -> Result<Claim, SyncError> {
     }
 }
 
-/// A request line.
-#[derive(Debug, Serialize, Deserialize)]
-struct Request {
-    jsonrpc: String,
-    id: Value,
-    method: String,
-    #[serde(default)]
-    params: Value,
-}
-
 /// `submit` parameters.
 #[derive(Debug, Deserialize)]
-struct SubmitParams {
-    origin: Origin,
-    command: Value,
+pub(crate) struct SubmitParams {
+    pub(crate) origin: Origin,
+    pub(crate) command: Value,
 }
 
 /// The `result` of `submit`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum SubmitReply {
+pub(crate) enum SubmitReply {
     Ok(app_core::CommandReceipt),
     Rejected(CoreError),
 }
@@ -193,7 +183,7 @@ enum SubmitReply {
 /// The `result` of `preview`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum PreviewReply {
+pub(crate) enum PreviewReply {
     Ok(app_core::Preview),
     Rejected(CoreError),
 }
@@ -218,7 +208,8 @@ impl IpcServer {
     /// Listens on the profile's endpoint and serves `session` to every client. Call it only
     /// while holding the profile's [`ProfileLock`]; a stale socket file left by a crashed owner
     /// is replaced.
-    pub fn listen(root: &Path, session: SessionClient) -> Result<Self, SyncError> {
+    pub fn listen(root: &Path, session: impl Into<Connection>) -> Result<Self, SyncError> {
+        let session: Connection = session.into();
         let endpoint = IpcEndpoint::for_profile(root);
         let name = endpoint.to_name().map_err(|err| {
             SyncError::Ipc(format!("bad socket name {}: {err}", endpoint.display()))
@@ -236,7 +227,7 @@ impl IpcServer {
                 tokio::select! {
                     accepted = listener.accept() => match accepted {
                         Ok(stream) => {
-                            connections.spawn(serve_connection(stream, session.clone()));
+                            connections.spawn(serve_stream(stream, session.clone()));
                         }
                         Err(err) => tracing::warn!(error = %err, "IPC accept failed"),
                     },
@@ -262,51 +253,17 @@ impl Drop for IpcServer {
     }
 }
 
-/// One side of a connection. `&Stream` reads and writes, so both sides share the stream
-/// (interprocess 2.4.7 deprecated its split halves for this).
-struct Half(Arc<Stream>);
-
-type RecvHalf = Half;
-type SendHalf = Half;
-
-fn split(stream: Stream) -> (RecvHalf, SendHalf) {
-    let stream = Arc::new(stream);
-    (Half(Arc::clone(&stream)), Half(stream))
-}
-
-impl AsyncRead for Half {
-    fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut &*self.0).poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for Half {
-    fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut &*self.0).poll_write(cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut &*self.0).poll_flush(cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut &*self.0).poll_shutdown(cx)
-    }
-}
-
-async fn serve_connection(stream: Stream, session: SessionClient) {
-    let (recv, mut send) = split(stream);
-    let mut lines = BufReader::new(recv).lines();
+/// Serves the profile socket's protocol (see the module doc) on `stream`, which may be any byte
+/// stream: the local socket, or a pipe in tests. Returns when the client closes it.
+pub async fn serve_stream<S>(stream: S, session: impl Into<Connection>)
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let session: Connection = session.into();
+    let (recv, mut send) = rpc::split(stream);
+    let mut lines = LineReader::new(recv);
     loop {
-        let line = match lines.next_line().await {
+        let line = match lines.next_line(usize::MAX).await {
             Ok(Some(line)) => line,
             Ok(None) => break,
             Err(err) => {
@@ -320,34 +277,24 @@ async fn serve_connection(stream: Stream, session: SessionClient) {
         if let Ok(request) = serde_json::from_str::<Request>(&line)
             && request.method == "watch"
         {
-            let ok = json!({ "jsonrpc": "2.0", "id": request.id, "result": null });
-            if write_line(&mut send, &ok).await.is_ok() {
+            let ok = rpc::answer(request.id, Value::Null);
+            if rpc::write_line(&mut send, &ok).await.is_ok() {
                 notify_changes(lines, send, &session).await;
             }
             return;
         }
         let response = respond(&line, &session).await;
-        let mut text = response.to_string();
-        text.push('\n');
-        if send.write_all(text.as_bytes()).await.is_err() {
+        if rpc::write_line(&mut send, &response).await.is_err() {
             break;
         }
     }
 }
 
-async fn write_line(send: &mut SendHalf, value: &Value) -> std::io::Result<()> {
-    let mut text = value.to_string();
-    text.push('\n');
-    send.write_all(text.as_bytes()).await
-}
-
 /// Sends `changed` after each burst of state changes until the session or the client goes away.
-async fn notify_changes(
-    mut lines: Lines<BufReader<RecvHalf>>,
-    mut send: SendHalf,
-    session: &SessionClient,
-) {
-    let mut changes = session.subscribe();
+async fn notify_changes(mut lines: LineReader<BoxRead>, mut send: BoxWrite, session: &Connection) {
+    let Ok(mut changes) = session.subscribe().await else {
+        return;
+    };
     changes.borrow_and_update();
     let changed = json!({ "jsonrpc": "2.0", "method": "changed" });
     loop {
@@ -355,11 +302,11 @@ async fn notify_changes(
             result = changes.changed() => {
                 // The watch channel keeps only the latest state: changes made while a
                 // notification was being written are reported once.
-                if result.is_err() || write_line(&mut send, &changed).await.is_err() {
+                if result.is_err() || rpc::write_line(&mut send, &changed).await.is_err() {
                     break;
                 }
             }
-            line = lines.next_line() => match line {
+            line = lines.next_line(usize::MAX) => match line {
                 // A watching client has nothing to say; anything it sends is ignored.
                 Ok(Some(_)) => {}
                 Ok(None) | Err(_) => break,
@@ -368,10 +315,12 @@ async fn notify_changes(
     }
 }
 
-async fn respond(line: &str, session: &SessionClient) -> Value {
+async fn respond(line: &str, session: &Connection) -> Value {
     let request: Request = match serde_json::from_str(line) {
         Ok(request) => request,
-        Err(err) => return error(Value::Null, INVALID_REQUEST, &format!("bad request: {err}")),
+        Err(err) => {
+            return rpc::error(Value::Null, INVALID_REQUEST, &format!("bad request: {err}"));
+        }
     };
     let id = request.id;
     let outcome = match request.method.as_str() {
@@ -382,17 +331,20 @@ async fn respond(line: &str, session: &SessionClient) -> Value {
             .await
             .map(|()| Value::Null)
             .map_err(internal),
-        "state" => serde_json::to_value(session.state().as_ref())
-            .map_err(|err| (INTERNAL_ERROR, err.to_string())),
+        "state" => match session.state().await {
+            Ok(state) => serde_json::to_value(state.as_ref())
+                .map_err(|err| (INTERNAL_ERROR, err.to_string())),
+            Err(err) => Err(internal(err)),
+        },
         other => Err((METHOD_NOT_FOUND, format!("unknown method `{other}`"))),
     };
     match outcome {
-        Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
-        Err((code, message)) => error(id, code, &message),
+        Ok(result) => rpc::answer(id, result),
+        Err((code, message)) => rpc::error(id, code, &message),
     }
 }
 
-async fn submit(params: Value, session: &SessionClient) -> Result<Value, (i64, String)> {
+async fn submit(params: Value, session: &Connection) -> Result<Value, (i64, String)> {
     let params: SubmitParams = serde_json::from_value(params)
         .map_err(|err| (INVALID_PARAMS, format!("bad submit params: {err}")))?;
     if !origin_allowed(params.origin) {
@@ -411,7 +363,7 @@ async fn submit(params: Value, session: &SessionClient) -> Result<Value, (i64, S
     serde_json::to_value(reply).map_err(|err| (INTERNAL_ERROR, err.to_string()))
 }
 
-async fn preview(params: Value, session: &SessionClient) -> Result<Value, (i64, String)> {
+async fn preview(params: Value, session: &Connection) -> Result<Value, (i64, String)> {
     let params: SubmitParams = serde_json::from_value(params)
         .map_err(|err| (INVALID_PARAMS, format!("bad preview params: {err}")))?;
     if !origin_allowed(params.origin) {
@@ -434,18 +386,14 @@ async fn preview(params: Value, session: &SessionClient) -> Result<Value, (i64, 
     serde_json::to_value(reply).map_err(|err| (INTERNAL_ERROR, err.to_string()))
 }
 
-fn internal(err: SyncError) -> (i64, String) {
+pub(crate) fn internal(err: SyncError) -> (i64, String) {
     (INTERNAL_ERROR, err.to_string())
-}
-
-fn error(id: Value, code: i64, message: &str) -> Value {
-    json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
 }
 
 /// The wire form of a command. Unlike its `Serialize` form (used for receipts and logs), it
 /// carries the password of `add_account`: the socket is private to the user, and the owner has
 /// to hand the password to the keyring.
-fn wire_command(cmd: &Command) -> Result<Value, SyncError> {
+pub(crate) fn wire_command(cmd: &Command) -> Result<Value, SyncError> {
     let mut value =
         serde_json::to_value(cmd).map_err(|err| SyncError::Ipc(format!("bad command: {err}")))?;
     if let Command::AddAccount {
@@ -462,44 +410,29 @@ fn wire_command(cmd: &Command) -> Result<Value, SyncError> {
 #[derive(Debug, Clone)]
 pub struct IpcClient {
     endpoint: IpcEndpoint,
-    inner: Arc<Mutex<ClientConn>>,
+    rpc: RpcClient,
 }
 
-struct ClientConn {
-    lines: Lines<BufReader<RecvHalf>>,
-    send: SendHalf,
-    next_id: u64,
-}
-
-impl std::fmt::Debug for ClientConn {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ClientConn")
-            .field("next_id", &self.next_id)
-            .finish_non_exhaustive()
+/// The error of a failed call on the profile socket.
+fn ipc_error(err: CallError) -> SyncError {
+    match err {
+        CallError::Closed => SyncError::SessionClosed,
+        CallError::Protocol(message) | CallError::Refused { message, .. } => {
+            SyncError::Ipc(message)
+        }
     }
 }
 
 impl IpcClient {
     /// Connects to `endpoint`; fails if nobody listens there.
     pub async fn connect(endpoint: &IpcEndpoint) -> Result<Self, SyncError> {
-        let name = endpoint.to_name().map_err(|err| {
-            SyncError::Ipc(format!("bad socket name {}: {err}", endpoint.display()))
-        })?;
-        let stream = Stream::connect(name).await.map_err(|err| {
-            SyncError::Ipc(format!("cannot connect to {}: {err}", endpoint.display()))
-        })?;
-        let (recv, send) = split(stream);
         Ok(Self {
             endpoint: endpoint.clone(),
-            inner: Arc::new(Mutex::new(ClientConn {
-                lines: BufReader::new(recv).lines(),
-                send,
-                next_id: 1,
-            })),
+            rpc: RpcClient::new(dial(endpoint).await?),
         })
     }
 
-    /// Submits a command to the owner's session, like [`SessionClient::submit`].
+    /// Submits a command to the owner's session, like [`crate::SessionClient::submit`].
     pub async fn submit(&self, cmd: &Command, origin: Origin) -> Result<SubmitResult, SyncError> {
         let params = json!({ "origin": origin, "command": wire_command(cmd)? });
         let result = self.call("submit", params).await?;
@@ -511,7 +444,7 @@ impl IpcClient {
         }
     }
 
-    /// A dry run in the owner's session, like [`SessionClient::preview`].
+    /// A dry run in the owner's session, like [`crate::SessionClient::preview`].
     pub async fn preview(
         &self,
         cmd: &Command,
@@ -527,7 +460,7 @@ impl IpcClient {
         }
     }
 
-    /// Waits until the owner's in-flight effects are done, like [`SessionClient::flush`].
+    /// Waits until the owner's in-flight effects are done, like [`crate::SessionClient::flush`].
     pub async fn flush(&self) -> Result<(), SyncError> {
         self.call("flush", Value::Null).await.map(drop)
     }
@@ -543,48 +476,28 @@ impl IpcClient {
     /// sender is dropped — `changed()` fails — once the owner goes away or this client's
     /// request connection breaks. Must be called inside a tokio runtime.
     pub async fn subscribe(&self) -> Result<watch::Receiver<Arc<AppState>>, SyncError> {
-        let name = self.endpoint.to_name().map_err(|err| {
-            SyncError::Ipc(format!(
-                "bad socket name {}: {err}",
-                self.endpoint.display()
-            ))
-        })?;
-        let stream = Stream::connect(name).await.map_err(|err| {
-            SyncError::Ipc(format!(
-                "cannot connect to {}: {err}",
-                self.endpoint.display()
-            ))
-        })?;
-        let (recv, mut send) = split(stream);
-        let mut lines = BufReader::new(recv).lines();
-        let request = json!({ "jsonrpc": "2.0", "id": 0, "method": "watch" });
-        write_line(&mut send, &request)
-            .await
-            .map_err(|_| SyncError::SessionClosed)?;
-        match lines.next_line().await {
-            Ok(Some(line))
-                if serde_json::from_str::<Value>(&line)
-                    .is_ok_and(|reply| reply.get("error").is_none()) => {}
-            Ok(Some(line)) => return Err(SyncError::Ipc(format!("watch refused: {line}"))),
-            Ok(None) | Err(_) => return Err(SyncError::SessionClosed),
-        }
+        let watcher = RpcClient::new(dial(&self.endpoint).await?);
+        let (_, mut notifications) = match watcher.into_notifications("watch", Value::Null).await {
+            Ok(started) => started,
+            Err(CallError::Closed) => return Err(SyncError::SessionClosed),
+            Err(CallError::Protocol(message) | CallError::Refused { message, .. }) => {
+                return Err(SyncError::Ipc(format!("watch refused: {message}")));
+            }
+        };
         // Read after the watch is in place, so no change between the two is missed.
         let (tx, rx) = watch::channel(Arc::new(self.state().await?));
         let client = self.clone();
         tokio::spawn(async move {
-            // Keeps the write half open: closing it would end the watch.
-            let _send = send;
             loop {
-                let line = tokio::select! {
-                    line = lines.next_line() => line,
+                let notification = tokio::select! {
+                    notification = notifications.next() => notification,
                     // Every receiver is gone: stop watching.
                     () = tx.closed() => break,
                 };
-                let Ok(Some(line)) = line else {
+                let Some((method, _)) = notification else {
                     break;
                 };
-                let notification: Value = serde_json::from_str(&line).unwrap_or(Value::Null);
-                if notification["method"] != "changed" {
+                if method != "changed" {
                     continue;
                 }
                 match client.state().await {
@@ -604,31 +517,16 @@ impl IpcClient {
     }
 
     async fn call(&self, method: &str, params: Value) -> Result<Value, SyncError> {
-        let mut conn = self.inner.lock().await;
-        let id = conn.next_id;
-        conn.next_id += 1;
-        let request = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
-        let mut text = request.to_string();
-        text.push('\n');
-        conn.send
-            .write_all(text.as_bytes())
-            .await
-            .map_err(|_| SyncError::SessionClosed)?;
-        let line = conn
-            .lines
-            .next_line()
-            .await
-            .map_err(|_| SyncError::SessionClosed)?
-            .ok_or(SyncError::SessionClosed)?;
-        let mut response: Value = serde_json::from_str(&line)
-            .map_err(|err| SyncError::Ipc(format!("bad response: {err}")))?;
-        if response["id"] != json!(id) {
-            return Err(SyncError::Ipc("response out of order".to_owned()));
-        }
-        if let Some(error) = response.get("error") {
-            let message = error["message"].as_str().unwrap_or("unknown error");
-            return Err(SyncError::Ipc(message.to_owned()));
-        }
-        Ok(response["result"].take())
+        self.rpc.call(method, params).await.map_err(ipc_error)
     }
+}
+
+/// Connects to the local socket of `endpoint`.
+async fn dial(endpoint: &IpcEndpoint) -> Result<Stream, SyncError> {
+    let name = endpoint
+        .to_name()
+        .map_err(|err| SyncError::Ipc(format!("bad socket name {}: {err}", endpoint.display())))?;
+    Stream::connect(name)
+        .await
+        .map_err(|err| SyncError::Ipc(format!("cannot connect to {}: {err}", endpoint.display())))
 }

@@ -203,9 +203,45 @@ fn the_language_setting_offers_names_and_submits_the_value() {
     ));
 }
 
+/// `state` as a dail server's mirror (ADR 0017): a paired device, a server whose certificate
+/// was offered, and a command the server refused.
+fn with_server(mut state: AppState) -> AppState {
+    let device = app_core::Device {
+        id: serde_json::from_value(serde_json::json!("00000000-0000-0000-0000-000000000077"))
+            .unwrap(),
+        name: "Phone".into(),
+        role: app_core::DeviceRole::User,
+        paired_at_ms: support::NOW,
+        last_seen_ms: None,
+    };
+    state.devices.insert(device.id, device);
+    state.link = Some(app_core::LinkState {
+        server: Some(app_core::ServerEndpoint {
+            host: "home.example".into(),
+            port: 7443,
+            offered: Some("ab".repeat(32)),
+            ..app_core::ServerEndpoint::default()
+        }),
+        rejected: vec![app_core::OfflineRejection {
+            request_id: serde_json::from_value(serde_json::json!(
+                "00000000-0000-0000-0000-000000000078"
+            ))
+            .unwrap(),
+            seed: 78,
+            origin: Origin::Gui,
+            command: Command::SyncNow { account: None },
+            code: "ERR004".into(),
+            error: "ERR004: account x not found".into(),
+            at_ms: support::NOW,
+        }],
+        ..app_core::LinkState::default()
+    });
+    state
+}
+
 #[test]
 fn every_registry_command_is_reachable_from_the_palette() {
-    let state = with_thread_draft(rich_state());
+    let state = with_server(with_thread_draft(rich_state()));
     let roots: Vec<Target> = palette::root_rows(&state)
         .into_iter()
         .map(|r| r.target)
@@ -224,10 +260,10 @@ fn every_registry_command_is_reachable_from_the_palette() {
                 "{name:?} is not listed"
             );
         }
-        let text = if matches!(name, CommandName::SetSetting | CommandName::SetSyncWindow) {
-            "300"
-        } else {
-            "plans"
+        let text = match name {
+            CommandName::SetSetting | CommandName::SetSyncWindow => "300",
+            CommandName::ConnectServer => "home.example:7443",
+            _ => "plans",
         };
         match walk(&state, palette::flow(name, &state), text) {
             Flow::Run(cmd) => {

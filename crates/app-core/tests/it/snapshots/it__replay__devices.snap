@@ -1,0 +1,469 @@
+---
+source: crates/app-core/tests/it/replay.rs
+expression: first
+---
+{
+  "final_state": {
+    "accounts": {},
+    "approvals": {},
+    "drafts": {},
+    "mailboxes": {},
+    "messages": {},
+    "outbox": {},
+    "settings": {
+      "after_triage": 0,
+      "background_interval_mins": 30,
+      "background_sync": 1,
+      "full_sync_secs": 900,
+      "history_cap": 200,
+      "initial_window": 500,
+      "language": 0,
+      "list_density": 0,
+      "mark_read_after_ms": 2000,
+      "notifications": 1,
+      "poll_secs": 120,
+      "stale_secs": 60,
+      "text_scale": 100,
+      "theme": 0,
+      "theme_dark": "dail-dark",
+      "theme_light": "dail-light",
+      "tui_colors": 0,
+      "undo_send_ms": 10000,
+      "updates": {
+        "checks": "unset",
+        "interval_hours": 24
+      }
+    },
+    "status": {
+      "bodies_in_flight": [],
+      "keyring_error": null,
+      "next_poll_ms": null,
+      "persist_error": null,
+      "sync": {}
+    },
+    "threads": {},
+    "update": {
+      "status": {
+        "state": "idle"
+      }
+    },
+    "view": {
+      "composer": null,
+      "focus": "list",
+      "mailbox": null,
+      "palette_open": false,
+      "selected": [],
+      "sidebar_collapsed": false,
+      "thread": null
+    }
+  },
+  "steps": [
+    {
+      "line": 3,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "code": "<redacted>",
+                "expires_at_ms": 1700000600000,
+                "name": "Phone",
+                "role": "user"
+              },
+              "effect": "open_pairing"
+            }
+          ],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "code": "AABQAAAA",
+              "expires_at_ms": 1700000600000,
+              "name": "Phone",
+              "role": "user",
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "start_pairing",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 4,
+      "result": {
+        "err": {
+          "command": "start_pairing",
+          "error": "error_008_origin_not_allowed",
+          "origin": "mcp"
+        }
+      }
+    },
+    {
+      "line": 5,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "device",
+                "id": "00000000-0000-0000-0000-000000000001"
+              },
+              {
+                "entity": "status"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "device_paired",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 6,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "device",
+                "id": "00000000-0000-0000-0000-000000000001"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "device_seen",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 7,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "devices": [
+                {
+                  "id": "00000000-0000-0000-0000-000000000001",
+                  "last_seen_ms": 1700000003000,
+                  "name": "Phone",
+                  "paired_at_ms": 1700000002000,
+                  "role": "user"
+                }
+              ]
+            },
+            "kind": "query",
+            "name": "list_devices",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 8,
+      "result": {
+        "err": {
+          "command": "revoke_device",
+          "error": "error_006_confirmation_required"
+        }
+      }
+    },
+    {
+      "line": 9,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "id": "00000000-0000-0000-0000-000000000001"
+              },
+              "effect": "revoke_device"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "device",
+                "id": "00000000-0000-0000-0000-000000000001"
+              }
+            ],
+            "data": {
+              "name": "Phone",
+              "revoked": "00000000-0000-0000-0000-000000000001",
+              "undoable": false
+            },
+            "kind": "destructive",
+            "name": "revoke_device",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 10,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [],
+            "data": {
+              "devices": []
+            },
+            "kind": "query",
+            "name": "list_devices",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 11,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "host": "home.example",
+                "port": 7443
+              },
+              "effect": "probe_server"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": {
+              "host": "home.example",
+              "port": 7443,
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "connect_server",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 12,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "server_offered",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 13,
+      "result": {
+        "err": {
+          "error": "error_002_invalid_argument",
+          "field": "fingerprint",
+          "reason": "does not match the certificate the server presented; do not pair"
+        }
+      }
+    },
+    {
+      "line": 14,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "code": "<redacted>",
+                "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03",
+                "host": "home.example",
+                "port": 7443,
+                "secret": {
+                  "service": "dail",
+                  "user": "server/00000000-0000-000e-0000-000000000000"
+                }
+              },
+              "effect": "pair_with_server"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": {
+              "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03",
+              "host": "home.example",
+              "port": 7443,
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "trust_server",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 15,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "remote",
+                  "value": {
+                    "fingerprint": "5d41402abc4b2a76b9719d911017c592ae2f5e3c8a1b7d0f4e6c2a9b8d7f1e03",
+                    "host": "home.example",
+                    "port": 7443,
+                    "token": {
+                      "service": "dail",
+                      "user": "server/00000000-0000-000e-0000-000000000000"
+                    }
+                  }
+                }
+              },
+              "effect": "persist_state"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "server_paired",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 16,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": null,
+            "kind": null,
+            "name": "link_changed",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 17,
+      "result": {
+        "ok": {
+          "effects": [],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": {
+              "retried": [],
+              "undoable": false
+            },
+            "kind": "mutation",
+            "name": "retry_offline",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    },
+    {
+      "line": 18,
+      "result": {
+        "err": {
+          "entity": "offline rejection",
+          "error": "error_004_not_found",
+          "id": "00000000-0000-0000-0000-000000000009"
+        }
+      }
+    },
+    {
+      "line": 19,
+      "result": {
+        "ok": {
+          "effects": [
+            {
+              "args": {
+                "delta": {
+                  "table": "remote",
+                  "value": null
+                }
+              },
+              "effect": "persist_state"
+            },
+            {
+              "args": {
+                "secret": {
+                  "service": "dail",
+                  "user": "server/00000000-0000-000e-0000-000000000000"
+                }
+              },
+              "effect": "disconnect_server"
+            }
+          ],
+          "receipt": {
+            "affected": [
+              {
+                "entity": "link"
+              }
+            ],
+            "data": {
+              "disconnected": "home.example:7443",
+              "lost": 0,
+              "undoable": false
+            },
+            "kind": "destructive",
+            "name": "disconnect_server",
+            "ok": true,
+            "undo_label": null
+          }
+        }
+      }
+    }
+  ]
+}

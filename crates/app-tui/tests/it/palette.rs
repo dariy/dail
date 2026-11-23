@@ -128,6 +128,14 @@ fn every_registry_command_is_reachable_through_the_tui_palette() {
                 assert_eq!(got, [Command::ClosePalette {}], "{name:?}");
                 assert!(t.tui.setup_open(), "{name:?} opens the account setup");
             }
+            // The pairing dialog submits it (`Purpose::Pairing`) and shows its code (SRV-QR1).
+            CommandName::StartPairing => {
+                assert_eq!(got, [Command::ClosePalette {}], "{name:?}");
+                assert!(
+                    t.tui.pairing().is_some(),
+                    "{name:?} opens the pairing dialog"
+                );
+            }
             name => {
                 let expected = match name {
                     CommandName::UpdateDraft => CommandName::OpenComposer,

@@ -299,8 +299,150 @@ fn unreadable_drafts_are_quarantined_not_dropped() {
     assert_eq!(held.len().unwrap(), 1);
     let raw = held.get(900).unwrap().unwrap();
     let raw: serde_json::Value = serde_json::from_slice(raw.value()).unwrap();
-    assert_eq!(raw["raw"], r#"{"id":"not a draft"}"#);
+    assert_eq!(held_bytes(&raw), br#"{"id":"not a draft"}"#);
+    assert!(raw.get("lossy").is_none());
     drop(held);
+    drop(txn);
+    drop(db);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// The bytes of a `quarantine` row (schema version 2: standard base64 in `bytes`).
+fn held_bytes(row: &serde_json::Value) -> Vec<u8> {
+    use base64ct::Encoding as _;
+    base64ct::Base64::decode_vec(row["bytes"].as_str().unwrap()).unwrap()
+}
+
+/// The `quarantine` row under `key` of the database at `path`, as JSON.
+fn quarantine_row(path: &std::path::Path, key: u128) -> serde_json::Value {
+    let db = redb::Database::create(path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
+    let held = txn.open_table(table).unwrap();
+    let row = held.get(key).unwrap().unwrap();
+    serde_json::from_slice(row.value()).unwrap()
+}
+
+/// STORE-6: a quarantined row keeps its bytes exactly, also when they are not UTF-8 (a sealed
+/// record of an encrypting build: `"D1" | key_id | …`). Version 1 kept them as lossy text.
+#[test]
+fn quarantine_keeps_binary_bytes_exactly() {
+    let dir = scratch("quarantine-binary");
+    let path = dir.join("state.redb");
+    let sealed: &[u8] = b"D1\xd9\xe2\x4e\xa5\x00\xff\xfe sealed";
+    drop(RedbStore::open(&path).unwrap());
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        {
+            let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("drafts");
+            txn.open_table(table).unwrap().insert(900, sealed).unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    assert_eq!(state.status.quarantined.len(), 1);
+    drop(store);
+    assert_eq!(held_bytes(&quarantine_row(&path, 900)), sealed);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// Migration 1 → 2: a version 1 `quarantine` row (lossy text in `raw`) becomes base64 `bytes` of
+/// that text, marked `lossy`, and is still listed. A row of neither shape is left as it is.
+#[test]
+fn migration_1_to_2_rewrites_quarantine_rows_as_base64() {
+    let dir = scratch("migrate-quarantine");
+    let path = dir.join("state.redb");
+    drop(RedbStore::open(&path).unwrap());
+    {
+        // A version 1 file with one quarantined draft and one row of no known shape.
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        {
+            let meta: redb::TableDefinition<&str, u64> = redb::TableDefinition::new("meta");
+            txn.open_table(meta)
+                .unwrap()
+                .insert("schema_version", 1)
+                .unwrap();
+            let table: redb::TableDefinition<u128, &[u8]> =
+                redb::TableDefinition::new("quarantine");
+            let mut held = txn.open_table(table).unwrap();
+            let v1 = serde_json::json!({
+                "table": "drafts",
+                "error": "expected value at line 1 column 1",
+                "raw": "D1\u{fffd}\u{fffd}N\u{fffd}",
+            });
+            held.insert(900, serde_json::to_vec(&v1).unwrap().as_slice())
+                .unwrap();
+            held.insert(901, b"not json".as_slice()).unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    assert_eq!(store.schema_version().unwrap(), 2);
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    assert_eq!(state.status.quarantined.len(), 1);
+    assert_eq!(state.status.quarantined[0].table, "drafts");
+    assert_eq!(state.status.quarantined[0].key, uuid(900).to_string());
+    drop(store);
+    let row = quarantine_row(&path, 900);
+    assert_eq!(held_bytes(&row), "D1\u{fffd}\u{fffd}N\u{fffd}".as_bytes());
+    assert_eq!(row["lossy"], true);
+    assert!(row.get("raw").is_none());
+    let db = redb::Database::create(&path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
+    let held = txn.open_table(table).unwrap();
+    assert_eq!(held.get(901).unwrap().unwrap().value(), b"not json");
+    drop(held);
+    drop(txn);
+    drop(db);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A cache row (mailbox, message, thread) that does not read is deleted when the store opens,
+/// so it is not skipped again on every start; the readable rows stay. Sync fetches it again.
+#[test]
+fn unreadable_cache_rows_are_deleted_on_open() {
+    use redb::ReadableTableMetadata as _;
+    let dir = scratch("drop-cache");
+    let path = dir.join("state.redb");
+    let delta = cache(1, 100);
+    {
+        let store = RedbStore::open(&path).unwrap();
+        store.apply_mail(&delta).unwrap();
+    }
+    {
+        // Rows that are not JSON, as a sealed record (`"D1" | key_id | …`) is.
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        for name in ["mailboxes", "messages", "threads"] {
+            let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new(name);
+            let mut rows = txn.open_table(table).unwrap();
+            rows.insert(900, b"D1\xd9\xe2\x4e\xa5sealed".as_slice())
+                .unwrap();
+        }
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState::default();
+    store.load_into(&mut state).unwrap();
+    let mut expected = AppState::default();
+    delta.apply_to(&mut expected);
+    assert_eq!(state, expected);
+    drop(store);
+
+    let db = redb::Database::create(&path).unwrap();
+    let txn = redb::ReadableDatabase::begin_read(&db).unwrap();
+    for name in ["mailboxes", "messages", "threads"] {
+        let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new(name);
+        let rows = txn.open_table(table).unwrap();
+        assert_eq!(rows.len().unwrap(), 1, "{name}");
+        assert!(rows.get(900).unwrap().is_none(), "{name}");
+    }
     drop(txn);
     drop(db);
     std::fs::remove_dir_all(dir).unwrap();
@@ -536,5 +678,166 @@ fn a_saved_rule_survives_a_restart_unpushed() {
         .collect();
     assert_eq!(live, vec![rule]);
     assert!(state.synced.dirty, "the edit is still unpushed");
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+/// A remote profile's `[remote]` (ADR 0017).
+fn pinned_server() -> app_core::ServerEndpoint {
+    app_core::ServerEndpoint {
+        host: "home.example".into(),
+        port: 7443,
+        offered: None,
+        pairing: None,
+        fingerprint: Some("ab".repeat(32)),
+        token: Some(SecretRef::for_server(uuid::Uuid::from_u128(5))),
+    }
+}
+
+fn offline_queue() -> app_core::OfflineQueue {
+    let command = app_core::QueuedCommand {
+        request_id: app_core::RequestId::from_uuid(uuid::Uuid::from_u128(9 << 64)),
+        seed: 9 << 64,
+        origin: Origin::Gui,
+        command: app_core::Command::SyncNow { account: None },
+        queued_at_ms: 1_700_000_000_000,
+    };
+    app_core::OfflineQueue {
+        queued: vec![command.clone()],
+        rejected: vec![app_core::OfflineRejection {
+            request_id: app_core::RequestId::from_uuid(uuid::Uuid::from_u128(10 << 64)),
+            seed: 10 << 64,
+            origin: Origin::Mcp,
+            command: command.command,
+            code: "ERR004".into(),
+            error: "ERR004: gone".into(),
+            at_ms: 1_700_000_001_000,
+        }],
+    }
+}
+
+#[test]
+fn a_mirrors_offline_queue_survives_a_restart() {
+    let dir = scratch("offline-queue");
+    let dirs = ProfileDirs::at(&dir);
+    let queue = offline_queue();
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store
+            .apply(&PersistDelta::Remote(Some(pinned_server())))
+            .unwrap();
+        store
+            .apply(&PersistDelta::OfflineQueue(queue.clone()))
+            .unwrap();
+    }
+    let config = std::fs::read_to_string(dirs.config_file()).unwrap();
+    assert!(
+        !config.contains("sync_now"),
+        "the queue stays out of config.toml"
+    );
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap().unwrap();
+    let link = state.link.unwrap();
+    assert_eq!(link.queued, queue.queued);
+    assert_eq!(link.rejected, queue.rejected);
+    // Empty again: the row goes.
+    store
+        .apply(&PersistDelta::OfflineQueue(
+            app_core::OfflineQueue::default(),
+        ))
+        .unwrap();
+    drop(store);
+    let store = ProfileStore::open(&dirs).unwrap();
+    let link = store.load_snapshot().unwrap().unwrap().link.unwrap();
+    assert!(link.queued.is_empty() && link.rejected.is_empty());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_queue_without_remote_is_not_restored_and_an_unreadable_one_is_quarantined() {
+    let dir = scratch("offline-queue-bad");
+    let path = dir.join("state.redb");
+    {
+        let store = RedbStore::open(&path).unwrap();
+        store.put_offline_queue(&offline_queue()).unwrap();
+        // Without `[remote]` there is no link to put it in.
+        let mut state = AppState::default();
+        store.load_into(&mut state).unwrap();
+        assert!(state.link.is_none());
+    }
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        txn.open_table(redb::TableDefinition::<&str, &[u8]>::new("link"))
+            .unwrap()
+            .insert("queue", b"{not json".as_slice())
+            .unwrap();
+        txn.commit().unwrap();
+    }
+    drop(RedbStore::open(&path).unwrap());
+    // A second bad row does not overwrite the first in `quarantine`.
+    {
+        let db = redb::Database::create(&path).unwrap();
+        let txn = db.begin_write().unwrap();
+        txn.open_table(redb::TableDefinition::<&str, &[u8]>::new("link"))
+            .unwrap()
+            .insert("queue", b"{also not json".as_slice())
+            .unwrap();
+        txn.commit().unwrap();
+    }
+    let store = RedbStore::open(&path).unwrap();
+    let mut state = AppState {
+        link: Some(app_core::LinkState::default()),
+        ..AppState::default()
+    };
+    store.load_into(&mut state).unwrap();
+    assert!(state.link.unwrap().queued.is_empty());
+    assert_eq!(state.status.quarantined.len(), 2);
+    assert!(
+        state
+            .status
+            .quarantined
+            .iter()
+            .all(|row| row.table == "link")
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_remote_profiles_mirrored_accounts_and_mail_survive_a_restart() {
+    let dir = scratch("mirror-accounts");
+    let dirs = ProfileDirs::at(&dir);
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store
+            .apply(&PersistDelta::Remote(Some(pinned_server())))
+            .unwrap();
+        store.apply(&PersistDelta::Account(account(1))).unwrap();
+        store.apply(&PersistDelta::Account(account(2))).unwrap();
+        store.apply(&PersistDelta::Mail(cache(1, 100))).unwrap();
+        store
+            .apply(&PersistDelta::AccountRemoved(account(2).id))
+            .unwrap();
+    }
+    // The accounts are the server's: `config.toml` keeps none (ERR108 stays meaningful).
+    let config = std::fs::read_to_string(dirs.config_file()).unwrap();
+    assert!(!config.contains("me1@example.org"), "{config}");
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap().unwrap();
+    assert!(state.link.is_some());
+    assert_eq!(
+        state.accounts.keys().copied().collect::<Vec<_>>(),
+        [account(1).id]
+    );
+    assert_eq!(state.messages.len(), 1, "the cached mail is kept");
+    assert_eq!(state.threads.len(), 1);
+    drop(store);
+    // Without `[remote]` (a plain profile again) the mirrored accounts are not read.
+    {
+        let store = ProfileStore::open(&dirs).unwrap();
+        store.apply(&PersistDelta::Remote(None)).unwrap();
+    }
+    let store = ProfileStore::open(&dirs).unwrap();
+    let state = store.load_snapshot().unwrap();
+    assert!(state.is_none_or(|state| state.accounts.is_empty() && state.messages.is_empty()));
     std::fs::remove_dir_all(dir).unwrap();
 }

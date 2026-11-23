@@ -304,6 +304,26 @@ expression: command_schema()
         }
       ]
     },
+    "DeviceId": {
+      "description": "A device paired with this dail server (ADR 0017): a phone, a desktop or an agent.",
+      "format": "uuid",
+      "type": "string"
+    },
+    "DeviceRole": {
+      "description": "What a paired device may do on the server (ADR 0017).",
+      "oneOf": [
+        {
+          "const": "user",
+          "description": "A device of the user: it may submit as the GUI, the TUI, the CLI or a batch, so it can\napprove agents' sends.",
+          "type": "string"
+        },
+        {
+          "const": "agent",
+          "description": "An agent: it may submit only as MCP, under the agent policy and approvals.",
+          "type": "string"
+        }
+      ]
+    },
     "Draft": {
       "description": "A message being written.",
       "properties": {
@@ -633,6 +653,11 @@ expression: command_schema()
           "type": "string"
         }
       ]
+    },
+    "RequestId": {
+      "description": "One submission of a command to a dail server (ADR 0017): a resend with the same ID is\nanswered, not run again.",
+      "format": "uuid",
+      "type": "string"
     },
     "Rule": {
       "description": "A sorting rule: when `when` matches a new message, the engine runs `then` as ordinary\ncommands with `Origin::Rule`. Rules cannot send, forward or reply (ADR 0015).",
@@ -4147,6 +4172,218 @@ expression: command_schema()
         },
         "cmd": {
           "const": "reject_request",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "List the devices paired with this dail server (`dail serve`, ADR 0017), in pairing\norder: each with its ID, name, role (`user` or `agent`), pairing time and last\nconnection. Read-only.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "list_devices",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Start pairing a device with this dail server (ADR 0017): returns a single-use code of 8\ncharacters, valid for 10 minutes (`code`, `expires_at_ms`), that the device enters in\n`trust_server`. The code is only in this receipt, never in the state. A `user` device may\nact as the user (and approve sends); an `agent` device only as MCP. Not undoable. Only\nthe user can do this; agents (MCP) get `error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "name": {
+              "description": "A name to recognize the device by, e.g. `Phone` (at most 64 characters).",
+              "type": "string"
+            },
+            "role": {
+              "$ref": "#/$defs/DeviceRole",
+              "description": "What the device may do: `user` or `agent`."
+            }
+          },
+          "required": [
+            "role",
+            "name"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "start_pairing",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Revoke a paired device (see `list_devices`): its token stops working and its\nconnections close. It has to be paired again to reconnect. Needs `confirm: true`; not\nundoable. Only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the device loses its access.",
+              "type": "boolean"
+            },
+            "id": {
+              "$ref": "#/$defs/DeviceId",
+              "description": "The device (an ID from `list_devices`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "revoke_device",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Link this profile to a dail server (ADR 0017): dail connects to `host:port` and shows\nthe SHA-256 fingerprint of the server's certificate in `link.server.offered`, to compare\nwith the one the server shows. Then `trust_server` pins it and pairs. Only for a profile\nwithout mail accounts (the server owns them). Not undoable. Only the user can do this;\nagents (MCP) get `error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "host": {
+              "description": "The server's host name or IP address.",
+              "type": "string"
+            },
+            "port": {
+              "description": "The server's port.",
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "host",
+            "port"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "connect_server",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Trust the dail server of `connect_server` and pair with it (ADR 0017): `fingerprint`\nmust be the one it offered (`link.server.offered`; hex, colons and case ignored), and\n`code` the 8-character code from `start_pairing` on the server. Not undoable. Only the\nuser can do this; agents (MCP) get `error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "code": {
+              "description": "The pairing code (8 characters, `A`–`Z` and `2`–`7`; case ignored). Never logged.",
+              "type": "string",
+              "writeOnly": true
+            },
+            "fingerprint": {
+              "description": "The server certificate's SHA-256 fingerprint, as the server shows it.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "fingerprint",
+            "code"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "trust_server",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Unlink this profile from its dail server (ADR 0017): forgets the server, the device\ntoken and the mirrored mail. Commands still queued offline (`link.queued`) are lost.\nNeeds `confirm: true`; not undoable. Only the user can do this; agents (MCP) get\n`error_008_origin_not_allowed`.",
+      "properties": {
+        "args": {
+          "properties": {
+            "confirm": {
+              "default": false,
+              "description": "Must be `true`: the link, its queue and the mirrored mail are gone.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "cmd": {
+          "const": "disconnect_server",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Queue again the commands the dail server refused when they were replayed after an\noffline period (`link.rejected`), at the end of the offline queue, to be sent on the next\nconnection. Not undoable.",
+      "properties": {
+        "args": {
+          "type": "object"
+        },
+        "cmd": {
+          "const": "retry_offline",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "Drop one command the dail server refused after an offline period (`link.rejected`),\nwithout sending it again. Not undoable.",
+      "properties": {
+        "args": {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/RequestId",
+              "description": "The refused submission (its `request_id` in `link.rejected`)."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "type": "object"
+        },
+        "cmd": {
+          "const": "dismiss_offline_rejection",
           "type": "string"
         }
       },

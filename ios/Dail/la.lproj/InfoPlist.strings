@@ -1,0 +1,3 @@
+/* The camera permission prompt (SRV-QR3), from app-front's i18n table (NativeCameraPurpose).
+   Written by app-mobile's contract test: rerun it with DAIL_UPDATE_CONTRACT=1, never edit by hand. */
+"NSCameraUsageDescription" = "dail camera solum utitur ut notam QR legat quae hoc instrumentum cum tuo servitore dail copulat.";

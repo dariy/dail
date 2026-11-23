@@ -59,7 +59,7 @@
   },
   "palette": {
     "close": {
-      "action": 86,
+      "action": 88,
       "icon": "close",
       "label": "Close"
     },
@@ -458,6 +458,16 @@
             "action": 79,
             "detail": "App",
             "title": "Update checks"
+          },
+          {
+            "action": 80,
+            "detail": "App",
+            "title": "Show paired devices"
+          },
+          {
+            "action": 81,
+            "detail": "App",
+            "title": "Pair a device"
           }
         ],
         "title": "App"
@@ -465,25 +475,25 @@
       {
         "rows": [
           {
-            "action": 80,
+            "action": 82,
             "detail": "alice@example.com",
             "keys": "g i",
             "title": "Go to Inbox"
           },
           {
-            "action": 81,
+            "action": 83,
             "detail": "alice@example.com",
             "keys": "g s",
             "title": "Go to Sent"
           },
           {
-            "action": 82,
+            "action": 84,
             "detail": "alice@example.com",
             "keys": "g d",
             "title": "Go to Drafts"
           },
           {
-            "action": 83,
+            "action": 85,
             "detail": "alice@example.com",
             "keys": "g a",
             "title": "Go to Archive"
@@ -494,12 +504,12 @@
       {
         "rows": [
           {
-            "action": 84,
+            "action": 86,
             "detail": "Carol",
             "title": "Lunch?"
           },
           {
-            "action": 85,
+            "action": 87,
             "detail": "Bob",
             "title": "Q3 numbers"
           }

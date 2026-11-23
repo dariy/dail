@@ -1,0 +1,17 @@
+---
+source: crates/app-mobile/tests/it/connect.rs
+expression: "&probing"
+---
+{
+  "title": "Connect to a dail server",
+  "step": "home.example:7443",
+  "presets": [],
+  "fields": [],
+  "note": "Contacting home.example:7443…",
+  "busy": true,
+  "actions": [],
+  "back": {
+    "label": "Cancel",
+    "action": 28
+  }
+}

@@ -62,6 +62,16 @@
           "const": "password",
           "description": "Account setup: the password. It never comes back in a frame: the presenter moves it\ninto a `Secret` for the keyring.",
           "type": "string"
+        },
+        {
+          "const": "server",
+          "description": "*Connect to a dail server*: the server (`host[:port]`), or a pasted `dail://pair` link.",
+          "type": "string"
+        },
+        {
+          "const": "code",
+          "description": "*Connect to a dail server*: the 8-character pairing code.",
+          "type": "string"
         }
       ]
     },
@@ -251,6 +261,26 @@
             "act"
           ],
           "type": "object"
+        }
+      ]
+    },
+    "ScanFailure": {
+      "description": "Why the in-app scanner could not run.",
+      "oneOf": [
+        {
+          "const": "denied",
+          "description": "The user refused the camera permission (now or for good).",
+          "type": "string"
+        },
+        {
+          "const": "no_camera",
+          "description": "The device has no camera (an emulator, a simulator).",
+          "type": "string"
+        },
+        {
+          "const": "failed",
+          "description": "The camera did not start (in use, an error).",
+          "type": "string"
         }
       ]
     },
@@ -779,6 +809,97 @@
         },
         "event": {
           "const": "share",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "A `dail://pair` link from outside the app (the system's deep link; the in-app scanner\nsends `scanned`):\nopens *Connect to a dail server* with it. The presenter reads it as untrusted input\n(`app_front::pairing::parse_uri`) and contacts the server it names; the user still compares\nthe fingerprint and taps *Pair*. Ignored, with a note, on a phone that already has\naccounts or a server.",
+      "properties": {
+        "args": {
+          "properties": {
+            "uri": {
+              "description": "The link, as read.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "uri"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "pair_link",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The in-app scanner (`scan_qr`) decoded a QR code: its text, as decoded. The presenter\nreads it as untrusted input: a valid `dail://pair` link fills in *Connect to a dail\nserver* as `pair_link` does (the user still taps *Connect*, then *Pair*); any other text\nonly shows a snackbar. Ignored unless the presenter asked for the scan.",
+      "properties": {
+        "args": {
+          "properties": {
+            "text": {
+              "description": "The decoded text.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "scanned",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event",
+        "args"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The user closed the scanner without a code (Back, *Cancel*).",
+      "properties": {
+        "event": {
+          "const": "scan_cancelled",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event"
+      ],
+      "type": "object"
+    },
+    {
+      "description": "The scanner could not run: the snackbar says why.",
+      "properties": {
+        "args": {
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/ScanFailure",
+              "description": "Why."
+            }
+          },
+          "required": [
+            "reason"
+          ],
+          "type": "object"
+        },
+        "event": {
+          "const": "scan_failed",
           "type": "string"
         }
       },

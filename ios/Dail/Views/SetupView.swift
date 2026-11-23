@@ -34,6 +34,12 @@ struct SetupView: View {
                     }
                 }
             }
+            if let warning = sheet.warning {
+                Section {
+                    Label { Text(verbatim: warning).bold() } icon: { Image(systemName: "exclamationmark.triangle") }
+                        .foregroundStyle(.red)
+                }
+            }
             if !sheet.fields.isEmpty {
                 Section {
                     ForEach(sheet.fields, id: \.field) { field in
@@ -46,6 +52,18 @@ struct SetupView: View {
             }
             if let note = sheet.note { Section { Text(verbatim: note).font(.footnote) } }
             if let error = sheet.error { Section { Text(verbatim: error).font(.footnote).foregroundStyle(.red) } }
+            ForEach(Array((sheet.fingerprints ?? []).enumerated()), id: \.offset) { _, fingerprint in
+                Section {
+                    VStack(alignment: .leading) {
+                        ForEach(Array(fingerprint.lines.enumerated()), id: \.offset) { _, line in
+                            Text(verbatim: line).font(.body.monospaced())
+                        }
+                    }
+                    .textSelection(.enabled)
+                } header: {
+                    Text(verbatim: fingerprint.label)
+                }
+            }
             Section {
                 if sheet.busy { ProgressView() }
                 ForEach(Array(sheet.actions.enumerated()), id: \.offset) { _, button in

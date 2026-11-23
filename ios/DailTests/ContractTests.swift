@@ -73,6 +73,10 @@ final class ContractTests: XCTestCase {
             "share": .share(
                 mailto: "mailto:bob@example.org?subject=Hi", to: ["carol@example.org"], subject: "Photos",
                 text: "Here", files: ["content://com.example.files/a.pdf"]),
+            "pair_link": .pairLink("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
+            "scanned": .scanned("dail://pair?v=1&h=home.example&p=7443&c=ABCD2345&fp=5d41&n=Laptop"),
+            "scan_cancelled": .scanCancelled,
+            "scan_failed": .scanFailed(.denied),
             "swipe": .swipe(9),
             "pinch": .pinch(zoomIn: true),
             "tap": .tap(7),

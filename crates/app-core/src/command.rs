@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use crate::account::{Endpoint, ProviderPreset, Secret};
 use crate::draft::Draft;
 use crate::error::CoreError;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, RuleId, ThreadId};
+use crate::ids::{
+    AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, RequestId, RuleId,
+    ThreadId,
+};
 use crate::mailbox::FolderKey;
 use crate::message::Addr;
 use crate::registry::{CommandName, CommandSpec};
@@ -21,7 +24,7 @@ use crate::synced::Rule;
 /// `"args": {}` (or omit `args`, see [`Command::from_value`]).
 // Doc comments on variants and fields become JSON-Schema descriptions and therefore MCP tool
 // descriptions: write them for agents.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "cmd", content = "args", rename_all = "snake_case")]
 pub enum Command {
     /// Return the current user settings. Read-only.
@@ -968,6 +971,71 @@ pub enum Command {
         /// The approval request (an ID from `list_approvals`).
         id: ApprovalId,
     },
+    /// List the devices paired with this dail server (`dail serve`, ADR 0017), in pairing
+    /// order: each with its ID, name, role (`user` or `agent`), pairing time and last
+    /// connection. Read-only.
+    ListDevices {},
+    /// Start pairing a device with this dail server (ADR 0017): returns a single-use code of 8
+    /// characters, valid for 10 minutes (`code`, `expires_at_ms`), that the device enters in
+    /// `trust_server`. The code is only in this receipt, never in the state. A `user` device may
+    /// act as the user (and approve sends); an `agent` device only as MCP. Not undoable. Only
+    /// the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
+    StartPairing {
+        /// What the device may do: `user` or `agent`.
+        role: crate::link::DeviceRole,
+        /// A name to recognize the device by, e.g. `Phone` (at most 64 characters).
+        name: String,
+    },
+    /// Revoke a paired device (see `list_devices`): its token stops working and its
+    /// connections close. It has to be paired again to reconnect. Needs `confirm: true`; not
+    /// undoable. Only the user can do this; agents (MCP) get `error_008_origin_not_allowed`.
+    RevokeDevice {
+        /// The device (an ID from `list_devices`).
+        id: DeviceId,
+        /// Must be `true`: the device loses its access.
+        #[serde(default)]
+        confirm: bool,
+    },
+    /// Link this profile to a dail server (ADR 0017): dail connects to `host:port` and shows
+    /// the SHA-256 fingerprint of the server's certificate in `link.server.offered`, to compare
+    /// with the one the server shows. Then `trust_server` pins it and pairs. Only for a profile
+    /// without mail accounts (the server owns them). Not undoable. Only the user can do this;
+    /// agents (MCP) get `error_008_origin_not_allowed`.
+    ConnectServer {
+        /// The server's host name or IP address.
+        host: String,
+        /// The server's port.
+        port: u16,
+    },
+    /// Trust the dail server of `connect_server` and pair with it (ADR 0017): `fingerprint`
+    /// must be the one it offered (`link.server.offered`; hex, colons and case ignored), and
+    /// `code` the 8-character code from `start_pairing` on the server. Not undoable. Only the
+    /// user can do this; agents (MCP) get `error_008_origin_not_allowed`.
+    TrustServer {
+        /// The server certificate's SHA-256 fingerprint, as the server shows it.
+        fingerprint: String,
+        /// The pairing code (8 characters, `A`–`Z` and `2`–`7`; case ignored). Never logged.
+        code: Secret,
+    },
+    /// Unlink this profile from its dail server (ADR 0017): forgets the server, the device
+    /// token and the mirrored mail. Commands still queued offline (`link.queued`) are lost.
+    /// Needs `confirm: true`; not undoable. Only the user can do this; agents (MCP) get
+    /// `error_008_origin_not_allowed`.
+    DisconnectServer {
+        /// Must be `true`: the link, its queue and the mirrored mail are gone.
+        #[serde(default)]
+        confirm: bool,
+    },
+    /// Queue again the commands the dail server refused when they were replayed after an
+    /// offline period (`link.rejected`), at the end of the offline queue, to be sent on the next
+    /// connection. Not undoable.
+    RetryOffline {},
+    /// Drop one command the dail server refused after an offline period (`link.rejected`),
+    /// without sending it again. Not undoable.
+    DismissOfflineRejection {
+        /// The refused submission (its `request_id` in `link.rejected`).
+        id: RequestId,
+    },
 }
 
 const fn default_thread_limit() -> u32 {
@@ -1063,6 +1131,32 @@ impl SettingKey {
                 | Self::AfterTriage
                 | Self::Language
         )
+    }
+
+    /// Where `set_setting` of this key runs when the profile mirrors a dail server (ADR 0017):
+    /// on the device for its own appearance and hardware (theme, text size, notifications, TUI
+    /// colours, Android background checks), on the server for the rest: what the server's
+    /// engine uses (undo-send window, polling, sync windows, history) and the settings shared
+    /// by every device ([`SettingKey::is_shared`]).
+    pub const fn placement(self) -> crate::link::Placement {
+        match self {
+            Self::Theme
+            | Self::TextScale
+            | Self::Notifications
+            | Self::TuiColors
+            | Self::BackgroundSync
+            | Self::BackgroundIntervalMins => crate::link::Placement::Client,
+            Self::UndoSendMs
+            | Self::PollSecs
+            | Self::InitialWindow
+            | Self::HistoryCap
+            | Self::ListDensity
+            | Self::MarkReadAfterMs
+            | Self::StaleSecs
+            | Self::FullSyncSecs
+            | Self::AfterTriage
+            | Self::Language => crate::link::Placement::Server,
+        }
     }
 
     /// The key named `name`, if any.
@@ -1359,7 +1453,15 @@ impl Command {
             | Self::SetUpdatePolicy { .. }
             | Self::ListApprovals {}
             | Self::ApproveRequest { .. }
-            | Self::RejectRequest { .. } => None,
+            | Self::RejectRequest { .. }
+            | Self::ListDevices {}
+            | Self::StartPairing { .. }
+            | Self::RevokeDevice { .. }
+            | Self::ConnectServer { .. }
+            | Self::TrustServer { .. }
+            | Self::DisconnectServer { .. }
+            | Self::RetryOffline {}
+            | Self::DismissOfflineRejection { .. } => None,
         }
     }
 
@@ -1474,6 +1576,14 @@ impl Command {
             Self::ListApprovals {} => CommandName::ListApprovals,
             Self::ApproveRequest { .. } => CommandName::ApproveRequest,
             Self::RejectRequest { .. } => CommandName::RejectRequest,
+            Self::ListDevices {} => CommandName::ListDevices,
+            Self::StartPairing { .. } => CommandName::StartPairing,
+            Self::RevokeDevice { .. } => CommandName::RevokeDevice,
+            Self::ConnectServer { .. } => CommandName::ConnectServer,
+            Self::TrustServer { .. } => CommandName::TrustServer,
+            Self::DisconnectServer { .. } => CommandName::DisconnectServer,
+            Self::RetryOffline {} => CommandName::RetryOffline,
+            Self::DismissOfflineRejection { .. } => CommandName::DismissOfflineRejection,
         }
     }
 
@@ -1485,6 +1595,29 @@ impl Command {
     /// The command's kind.
     pub const fn kind(&self) -> CommandKind {
         self.command_name().kind()
+    }
+
+    /// Where the command runs when the profile mirrors a dail server (ADR 0017): the name's
+    /// placement, except that `set_setting` follows its key ([`SettingKey::placement`]).
+    pub const fn placement(&self) -> crate::link::Placement {
+        if let Self::SetSetting { key, .. } = self {
+            key.placement()
+        } else {
+            self.command_name().placement()
+        }
+    }
+
+    /// What the command does while a mirror's link is down (ADR 0017): the name's policy,
+    /// except that `set_setting` of a device-local key is `local` (it follows
+    /// [`SettingKey::placement`]).
+    pub const fn offline_policy(&self) -> crate::link::OfflinePolicy {
+        if let Self::SetSetting { key, .. } = self
+            && !key.placement().on_server()
+        {
+            crate::link::OfflinePolicy::Local
+        } else {
+            self.command_name().offline_policy()
+        }
     }
 
     /// The registry: one spec per command, in catalogue order.

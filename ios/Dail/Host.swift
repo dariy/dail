@@ -1,5 +1,7 @@
+import AVFoundation
 import Foundation
 import UIKit
+import UniformTypeIdentifiers
 
 /// What the app shows: opening, a frame, or why the session could not open.
 enum Screen {
@@ -13,9 +15,14 @@ enum Screen {
 /// actor for SwiftUI to draw. Swift decides nothing: it sends what the user did.
 final class Host: ObservableObject {
     @Published private(set) var screen: Screen = .opening
+    /// The QR code scanner is on screen (SRV-QR3): `RootView` covers the frame with it.
+    @Published var scanning = false
     private let ui = DispatchQueue(label: "dail-ui", qos: .userInteractive)
     /// Touched on `ui` only.
     private var handle: Int32 = 0
+    /// Events that came before the session opened (a link that launched the app), sent once it
+    /// has. Touched on `ui` only.
+    private var waiting: [UiEvent] = []
     private var listener: Listener?
     /// The theme of the last frame that carried one (frames carry it only when it changes).
     private var theme: FrameTheme?
@@ -72,6 +79,9 @@ final class Host: ObservableObject {
             self.listener = listener
             handle = Int32(opened)
             take(Native.frame(handle: handle))
+            let queued = waiting
+            waiting = []
+            queued.forEach { take(Native.event(handle: handle, event: $0.json.text)) }
         }
     }
 
@@ -79,6 +89,15 @@ final class Host: ObservableObject {
     func send(_ event: UiEvent) {
         ui.async { [self] in
             guard handle > 0 else { return }
+            take(Native.event(handle: handle, event: event.json.text))
+        }
+    }
+
+    /// Sends one event on dail-ui, or keeps it until the session has opened (an event that must
+    /// not be lost, like a `dail://pair` link that launched the app).
+    func sendWhenOpen(_ event: UiEvent) {
+        ui.async { [self] in
+            guard handle > 0 else { return waiting.append(event) }
             take(Native.event(handle: handle, event: event.json.text))
         }
     }
@@ -123,10 +142,47 @@ final class Host: ObservableObject {
             if let url = external.args?.url.flatMap(URL.init(string:)) { UIApplication.shared.open(url) }
         case "haptic":
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        case "pick_files":
+            if let draft = external.args?.draft { pick(draft: draft) }
+        case "scan_qr":
+            scan()
         case "system_settings":
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
         default:
             break
+        }
+    }
+
+    /// `scan_qr`: the scanner, after the camera permission, which is asked for here and only here.
+    /// Refused or restricted, or no camera (the simulator): Rust's snackbar says why.
+    @MainActor
+    private func scan() {
+        guard AVCaptureDevice.default(for: .video) != nil else { return send(.scanFailed(.noCamera)) }
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            scanning = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted { self.scanning = true } else { self.send(.scanFailed(.denied)) }
+                }
+            }
+        default:
+            send(.scanFailed(.denied))
+        }
+    }
+
+    /// The scanner ended: its text, a cancel or why it could not run goes to Rust as it came.
+    @MainActor
+    func scanEnded(_ end: ScanEnd) {
+        guard scanning else { return }
+        scanning = false
+        switch end {
+        case let .scanned(text):
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            send(.scanned(text))
+        case .cancelled: send(.scanCancelled)
+        case let .failed(reason): send(.scanFailed(reason))
         }
     }
 
@@ -159,6 +215,42 @@ final class Host: ObservableObject {
         }
     }
 
+    /// *Attach*: the system's document picker, several files. `asCopy` puts each picked file in
+    /// the app's own sandbox, so no security-scoped URL has to outlive the picker. The host then
+    /// copies each one into `outgoing` and attaches it to `draft` (`background`'s `import`; on a
+    /// device of a dail server that uploads it), and the picker's copy is removed.
+    @MainActor
+    private func pick(draft: String) {
+        guard let root = Self.topController() else { return }
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [UTType.item], asCopy: true)
+        picker.allowsMultipleSelection = true
+        let importer = Importer { [weak self] urls in self?.attach(urls, to: draft) }
+        picker.delegate = importer
+        objc_setAssociatedObject(picker, &Importer.key, importer, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        root.present(picker, animated: true)
+    }
+
+    /// Hands each picked file to the host, off the main thread (an import blocks while it copies).
+    private func attach(_ urls: [URL], to draft: String) {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            let handle = ui.sync { self.handle }
+            for url in urls {
+                if handle > 0 {
+                    let task: JSON = .object([
+                        "import": .object([
+                            "draft": .string(draft),
+                            "name": .string(url.lastPathComponent),
+                            "source": .string(url.path),
+                        ]),
+                    ])
+                    // A file that cannot be copied shows in the snackbar (the host says so).
+                    _ = Native.background(handle: handle, task: task.text)
+                }
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
     @MainActor
     private static func topController() -> UIViewController? {
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -171,6 +263,16 @@ final class Host: ObservableObject {
         if case let .object(fields) = answer, case let .string(error)? = fields["error"] { return error }
         return answer.text
     }
+}
+
+/// Takes the files the document picker picked.
+private final class Importer: NSObject, UIDocumentPickerDelegate {
+    static var key: UInt8 = 0
+    let picked: ([URL]) -> Void
+
+    init(picked: @escaping ([URL]) -> Void) { self.picked = picked }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) { picked(urls) }
 }
 
 /// Removes the exported files' temporary folder when the exporter closes.

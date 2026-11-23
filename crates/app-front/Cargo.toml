@@ -14,9 +14,13 @@ workspace = true
 [dependencies]
 app-core.workspace = true
 nucleo-matcher.workspace = true
+qrcode.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
 app-testkit.workspace = true
 insta.workspace = true
+proptest.workspace = true
+rqrr.workspace = true

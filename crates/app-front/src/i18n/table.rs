@@ -6789,4 +6789,796 @@ strings! {
         "Último erro",
         "Último erro",
         "Ultimus error";
+    PairWhichKindOfDevice:
+        "Pair which kind of device?",
+        "Associer quel type d’appareil ?",
+        "¿Qué tipo de dispositivo quieres vincular?",
+        "Ce tip de dispozitiv asociați?",
+        "Parear qual tipo de dispositivo?",
+        "Emparelhar que tipo de dispositivo?",
+        "Quod genus instrumenti copulare?";
+    DeviceOfYours:
+        "A device of yours",
+        "Un de vos appareils",
+        "Un dispositivo tuyo",
+        "Un dispozitiv al dvs.",
+        "Um dispositivo seu",
+        "Um dispositivo seu",
+        "Instrumentum tuum";
+    DeviceOfYoursDetail:
+        "It can act as you and approve sends",
+        "Il peut agir en votre nom et approuver les envois",
+        "Puede actuar como tú y aprobar envíos",
+        "Poate acționa în numele dvs. și aproba trimiterile",
+        "Ele pode agir como você e aprovar envios",
+        "Pode agir como o utilizador e aprovar envios",
+        "Pro te agere et missiones probare potest";
+    AnAgent:
+        "An agent",
+        "Un agent",
+        "Un agente",
+        "Un agent",
+        "Um agente",
+        "Um agente",
+        "Agens";
+    AnAgentDetail:
+        "It can act only as an agent (MCP)",
+        "Il ne peut agir qu’en tant qu’agent (MCP)",
+        "Solo puede actuar como agente (MCP)",
+        "Poate acționa doar ca agent (MCP)",
+        "Ele só pode agir como agente (MCP)",
+        "Só pode agir como agente (MCP)",
+        "Solum ut agens (MCP) agere potest";
+    DeviceNameQuestion:
+        "Its name?",
+        "Son nom ?",
+        "¿Su nombre?",
+        "Numele său?",
+        "O nome dele?",
+        "O nome?",
+        "Nomen eius?";
+    DeviceNameHint:
+        "Phone",
+        "Téléphone",
+        "Teléfono",
+        "Telefon",
+        "Celular",
+        "Telemóvel",
+        "Telephonum";
+    RevokeWhichDevice:
+        "Revoke which device?",
+        "Révoquer quel appareil ?",
+        "¿Revocar qué dispositivo?",
+        "Revocați ce dispozitiv?",
+        "Revogar qual dispositivo?",
+        "Revogar que dispositivo?",
+        "Quod instrumentum revocare?";
+    RevokeThisDevice:
+        "Revoke this device? It has to be paired again to reconnect.",
+        "Révoquer cet appareil ? Il devra être associé de nouveau pour se reconnecter.",
+        "¿Revocar este dispositivo? Habrá que vincularlo de nuevo para reconectarlo.",
+        "Revocați acest dispozitiv? Va trebui asociat din nou pentru a se reconecta.",
+        "Revogar este dispositivo? Será preciso pareá-lo de novo para reconectar.",
+        "Revogar este dispositivo? Terá de ser emparelhado de novo para voltar a ligar.",
+        "Hoc instrumentum revocare? Iterum copulandum erit ut rursus conectat.";
+    RevokeName:
+        "Revoke {name}",
+        "Révoquer {name}",
+        "Revocar {name}",
+        "Revocați {name}",
+        "Revogar {name}",
+        "Revogar {name}",
+        "Revoca {name}";
+    WhichDailServer:
+        "Which dail server?",
+        "Quel serveur dail ?",
+        "¿Qué servidor dail?",
+        "Ce server dail?",
+        "Qual servidor dail?",
+        "Que servidor dail?",
+        "Quis servitor dail?";
+    ServerHostPortHint:
+        "host:port, e.g. home.example.org:7443",
+        "hôte:port, par ex. home.example.org:7443",
+        "host:puerto, p. ej. home.example.org:7443",
+        "gazdă:port, de ex. home.example.org:7443",
+        "host:porta, ex.: home.example.org:7443",
+        "anfitrião:porta, p. ex. home.example.org:7443",
+        "hospes:porta, e.g. home.example.org:7443";
+    DoesTheServerShowThisFingerprint:
+        "Does the dail server show this fingerprint?",
+        "Le serveur dail affiche-t-il cette empreinte ?",
+        "¿El servidor dail muestra esta huella?",
+        "Serverul dail afișează această amprentă?",
+        "O servidor dail mostra esta impressão digital?",
+        "O servidor dail mostra esta impressão digital?",
+        "Monstratne servitor dail hoc vestigium?";
+    TrustFingerprint:
+        "Trust {fingerprint}",
+        "Faire confiance à {fingerprint}",
+        "Confiar en {fingerprint}",
+        "Acceptați {fingerprint}",
+        "Confiar em {fingerprint}",
+        "Confiar em {fingerprint}",
+        "Confide {fingerprint}";
+    PairingCodeQuestion:
+        "The pairing code the server shows?",
+        "Le code d’association affiché par le serveur ?",
+        "¿El código de vinculación que muestra el servidor?",
+        "Codul de asociere afișat de server?",
+        "O código de pareamento que o servidor mostra?",
+        "O código de emparelhamento que o servidor mostra?",
+        "Nota copulationis quam servitor monstrat?";
+    DisconnectFromTheServer:
+        "Disconnect from the dail server? Its mail and the offline changes not sent yet leave this device.",
+        "Se déconnecter du serveur dail ? Son courrier et les modifications hors ligne pas encore envoyées quittent cet appareil.",
+        "¿Desconectarte del servidor dail? Su correo y los cambios sin conexión aún no enviados salen de este dispositivo.",
+        "Vă deconectați de la serverul dail? E-mailurile sale și modificările offline încă netrimise dispar de pe acest dispozitiv.",
+        "Desconectar do servidor dail? Os e-mails dele e as alterações offline ainda não enviadas saem deste dispositivo.",
+        "Desligar do servidor dail? O correio dele e as alterações offline ainda não enviadas saem deste dispositivo.",
+        "A servitore dail disiungere? Epistulae eius et mutationes sine conexione nondum missae ex hoc instrumento abeunt.";
+    DisconnectFrom:
+        "Disconnect from {server}",
+        "Se déconnecter de {server}",
+        "Desconectarte de {server}",
+        "Deconectați-vă de la {server}",
+        "Desconectar de {server}",
+        "Desligar de {server}",
+        "Disiunge a {server}";
+    DismissWhichRefusedChange:
+        "Dismiss which refused change?",
+        "Abandonner quelle modification refusée ?",
+        "¿Descartar qué cambio rechazado?",
+        "Renunțați la ce modificare refuzată?",
+        "Descartar qual alteração recusada?",
+        "Rejeitar que alteração recusada?",
+        "Quam mutationem recusatam abicere?";
+    PairADevice:
+        "Pair a device…",
+        "Associer un appareil…",
+        "Vincular un dispositivo…",
+        "Asociați un dispozitiv…",
+        "Parear um dispositivo…",
+        "Emparelhar um dispositivo…",
+        "Instrumentum copula…";
+    Pair:
+        "Pair",
+        "Associer",
+        "Vincular",
+        "Asociați",
+        "Parear",
+        "Emparelhar",
+        "Copula";
+    PairingWaiting:
+        "Opening a pairing code…",
+        "Ouverture d’un code d’association…",
+        "Abriendo un código de vinculación…",
+        "Se deschide un cod de asociere…",
+        "Abrindo um código de pareamento…",
+        "A abrir um código de emparelhamento…",
+        "Nota copulationis aperitur…";
+    PairingCode:
+        "Pairing code",
+        "Code d’association",
+        "Código de vinculación",
+        "Cod de asociere",
+        "Código de pareamento",
+        "Código de emparelhamento",
+        "Nota copulationis";
+    PairingExpiresIn:
+        "Single use, valid for {time} more",
+        "Usage unique, valable encore {time}",
+        "De un solo uso, válido durante {time} más",
+        "De unică folosință, valabil încă {time}",
+        "Uso único, válido por mais {time}",
+        "Utilização única, válido durante mais {time}",
+        "Semel utenda, valet adhuc {time}";
+    PairingExpired:
+        "This code has expired. Pair again for a new one.",
+        "Ce code a expiré. Associez de nouveau pour en obtenir un autre.",
+        "Este código ha caducado. Vuelve a vincular para obtener uno nuevo.",
+        "Acest cod a expirat. Asociați din nou pentru unul nou.",
+        "Este código expirou. Pareie de novo para obter outro.",
+        "Este código expirou. Emparelhe de novo para obter outro.",
+        "Haec nota exspiravit. Iterum copula ut novam accipias.";
+    PairingFingerprint:
+        "Server certificate (SHA-256)",
+        "Certificat du serveur (SHA-256)",
+        "Certificado del servidor (SHA-256)",
+        "Certificatul serverului (SHA-256)",
+        "Certificado do servidor (SHA-256)",
+        "Certificado do servidor (SHA-256)",
+        "Testimonium servitoris (SHA-256)";
+    PairingAddress:
+        "Address: {address}",
+        "Adresse : {address}",
+        "Dirección: {address}",
+        "Adresă: {address}",
+        "Endereço: {address}",
+        "Endereço: {address}",
+        "Inscriptio: {address}";
+    PairingScanHint:
+        "Scan the QR code with dail on the device, or enter the code there. The device must show the same fingerprint.",
+        "Scannez le code QR avec dail sur l’appareil, ou saisissez-y le code. L’appareil doit afficher la même empreinte.",
+        "Escanea el código QR con dail en el dispositivo, o escribe allí el código. El dispositivo debe mostrar la misma huella.",
+        "Scanați codul QR cu dail pe dispozitiv sau introduceți codul acolo. Dispozitivul trebuie să arate aceeași amprentă.",
+        "Escaneie o código QR com o dail no dispositivo, ou digite o código nele. O dispositivo deve mostrar a mesma impressão digital.",
+        "Leia o código QR com o dail no dispositivo, ou introduza lá o código. O dispositivo tem de mostrar a mesma impressão digital.",
+        "Notam QR cum dail in instrumento perlege, aut notam ibi inscribe. Instrumentum eandem impressionem ostendere debet.";
+    PairingNoQr:
+        "No QR code: this dail does not know an address the device can reach. Start dail serve with --advertise <host>.",
+        "Pas de code QR : ce dail ne connaît aucune adresse que l’appareil peut joindre. Lancez dail serve avec --advertise <hôte>.",
+        "Sin código QR: este dail no conoce ninguna dirección a la que llegue el dispositivo. Inicia dail serve con --advertise <host>.",
+        "Fără cod QR: acest dail nu cunoaște nicio adresă la care dispozitivul să ajungă. Porniți dail serve cu --advertise <gazdă>.",
+        "Sem código QR: este dail não conhece um endereço que o dispositivo alcance. Inicie o dail serve com --advertise <host>.",
+        "Sem código QR: este dail não conhece um endereço que o dispositivo alcance. Inicie o dail serve com --advertise <anfitrião>.",
+        "Nulla nota QR: hic dail nullam inscriptionem novit quam instrumentum attingat. Incipe dail serve cum --advertise <hospes>.";
+    PairingFailed:
+        "Pairing failed: {error}",
+        "Échec de l’association : {error}",
+        "La vinculación falló: {error}",
+        "Asocierea a eșuat: {error}",
+        "O pareamento falhou: {error}",
+        "O emparelhamento falhou: {error}",
+        "Copulatio defecit: {error}";
+    PairAnother:
+        "Pair another device",
+        "Associer un autre appareil",
+        "Vincular otro dispositivo",
+        "Asociați alt dispozitiv",
+        "Parear outro dispositivo",
+        "Emparelhar outro dispositivo",
+        "Aliud instrumentum copula";
+    CopyCode:
+        "Copy code",
+        "Copier le code",
+        "Copiar el código",
+        "Copiați codul",
+        "Copiar código",
+        "Copiar código",
+        "Notam exscribe";
+    PairingCodeCopied:
+        "Code copied.",
+        "Code copié.",
+        "Código copiado.",
+        "Cod copiat.",
+        "Código copiado.",
+        "Código copiado.",
+        "Nota exscripta.";
+    PairFormFooter:
+        "Tab: kind of device · Enter: pair · Esc: close",
+        "Tab : type d’appareil · Entrée : associer · Échap : fermer",
+        "Tab: tipo de dispositivo · Intro: vincular · Esc: cerrar",
+        "Tab: tip de dispozitiv · Enter: asociați · Esc: închideți",
+        "Tab: tipo de dispositivo · Enter: parear · Esc: fechar",
+        "Tab: tipo de dispositivo · Enter: emparelhar · Esc: fechar",
+        "Tab: genus instrumenti · Enter: copula · Esc: claude";
+    PairOpenedFooter:
+        "n: pair another device · Esc: close",
+        "n : associer un autre appareil · Échap : fermer",
+        "n: vincular otro dispositivo · Esc: cerrar",
+        "n: asociați alt dispozitiv · Esc: închideți",
+        "n: parear outro dispositivo · Esc: fechar",
+        "n: emparelhar outro dispositivo · Esc: fechar",
+        "n: aliud instrumentum copula · Esc: claude";
+    PairingNoLink:
+        "No QR code: {error}",
+        "Pas de code QR : {error}",
+        "Sin código QR: {error}",
+        "Fără cod QR: {error}",
+        "Sem código QR: {error}",
+        "Sem código QR: {error}",
+        "Nulla nota QR: {error}";
+    PairingEnlarge:
+        "Enlarge the terminal to show the QR code.",
+        "Agrandissez le terminal pour afficher le code QR.",
+        "Amplía la terminal para mostrar el código QR.",
+        "Măriți terminalul pentru a afișa codul QR.",
+        "Aumente o terminal para mostrar o código QR.",
+        "Aumente o terminal para mostrar o código QR.",
+        "Terminale amplifica ut nota QR ostendatur.";
+    ConnectToServerInstead:
+        "Connect to a dail server instead",
+        "Se connecter plutôt à un serveur dail",
+        "Conectarte a un servidor dail en su lugar",
+        "Conectați-vă în schimb la un server dail",
+        "Conectar a um servidor dail em vez disso",
+        "Ligar antes a um servidor dail",
+        "Potius ad servitorem dail conecte";
+    ConnectToServerDetail:
+        "Your accounts stay on a dail server you run (dail serve); this device mirrors its mail.",
+        "Vos comptes restent sur un serveur dail que vous faites tourner (dail serve) ; cet appareil reflète son courrier.",
+        "Tus cuentas se quedan en un servidor dail que tú ejecutas (dail serve); este dispositivo refleja su correo.",
+        "Conturile dvs. rămân pe un server dail pe care îl rulați (dail serve); acest dispozitiv îi oglindește e-mailurile.",
+        "Suas contas ficam em um servidor dail que você executa (dail serve); este dispositivo espelha os e-mails dele.",
+        "As suas contas ficam num servidor dail que executa (dail serve); este dispositivo espelha o correio dele.",
+        "Rationes tuae in servitore dail tuo (dail serve) manent; hoc instrumentum epistulas eius imitatur.";
+    ConnectToServer:
+        "Connect to a dail server",
+        "Se connecter à un serveur dail",
+        "Conectarte a un servidor dail",
+        "Conectați-vă la un server dail",
+        "Conectar a um servidor dail",
+        "Ligar a um servidor dail",
+        "Ad servitorem dail conecte";
+    ConnectServerLabel:
+        "Server",
+        "Serveur",
+        "Servidor",
+        "Server",
+        "Servidor",
+        "Servidor",
+        "Servitor";
+    ConnectAddressHint:
+        "host or host:port (port 7443 if none), or paste a dail://pair link",
+        "hôte ou hôte:port (port 7443 par défaut), ou collez un lien dail://pair",
+        "host o host:puerto (7443 si no hay puerto), o pega un enlace dail://pair",
+        "gazdă sau gazdă:port (portul 7443 implicit) sau lipiți un link dail://pair",
+        "host ou host:porta (porta 7443 se não houver), ou cole um link dail://pair",
+        "anfitrião ou anfitrião:porta (porta 7443 por omissão), ou cole uma ligação dail://pair",
+        "hospes aut hospes:porta (porta 7443 nisi datur), aut nexum dail://pair insere";
+    ConnectExpectedHostPort:
+        "Enter the server as host or host:port.",
+        "Saisissez le serveur sous la forme hôte ou hôte:port.",
+        "Escribe el servidor como host o host:puerto.",
+        "Introduceți serverul ca gazdă sau gazdă:port.",
+        "Digite o servidor como host ou host:porta.",
+        "Introduza o servidor como anfitrião ou anfitrião:porta.",
+        "Servitorem ut hospes aut hospes:porta inscribe.";
+    ConnectBadPort:
+        "The port must be 1 to 65535.",
+        "Le port doit être compris entre 1 et 65535.",
+        "El puerto debe estar entre 1 y 65535.",
+        "Portul trebuie să fie între 1 și 65535.",
+        "A porta deve estar entre 1 e 65535.",
+        "A porta tem de estar entre 1 e 65535.",
+        "Porta inter 1 et 65535 esse debet.";
+    ConnectBadHost:
+        "The host is not a DNS name or an IP address.",
+        "L’hôte n’est ni un nom DNS ni une adresse IP.",
+        "El host no es un nombre DNS ni una dirección IP.",
+        "Gazda nu este un nume DNS sau o adresă IP.",
+        "O host não é um nome DNS nem um endereço IP.",
+        "O anfitrião não é um nome DNS nem um endereço IP.",
+        "Hospes neque nomen DNS neque inscriptio IP est.";
+    ConnectLinkInvalid:
+        "Not a usable pairing link: {error}",
+        "Lien d’association inutilisable : {error}",
+        "Enlace de vinculación no válido: {error}",
+        "Link de asociere inutilizabil: {error}",
+        "Link de pareamento inválido: {error}",
+        "Ligação de emparelhamento inválida: {error}",
+        "Nexus copulationis inutilis: {error}";
+    ConnectLinkRead:
+        "From the pairing link: {server} and its code. The server must show the link's fingerprint.",
+        "Depuis le lien d’association : {server} et son code. Le serveur doit afficher l’empreinte du lien.",
+        "Del enlace de vinculación: {server} y su código. El servidor debe mostrar la huella del enlace.",
+        "Din linkul de asociere: {server} și codul său. Serverul trebuie să afișeze amprenta din link.",
+        "Do link de pareamento: {server} e o código. O servidor deve mostrar a impressão digital do link.",
+        "Da ligação de emparelhamento: {server} e o código. O servidor tem de mostrar a impressão digital da ligação.",
+        "Ex nexu copulationis: {server} et nota eius. Servitor vestigium nexus monstrare debet.";
+    Connect:
+        "Connect",
+        "Se connecter",
+        "Conectar",
+        "Conectați",
+        "Conectar",
+        "Ligar",
+        "Conecte";
+    ConnectProbing:
+        "Contacting {server}…",
+        "Contact de {server}…",
+        "Contactando con {server}…",
+        "Se contactează {server}…",
+        "Contatando {server}…",
+        "A contactar {server}…",
+        "Ad {server} acceditur…";
+    ConnectCompare:
+        "{server} shows this certificate fingerprint (SHA-256). Pair only if it is the one dail serve or Pair a device… shows on the server.",
+        "{server} présente cette empreinte de certificat (SHA-256). N’associez que si c’est celle que dail serve ou Associer un appareil… affiche sur le serveur.",
+        "{server} muestra esta huella de certificado (SHA-256). Vincula solo si es la que muestran dail serve o Vincular un dispositivo… en el servidor.",
+        "{server} afișează această amprentă de certificat (SHA-256). Asociați doar dacă este cea pe care o arată dail serve sau Asociați un dispozitiv… pe server.",
+        "{server} mostra esta impressão digital de certificado (SHA-256). Pareie só se for a que o dail serve ou Parear um dispositivo… mostra no servidor.",
+        "{server} mostra esta impressão digital de certificado (SHA-256). Emparelhe só se for a que o dail serve ou Emparelhar um dispositivo… mostra no servidor.",
+        "{server} hoc vestigium testimonii (SHA-256) monstrat. Copula solum si idem est quod dail serve aut Instrumentum copula… in servitore monstrat.";
+    ConnectMatchesLink:
+        "It matches the fingerprint of the pairing link.",
+        "Elle correspond à l’empreinte du lien d’association.",
+        "Coincide con la huella del enlace de vinculación.",
+        "Se potrivește cu amprenta din linkul de asociere.",
+        "Ela confere com a impressão digital do link de pareamento.",
+        "Coincide com a impressão digital da ligação de emparelhamento.",
+        "Cum vestigio nexus copulationis congruit.";
+    ConnectMismatch:
+        "{server} shows another fingerprint than the pairing link. Do not pair: another machine may be answering in its place.",
+        "{server} présente une autre empreinte que le lien d’association. N’associez pas : une autre machine répond peut-être à sa place.",
+        "{server} muestra una huella distinta de la del enlace de vinculación. No vincules: puede que otra máquina responda en su lugar.",
+        "{server} afișează altă amprentă decât linkul de asociere. Nu asociați: poate răspunde altă mașină în locul lui.",
+        "{server} mostra outra impressão digital que não a do link de pareamento. Não pareie: outra máquina pode estar respondendo no lugar dele.",
+        "{server} mostra outra impressão digital que não a da ligação de emparelhamento. Não emparelhe: outra máquina pode estar a responder no lugar dele.",
+        "{server} aliud vestigium quam nexus copulationis monstrat. Noli copulare: alia machina fortasse loco eius respondet.";
+    ConnectLinkFingerprint:
+        "In the pairing link",
+        "Dans le lien d’association",
+        "En el enlace de vinculación",
+        "În linkul de asociere",
+        "No link de pareamento",
+        "Na ligação de emparelhamento",
+        "In nexu copulationis";
+    ConnectCodeHint:
+        "The 8-character code from dail serve pair or Pair a device…",
+        "Le code de 8 caractères de dail serve pair ou Associer un appareil…",
+        "El código de 8 caracteres de dail serve pair o Vincular un dispositivo…",
+        "Codul de 8 caractere din dail serve pair sau Asociați un dispozitiv…",
+        "O código de 8 caracteres do dail serve pair ou Parear um dispositivo…",
+        "O código de 8 caracteres do dail serve pair ou Emparelhar um dispositivo…",
+        "Nota octo signorum ex dail serve pair aut Instrumentum copula…";
+    ConnectBadCode:
+        "The code is 8 characters, A–Z and 2–7.",
+        "Le code fait 8 caractères, A–Z et 2–7.",
+        "El código tiene 8 caracteres, A–Z y 2–7.",
+        "Codul are 8 caractere, A–Z și 2–7.",
+        "O código tem 8 caracteres, A–Z e 2–7.",
+        "O código tem 8 caracteres, A–Z e 2–7.",
+        "Nota octo signorum est, A–Z et 2–7.";
+    ConnectPairing:
+        "Pairing with {server}…",
+        "Association avec {server}…",
+        "Vinculando con {server}…",
+        "Se asociază cu {server}…",
+        "Pareando com {server}…",
+        "A emparelhar com {server}…",
+        "Cum {server} copulatur…";
+    ConnectPaired:
+        "Paired with {server}: its certificate is pinned and this device now mirrors its mail.",
+        "Associé à {server} : son certificat est épinglé et cet appareil reflète désormais son courrier.",
+        "Vinculado con {server}: su certificado está fijado y este dispositivo ahora refleja su correo.",
+        "Asociat cu {server}: certificatul său este fixat, iar acest dispozitiv îi oglindește acum e-mailurile.",
+        "Pareado com {server}: o certificado dele está fixado e este dispositivo agora espelha os e-mails dele.",
+        "Emparelhado com {server}: o certificado dele está fixado e este dispositivo espelha agora o correio dele.",
+        "Cum {server} copulatum: testimonium eius fixum est et hoc instrumentum nunc epistulas eius imitatur.";
+    ConnectFailed:
+        "Could not reach the server: {error}",
+        "Impossible de joindre le serveur : {error}",
+        "No se pudo contactar con el servidor: {error}",
+        "Serverul nu a putut fi contactat: {error}",
+        "Não foi possível alcançar o servidor: {error}",
+        "Não foi possível contactar o servidor: {error}",
+        "Servitor attingi non potuit: {error}";
+    TryAgain:
+        "Try again",
+        "Réessayer",
+        "Intentar de nuevo",
+        "Încercați din nou",
+        "Tentar novamente",
+        "Tentar novamente",
+        "Iterum conare";
+    AnotherCode:
+        "Enter another code",
+        "Saisir un autre code",
+        "Escribir otro código",
+        "Introduceți alt cod",
+        "Digitar outro código",
+        "Introduzir outro código",
+        "Aliam notam inscribe";
+    ConnectUseAnotherProfile:
+        "This profile has mail accounts, so it cannot mirror a dail server. Start dail with another profile: dail --profile <name>.",
+        "Ce profil a des comptes de messagerie : il ne peut pas refléter un serveur dail. Lancez dail avec un autre profil : dail --profile <nom>.",
+        "Este perfil tiene cuentas de correo, así que no puede reflejar un servidor dail. Inicia dail con otro perfil: dail --profile <nombre>.",
+        "Acest profil are conturi de e-mail, deci nu poate oglindi un server dail. Porniți dail cu alt profil: dail --profile <nume>.",
+        "Este perfil tem contas de e-mail, então não pode espelhar um servidor dail. Inicie o dail com outro perfil: dail --profile <nome>.",
+        "Este perfil tem contas de correio, por isso não pode espelhar um servidor dail. Inicie o dail com outro perfil: dail --profile <nome>.",
+        "Hoc profilum rationes epistularum habet, ergo servitorem dail imitari non potest. Incipe dail cum alio profilo: dail --profile <nomen>.";
+    PairLinkRefused:
+        "This phone already has mail accounts or a dail server, so the pairing link was not used.",
+        "Ce téléphone a déjà des comptes de messagerie ou un serveur dail : le lien d’association n’a pas été utilisé.",
+        "Este teléfono ya tiene cuentas de correo o un servidor dail, así que no se usó el enlace de vinculación.",
+        "Acest telefon are deja conturi de e-mail sau un server dail, așa că linkul de asociere nu a fost folosit.",
+        "Este celular já tem contas de e-mail ou um servidor dail, então o link de pareamento não foi usado.",
+        "Este telemóvel já tem contas de correio ou um servidor dail, por isso a ligação de emparelhamento não foi usada.",
+        "Hoc telephonum iam rationes epistularum aut servitorem dail habet, ergo nexus copulationis non adhibitus est.";
+    PairLinkBusy:
+        "A pairing is already under way, so the pairing link was not used. Finish or cancel it first.",
+        "Une association est déjà en cours : le lien d’association n’a pas été utilisé. Terminez-la ou annulez-la d’abord.",
+        "Ya hay una vinculación en curso, así que no se usó el enlace de vinculación. Termínala o cancélala primero.",
+        "O asociere este deja în curs, așa că linkul de asociere nu a fost folosit. Finalizați-o sau anulați-o mai întâi.",
+        "Já há um pareamento em andamento, então o link de pareamento não foi usado. Conclua ou cancele esse pareamento primeiro.",
+        "Já há um emparelhamento em curso, por isso a ligação de emparelhamento não foi usada. Conclua-o ou cancele-o primeiro.",
+        "Copulatio iam agitur, ergo nexus copulationis non adhibitus est. Eam prius perfice aut rescinde.";
+    PairLinkWarning:
+        "A link opened this pairing with {server}. Only continue if you just scanned or opened this code from your own dail server.",
+        "Un lien a ouvert cette association avec {server}. Ne continuez que si vous venez de scanner ou d’ouvrir ce code depuis votre propre serveur dail.",
+        "Un enlace abrió esta vinculación con {server}. Continúa solo si acabas de escanear o abrir este código desde tu propio servidor dail.",
+        "Un link a deschis această asociere cu {server}. Continuați doar dacă tocmai ați scanat sau ați deschis acest cod de pe propriul server dail.",
+        "Um link abriu este pareamento com {server}. Só continue se você acabou de escanear ou abrir este código do seu próprio servidor dail.",
+        "Uma ligação abriu este emparelhamento com {server}. Só continue se acabou de ler ou abrir este código a partir do seu próprio servidor dail.",
+        "Nexus hanc copulationem cum {server} aperuit. Perge solum si hanc notam modo ex tuo servitore dail legisti aut aperuisti.";
+    ScanQr:
+        "Scan QR code",
+        "Scanner le code QR",
+        "Escanear código QR",
+        "Scanați codul QR",
+        "Escanear código QR",
+        "Ler código QR",
+        "Notam QR perlege";
+    ScanNotPairing:
+        "This QR code is not a dail pairing code.",
+        "Ce code QR n’est pas un code d’association dail.",
+        "Este código QR no es un código de vinculación de dail.",
+        "Acest cod QR nu este un cod de asociere dail.",
+        "Este código QR não é um código de pareamento do dail.",
+        "Este código QR não é um código de emparelhamento do dail.",
+        "Haec nota QR non est nota copulationis dail.";
+    ScanDenied:
+        "dail may not use the camera, so it cannot scan. Allow camera access for dail in the system settings, then try again.",
+        "dail n’a pas accès à l’appareil photo : il ne peut pas scanner. Autorisez l’accès à l’appareil photo pour dail dans les réglages du système, puis réessayez.",
+        "dail no tiene permiso para usar la cámara, así que no puede escanear. Permite el acceso a la cámara para dail en los ajustes del sistema y vuelve a intentarlo.",
+        "dail nu are voie să folosească camera, așa că nu poate scana. Permiteți accesul la cameră pentru dail în setările sistemului, apoi încercați din nou.",
+        "O dail não tem permissão para usar a câmera, então não pode escanear. Permita o acesso à câmera para o dail nas configurações do sistema e tente novamente.",
+        "O dail não tem permissão para usar a câmara, por isso não pode ler o código. Permita o acesso à câmara para o dail nas definições do sistema e tente novamente.",
+        "dail cameram adhibere non licet, ergo notam legere non potest. In optionibus systematis dail cameram adhibere sine, deinde iterum conare.";
+    ScanNoCamera:
+        "This device has no camera to scan with. Paste the pairing link or type the server instead.",
+        "Cet appareil n’a pas d’appareil photo pour scanner. Collez plutôt le lien d’association ou saisissez le serveur.",
+        "Este dispositivo no tiene cámara para escanear. Pega el enlace de vinculación o escribe el servidor.",
+        "Acest dispozitiv nu are o cameră pentru scanare. Lipiți în schimb linkul de asociere sau introduceți serverul.",
+        "Este dispositivo não tem câmera para escanear. Cole o link de pareamento ou digite o servidor.",
+        "Este dispositivo não tem câmara para ler o código. Cole a ligação de emparelhamento ou introduza o servidor.",
+        "Hoc instrumentum cameram ad legendum non habet. Potius nexum copulationis insere aut servitorem inscribe.";
+    ScanCameraFailed:
+        "The camera did not start. Close other apps that use it and try again, or paste the pairing link.",
+        "L’appareil photo n’a pas démarré. Fermez les autres applications qui l’utilisent et réessayez, ou collez le lien d’association.",
+        "La cámara no se inició. Cierra las otras aplicaciones que la usan y vuelve a intentarlo, o pega el enlace de vinculación.",
+        "Camera nu a pornit. Închideți celelalte aplicații care o folosesc și încercați din nou sau lipiți linkul de asociere.",
+        "A câmera não iniciou. Feche os outros apps que a usam e tente novamente, ou cole o link de pareamento.",
+        "A câmara não arrancou. Feche as outras aplicações que a usam e tente novamente, ou cole a ligação de emparelhamento.",
+        "Camera non incepit. Alias applicationes quae ea utuntur claude et iterum conare, aut nexum copulationis insere.";
+    NativeScanHint:
+        "Point the camera at the QR code dail shows on the server.",
+        "Pointez l’appareil photo vers le code QR que dail affiche sur le serveur.",
+        "Apunta la cámara al código QR que dail muestra en el servidor.",
+        "Îndreptați camera spre codul QR pe care dail îl afișează pe server.",
+        "Aponte a câmera para o código QR que o dail mostra no servidor.",
+        "Aponte a câmara para o código QR que o dail mostra no servidor.",
+        "Cameram ad notam QR dirige quam dail in servitore ostendit.";
+    NativeCameraPurpose:
+        "dail uses the camera only to scan the QR code that pairs this device with your dail server.",
+        "dail n’utilise l’appareil photo que pour scanner le code QR qui associe cet appareil à votre serveur dail.",
+        "dail usa la cámara solo para escanear el código QR que vincula este dispositivo con tu servidor dail.",
+        "dail folosește camera doar pentru a scana codul QR care asociază acest dispozitiv cu serverul dumneavoastră dail.",
+        "O dail usa a câmera só para escanear o código QR que pareia este dispositivo com o seu servidor dail.",
+        "O dail usa a câmara só para ler o código QR que emparelha este dispositivo com o seu servidor dail.",
+        "dail camera solum utitur ut notam QR legat quae hoc instrumentum cum tuo servitore dail copulat.";
+    ConnectAddressFooter:
+        "Enter connect · Esc back",
+        "Entrée se connecter · Échap retour",
+        "Intro conectar · Esc atrás",
+        "Enter conectați · Esc înapoi",
+        "Enter conectar · Esc voltar",
+        "Enter ligar · Esc retroceder",
+        "Enter conecte · Esc retro";
+    ConnectCodeFooter:
+        "type the code · Enter pair · Esc back",
+        "saisissez le code · Entrée associer · Échap retour",
+        "escribe el código · Intro vincular · Esc atrás",
+        "introduceți codul · Enter asociați · Esc înapoi",
+        "digite o código · Enter parear · Esc voltar",
+        "introduza o código · Enter emparelhar · Esc retroceder",
+        "notam inscribe · Enter copula · Esc retro";
+    ConnectWaitFooter:
+        "Esc cancel",
+        "Échap annuler",
+        "Esc cancelar",
+        "Esc anulați",
+        "Esc cancelar",
+        "Esc cancelar",
+        "Esc rescinde";
+    ConnectRetryFooter:
+        "Enter try again · Esc back",
+        "Entrée réessayer · Échap retour",
+        "Intro reintentar · Esc atrás",
+        "Enter reîncercați · Esc înapoi",
+        "Enter tentar novamente · Esc voltar",
+        "Enter tentar novamente · Esc retroceder",
+        "Enter iterum conare · Esc retro";
+    ConnectDoneFooter:
+        "Enter close",
+        "Entrée fermer",
+        "Intro cerrar",
+        "Enter închideți",
+        "Enter fechar",
+        "Enter fechar",
+        "Enter claude";
+    LinkOnline:
+        "Online",
+        "En ligne",
+        "En línea",
+        "Online",
+        "Online",
+        "Online",
+        "Conexum";
+    LinkConnecting:
+        "Connecting…",
+        "Connexion…",
+        "Conectando…",
+        "Se conectează…",
+        "Conectando…",
+        "A ligar…",
+        "Conectitur…";
+    LinkOffline:
+        "Offline",
+        "Hors ligne",
+        "Sin conexión",
+        "Offline",
+        "Offline",
+        "Offline",
+        "Sine conexione";
+    LinkNotPaired:
+        "Not paired yet",
+        "Pas encore associé",
+        "Aún no vinculado",
+        "Încă neasociat",
+        "Ainda não pareado",
+        "Ainda não emparelhado",
+        "Nondum copulatum";
+    LinkQueued:
+        "{status} · {n} queued",
+        "{status} · {n} en file",
+        "{status} · {n} en cola",
+        "{status} · {n} în coadă",
+        "{status} · {n} na fila",
+        "{status} · {n} em fila",
+        "{status} · {n} in ordine";
+    DailServer:
+        "dail server",
+        "Serveur dail",
+        "Servidor dail",
+        "Server dail",
+        "Servidor dail",
+        "Servidor dail",
+        "Servitor dail";
+    LinkStatusLabel:
+        "Connection",
+        "Connexion",
+        "Conexión",
+        "Conexiune",
+        "Conexão",
+        "Ligação",
+        "Conexio";
+    LinkRevision:
+        "Revision",
+        "Révision",
+        "Revisión",
+        "Revizie",
+        "Revisão",
+        "Revisão",
+        "Recensio";
+    LinkQueuedLabel:
+        "Waiting to be sent",
+        "En attente d’envoi",
+        "Pendientes de envío",
+        "În așteptarea trimiterii",
+        "Aguardando envio",
+        "A aguardar envio",
+        "Mittenda exspectant";
+    RetryRefused:
+        "Retry refused changes",
+        "Renvoyer les modifications refusées",
+        "Reintentar los cambios rechazados",
+        "Reîncercați modificările refuzate",
+        "Tentar de novo as alterações recusadas",
+        "Tentar de novo as alterações recusadas",
+        "Mutationes recusatas iterum mitte";
+    RetryAll:
+        "Retry all",
+        "Tout réessayer",
+        "Reintentar todo",
+        "Reîncercați tot",
+        "Tentar tudo de novo",
+        "Tentar tudo de novo",
+        "Omnia iterum conare";
+    DisconnectDots:
+        "Disconnect…",
+        "Se déconnecter…",
+        "Desconectar…",
+        "Deconectați…",
+        "Desconectar…",
+        "Desligar…",
+        "Disiunge…";
+    RefusedOffline:
+        "Refused by the server: {command}",
+        "Refusé par le serveur : {command}",
+        "Rechazado por el servidor: {command}",
+        "Refuzat de server: {command}",
+        "Recusado pelo servidor: {command}",
+        "Recusado pelo servidor: {command}",
+        "A servitore recusatum: {command}";
+    RefusedOfflineHint:
+        "Made while offline; the server refused it when it arrived. Retry all sends every refused change again; Dismiss drops this one.",
+        "Faite hors ligne ; le serveur l’a refusée à son arrivée. Tout réessayer renvoie toutes les modifications refusées ; Ignorer abandonne celle-ci.",
+        "Hecho sin conexión; el servidor lo rechazó al llegar. Reintentar todo vuelve a enviar todos los cambios rechazados; Descartar elimina este.",
+        "Făcută offline; serverul a refuzat-o la sosire. Reîncercați tot retrimite toate modificările refuzate; Închideți renunță la aceasta.",
+        "Feita offline; o servidor a recusou quando chegou. Tentar tudo de novo reenvia todas as alterações recusadas; Dispensar descarta esta.",
+        "Feita offline; o servidor recusou-a quando chegou. Tentar tudo de novo reenvia todas as alterações recusadas; Ignorar descarta esta.",
+        "Sine conexione facta; servitor eam advenientem recusavit. Omnia iterum conare omnes mutationes recusatas rursus mittit; Dimitte hanc abicit.";
+    RefusedAt:
+        "refused {when}",
+        "refusé {when}",
+        "rechazado {when}",
+        "refuzat {when}",
+        "recusado {when}",
+        "recusado {when}",
+        "recusatum {when}";
+    Devices:
+        "Devices",
+        "Appareils",
+        "Dispositivos",
+        "Dispozitive",
+        "Dispositivos",
+        "Dispositivos",
+        "Instrumenta";
+    DevicesHint:
+        "Devices paired with this dail server. Revoking one ends its access at once.",
+        "Appareils associés à ce serveur dail. En révoquer un met fin à son accès immédiatement.",
+        "Dispositivos vinculados con este servidor dail. Revocar uno termina su acceso al momento.",
+        "Dispozitive asociate cu acest server dail. Revocarea unuia îi încheie imediat accesul.",
+        "Dispositivos pareados com este servidor dail. Revogar um encerra o acesso dele na hora.",
+        "Dispositivos emparelhados com este servidor dail. Revogar um termina de imediato o acesso dele.",
+        "Instrumenta cum hoc servitore dail copulata. Unum revocare accessum eius statim finit.";
+    NoDevices:
+        "No device is paired yet.",
+        "Aucun appareil associé pour l’instant.",
+        "Aún no hay ningún dispositivo vinculado.",
+        "Niciun dispozitiv asociat încă.",
+        "Nenhum dispositivo pareado ainda.",
+        "Ainda não há dispositivos emparelhados.",
+        "Nullum instrumentum adhuc copulatum.";
+    DevicePaired:
+        "paired {date}",
+        "associé : {date}",
+        "vinculado: {date}",
+        "asociat: {date}",
+        "pareado: {date}",
+        "emparelhado: {date}",
+        "copulatum: {date}";
+    DeviceSeen:
+        "last seen {age}",
+        "dernière connexion {age}",
+        "última conexión {age}",
+        "ultima conectare {age}",
+        "última conexão {age}",
+        "última ligação {age}",
+        "ultima conexio {age}";
+    DeviceNeverSeen:
+        "never connected",
+        "jamais connecté",
+        "nunca conectado",
+        "niciodată conectat",
+        "nunca conectado",
+        "nunca ligado",
+        "numquam conexum";
+    RevokeDots:
+        "Revoke…",
+        "Révoquer…",
+        "Revocar…",
+        "Revocați…",
+        "Revogar…",
+        "Revogar…",
+        "Revoca…";
+    FixSettingsAccounts:
+        " (settings › Accounts)",
+        " (paramètres › Comptes)",
+        " (ajustes › Cuentas)",
+        " (setări › Conturi)",
+        " (configurações › Contas)",
+        " (definições › Contas)",
+        " (optiones › Rationes)";
+    LinkWaitingForMail:
+        "Linked to {server}. Its mail shows up here once this device has connected.",
+        "Relié à {server}. Son courrier apparaît ici une fois cet appareil connecté.",
+        "Vinculado con {server}. Su correo aparece aquí cuando este dispositivo se conecte.",
+        "Legat la {server}. E-mailurile sale apar aici după ce acest dispozitiv se conectează.",
+        "Ligado a {server}. Os e-mails dele aparecem aqui quando este dispositivo se conectar.",
+        "Ligado a {server}. O correio dele aparece aqui quando este dispositivo se ligar.",
+        "Cum {server} coniunctum. Epistulae eius hic apparent cum hoc instrumentum conexum erit.";
 }

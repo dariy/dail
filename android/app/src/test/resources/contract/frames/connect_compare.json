@@ -1,0 +1,76 @@
+{
+  "back": true,
+  "layout": {
+    "class": "compact",
+    "panes": [
+      "list"
+    ]
+  },
+  "list": {
+    "checked": 0,
+    "density": "cozy",
+    "empty": "No accounts yet. Add one to read your mail here.",
+    "offset": 0,
+    "refreshing": false,
+    "rows": [],
+    "title": "Conversations",
+    "total": 0
+  },
+  "revision": 3,
+  "setup": {
+    "actions": [
+      {
+        "action": 13,
+        "label": "Pair"
+      }
+    ],
+    "back": {
+      "action": 14,
+      "icon": "arrow_back",
+      "label": "Back"
+    },
+    "busy": false,
+    "fields": [
+      {
+        "field": "code",
+        "hint": "ABCD2345",
+        "input": "code",
+        "label": "Pairing code",
+        "value": {
+          "text": "ABCD2345",
+          "version": 1
+        }
+      }
+    ],
+    "fingerprints": [
+      {
+        "label": "Server certificate (SHA-256)",
+        "lines": [
+          "5d41 402a bc4b 2a76 b971 9d91 1017 c592",
+          "ae2f 5e3c 8a1b 7d0f 4e6c 2a9b 8d7f 1e03"
+        ]
+      }
+    ],
+    "note": "home.example:7443 shows this certificate fingerprint (SHA-256). Pair only if it is the one dail serve or Pair a device… shows on the server.\nIt matches the fingerprint of the pairing link.\nThe 8-character code from dail serve pair or Pair a device…",
+    "presets": [],
+    "step": "Pairing code",
+    "title": "Connect to a dail server",
+    "warning": "A link opened this pairing with home.example:7443. Only continue if you just scanned or opened this code from your own dail server."
+  },
+  "top_bar": {
+    "actions": [
+      {
+        "action": 11,
+        "label": "Add account"
+      },
+      {
+        "action": 12,
+        "label": "About"
+      }
+    ],
+    "overflow": [],
+    "subtitle": "Connecting…",
+    "title": "Conversations"
+  },
+  "wants_tick": false
+}

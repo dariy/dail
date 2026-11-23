@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::CommandKind;
 use crate::event::Effect;
-use crate::ids::{AccountId, ApprovalId, DraftId, MailboxId, MessageId, OpId, ThreadId};
+use crate::ids::{AccountId, ApprovalId, DeviceId, DraftId, MailboxId, MessageId, OpId, ThreadId};
 
 /// The result of a successful `dispatch` or `ingest`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -116,4 +116,8 @@ pub enum EntityRef {
     Status,
     /// The update state (`update`).
     Update,
+    /// The link to a dail server (`link`, ADR 0017).
+    Link,
+    /// A device paired with this dail server (`devices`, ADR 0017).
+    Device(DeviceId),
 }

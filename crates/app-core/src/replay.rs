@@ -103,10 +103,18 @@ impl ReplayRecord {
         }
     }
 
-    /// The record as an audit-log line (JSON, no newline): passwords are already `<redacted>`
-    /// (`Secret` never serializes its value), and the message text a command or event carries
-    /// (`body`, `body_text`) is replaced too. Replaying it rebuilds the same state except for that text.
+    /// The record as an audit-log line (JSON, no newline): passwords and pairing codes are
+    /// already `<redacted>` (`Secret` never serializes its value), and the message text a command
+    /// or event carries (`body`, `body_text`) is replaced too. The seed of `start_pairing` is left
+    /// out, because its pairing code derives from it (`link::pairing_code`); the code is never in
+    /// the state, so a replay without it rebuilds the same state. Replaying the line rebuilds the
+    /// same state except for that text.
     pub fn redacted_line(&self) -> String {
+        let pairing = matches!(
+            self.input,
+            ReplayInput::Command(Command::StartPairing { .. })
+        );
+        let seed = if pairing { None } else { self.seed };
         // `serde_json::Value` can't hold a `u128` seed: redact the rest, then put it in front.
         let rest = Self {
             seed: None,
@@ -122,7 +130,7 @@ impl ReplayRecord {
             redact_text(args);
         }
         let body = value.to_string();
-        match (self.seed, body.strip_prefix('{')) {
+        match (seed, body.strip_prefix('{')) {
             (Some(seed), Some(fields)) => format!("{{\"seed\":{seed},{fields}"),
             _ => body,
         }

@@ -114,6 +114,14 @@ pub(super) const fn french(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Afficher les demandes d’envoi",
         CommandName::ApproveRequest => "Approuver la demande d’envoi",
         CommandName::RejectRequest => "Rejeter la demande d’envoi",
+        CommandName::ListDevices => "Afficher les appareils associés",
+        CommandName::StartPairing => "Associer un appareil",
+        CommandName::RevokeDevice => "Révoquer un appareil",
+        CommandName::ConnectServer => "Se connecter à un serveur dail",
+        CommandName::TrustServer => "Faire confiance au serveur dail et s’y associer",
+        CommandName::DisconnectServer => "Se déconnecter du serveur dail",
+        CommandName::RetryOffline => "Réessayer les modifications hors ligne refusées",
+        CommandName::DismissOfflineRejection => "Abandonner une modification hors ligne refusée",
     }
 }
 
@@ -324,6 +332,30 @@ pub(super) const fn french_help(name: CommandName) -> &'static str {
         }
         CommandName::ApproveRequest => "Approuver la demande d’envoi d’un agent.",
         CommandName::RejectRequest => "Refuser la demande d’envoi d’un agent.",
+        CommandName::ListDevices => {
+            "Lister les appareils associés à ce serveur dail, avec leur rôle et leur dernière connexion."
+        }
+        CommandName::StartPairing => {
+            "Créer un code à usage unique, valable 10 minutes, pour associer un appareil à ce serveur dail."
+        }
+        CommandName::RevokeDevice => {
+            "Révoquer un appareil associé : il perd son accès au serveur dail."
+        }
+        CommandName::ConnectServer => {
+            "Relier ce profil à un serveur dail et afficher l’empreinte de son certificat."
+        }
+        CommandName::TrustServer => {
+            "Faire confiance au certificat du serveur dail et s’y associer avec le code d’association."
+        }
+        CommandName::DisconnectServer => {
+            "Délier ce profil de son serveur dail : le courrier copié et les modifications hors ligne en attente sont perdus."
+        }
+        CommandName::RetryOffline => {
+            "Remettre en file les modifications hors ligne que le serveur dail a refusées."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Abandonner une modification hors ligne refusée par le serveur dail, sans la renvoyer."
+        }
     }
 }
 
@@ -438,6 +470,14 @@ pub(super) const fn spanish(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Mostrar las solicitudes de envío",
         CommandName::ApproveRequest => "Aprobar la solicitud de envío",
         CommandName::RejectRequest => "Rechazar la solicitud de envío",
+        CommandName::ListDevices => "Mostrar los dispositivos vinculados",
+        CommandName::StartPairing => "Vincular un dispositivo",
+        CommandName::RevokeDevice => "Revocar un dispositivo",
+        CommandName::ConnectServer => "Conectarse a un servidor dail",
+        CommandName::TrustServer => "Confiar en el servidor dail y vincularse",
+        CommandName::DisconnectServer => "Desconectarse del servidor dail",
+        CommandName::RetryOffline => "Reintentar los cambios sin conexión rechazados",
+        CommandName::DismissOfflineRejection => "Descartar un cambio sin conexión rechazado",
     }
 }
 
@@ -552,6 +592,14 @@ pub(super) const fn romanian(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Afișați cererile de trimitere",
         CommandName::ApproveRequest => "Aprobați cererea de trimitere",
         CommandName::RejectRequest => "Respingeți cererea de trimitere",
+        CommandName::ListDevices => "Afișați dispozitivele asociate",
+        CommandName::StartPairing => "Asociați un dispozitiv",
+        CommandName::RevokeDevice => "Revocați un dispozitiv",
+        CommandName::ConnectServer => "Conectați-vă la un server dail",
+        CommandName::TrustServer => "Acceptați serverul dail și asociați dispozitivul",
+        CommandName::DisconnectServer => "Deconectați-vă de la serverul dail",
+        CommandName::RetryOffline => "Reîncercați modificările offline refuzate",
+        CommandName::DismissOfflineRejection => "Renunțați la o modificare offline refuzată",
     }
 }
 
@@ -756,6 +804,30 @@ pub(super) const fn spanish_help(name: CommandName) -> &'static str {
         }
         CommandName::ApproveRequest => "Aprobar la solicitud de envío de un agente.",
         CommandName::RejectRequest => "Rechazar la solicitud de envío de un agente.",
+        CommandName::ListDevices => {
+            "Listar los dispositivos vinculados a este servidor dail, con su rol y su última conexión."
+        }
+        CommandName::StartPairing => {
+            "Crear un código de un solo uso, válido 10 minutos, para vincular un dispositivo a este servidor dail."
+        }
+        CommandName::RevokeDevice => {
+            "Revocar un dispositivo vinculado: pierde el acceso al servidor dail."
+        }
+        CommandName::ConnectServer => {
+            "Enlazar este perfil con un servidor dail y mostrar la huella de su certificado."
+        }
+        CommandName::TrustServer => {
+            "Confiar en el certificado del servidor dail y vincularte con el código de vinculación."
+        }
+        CommandName::DisconnectServer => {
+            "Desenlazar este perfil de su servidor dail: se pierden el correo copiado y los cambios sin conexión pendientes."
+        }
+        CommandName::RetryOffline => {
+            "Volver a poner en cola los cambios sin conexión que el servidor dail rechazó."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Descartar un cambio sin conexión rechazado por el servidor dail, sin reenviarlo."
+        }
     }
 }
 
@@ -952,6 +1024,30 @@ pub(super) const fn romanian_help(name: CommandName) -> &'static str {
         }
         CommandName::ApproveRequest => "Aprobați cererea de trimitere a unui agent.",
         CommandName::RejectRequest => "Respingeți cererea de trimitere a unui agent.",
+        CommandName::ListDevices => {
+            "Listați dispozitivele asociate acestui server dail, cu rolul și ultima lor conectare."
+        }
+        CommandName::StartPairing => {
+            "Creați un cod de unică folosință, valabil 10 minute, pentru a asocia un dispozitiv cu acest server dail."
+        }
+        CommandName::RevokeDevice => {
+            "Revocați un dispozitiv asociat: își pierde accesul la serverul dail."
+        }
+        CommandName::ConnectServer => {
+            "Legați acest profil de un server dail și afișați amprenta certificatului său."
+        }
+        CommandName::TrustServer => {
+            "Acceptați certificatul serverului dail și asociați dispozitivul cu codul de asociere."
+        }
+        CommandName::DisconnectServer => {
+            "Dezlegați acest profil de serverul dail: e-mailurile copiate și modificările offline în așteptare se pierd."
+        }
+        CommandName::RetryOffline => {
+            "Puneți din nou în coadă modificările offline refuzate de serverul dail."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Renunțați la o modificare offline refuzată de serverul dail, fără a o retrimite."
+        }
     }
 }
 
@@ -1066,6 +1162,14 @@ pub(super) const fn portuguese_brazil(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Mostrar as solicitações de envio",
         CommandName::ApproveRequest => "Aprovar a solicitação de envio",
         CommandName::RejectRequest => "Rejeitar a solicitação de envio",
+        CommandName::ListDevices => "Mostrar os dispositivos pareados",
+        CommandName::StartPairing => "Parear um dispositivo",
+        CommandName::RevokeDevice => "Revogar um dispositivo",
+        CommandName::ConnectServer => "Conectar a um servidor dail",
+        CommandName::TrustServer => "Confiar no servidor dail e parear",
+        CommandName::DisconnectServer => "Desconectar do servidor dail",
+        CommandName::RetryOffline => "Tentar de novo as alterações offline recusadas",
+        CommandName::DismissOfflineRejection => "Descartar uma alteração offline recusada",
     }
 }
 
@@ -1180,6 +1284,14 @@ pub(super) const fn portuguese_portugal(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Mostrar os pedidos de envio",
         CommandName::ApproveRequest => "Aprovar o pedido de envio",
         CommandName::RejectRequest => "Rejeitar o pedido de envio",
+        CommandName::ListDevices => "Mostrar os dispositivos emparelhados",
+        CommandName::StartPairing => "Emparelhar um dispositivo",
+        CommandName::RevokeDevice => "Revogar um dispositivo",
+        CommandName::ConnectServer => "Ligar a um servidor dail",
+        CommandName::TrustServer => "Confiar no servidor dail e emparelhar",
+        CommandName::DisconnectServer => "Desligar do servidor dail",
+        CommandName::RetryOffline => "Tentar de novo as alterações offline recusadas",
+        CommandName::DismissOfflineRejection => "Rejeitar uma alteração offline recusada",
     }
 }
 
@@ -1294,6 +1406,14 @@ pub(super) const fn latin(name: CommandName) -> &'static str {
         CommandName::ListApprovals => "Petitiones missionis monstra",
         CommandName::ApproveRequest => "Petitionem missionis proba",
         CommandName::RejectRequest => "Petitionem missionis reice",
+        CommandName::ListDevices => "Instrumenta copulata monstra",
+        CommandName::StartPairing => "Instrumentum copula",
+        CommandName::RevokeDevice => "Instrumentum revoca",
+        CommandName::ConnectServer => "Cum servitore dail conecte",
+        CommandName::TrustServer => "Servitori dail confide et copula",
+        CommandName::DisconnectServer => "A servitore dail disiunge",
+        CommandName::RetryOffline => "Mutationes sine conexione recusatas iterum conare",
+        CommandName::DismissOfflineRejection => "Mutationem sine conexione recusatam abice",
     }
 }
 
@@ -1478,6 +1598,30 @@ pub(super) const fn portuguese_brazil_help(name: CommandName) -> &'static str {
         }
         CommandName::ApproveRequest => "Aprovar a solicitação de envio de um agente.",
         CommandName::RejectRequest => "Rejeitar a solicitação de envio de um agente.",
+        CommandName::ListDevices => {
+            "Listar os dispositivos pareados com este servidor dail, com a função e a última conexão de cada um."
+        }
+        CommandName::StartPairing => {
+            "Criar um código de uso único, válido por 10 minutos, para parear um dispositivo com este servidor dail."
+        }
+        CommandName::RevokeDevice => {
+            "Revogar um dispositivo pareado: ele perde o acesso ao servidor dail."
+        }
+        CommandName::ConnectServer => {
+            "Vincular este perfil a um servidor dail e mostrar a impressão digital do certificado dele."
+        }
+        CommandName::TrustServer => {
+            "Confiar no certificado do servidor dail e parear com o código de pareamento."
+        }
+        CommandName::DisconnectServer => {
+            "Desvincular este perfil do servidor dail: os e-mails copiados e as alterações offline pendentes são perdidos."
+        }
+        CommandName::RetryOffline => {
+            "Colocar de novo na fila as alterações offline que o servidor dail recusou."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Descartar uma alteração offline recusada pelo servidor dail, sem reenviá-la."
+        }
     }
 }
 
@@ -1666,6 +1810,30 @@ pub(super) const fn portuguese_portugal_help(name: CommandName) -> &'static str 
         }
         CommandName::ApproveRequest => "Aprovar o pedido de envio de um agente.",
         CommandName::RejectRequest => "Rejeitar o pedido de envio de um agente.",
+        CommandName::ListDevices => {
+            "Listar os dispositivos emparelhados com este servidor dail, com a função e a última ligação de cada um."
+        }
+        CommandName::StartPairing => {
+            "Criar um código de utilização única, válido durante 10 minutos, para emparelhar um dispositivo com este servidor dail."
+        }
+        CommandName::RevokeDevice => {
+            "Revogar um dispositivo emparelhado: perde o acesso ao servidor dail."
+        }
+        CommandName::ConnectServer => {
+            "Associar este perfil a um servidor dail e mostrar a impressão digital do respetivo certificado."
+        }
+        CommandName::TrustServer => {
+            "Confiar no certificado do servidor dail e emparelhar com o código de emparelhamento."
+        }
+        CommandName::DisconnectServer => {
+            "Desassociar este perfil do servidor dail: o correio copiado e as alterações offline pendentes perdem-se."
+        }
+        CommandName::RetryOffline => {
+            "Voltar a pôr na fila as alterações offline que o servidor dail recusou."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Rejeitar uma alteração offline recusada pelo servidor dail, sem a reenviar."
+        }
     }
 }
 
@@ -1840,5 +2008,29 @@ pub(super) const fn latin_help(name: CommandName) -> &'static str {
         }
         CommandName::ApproveRequest => "Petitionem missionis agentis proba.",
         CommandName::RejectRequest => "Petitionem missionis agentis reice.",
+        CommandName::ListDevices => {
+            "Instrumenta huic servitori dail copulata enumera, cum munere et ultima conexione."
+        }
+        CommandName::StartPairing => {
+            "Notam semel utendam, decem minutis validam, crea ut instrumentum huic servitori dail copules."
+        }
+        CommandName::RevokeDevice => {
+            "Instrumentum copulatum revoca: aditum ad servitorem dail amittit."
+        }
+        CommandName::ConnectServer => {
+            "Hanc profilem cum servitore dail conecte et vestigium testimonii eius monstra."
+        }
+        CommandName::TrustServer => {
+            "Testimonio servitoris dail confide et nota copulationis copula."
+        }
+        CommandName::DisconnectServer => {
+            "Hanc profilem a servitore dail disiunge: epistulae exscriptae et mutationes sine conexione exspectantes amittuntur."
+        }
+        CommandName::RetryOffline => {
+            "Mutationes sine conexione a servitore dail recusatas iterum in ordinem pone."
+        }
+        CommandName::DismissOfflineRejection => {
+            "Mutationem sine conexione a servitore dail recusatam abice, nec iterum mitte."
+        }
     }
 }

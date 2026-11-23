@@ -1,0 +1,6 @@
+{
+  "args": {
+    "reason": "denied"
+  },
+  "event": "scan_failed"
+}

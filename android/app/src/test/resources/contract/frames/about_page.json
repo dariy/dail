@@ -33,33 +33,39 @@
   "setup": {
     "actions": [
       {
-        "action": 32,
+        "action": 36,
         "label": "Next"
       }
     ],
     "back": {
-      "action": 33,
+      "action": 37,
       "label": "Cancel"
     },
     "busy": false,
     "fields": [],
     "presets": [
       {
-        "action": 29,
+        "action": 32,
         "hint": "Needs an App Password (2-Step Verification on).",
         "label": "Gmail",
         "selected": true
       },
       {
-        "action": 30,
+        "action": 33,
         "hint": "Your mailbox password.",
         "label": "Hostinger Mail",
         "selected": false
       },
       {
-        "action": 31,
+        "action": 34,
         "hint": "Enter the servers yourself, or find them.",
         "label": "Other IMAP / SMTP",
+        "selected": false
+      },
+      {
+        "action": 35,
+        "hint": "Your accounts stay on a dail server you run (dail serve); this device mirrors its mail.",
+        "label": "Connect to a dail server",
         "selected": false
       }
     ],
@@ -69,7 +75,7 @@
   "top_bar": {
     "actions": [],
     "navigation": {
-      "action": 28,
+      "action": 31,
       "icon": "arrow_back",
       "label": "Back"
     },

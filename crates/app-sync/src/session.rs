@@ -19,8 +19,11 @@ use tokio::task::{JoinHandle, JoinSet};
 use crate::audit::{AuditLog, AuditWriter};
 use crate::backend::Backend;
 use crate::clock::{Clock, SeedSource};
+use crate::connection::Connection;
 use crate::error::SyncError;
 use crate::executor::run_effect;
+use crate::link::{RemoteBackend, RemoteLink, RemoteOptions, RemoteSession};
+use crate::secrets::SecretStore;
 
 /// Queue depth of the input channel.
 const INPUT_CAPACITY: usize = 256;
@@ -32,6 +35,8 @@ enum Input {
     Command {
         cmd: Command,
         origin: Origin,
+        /// The `Ctx::id_seed` to dispatch with; `None`: a fresh one.
+        seed: Option<u128>,
         reply: oneshot::Sender<SubmitResult>,
     },
     Event(Event),
@@ -54,6 +59,23 @@ pub struct Session {
     /// Dropping it tells the engine loop to stop taking inputs.
     stop: oneshot::Sender<()>,
     task: JoinHandle<()>,
+    /// The link to a dail server, for a session opened with [`Session::open_remote`].
+    remote: Option<RemoteParts>,
+}
+
+/// The remote side of a session: its front ends' way in, and the link task.
+struct RemoteParts {
+    session: RemoteSession,
+    task: Option<JoinHandle<()>>,
+}
+
+impl Drop for RemoteParts {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+        self.session.link().close();
+    }
 }
 
 /// A cheap, cloneable handle that submits to a running session (e.g. for each IPC connection or
@@ -112,7 +134,48 @@ impl Session {
             },
             stop: stop_tx,
             task,
+            remote: None,
         })
+    }
+
+    /// Opens a session that can be a device of a dail server (ADR 0017): `inner` runs the
+    /// device's own effects behind a [`RemoteBackend`], and a link task connects to the server
+    /// whenever `state.link.server` is pinned (a remote profile, or right after pairing), reading
+    /// the device token from `secrets`. Front ends reach it through [`Session::connection`]
+    /// (`Connection::Remote`); without a pinned link it behaves like [`Session::open_audited`].
+    pub async fn open_remote(
+        inner: Arc<dyn Backend>,
+        secrets: Arc<dyn SecretStore>,
+        clock: Arc<dyn Clock>,
+        seeds: Arc<dyn SeedSource>,
+        audit: Option<AuditLog>,
+        options: RemoteOptions,
+    ) -> Result<Self, SyncError> {
+        let link = RemoteLink::new(options);
+        let backend = Arc::new(RemoteBackend::new(Arc::clone(&inner), Arc::clone(&link)));
+        let mut session =
+            Self::open_audited(backend, Arc::clone(&clock), Arc::clone(&seeds), audit).await?;
+        let task = link.spawn(session.client(), secrets, Arc::clone(&clock), inner);
+        session.remote = Some(RemoteParts {
+            session: RemoteSession::new(session.client(), link, seeds, clock),
+            task,
+        });
+        Ok(session)
+    }
+
+    /// The front ends' way to this session: [`Connection::Remote`] for a session opened with
+    /// [`Session::open_remote`] (commands for the server are forwarded), else
+    /// [`Connection::Local`].
+    pub fn connection(&self) -> Connection {
+        match &self.remote {
+            Some(remote) => Connection::Remote(remote.session.clone()),
+            None => Connection::Local(self.client()),
+        }
+    }
+
+    /// The remote side, for a session opened with [`Session::open_remote`].
+    pub fn remote(&self) -> Option<&RemoteSession> {
+        self.remote.as_ref().map(|remote| &remote.session)
     }
 
     /// A handle that submits to this session without owning it.
@@ -158,7 +221,9 @@ impl Session {
     /// Tells the engine the front-end is closing (drafts with unsaved changes are saved now),
     /// completes in-flight effects, then stops the engine task. Inputs that clients submit
     /// meanwhile are refused with [`SyncError::SessionClosed`].
-    pub async fn shutdown(self) -> Result<(), SyncError> {
+    pub async fn shutdown(mut self) -> Result<(), SyncError> {
+        // The link first: nothing from the server arrives while the session closes.
+        drop(self.remote.take());
         self.client.ingest(Event::Closing {}).await?;
         self.client.flush().await?;
         drop(self.stop);
@@ -180,6 +245,27 @@ impl SessionClient {
     /// engine's rejection. Message bodies requested with `include_body` are read from the store
     /// and added to the receipt ([`crate::bodies`]).
     pub async fn submit(&self, cmd: Command, origin: Origin) -> Result<SubmitResult, SyncError> {
+        self.submit_with(cmd, origin, None).await
+    }
+
+    /// Like [`SessionClient::submit`], dispatched with `seed` as `Ctx::id_seed`: a device of a
+    /// dail server sends the seed it used offline, so the IDs the command creates here are the
+    /// ones it already uses (ADR 0017).
+    pub async fn submit_seeded(
+        &self,
+        cmd: Command,
+        origin: Origin,
+        seed: u128,
+    ) -> Result<SubmitResult, SyncError> {
+        self.submit_with(cmd, origin, Some(seed)).await
+    }
+
+    async fn submit_with(
+        &self,
+        cmd: Command,
+        origin: Origin,
+        seed: Option<u128>,
+    ) -> Result<SubmitResult, SyncError> {
         let bodies = match cmd {
             Command::GetThread {
                 include_body: true,
@@ -193,7 +279,12 @@ impl SessionClient {
         };
         let (reply, response) = oneshot::channel();
         self.input
-            .send(Input::Command { cmd, origin, reply })
+            .send(Input::Command {
+                cmd,
+                origin,
+                seed,
+                reply,
+            })
             .await
             .map_err(|_| SyncError::SessionClosed)?;
         let mut result = response.await.map_err(|_| SyncError::SessionClosed)?;
@@ -231,6 +322,12 @@ impl SessionClient {
             .await
             .map_err(|_| SyncError::SessionClosed)?;
         done.await.map_err(|_| SyncError::SessionClosed)
+    }
+
+    /// The stored blob `id` (a raw message body), or `None` if the store has none. Reads only;
+    /// the engine is not involved.
+    pub async fn blob(&self, id: &str) -> Result<Option<Vec<u8>>, SyncError> {
+        self.backend.get_blob(id).await
     }
 
     /// Writes the sanitized "open original" page of a stored message body (`blob`, from the
@@ -327,8 +424,8 @@ impl EngineLoop {
             }
             let effects = tokio::select! {
                 next = input.recv(), if input_open => match next {
-                    Some(Input::Command { cmd, origin, reply }) => {
-                        let (result, effects) = self.dispatch(cmd, origin);
+                    Some(Input::Command { cmd, origin, seed, reply }) => {
+                        let (result, effects) = self.dispatch(cmd, origin, seed);
                         let _ = reply.send(result);
                         effects
                     }
@@ -405,8 +502,16 @@ impl EngineLoop {
         }
     }
 
-    fn dispatch(&mut self, cmd: Command, origin: Origin) -> (SubmitResult, Vec<Effect>) {
-        let ctx = self.ctx(origin);
+    fn dispatch(
+        &mut self,
+        cmd: Command,
+        origin: Origin,
+        seed: Option<u128>,
+    ) -> (SubmitResult, Vec<Effect>) {
+        let mut ctx = self.ctx(origin);
+        if let Some(seed) = seed {
+            ctx.id_seed = seed;
+        }
         if let Some(audit) = &self.audit {
             audit.record(&ReplayRecord::new(&ctx, ReplayInput::Command(cmd.clone())));
         }
@@ -483,7 +588,14 @@ fn lane(effect: &Effect) -> Lane {
         | Effect::SaveAttachments { .. }
         | Effect::CompactStore { .. }
         | Effect::SearchIndex { .. } => Lane::Local,
-        Effect::DiscoverServers { .. } => Lane::Lookup,
+        // Other servers (autoconfig, ADR 0006), and the dail server's link and pairing (ADR
+        // 0017), in order.
+        Effect::DiscoverServers { .. }
+        | Effect::ProbeServer { .. }
+        | Effect::PairWithServer { .. }
+        | Effect::DisconnectServer { .. }
+        | Effect::OpenPairing { .. }
+        | Effect::RevokeDevice { .. } => Lane::Lookup,
         // Downloads take minutes; they must not hold up the store or the lookups.
         Effect::CheckForUpdates { .. }
         | Effect::DownloadUpdate { .. }

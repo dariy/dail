@@ -419,6 +419,16 @@ impl SecretRef {
             user: format!("account/{id}"),
         }
     }
+
+    /// The keyring entry of the device token that a profile linked to a dail server holds (ADR
+    /// 0017). `link` is a UUID the engine derives when the user trusts the server
+    /// (`trust_server`), so that two profiles linked to servers never share an entry.
+    pub fn for_server(link: uuid::Uuid) -> Self {
+        Self {
+            service: "dail".to_owned(),
+            user: format!("server/{link}"),
+        }
+    }
 }
 
 /// A password in transit from a front-end to the keyring.

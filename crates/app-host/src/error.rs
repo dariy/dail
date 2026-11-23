@@ -42,4 +42,7 @@ pub enum HostError {
     /// The engine's task ended while the host was open (a panic): the screen would be stale.
     #[error("ERR310: dail's engine stopped; restart the app")]
     Stopped,
+    /// `"remote"` was asked for a profile that is not a device of a dail server.
+    #[error("ERR311: the profile {0} has no [remote] server")]
+    NotRemote(String),
 }
