@@ -187,17 +187,6 @@ impl std::fmt::Debug for Tui {
 /// How long a notice stays in the status line.
 const NOTICE_MS: i64 = 6_000;
 
-/// Commands whose receipt carries a new draft to show in the composer.
-const fn creates_draft(name: CommandName) -> bool {
-    matches!(
-        name,
-        CommandName::CreateDraft
-            | CommandName::Reply
-            | CommandName::ReplyAll
-            | CommandName::Forward
-    )
-}
-
 fn system_now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1075,10 +1064,10 @@ impl Tui {
                             (self.now_ms(), self.zone),
                         ));
                     }
-                    // A new draft (compose, reply, forward) opens in the composer, as in the GUI.
+                    // A new or edited draft opens in the composer, as in the GUI.
                     if let Ok(Ok(receipt)) = &reply.result
-                        && creates_draft(reply.name)
-                        && let Ok(id) = serde_json::from_value(receipt.data["id"].clone())
+                        && let Some(id) =
+                            app_front::compose::draft_to_open(reply.name, &receipt.data)
                     {
                         out.push(Request::user(Command::OpenComposer { id }));
                     }

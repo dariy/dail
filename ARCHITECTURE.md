@@ -1443,15 +1443,19 @@ and that every `Palette` entry is offered by the palette.
   it in a resizable bottom panel (55% of the pane, at most 75%); the reader, clipped to the rest so it never paints
   over the composer (MISC-36), then scrolls to its end once (UI-13). New drafts and forwards keep the
   whole pane (UI-8: a header with the title, the save state and *Close*; labelled
-  hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; a footer with *Attach files…*, the attachment
-  chips, *Discard* and *Send*). Subject and body are typed into local buffers and written back with
+  hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; the attachment chips; a footer with
+  *Attach files…*, *Discard* and *Send*). Header, attachments and footer stay fixed and the rows and body scroll between
+  them, so the composer fits a docked panel. A recipient row keeps its label in the label column, and its chips and
+  field wrap beside it, the field on the chips' line while it has room. A chip remembers its width, starts a new
+  row when it did not fit, and cuts its text short rather than outgrow the row. Subject and body are typed into local buffers and written back with
   one `update_draft` when typing pauses for a second, the field loses the focus, or before a key command (Ctrl+Enter
   sends what is on screen) — not per keystroke, which would flood the undo history; an agent's change to the draft
   reloads the buffers unless the user has unsaved typing. An address typed into To/Cc/Bcc (`Name <a@b>` or `a@b`)
   becomes a chip on Enter, a comma or leaving the field; invalid text stays in the field. While a recipient field is being typed in, up to 5 contacts that match
-  the text (`listing::contacts`, computed once per state revision) are offered below it; a click adds one. The file dialog runs on its
+  the text (`listing::contacts`, computed once per state revision) are offered below it; a click adds one (the press
+  that takes the focus from the field does not add the typed text, which may already look like an address). The file dialog runs on its
   own thread and each picked path becomes `attach_file`; so does each file dropped on the window while a draft is open
-  and editable (`egui` `dropped_files` with a path; *Drop the files to attach them* shows while files hover); attachment chips show `checking…`, the size or the error.
+  and editable (`egui` `dropped_files` with a path; *Drop the files to attach them* shows while files hover); attachment chips show `checking…`, the size or *Failed*, and the reason of a failure (such as the 25 MiB limit) follows on its own wrapped line.
   Send is enabled once there is a recipient and every attachment is checked. A scheduled or running send makes the
   draft read-only with *Cancel send*.
 - **About** (MISC-27): the desktop's title opens `open_settings {section: "about"}`, the page's last tab. The TUI and the
@@ -1655,8 +1659,8 @@ and that every `Palette` entry is offered by the palette.
   threads costs ~0.7 ms. `app_core::listing` holds these read-only
   projections; the queries use the same functions, so the GUI never re-derives the rules. Bodies are blobs only the
   session can read: the reader sends a background `get_thread {include_body: true, rich_body: true}` whenever the open
-  thread or one of its body states changes. A user `create_draft`/`reply`/`reply_all`/`forward` is followed by `open_composer` for the
-  new draft. Look (`docs/ui/monochrome_minimalist_mail/DESIGN.md`, ADR 0008): tonal surfaces, hairline borders,
+  thread or one of its body states changes. A user `create_draft`/`reply`/`reply_all`/`forward`/`edit_draft` is followed by `open_composer` for the
+  draft it made or returned (`app_front::compose::draft_to_open`, shared with the TUI and touch). Look (`docs/ui/monochrome_minimalist_mail/DESIGN.md`, ADR 0008): tonal surfaces, hairline borders,
   inversion for emphasis. `app_gui::theme` is the egui adapter of `app-theme`: a `Theme` becomes `Tokens` (the content
   roles as `Color32` through `Deref`, `chrome()` for the sidebar's group, the account `tags`, the metrics `m`, the
   `type_scale`) and egui `Visuals` once per change; the sidebar sets the chrome group's `Visuals` on its `Ui`. The kit

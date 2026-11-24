@@ -312,6 +312,45 @@ fn recipients_are_suggested_from_the_mail() {
     );
 }
 
+/// A real mouse press takes the focus from the field a frame before the release: the typed
+/// text, here already an address, must not be added in place of the suggestion.
+#[test]
+fn a_pressed_suggestion_wins_over_the_typed_address() {
+    let (mut h, id) = composing();
+    type_into(
+        &mut h,
+        By::new().label("To").role(Role::TextInput),
+        "carol@ex",
+    );
+    assert!(h.state_mut().pump().is_empty(), "nothing added by typing");
+    let at = h.get_by_label("Carol <carol@example.org>").rect().center();
+    h.event(egui::Event::PointerMoved(at));
+    h.run();
+    for pressed in [true, false] {
+        h.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        });
+        h.run();
+    }
+    assert_eq!(
+        h.state_mut().pump(),
+        [Command::UpdateDraft {
+            id,
+            to: Some(vec![Addr {
+                name: Some("Carol".into()),
+                email: "carol@example.org".into(),
+            }]),
+            cc: None,
+            bcc: None,
+            subject: None,
+            body: None,
+        }]
+    );
+}
+
 #[test]
 fn the_sender_is_chosen_among_the_accounts_addresses() {
     let (mut h, id) = composing();
@@ -402,4 +441,34 @@ fn a_forward_takes_the_whole_pane() {
         h.query_by_label_contains("Reply all").is_none(),
         "the reader is replaced"
     );
+}
+
+#[test]
+fn edit_on_a_draft_message_opens_the_composer() {
+    let mut state = synced_state();
+    let (inbox, threads) = inbox_of(&state);
+    let message = state.threads[&threads[1]].messages[0];
+    let envelope = state.messages.get_mut(&message).unwrap();
+    envelope.flags.draft = true;
+    envelope.message_id_hdr = Some("<draft-1@example.com>".to_owned());
+    let mut h = gui(state);
+    apply(&mut h, Command::OpenMailbox { id: inbox });
+    apply(&mut h, Command::OpenThread { id: threads[1] });
+    h.state_mut().out.clear();
+    h.get(
+        By::new()
+            .role(Role::Button)
+            .label_contains("Edit, message from"),
+    )
+    .click();
+    h.run();
+    assert_eq!(h.state_mut().pump(), [Command::EditDraft { message }]);
+    // The receipt nests the draft under `draft`: the composer opens on it.
+    h.run();
+    let sent = h.state_mut().pump();
+    let id = *h.state().engine.state().drafts.keys().next().unwrap();
+    assert_eq!(sent, [Command::OpenComposer { id }]);
+    h.run();
+    assert_eq!(h.state().engine.state().view.composer, Some(id));
+    h.get(By::new().role(Role::Button).label_contains("Send"));
 }
