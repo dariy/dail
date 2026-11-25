@@ -1440,12 +1440,14 @@ and that every `Palette` entry is offered by the palette.
   key, and `g <letter>` on the mailboxes of the current account.
 - **Composer:** plain text in the MVP, with To/Cc/Bcc chips and attachments by path / file dialog (`rfd`, XDG portal on Linux, kept in app-gui).
   It shows `view.composer` in place of the reader, or, for a reply to a message of the open conversation, docked under
-  it in a resizable bottom panel (55% of the pane, at most 75%); the reader, clipped to the rest so it never paints
-  over the composer (MISC-36), then scrolls to its end once (UI-13). New drafts and forwards keep the
+  it in a resizable bottom panel (55% of the pane, at most 75%). Only a drag sizes that panel: the composer draws in a
+  child pinned to its rect, since egui keeps a resizable panel at the size its content used. The reader, clipped to the
+  rest so it never paints over the composer (MISC-36), then scrolls to its end once (UI-13), and leaves out the
+  server's copy of the draft being written. New drafts and forwards keep the
   whole pane (UI-8: a header with the title, the save state and *Close*; labelled
   hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; the attachment chips; a footer with
   *Attach files…*, *Discard* and *Send*). Header, attachments and footer stay fixed and the rows and body scroll between
-  them, so the composer fits a docked panel. A recipient row keeps its label in the label column, and its chips and
+  them, in the height the attachments and footer measured last frame, so the composer fits a docked panel. A recipient row keeps its label in the label column, and its chips and
   field wrap beside it, the field on the chips' line while it has room. A chip remembers its width, starts a new
   row when it did not fit, and cuts its text short rather than outgrow the row. Subject and body are typed into local buffers and written back with
   one `update_draft` when typing pauses for a second, the field loses the focus, or before a key command (Ctrl+Enter

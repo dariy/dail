@@ -46,8 +46,9 @@ pub struct ComposerState {
     /// Where the suggestions of a field were drawn last frame: a press there takes the focus
     /// from the field, and must pick the suggestion, not add the typed text.
     picks: Option<(Field, egui::Rect)>,
-    /// Height of the attachment list last frame: the scrolling fields leave room for it.
-    attachments_height: f32,
+    /// Height of what follows the scrolling fields (attachments, divider and footer, with the
+    /// spacing between them) last frame: the fields leave exactly that room. 0 before it is drawn.
+    tail_height: f32,
 }
 
 /// Suggestions shown under a recipient field.
@@ -168,9 +169,14 @@ impl ComposerState {
         // The fields and the body scroll between the fixed header and the attachments and footer,
         // so the composer fits any pane (docked under a conversation it may get a third of it)
         // and the attachments, with why one failed, stay in sight.
-        let footer = t.m.frame.reader_toolbar + t.m.space.sm;
-        let height = (ui.available_height() - footer - self.attachments_height)
-            .max(t.m.controls.button * 3.0);
+        // Measured, not estimated: a guess a few points off makes a docked composer's pane grow or
+        // shrink by that much every frame.
+        let tail = if self.tail_height > 0.0 {
+            self.tail_height
+        } else {
+            t.m.frame.reader_toolbar + 2.0 * ui.spacing().item_spacing.y + t.m.stroke.hairline
+        };
+        let height = (ui.available_height() - tail).max(t.m.controls.button * 3.0);
         egui::ScrollArea::vertical()
             .id_salt(("compose", draft.id))
             .max_height(height)
@@ -178,18 +184,9 @@ impl ComposerState {
             .show(ui, |ui| {
                 self.fields(ui, t, state, draft, (now, height), queue);
             });
-        if draft.attachments.is_empty() {
-            self.attachments_height = 0.0;
-        } else {
-            let measured = ui
-                .vertical(|ui| self.attachments(ui, t, draft, queue))
-                .response
-                .rect
-                .height();
-            if (measured - self.attachments_height).abs() > 0.5 {
-                self.attachments_height = measured;
-                ui.ctx().request_discard("composer attachments resized");
-            }
+        let fields_bottom = ui.min_rect().bottom();
+        if !draft.attachments.is_empty() {
+            ui.vertical(|ui| self.attachments(ui, t, draft, queue));
         }
 
         // Footer: attach on the left; *Discard* and *Send* on the right.
@@ -233,6 +230,11 @@ impl ComposerState {
                 }
             });
         });
+        let measured = ui.min_rect().bottom() - fields_bottom;
+        if (measured - self.tail_height).abs() > 0.5 {
+            self.tail_height = measured;
+            ui.ctx().request_discard("composer footer resized");
+        }
 
         if self.dirty {
             if now - self.edited_at >= IDLE_SECS {

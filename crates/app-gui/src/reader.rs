@@ -123,10 +123,14 @@ pub fn show(
         );
         return;
     };
+    // The draft open in the composer shows there, not again as the server's copy of it in the
+    // conversation (a docked reply sits right under it).
+    let composing = state.view.composer;
     let messages: Vec<&Envelope> = thread
         .messages
         .iter()
         .filter_map(|id| state.messages.get(id))
+        .filter(|m| composing.is_none() || state.local_draft_of(m) != composing)
         .collect();
     let tool = Toolbar {
         state,
