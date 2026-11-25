@@ -2151,6 +2151,19 @@ pub fn event_schema() -> serde_json::Value {
     schema_value::<crate::Event>(false)
 }
 
+/// JSON Schema (draft 2020-12) of what two dail processes exchange on a profile's socket: the
+/// [`Command`], the [`crate::AppState`], the [`crate::CommandReceipt`] and the
+/// [`crate::CoreError`]. Two builds whose wire schemas differ cannot read each other's answers
+/// (`app_sync::ipc`'s `hello` compares a hash of it).
+pub fn wire_schema() -> serde_json::Value {
+    serde_json::json!({
+        "command": schema_value::<Command>(false),
+        "state": schema_value::<crate::AppState>(false),
+        "receipt": schema_value::<crate::CommandReceipt>(false),
+        "error": schema_value::<crate::CoreError>(false),
+    })
+}
+
 /// The `cmd` tag of each variant in the [`Command`] schema, in schema order.
 pub fn schema_command_names() -> Vec<String> {
     variants(&schema_value::<Command>(true))

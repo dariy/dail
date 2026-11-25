@@ -426,3 +426,88 @@ async fn the_protocol_runs_over_any_byte_stream() {
     assert_eq!(method, "changed");
     session.shutdown().await.unwrap();
 }
+
+/// An owner of another build on `dir`'s socket: it holds the lock and answers `hello` with
+/// `answer` (a JSON-RPC `result` or `error` object), then whatever comes next with an error.
+#[cfg(unix)]
+async fn foreign_owner(dir: &std::path::Path, answer: serde_json::Value) -> ProfileLock {
+    use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _, BufReader};
+    let lock = ProfileLock::try_acquire(&dir.join("lock"))
+        .unwrap()
+        .unwrap();
+    let listener = tokio::net::UnixListener::bind(dir.join("dail.sock")).unwrap();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let answer = answer.clone();
+            tokio::spawn(async move {
+                let (read, mut write) = stream.into_split();
+                let mut lines = BufReader::new(read).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    let request: serde_json::Value = serde_json::from_str(&line).unwrap();
+                    let mut reply = json!({ "jsonrpc": "2.0", "id": request["id"] });
+                    for (key, value) in answer.as_object().unwrap() {
+                        reply[key] = value.clone();
+                    }
+                    let mut text = reply.to_string();
+                    text.push('\n');
+                    if write.write_all(text.as_bytes()).await.is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+    });
+    lock
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn an_owner_of_another_build_is_refused_at_once_with_both_versions() {
+    let other = profile("other-build");
+    let _lock = foreign_owner(
+        &other,
+        json!({ "result": { "version": "0.0.1", "schema": "0".repeat(32) } }),
+    )
+    .await;
+    let started = std::time::Instant::now();
+    let err = ipc::claim(&other).await.unwrap_err();
+    assert!(
+        started.elapsed() < ipc::CLAIM_TIMEOUT / 2,
+        "no waiting for a busy profile"
+    );
+    let text = err.to_string();
+    assert!(text.starts_with("ERR214: "), "{text}");
+    assert!(text.contains("version 0.0.1;"), "{text}");
+    assert!(text.contains(env!("CARGO_PKG_VERSION")), "{text}");
+    assert!(text.contains(&other.display().to_string()), "{text}");
+
+    // A build older than the check does not know `hello`.
+    let older = profile("older-build");
+    let _lock = foreign_owner(
+        &older,
+        json!({ "error": { "code": -32601, "message": "unknown method `hello`" } }),
+    )
+    .await;
+    let err = IpcClient::connect(&IpcEndpoint::for_profile(&older))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&err, SyncError::OwnerMismatch { owner, .. } if owner == "older"),
+        "{err}"
+    );
+}
+
+#[tokio::test]
+async fn hello_answers_this_builds_version_and_wire_schema() {
+    let dir = profile("hello");
+    let session = open(Arc::default()).await;
+    let _server = IpcServer::listen(&dir, session.client()).unwrap();
+    // `connect` says hello and accepts its own build.
+    IpcClient::connect(&IpcEndpoint::for_profile(&dir))
+        .await
+        .unwrap();
+    let schema = ipc::wire_schema();
+    assert_eq!(schema.len(), 32);
+    assert!(schema.bytes().all(|b| b.is_ascii_hexdigit()));
+    assert_eq!(schema, ipc::wire_schema(), "stable within a build");
+}

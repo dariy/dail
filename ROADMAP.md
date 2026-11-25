@@ -1351,6 +1351,9 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-QR2 (S) [kt][ios][host]: the `dail://pair` deep link (Android intent filter, iOS URL type)
 - [x] SRV-QR3 (M) [kt][ios][mobile]: the in-app scanner (CameraX with `zxing-core`; AVFoundation), with the camera
   permission asked for when it opens
+- [x] SRV-9 (S) [sync][cli]: the profile socket says `hello` (version and wire-schema hash); a `dail` of another build
+  than the owner (`dail serve` left running across an upgrade) is refused at once with `ERR214`, both versions named,
+  instead of misreading the owner's JSON *(CLI stderr; the GUI's and TUI's start errors are the same message)*
 - [ ] SRV-8 [user]: live check: `dail serve` under systemd on the home server with the `ai@darii.net` profile, the
   desktop over Tailscale, then the phone. Covers triage offline and reconnect, an MCP send approved from the phone,
   and rules sorting overnight with every device closed

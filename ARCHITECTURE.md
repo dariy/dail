@@ -902,7 +902,12 @@ serves it, so an attached `dail exec` is forwarded to the server like the owner'
 always drives the same state the user is looking at, and the GUI repaints live when an agent archives a thread. With
 `--backend memory` a session is private unless `--profile-dir` is given, which then provides the lock and socket only.
 
-Protocol: newline-delimited JSON-RPC 2.0, requests answered in order. `submit {origin, command}` → `{"ok": receipt}` or
+Protocol: newline-delimited JSON-RPC 2.0, requests answered in order. `hello` → `{version, schema}`: the build's
+version and `ipc::wire_schema()`, a hash of `app_core::registry::wire_schema()` (the schemas of `Command`, `AppState`,
+`CommandReceipt` and `CoreError`). `IpcClient::connect` says `hello` first and refuses an owner whose hash is not its own,
+or that answers `-32601` (a build older than the check), with `ERR214` (`SyncError::OwnerMismatch`, both versions named):
+two builds would misread each other's JSON. `ipc::claim` returns that error at once instead of waiting for a busy
+profile. `submit {origin, command}` → `{"ok": receipt}` or
 `{"rejected": CoreError}`; `preview {origin, command}` → `{"ok": Preview}` or `{"rejected": …}` (a dry run); `flush` → `null`; `state` → the `AppState` snapshot. `watch` → `null`, after which the connection only
 carries `{"method": "changed"}` notifications, one after each burst of state changes (coalesced by the session's `watch`
 channel), until either side closes it. `Connection::subscribe()` gives every front-end the same

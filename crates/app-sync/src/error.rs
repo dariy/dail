@@ -36,6 +36,19 @@ pub enum SyncError {
         "ERR206: the profile {0} is in use by another dail process that does not accept connections; try again when it has finished"
     )]
     ProfileBusy(String),
+    /// The process that owns the profile is another build of dail, whose socket JSON this one
+    /// would misread (`ipc`'s `hello`).
+    #[error(
+        "ERR214: the profile {profile} is open in another build of dail (version {owner}; this one is {this}) whose data this one cannot read; quit it (for `dail serve`: stop it and start it again with this build), then try again"
+    )]
+    OwnerMismatch {
+        /// The profile directory.
+        profile: String,
+        /// The owner's version, or `older` for a build without the check.
+        owner: String,
+        /// This build's version.
+        this: &'static str,
+    },
     /// The session's engine task has stopped.
     #[error("ERR207: session closed")]
     SessionClosed,
