@@ -3,6 +3,14 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.11
+
+- Certificate trust per account (ADR 0016) and five more UI languages
+
+## 0.1.10
+
+- Enhance mobile app UI and add UX review scheduling
+
 ## 0.1.9
 
 - Merge go/misc: rules, settings sync, edit draft, mobile reader
