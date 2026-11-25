@@ -1508,8 +1508,11 @@ and that every `Palette` entry is offered by the palette.
   top bar draw with the theme's chrome group. There is no status bar: the top bar holds the status (below).
 - **Status** (`app_gui::topbar` over `app_front::status`, a projection of `status`, the accounts and the outbox), in the
   top bar: a status dot (filled when synced, a ring while syncing, a crossed ring when a login failed: shape, not
-  colour) and `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs
-  `sync_now`; a status chip (`2 pending`, `1 pending · 1 failed`, the first problem and `+N`, `searching the
+  colour) and the heavy work in flight (`app_front::status::activity`: `loading folders…` while an account has no
+  mailbox yet, `loading new mail · Inbox (+3)` for `status.fetching`, `loading older mail · 1240 of 8000` for
+  `status.backfilling` with a progress bar beside it, `downloading 12 messages` for two or more `bodies_in_flight`),
+  else `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs `sync_now`
+  (`status::sync_text`, which the TUI's status line and the touch frames show too); a status chip (`2 pending`, `1 pending · 1 failed`, the first problem and `+N`, `searching the
   server…`) whose popover lists `N pending · M failed` with the ops' errors on hover and *retry*
   (`retry_pending_ops`); `searching the server…`; store, keyring, login and sync failures in the
   error colour with a hint and their diagnostic on hover, and the fix `app_front::status` picks from the diagnostic

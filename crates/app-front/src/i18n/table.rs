@@ -205,6 +205,46 @@ strings! {
         "⟳ sincronizando…",
         "⟳ a sincronizar…",
         "⟳ synchronizatur…";
+    ActivityFolders:
+        "⟳ loading folders…",
+        "⟳ chargement des dossiers…",
+        "⟳ cargando carpetas…",
+        "⟳ se încarcă dosarele…",
+        "⟳ carregando pastas…",
+        "⟳ a carregar pastas…",
+        "⟳ capsae onerantur…";
+    ActivityNewMail:
+        "⟳ loading new mail · {mailbox}",
+        "⟳ chargement du nouveau courrier · {mailbox}",
+        "⟳ cargando correo nuevo · {mailbox}",
+        "⟳ se încarcă e-mailurile noi · {mailbox}",
+        "⟳ carregando e-mails novos · {mailbox}",
+        "⟳ a carregar correio novo · {mailbox}",
+        "⟳ epistulae novae onerantur · {mailbox}";
+    ActivityNewMailMore:
+        "⟳ loading new mail · {mailbox} (+{more})",
+        "⟳ chargement du nouveau courrier · {mailbox} (+{more})",
+        "⟳ cargando correo nuevo · {mailbox} (+{more})",
+        "⟳ se încarcă e-mailurile noi · {mailbox} (+{more})",
+        "⟳ carregando e-mails novos · {mailbox} (+{more})",
+        "⟳ a carregar correio novo · {mailbox} (+{more})",
+        "⟳ epistulae novae onerantur · {mailbox} (+{more})";
+    ActivityOlder:
+        "⟳ loading older mail · {cached} of {wanted}",
+        "⟳ chargement du courrier ancien · {cached} sur {wanted}",
+        "⟳ cargando correo anterior · {cached} de {wanted}",
+        "⟳ se încarcă e-mailurile mai vechi · {cached} din {wanted}",
+        "⟳ carregando e-mails antigos · {cached} de {wanted}",
+        "⟳ a carregar correio antigo · {cached} de {wanted}",
+        "⟳ epistulae veteres onerantur · {cached} ex {wanted}";
+    ActivityBodies:
+        "⟳ downloading {n} messages",
+        "⟳ téléchargement de {n} messages",
+        "⟳ descargando {n} mensajes",
+        "⟳ se descarcă {n} mesaje",
+        "⟳ baixando {n} mensagens",
+        "⟳ a transferir {n} mensagens",
+        "⟳ {n} epistulae deprimuntur";
     Synced:
         "synced {age}",
         "synchronisé {age}",

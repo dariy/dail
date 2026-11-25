@@ -235,8 +235,132 @@ fn trust_offered(state: &AppState, account: AccountId, cause: Cause) -> bool {
     cause == Cause::Certificate && !crate::certs::offers(state, account).is_empty()
 }
 
-/// The sync summary: `syncing…`, `synced 2m ago · next in 1m` or `not synced`.
+/// What heavy work runs now, as a status bar shows it: the step and, where it can be counted,
+/// how far it got.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Activity {
+    /// `Loading older mail · 1240 of 8000`.
+    pub text: String,
+    /// The share done, `0.0..=1.0`, when the work can be counted (the history backfill).
+    pub progress: Option<f32>,
+}
+
+/// Body downloads counted as heavy work: one is the message being opened, more is the prefetch.
+const BODIES_SHOWN: usize = 2;
+
+/// The heavy work in flight, first match: an account's first contact (`Loading folders…`: it
+/// syncs and has no mailbox yet), new envelopes (`Loading new mail · Inbox (+3)`), older ones
+/// (`Loading older mail · 1240 of 8000`, the cached and wanted counts of the backfilling
+/// mailboxes, with the progress), body prefetch (`Downloading 12 messages`); `None` when only
+/// a quick check or nothing runs. A history being loaded is shown with its progress even beside
+/// new mail, since it is the long part.
+pub fn activity(state: &AppState, lang: Lang) -> Option<Activity> {
+    let status = &state.status;
+    let listing = status.sync.iter().any(|(account, sync)| {
+        sync.is_syncing() && !state.mailboxes.values().any(|m| m.account == *account)
+    });
+    if listing {
+        return Some(Activity {
+            text: tr(lang, Key::ActivityFolders, &[]),
+            progress: None,
+        });
+    }
+    let older = older_progress(state);
+    let fetching: Vec<&app_core::Mailbox> = status
+        .fetching
+        .iter()
+        .filter_map(|id| state.mailboxes.get(id))
+        .collect();
+    if let Some(first) = fetching.first() {
+        let mailbox = crate::text::clean(&crate::mailbox::mailbox_name_in(lang, first));
+        let text = match fetching.len() - 1 {
+            0 => tr(lang, Key::ActivityNewMail, &[("mailbox", &mailbox)]),
+            more => tr(
+                lang,
+                Key::ActivityNewMailMore,
+                &[("mailbox", &mailbox), ("more", &more.to_string())],
+            ),
+        };
+        return Some(Activity {
+            text,
+            progress: older.map(|(cached, wanted)| fraction(cached, wanted)),
+        });
+    }
+    if let Some((cached, wanted)) = older {
+        return Some(Activity {
+            text: tr(
+                lang,
+                Key::ActivityOlder,
+                &[
+                    ("cached", &cached.to_string()),
+                    ("wanted", &wanted.to_string()),
+                ],
+            ),
+            progress: Some(fraction(cached, wanted)),
+        });
+    }
+    let bodies = status.bodies_in_flight.len();
+    (bodies >= BODIES_SHOWN).then(|| Activity {
+        text: tr(lang, Key::ActivityBodies, &[("n", &bodies.to_string())]),
+        progress: None,
+    })
+}
+
+/// Cached and wanted messages over the mailboxes whose history is being fetched, in one pass
+/// over the messages; `None` when none is.
+fn older_progress(state: &AppState) -> Option<(u64, u64)> {
+    let backfilling = &state.status.backfilling;
+    if backfilling.is_empty() {
+        return None;
+    }
+    let mut cached: std::collections::BTreeMap<app_core::MailboxId, u64> =
+        backfilling.iter().map(|id| (*id, 0)).collect();
+    for message in state.messages.values() {
+        if !message.is_placeholder()
+            && let Some(n) = cached.get_mut(&message.mailbox)
+        {
+            *n += 1;
+        }
+    }
+    let window = state.settings.initial_window;
+    let (mut done, mut wanted) = (0_u64, 0_u64);
+    for (id, n) in cached {
+        let Some(mailbox) = state.mailboxes.get(&id) else {
+            continue;
+        };
+        let window = match mailbox.sync_window {
+            Some(0) => u64::MAX,
+            Some(w) => u64::from(w),
+            None => window,
+        };
+        let want = if mailbox.history_complete {
+            n
+        } else {
+            window.min(u64::from(mailbox.total)).max(n)
+        };
+        done += n;
+        wanted += want;
+    }
+    Some((done, wanted))
+}
+
+/// `done / total` within `0.0..=1.0` (a total of 0 is done).
+fn fraction(done: u64, total: u64) -> f32 {
+    if total == 0 {
+        return 1.0;
+    }
+    // reason: a share for a progress bar; precision beyond f32 is not visible.
+    #[allow(clippy::cast_precision_loss)]
+    let share = done as f32 / total as f32;
+    share.clamp(0.0, 1.0)
+}
+
+/// The sync summary: what heavy work runs ([`activity`]), else `syncing…`, `synced 2m ago ·
+/// next in 1m` or `not synced`.
 pub fn sync_text(state: &AppState, now_ms: i64, lang: Lang) -> String {
+    if let Some(activity) = activity(state, lang) {
+        return activity.text;
+    }
     if state
         .status
         .sync

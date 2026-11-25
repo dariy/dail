@@ -222,6 +222,15 @@ fn sync_state(
                     .selectable(false),
             );
             ui::status_dot(ui, t, dot);
+            // The history backfill can be counted: how far it got.
+            if let Some(progress) = status::activity(state, lang).and_then(|a| a.progress) {
+                ui.add(
+                    egui::ProgressBar::new(progress)
+                        .desired_width(t.m.space.xl * 3.0)
+                        .desired_height(t.m.space.xs + 2.0)
+                        .fill(t.focus),
+                );
+            }
             r
         })
         .inner;

@@ -1103,6 +1103,10 @@ English and French.
   body's text is selectable (requested 2026-11-16)
 - [x] MISC-52 [mobile]: a tap on the frame on screen is not lost when a tick or a reply has made a newer one: the
   presenter keeps the action tables of the four newest frames (found by QA-1's golden path)
+- [x] MISC-53 [front][gui]: heavy work is named in the sync status: `loading folders…`, `loading new mail · Inbox
+  (+3)`, `loading older mail · 1240 of 8000` (with a progress bar in the GUI's top bar), `downloading 12 messages`,
+  instead of a bare `syncing…` *(GUI top bar; TUI status line and touch through `status::sync_text`; requested
+  2026-11-25)*
 
 ---
 

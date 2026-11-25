@@ -222,3 +222,27 @@ fn preview_rows_are_72_high_and_show_the_snippet() {
     assert!((rect.height() - 72.0).abs() < 0.5, "{rect:?}");
     h.get_by_label("Noon at the usual place?");
 }
+
+#[test]
+fn the_history_backfill_shows_its_count_and_a_progress_bar() {
+    let mut state = synced_state();
+    let (inbox, _) = inbox_of(&state);
+    let cached = state
+        .messages
+        .values()
+        .filter(|m| m.mailbox == inbox && !m.is_placeholder())
+        .count();
+    let mailbox = state.mailboxes.get_mut(&inbox).unwrap();
+    mailbox.total = u32::try_from(cached * 2).unwrap();
+    mailbox.sync_window = Some(0);
+    mailbox.history_complete = false;
+    state.status.backfilling.insert(inbox);
+    let mut h = gui(state);
+    h.run();
+    h.get(
+        By::new()
+            .role(Role::Button)
+            .label_contains(&format!("loading older mail · {cached} of {}", cached * 2)),
+    );
+    h.get(By::new().role(Role::ProgressIndicator));
+}

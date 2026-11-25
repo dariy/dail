@@ -250,3 +250,59 @@ fn a_certificate_failure_with_an_offer_is_fixed_by_trusting_it() {
             .any(|e| e.label == app_front::i18n::Key::ForgetCertificateDots)
     );
 }
+
+#[test]
+fn heavy_work_is_named_and_the_history_backfill_counted() {
+    use app_front::status::{activity, sync_text};
+    let mut state = synced_state();
+    let account = *state.accounts.keys().next().unwrap();
+    let en = Lang::English;
+    assert_eq!(activity(&state, en), None, "nothing runs");
+
+    // The first contact: the account syncs and has no mailbox yet.
+    let mut first = state.clone();
+    first.mailboxes.clear();
+    first.status.sync.get_mut(&account).unwrap().pending = 1;
+    assert_eq!(activity(&first, en).unwrap().text, "⟳ loading folders…");
+    assert_eq!(sync_text(&first, 0, en), "⟳ loading folders…");
+
+    // History: the backfilling inbox has `cached` of min(window, total).
+    let (inbox, _) = crate::support::inbox_of(&state);
+    let cached = state
+        .messages
+        .values()
+        .filter(|m| m.mailbox == inbox && !m.is_placeholder())
+        .count() as u64;
+    state.mailboxes[&inbox].total = u32::try_from(cached * 4).unwrap();
+    state.mailboxes[&inbox].sync_window = Some(0);
+    state.mailboxes[&inbox].history_complete = false;
+    state.status.backfilling.insert(inbox);
+    let older = activity(&state, en).unwrap();
+    assert_eq!(
+        older.text,
+        format!("⟳ loading older mail · {cached} of {}", cached * 4)
+    );
+    assert_eq!(older.progress, Some(0.25));
+
+    // New mail comes first in words; the history's progress stays.
+    state.status.fetching.insert(inbox);
+    let fetching = activity(&state, en).unwrap();
+    assert_eq!(fetching.text, "⟳ loading new mail · Inbox");
+    assert_eq!(fetching.progress, Some(0.25));
+    assert_eq!(
+        activity(&state, Lang::French).unwrap().text,
+        "⟳ chargement du nouveau courrier · Courrier entrant"
+    );
+
+    // One body is the message being opened; more are the prefetch.
+    state.status.fetching.clear();
+    state.status.backfilling.clear();
+    let ids: Vec<_> = state.messages.keys().copied().take(2).collect();
+    state.status.bodies_in_flight.insert(ids[0]);
+    assert_eq!(activity(&state, en), None);
+    state.status.bodies_in_flight.insert(ids[1]);
+    assert_eq!(
+        activity(&state, en).unwrap().text,
+        "⟳ downloading 2 messages"
+    );
+}
