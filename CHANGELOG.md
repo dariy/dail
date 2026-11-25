@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.14
+
+- Enhance GUI behavior, sync handling, and profile management
+
 ## 0.1.13
 
 - UI bug fixes
