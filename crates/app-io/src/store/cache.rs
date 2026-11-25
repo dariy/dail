@@ -96,7 +96,10 @@ impl RedbStore {
 
     /// Gives the free pages back to the file system (redb `compact`).
     pub fn compact(&self) -> Result<(), IoError> {
-        self.db.write().compact().map_err(|e| self.err(e))?;
+        self.db
+            .write()
+            .compact(redb::CompactionMode::Balanced)
+            .map_err(|e| self.err(e))?;
         Ok(())
     }
 

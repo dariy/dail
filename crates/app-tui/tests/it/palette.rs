@@ -6,9 +6,9 @@
 
 use app_core::{Command, CommandName};
 use app_front::palette::{AskKind, offered};
-use ratatui::crossterm::event::{KeyCode, KeyModifiers};
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use app_tui::Purpose;
+use app_tui::{Input, Purpose};
 
 use crate::support::{Term, inbox_of, rich_term, synced_state};
 
@@ -92,6 +92,32 @@ fn query_results_open_read_only_and_close_with_q() {
     t.key(KeyCode::Char('q'));
     assert!(!t.screen().contains("untrusted data"));
     assert!(!t.tui.quit_requested(), "q closed the result first");
+}
+
+/// Keys and palette rows follow this TUI's language, even when another `Tui` in the process drew
+/// in another one since: the language is process-wide, and a parallel French test once made the
+/// parity walk below pick a French row (typing "Undo" built `set_mailbox_identity`).
+#[test]
+fn keys_use_the_tuis_language_not_the_last_one_drawn() {
+    let mut t = rich_term(120, 40);
+    t.apply(Command::OpenPalette {});
+    let state = t.engine.state().clone();
+    let mut out = Vec::new();
+    {
+        let _one = crate::support::drawing();
+        let keys = "Undo".chars().map(KeyCode::Char).chain([KeyCode::Enter]);
+        for code in keys {
+            app_front::i18n::set_current(app_front::i18n::Lang::French);
+            let key = Input::Key(KeyEvent::new(code, KeyModifiers::NONE));
+            out.extend(t.tui.input(key, &state));
+        }
+    }
+    let built: Vec<CommandName> = out
+        .into_iter()
+        .filter(|r| r.purpose == Purpose::User)
+        .map(|r| r.cmd.command_name())
+        .collect();
+    assert_eq!(built.first(), Some(&CommandName::Undo), "{built:?}");
 }
 
 #[test]

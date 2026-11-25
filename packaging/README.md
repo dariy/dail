@@ -21,6 +21,19 @@
   `dist/` as run artifacts only. On a tag, the `publish` job (environment `release`, the only job with
   `contents: write`) signs the manifest and runs `gh release create` with every artifact and `.sha256`, the notes
   being the tag's `CHANGELOG.md` section (`cargo xtask release notes`).
+- MSI and `PATH` (DSK-3): `windows/dail.wxs` appends `%ProgramFiles%\dail` to the system `PATH` (removed on
+  uninstall), so `dail mcp`, `dail exec` and `dail tui` work in a new terminal and in an agent's MCP configuration.
+- winget (DIST-3): the package `dariy.dail` (`winget install dariy.dail`) installs the MSI per machine. On a tag, the
+  `winget` job of `release.yml` runs `scripts/release-winget.sh update <x.y.z>`, which opens the pull request on
+  `microsoft/winget-pkgs` with [komac](https://github.com/russellbanks/Komac) (pinned by sha256; it reads the MSI's
+  hash and ProductCode from the published release, and carries the package text over from the previous version).
+  One-time setup: a classic PAT with `public_repo` from the `dariy` account (komac forks `winget-pkgs` there if
+  needed) as the secret `WINGET_TOKEN` in the `release` environment, then the first version by hand:
+  `GITHUB_TOKEN=<pat> scripts/release-winget.sh new` in a terminal (it holds the package text; answer *Commands*
+  with `dail`, *Tags* with `email mail imap smtp mcp tui cli`, and Enter elsewhere). Until that version is merged into
+  `winget-pkgs`, or without the secret, the job logs a notice and passes. `DRY_RUN=1` prints the manifests only.
+  The MSI is not signed yet (DSK-4); winget accepts that, but SmartScreen and the validation's Defender scan may
+  delay a first review. An MSI installed by winget keeps its own updater (ADR 0011); winget sees the newer version.
 - `windows/dail.manifest`: embedded into `dail.exe` by `crates/app-cli/build.rs` (MSVC targets). Its
   `consoleAllocationPolicy` of `detached` stops Windows 11 24H2+ from opening a console when dail is started from
   Explorer, the Start menu or a shortcut, so only the GUI appears. Run from a terminal, dail still uses that terminal.

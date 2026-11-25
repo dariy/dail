@@ -99,7 +99,7 @@ ammonia = "4.2" # HTML sanitizer for "open original" (shares html5ever with html
 # Full-text index over downloaded bodies (ADR 0005). No default features: they bring zstd, which compiles C.
 tantivy = { version = "0.27", default-features = false, features = ["mmap", "lz4-compression"] }
 toml = "1.1"
-redb = "4.4"
+redb = "5.0"
 sha2 = "0.11"
 # app-tls's primitives (ADR 0014): pure Rust, audited where noted there.
 chacha20poly1305 = { version = "0.11", default-features = false }

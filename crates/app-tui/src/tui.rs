@@ -187,17 +187,6 @@ impl std::fmt::Debug for Tui {
 /// How long a notice stays in the status line.
 const NOTICE_MS: i64 = 6_000;
 
-/// Commands whose receipt carries a new draft to show in the composer.
-const fn creates_draft(name: CommandName) -> bool {
-    matches!(
-        name,
-        CommandName::CreateDraft
-            | CommandName::Reply
-            | CommandName::ReplyAll
-            | CommandName::Forward
-    )
-}
-
 fn system_now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -509,6 +498,7 @@ impl Tui {
     /// The background requests the current state calls for (the reader's bodies). The runner
     /// calls it before each frame.
     pub fn refresh(&mut self, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         self.palette.sync(state);
         if let Some(pair) = &mut self.pair {
             pair.dialog.sync(state);
@@ -625,8 +615,16 @@ impl Tui {
             .map(|(text, _)| text.as_str())
     }
 
+    /// Makes the language of the last frame the process's again before keys, replies or the
+    /// palette's rows read it: the language is process-wide, and another `Tui` (a parallel test)
+    /// may have drawn in another since.
+    fn use_lang(&self) {
+        app_front::i18n::set_current(self.lang);
+    }
+
     /// Handles one input event and returns the commands it issued, in order.
     pub fn input(&mut self, input: Input, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         let requests = self.input_inner(input, state);
         // A `start_pairing` from the palette or a key shows its code in the pairing dialog.
         let requests: Vec<Request> = requests
@@ -1024,6 +1022,7 @@ impl Tui {
 
     /// Takes the results of earlier requests; returns follow-up requests.
     pub fn replies(&mut self, replies: Vec<Reply>, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         let mut out = Vec::new();
         for reply in replies {
             match reply.tag {
@@ -1075,10 +1074,10 @@ impl Tui {
                             (self.now_ms(), self.zone),
                         ));
                     }
-                    // A new draft (compose, reply, forward) opens in the composer, as in the GUI.
+                    // A new or edited draft opens in the composer, as in the GUI.
                     if let Ok(Ok(receipt)) = &reply.result
-                        && creates_draft(reply.name)
-                        && let Ok(id) = serde_json::from_value(receipt.data["id"].clone())
+                        && let Some(id) =
+                            app_front::compose::draft_to_open(reply.name, &receipt.data)
                     {
                         out.push(Request::user(Command::OpenComposer { id }));
                     }

@@ -50,6 +50,8 @@ AppImage, a signed APK per Android ABI and the unsigned iOS IPAs, each with a `.
 (ADR 0011). Run by hand, the workflow is a dry run whose packages are the run's artifacts. `packaging/README.md` has the
 details.
 
+On Windows, `winget install dariy.dail` installs the MSI and puts `dail` on `PATH`.
+
 ## Documentation
 
 - [`AGENTS.md`](AGENTS.md): the rules for contributors and coding agents.

@@ -101,11 +101,17 @@ fn a_draft_card_offers_edit_and_discard() {
     let card = first_card(&mut phone);
     assert_eq!(card.message, message);
     assert_eq!(labels(&card), ["Edit", "Discard"]);
-    assert_eq!(
-        phone.tap(action(&card, "Edit")),
-        vec![Command::EditDraft { message }]
+    // Edit makes it a local draft and opens the composer on it.
+    let sent = phone.tap(action(&card, "Edit"));
+    assert!(
+        matches!(
+            sent.as_slice(),
+            [Command::EditDraft { message: m }, Command::OpenComposer { .. }] if *m == message
+        ),
+        "{sent:?}"
     );
-    // Edit made it a local draft: Discard now discards that, and the conversation stays.
+    phone.dispatch(Command::CloseComposer {});
+    // Discard now discards that local draft, and the conversation stays.
     let card = first_card(&mut phone);
     let sent = phone.tap(action(&card, "Discard"));
     assert!(

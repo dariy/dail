@@ -2,7 +2,7 @@
 //! draft's status line and whether it can be sent.
 
 use crate::i18n::Key;
-use app_core::{Addr, AppState, AttachmentState, Command, Draft};
+use app_core::{Addr, AppState, AttachmentState, Command, CommandName, Draft, DraftId};
 
 /// A recipient field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,9 +176,42 @@ pub fn senders(state: &app_core::AppState, account: app_core::AccountId) -> Vec<
     out
 }
 
+/// The draft a user command's receipt asks the composer to show: the new draft of
+/// `create_draft`, `reply`, `reply_all` and `forward` (`data.id`), or the draft `edit_draft`
+/// returned or made (`data.draft.id`). `None` for any other command.
+pub fn draft_to_open(name: CommandName, data: &serde_json::Value) -> Option<DraftId> {
+    let id = match name {
+        CommandName::CreateDraft
+        | CommandName::Reply
+        | CommandName::ReplyAll
+        | CommandName::Forward => data.get("id"),
+        CommandName::EditDraft => data.get("draft").and_then(|d| d.get("id")),
+        _ => None,
+    }?;
+    serde_json::from_value(id.clone()).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn edited_and_new_drafts_open_in_the_composer() {
+        let id: DraftId = serde_json::from_str("\"00000000-0000-0000-0000-000000000007\"").unwrap();
+        let flat = serde_json::json!({ "id": id });
+        let nested = serde_json::json!({ "draft": { "id": id }, "created": false });
+        for name in [
+            CommandName::CreateDraft,
+            CommandName::Reply,
+            CommandName::ReplyAll,
+            CommandName::Forward,
+        ] {
+            assert_eq!(draft_to_open(name, &flat), Some(id), "{name:?}");
+        }
+        assert_eq!(draft_to_open(CommandName::EditDraft, &nested), Some(id));
+        assert_eq!(draft_to_open(CommandName::EditDraft, &flat), None);
+        assert_eq!(draft_to_open(CommandName::UpdateDraft, &flat), None);
+    }
 
     #[test]
     fn addresses_parse() {

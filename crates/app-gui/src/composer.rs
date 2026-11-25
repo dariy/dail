@@ -43,6 +43,11 @@ pub struct ComposerState {
     /// The recipient field typed in last: its suggestions stay while the pointer moves to them
     /// (the field loses the focus on the press).
     active: Option<Field>,
+    /// Where the suggestions of a field were drawn last frame: a press there takes the focus
+    /// from the field, and must pick the suggestion, not add the typed text.
+    picks: Option<(Field, egui::Rect)>,
+    /// Height of the attachment list last frame: the scrolling fields leave room for it.
+    attachments_height: f32,
 }
 
 /// Suggestions shown under a recipient field.
@@ -57,6 +62,7 @@ impl ComposerState {
         self.dirty = false;
         self.inputs = Default::default();
         self.active = None;
+        self.picks = None;
         self.show_cc = !draft.cc.is_empty() || !draft.bcc.is_empty();
     }
 
@@ -107,7 +113,7 @@ impl ComposerState {
         }
 
         // Header: the title, the save state as a chip, *Close*.
-        ui.allocate_ui_with_layout(
+        let header = ui.allocate_ui_with_layout(
             egui::Vec2::new(ui.available_width(), t.m.frame.pane_header),
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
@@ -137,7 +143,7 @@ impl ComposerState {
             },
         );
         if state.view.focus == Pane::Composer {
-            let rect = ui.min_rect();
+            let rect = header.response.rect;
             ui.painter().hline(
                 rect.x_range(),
                 rect.bottom(),
@@ -159,6 +165,98 @@ impl ComposerState {
             }
         }
 
+        // The fields and the body scroll between the fixed header and the attachments and footer,
+        // so the composer fits any pane (docked under a conversation it may get a third of it)
+        // and the attachments, with why one failed, stay in sight.
+        let footer = t.m.frame.reader_toolbar + t.m.space.sm;
+        let height = (ui.available_height() - footer - self.attachments_height)
+            .max(t.m.controls.button * 3.0);
+        egui::ScrollArea::vertical()
+            .id_salt(("compose", draft.id))
+            .max_height(height)
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                self.fields(ui, t, state, draft, (now, height), queue);
+            });
+        if draft.attachments.is_empty() {
+            self.attachments_height = 0.0;
+        } else {
+            let measured = ui
+                .vertical(|ui| self.attachments(ui, t, draft, queue))
+                .response
+                .rect
+                .height();
+            if (measured - self.attachments_height).abs() > 0.5 {
+                self.attachments_height = measured;
+                ui.ctx().request_discard("composer attachments resized");
+            }
+        }
+
+        // Footer: attach on the left; *Discard* and *Send* on the right.
+        ui::divider(ui, t);
+        ui.horizontal(|ui| {
+            ui.set_min_height(t.m.frame.reader_toolbar);
+            if locked {
+                if draft.send_at.is_some()
+                    && !draft.sending
+                    && ui::primary(ui, t, t.s(Key::CancelSend), None, true)
+                {
+                    queue.push(Request::user(Command::CancelSend { id: draft.id }));
+                }
+                return;
+            }
+            ui.add_enabled_ui(self.files.is_none(), |ui| {
+                if ui::icon_button(
+                    ui,
+                    t,
+                    t.text_secondary,
+                    Icon::AttachFile,
+                    t.s(Key::AttachFiles),
+                )
+                .clicked()
+                {
+                    self.pick_files(ui.ctx(), t.s(Key::AttachFilesTitle));
+                }
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let ready = compose::sendable(draft);
+                if ui::primary(ui, t, t.s(Key::Send), Some("Ctrl+Enter"), ready) {
+                    self.flush(state, queue);
+                    queue.push(Request::user(Command::SendDraft { id: draft.id }));
+                }
+                let discard = ui::text(&t.type_scale.body_md, t.s(Key::Discard), t.text_secondary);
+                if ui::ghost(ui, t, discard).clicked() {
+                    queue.push(Request::user(Command::DiscardDraft {
+                        id: draft.id,
+                        keep_server_copy: false,
+                    }));
+                }
+            });
+        });
+
+        if self.dirty {
+            if now - self.edited_at >= IDLE_SECS {
+                self.flush(state, queue);
+            } else {
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_secs_f64(IDLE_SECS));
+            }
+        }
+    }
+
+    /// From, the recipient fields, the subject and the body. `(now, height)`: the frame's time
+    /// and the height of the scrolling area, which the body fills.
+    fn fields(
+        &mut self,
+        ui: &mut Ui,
+        t: &Tokens,
+        state: &AppState,
+        draft: &Draft,
+        (now, height): (f64, f32),
+        queue: &mut Vec<Request>,
+    ) {
+        let locked = draft.is_outgoing();
+        let top = ui.min_rect().top();
         ui.add_enabled_ui(!locked, |ui| {
             let account = state.accounts.get(&draft.account);
             let from = draft.from.as_ref().map_or_else(
@@ -227,93 +325,44 @@ impl ComposerState {
             });
             ui::divider(ui, t);
             ui.add_space(t.m.space.sm);
-            let footer = t.m.frame.reader_toolbar;
-            let height = (ui.available_height() - footer).max(t.m.overlays.palette_list_max / 3.0);
-            egui::ScrollArea::vertical()
-                .id_salt(("body", draft.id))
-                .max_height(height)
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    let edit = egui::TextEdit::multiline(&mut self.body)
-                        .font(ui::font(&t.type_scale.body_lg))
-                        .frame(egui::Frame::NONE)
-                        .hint_text(t.s(Key::WriteMessage))
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(12);
-                    let response = ui.add(edit);
-                    if response.has_focus() {
-                        self.active = None;
-                    }
-                    if response.changed() {
-                        self.dirty = true;
-                        self.edited_at = now;
-                    }
-                    if response.lost_focus() {
-                        self.flush(state, queue);
-                    }
-                    if let Some(quote) = &draft.quote {
-                        ui.add_space(t.m.space.md);
-                        ui.label(ui::text(
-                            &t.type_scale.body_md,
-                            &quote.header,
-                            t.text_secondary,
-                        ));
-                        ui::caption(ui, t, t.s(Key::OriginalBelow));
-                    }
-                });
-        });
-
-        // Footer: attach and the attachment chips; *Discard* and *Send* on the right.
-        ui::divider(ui, t);
-        ui.horizontal_wrapped(|ui| {
-            ui.set_min_height(t.m.frame.reader_toolbar);
-            if locked {
-                if draft.send_at.is_some()
-                    && !draft.sending
-                    && ui::primary(ui, t, t.s(Key::CancelSend), None, true)
-                {
-                    queue.push(Request::user(Command::CancelSend { id: draft.id }));
-                }
-                return;
-            }
-            ui.add_enabled_ui(self.files.is_none(), |ui| {
-                if ui::icon_button(
-                    ui,
-                    t,
-                    t.text_secondary,
-                    Icon::AttachFile,
-                    t.s(Key::AttachFiles),
-                )
-                .clicked()
-                {
-                    self.pick_files(ui.ctx(), t.s(Key::AttachFilesTitle));
-                }
-            });
-            self.attachments(ui, t, draft, queue);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let ready = compose::sendable(draft);
-                if ui::primary(ui, t, t.s(Key::Send), Some("Ctrl+Enter"), ready) {
-                    self.flush(state, queue);
-                    queue.push(Request::user(Command::SendDraft { id: draft.id }));
-                }
-                let discard = ui::text(&t.type_scale.body_md, t.s(Key::Discard), t.text_secondary);
-                if ui::ghost(ui, t, discard).clicked() {
-                    queue.push(Request::user(Command::DiscardDraft {
-                        id: draft.id,
-                        keep_server_copy: false,
-                    }));
-                }
-            });
-        });
-
-        if self.dirty {
-            if now - self.edited_at >= IDLE_SECS {
-                self.flush(state, queue);
+            // The body takes the height the fields, the quote note and the attachments leave.
+            let used = ui.min_rect().bottom() - top;
+            let quote = if draft.quote.is_some() {
+                t.m.space.md + t.m.controls.button * 2.0
             } else {
-                ui.ctx()
-                    .request_repaint_after(std::time::Duration::from_secs_f64(IDLE_SECS));
+                0.0
+            };
+            let min = t.m.controls.button * 4.0;
+            let fill = (height - used - quote - t.m.space.sm).max(min);
+            let edit = egui::TextEdit::multiline(&mut self.body)
+                .id_salt(("body", draft.id))
+                .font(ui::font(&t.type_scale.body_lg))
+                .frame(egui::Frame::NONE)
+                .hint_text(t.s(Key::WriteMessage))
+                .desired_width(f32::INFINITY)
+                .desired_rows(4)
+                .min_size(egui::Vec2::new(0.0, fill));
+            let response = ui.add(edit);
+            if response.has_focus() {
+                self.active = None;
             }
-        }
+            if response.changed() {
+                self.dirty = true;
+                self.edited_at = now;
+            }
+            if response.lost_focus() {
+                self.flush(state, queue);
+            }
+            if let Some(quote) = &draft.quote {
+                ui.add_space(t.m.space.md);
+                ui.label(ui::text(
+                    &t.type_scale.body_md,
+                    &quote.header,
+                    t.text_secondary,
+                ));
+                ui::caption(ui, t, t.s(Key::OriginalBelow));
+            }
+        });
     }
 
     /// The contacts that `typed` could mean, not in `current` yet, best first.
@@ -355,74 +404,86 @@ impl ComposerState {
         let current = field.of(draft);
         let mut next: Option<Vec<Addr>> = None;
         let mut focused = false;
-        ui.horizontal_wrapped(|ui| {
+        // The label in its column; the chips and the field wrap beside it, under the first chip.
+        ui.with_layout(egui::Layout::left_to_right(egui::Align::Min), |ui| {
             let label = field_label(ui, t, field.label());
-            for (i, addr) in current.iter().enumerate() {
-                chip(t).show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = t.m.space.xs;
-                        ui.label(ui::text(
-                            &t.type_scale.body_sm,
-                            format::full(addr),
-                            t.text_strong,
-                        ))
-                        .on_hover_text(&addr.email);
-                        if ui::icon_button(
-                            ui,
-                            t,
-                            t.text_muted,
-                            Icon::Close,
-                            &t.f(Key::RemoveName, &[("name", &addr.email)]),
-                        )
-                        .clicked()
-                        {
-                            let mut list = current.to_vec();
-                            list.remove(i);
-                            next = Some(list);
+            ui.horizontal_wrapped(|ui| {
+                for (i, addr) in current.iter().enumerate() {
+                    let id = egui::Id::unique(("recipient", draft.id, field as usize, i));
+                    let remove = t.f(Key::RemoveName, &[("name", &addr.email)]);
+                    let removed = chip(ui, t, id, t.border, &remove, |ui, width| {
+                        let name =
+                            ui::text(&t.type_scale.body_sm, format::full(addr), t.text_strong);
+                        ui.set_max_width(width);
+                        ui.add(egui::Label::new(name).truncate())
+                            .on_hover_text(&addr.email);
+                    });
+                    if removed {
+                        let mut list = current.to_vec();
+                        list.remove(i);
+                        next = Some(list);
+                    }
+                }
+                let index = field as usize;
+                let Some(input) = self.inputs.get_mut(index) else {
+                    return;
+                };
+                let edit = egui::TextEdit::singleline(input)
+                    .font(ui::font(&t.type_scale.body_md))
+                    .frame(egui::Frame::NONE)
+                    .hint_text(if current.is_empty() {
+                        t.s(Key::NameExample)
+                    } else {
+                        ""
+                    })
+                    // The rest of the row, after the label and the chips: the field shares their line,
+                    // as the sender does. Too little left, and it takes the next line.
+                    .desired_width({
+                        let rest = ui.available_size_before_wrap().x - t.m.space.sm;
+                        if rest >= t.m.frame.rail * 2.0 {
+                            rest
+                        } else {
+                            ui.available_width() - t.m.space.sm
                         }
                     });
+                let response = ui.add(edit).labelled_by(label.id);
+                if response.has_focus() {
+                    focused = true;
+                }
+                let typed_separator = input.ends_with(',') || input.ends_with(';');
+                // A press on a suggestion takes the focus away: that picks the suggestion instead.
+                let picking = self.picks.is_some_and(|(at, rect)| {
+                    at == field
+                        && ui
+                            .input(|i| i.pointer.interact_pos())
+                            .is_some_and(|pos| rect.contains(pos))
                 });
-            }
-            let index = field as usize;
-            let Some(input) = self.inputs.get_mut(index) else {
-                return;
-            };
-            let edit = egui::TextEdit::singleline(input)
-                .font(ui::font(&t.type_scale.body_md))
-                .frame(egui::Frame::NONE)
-                .hint_text(if current.is_empty() {
-                    t.s(Key::NameExample)
-                } else {
-                    ""
-                })
-                .desired_width((ui.available_width() - t.m.space.sm).max(t.m.frame.rail * 2.0));
-            let response = ui.add(edit).labelled_by(label.id);
-            if response.has_focus() {
-                focused = true;
-            }
-            let typed_separator = input.ends_with(',') || input.ends_with(';');
-            let submitted = response.lost_focus() || typed_separator;
-            if submitted && !input.trim().is_empty() {
-                let added = compose::add_recipients(current, input);
-                let accepted = added.rejected.is_empty();
-                *input = added.rejected;
-                if added.list.is_some() {
-                    next = added.list;
+                let submitted = (response.lost_focus() && !picking) || typed_separator;
+                if submitted && !input.trim().is_empty() {
+                    let added = compose::add_recipients(current, input);
+                    let accepted = added.rejected.is_empty();
+                    *input = added.rejected;
+                    if added.list.is_some() {
+                        next = added.list;
+                    }
+                    if typed_separator && accepted {
+                        response.request_focus();
+                    }
                 }
-                if typed_separator && accepted {
-                    response.request_focus();
-                }
-            }
+            });
         });
         let index = field as usize;
         let typed = self.inputs.get(index).cloned().unwrap_or_default();
         if focused {
             self.active = Some(field);
         }
+        if self.picks.is_some_and(|(at, _)| at == field) {
+            self.picks = None;
+        }
         if self.active == Some(field) && next.is_none() {
             let picks = self.suggestions(state, &typed, current);
             if !picks.is_empty() {
-                ui.vertical(|ui| {
+                let shown = ui.vertical(|ui| {
                     for addr in picks {
                         let label =
                             ui::text(&t.type_scale.body_sm, format::full(&addr), t.text_secondary);
@@ -439,6 +500,7 @@ impl ComposerState {
                         }
                     }
                 });
+                self.picks = Some((field, shown.response.rect));
             }
         }
         if let Some(list) = next {
@@ -446,19 +508,37 @@ impl ComposerState {
         }
     }
 
+    /// The attachments as chips, then why any of them failed, on lines of their own (the reason,
+    /// such as the size limit, is a sentence: in a chip it ran out of the pane).
     fn attachments(&mut self, ui: &mut Ui, t: &Tokens, draft: &Draft, queue: &mut Vec<Request>) {
-        if draft.attachments.is_empty() {
-            return;
-        }
-        ui.horizontal_wrapped(|ui| {
+        ui.add_space(t.m.space.sm);
+        let row = egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true);
+        ui.with_layout(row, |ui| {
+            ui.spacing_mut().item_spacing = egui::Vec2::splat(t.m.space.xs);
             for (index, attachment) in (0_u32..).zip(&draft.attachments) {
                 let (detail, failed) = match &attachment.state {
                     AttachmentState::Checking => (t.s(Key::Checking).to_owned(), false),
                     AttachmentState::Ready { size, .. } => (format::size(*size), false),
-                    AttachmentState::Failed { error } => (error.clone(), true),
+                    AttachmentState::Failed { .. } => (t.s(Key::NativeFailed).to_owned(), true),
                 };
-                chip(t).show(ui, |ui| {
-                    ui.horizontal(|ui| {
+                let stroke = if failed { t.danger } else { t.border };
+                let id = egui::Id::unique(("attachment", draft.id, index));
+                let remove = t.f(Key::RemoveName, &[("name", &attachment.name)]);
+                let removed = chip(ui, t, id, stroke, &remove, |ui, width| {
+                    // The name gives way to the size or state: it is cut short, they are not.
+                    let color = if failed { t.danger } else { t.text_muted };
+                    let detail =
+                        egui::WidgetText::from(ui::text(&t.type_scale.label_sm, detail, color))
+                            .into_galley(
+                                ui,
+                                Some(egui::TextWrapMode::Extend),
+                                f32::INFINITY,
+                                egui::TextStyle::Body,
+                            );
+                    let name_width =
+                        (width - detail.size().x - t.m.space.xs).max(t.m.controls.button);
+                    ui.scope(|ui| {
+                        ui.set_max_width(name_width);
                         ui::icon_label(
                             ui,
                             t,
@@ -468,27 +548,29 @@ impl ComposerState {
                             &format!("📎 {}", attachment.name),
                         )
                         .on_hover_text(&attachment.path);
-                        let color = if failed { t.danger } else { t.text_muted };
-                        ui.label(ui::text(&t.type_scale.label_sm, detail, color));
-                        if ui::icon_button(
-                            ui,
-                            t,
-                            t.text_muted,
-                            Icon::Close,
-                            &t.f(Key::RemoveName, &[("name", &attachment.name)]),
-                        )
-                        .clicked()
-                        {
-                            queue.push(Request::user(Command::RemoveAttachment {
-                                draft: draft.id,
-                                index,
-                            }));
-                        }
                     });
+                    ui.add(egui::Label::new(detail));
                 });
+                if removed {
+                    queue.push(Request::user(Command::RemoveAttachment {
+                        draft: draft.id,
+                        index,
+                    }));
+                }
             }
         });
-        ui.separator();
+        for attachment in &draft.attachments {
+            if let AttachmentState::Failed { error } = &attachment.state {
+                ui.add(
+                    egui::Label::new(ui::text(
+                        &t.type_scale.body_sm,
+                        t.f(Key::Failed, &[("error", error)]),
+                        t.danger,
+                    ))
+                    .wrap(),
+                );
+            }
+        }
     }
 
     fn pick_files(&mut self, ctx: &egui::Context, title: &'static str) {
@@ -587,14 +669,46 @@ fn field_label(ui: &mut Ui, t: &Tokens, text: &str) -> egui::Response {
     )
 }
 
-/// A recipient or attachment chip: `raised`, `border`, radius `sm`.
-fn chip(t: &Tokens) -> egui::Frame {
-    egui::Frame::new()
+/// A recipient or attachment chip on a wrapping row: `raised`, a hairline in `stroke`, radius
+/// `sm`, `content` and a remove button. Returns whether the button was clicked.
+///
+/// A wrapping row only knows a widget's width after placing it, so a chip remembers its width
+/// (under `id`) and starts a new row when it did not fit what this row has left. It is never
+/// wider than the row: `content` gets the width left beside the button, and cuts its text short.
+fn chip(
+    ui: &mut Ui,
+    t: &Tokens,
+    id: egui::Id,
+    stroke: egui::Color32,
+    remove: &str,
+    content: impl FnOnce(&mut Ui, f32),
+) -> bool {
+    let row = ui.available_width();
+    let left = ui.available_size_before_wrap().x;
+    let known = ui.data(|d| d.get_temp::<f32>(id));
+    if known.is_some_and(|width| width > left) && left < row - 0.5 {
+        ui.end_row();
+    }
+    let margin = egui::Margin::symmetric(t.m.space.xs as i8 + 2, t.m.space.xs as i8 / 2);
+    let inner =
+        row - margin.sum().x - 2.0 * t.m.stroke.hairline - t.m.controls.icon_button - t.m.space.xs;
+    let mut removed = false;
+    let shown = egui::Frame::new()
         .fill(t.raised)
-        .stroke(egui::Stroke::new(t.m.stroke.hairline, t.border))
+        .stroke(egui::Stroke::new(t.m.stroke.hairline, stroke))
         .corner_radius(ui::radius(t.m.radius.sm))
-        .inner_margin(egui::Margin::symmetric(
-            t.m.space.xs as i8 + 2,
-            t.m.space.xs as i8 / 2,
-        ))
+        .inner_margin(margin)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = t.m.space.xs;
+                ui.scope(|ui| content(ui, inner.max(t.m.controls.button)));
+                removed = ui::icon_button(ui, t, t.text_muted, Icon::Close, remove).clicked();
+            });
+        });
+    let width = shown.response.rect.width();
+    if known.is_none_or(|k| (k - width).abs() > 0.5) {
+        ui.data_mut(|d| d.insert_temp(id, width));
+        ui.ctx().request_discard("composer chip measured");
+    }
+    removed
 }

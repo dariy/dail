@@ -311,17 +311,6 @@ fn system_now_ms() -> i64 {
         .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX))
 }
 
-/// Commands whose receipt carries a new draft to show in the composer.
-const fn creates_draft(name: CommandName) -> bool {
-    matches!(
-        name,
-        CommandName::CreateDraft
-            | CommandName::Reply
-            | CommandName::ReplyAll
-            | CommandName::Forward
-    )
-}
-
 /// The icon of a mailbox in the drawer.
 const fn mailbox_icon(role: Option<MailboxRole>) -> &'static str {
     match role {
@@ -700,8 +689,8 @@ impl Mobile {
                         if let Some(result) = sheet::Result::of(reply.name, receipt) {
                             self.result = Some(result);
                         }
-                        if creates_draft(reply.name)
-                            && let Ok(id) = serde_json::from_value(receipt.data["id"].clone())
+                        if let Some(id) =
+                            app_front::compose::draft_to_open(reply.name, &receipt.data)
                         {
                             out.push(Request::user(Command::OpenComposer { id }));
                         }
