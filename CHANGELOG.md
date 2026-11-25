@@ -3,6 +3,10 @@
 One section per release, newest first. `cargo xtask release bump <x.y.z>` adds the stub; the release notes are
 the section of the tagged version.
 
+## 0.1.12
+
+- dail serve: pair devices and drive the command bus over TLS (Wave 18), plus store fixes
+
 ## 0.1.11
 
 - Certificate trust per account (ADR 0016) and five more UI languages
