@@ -1,2 +1,0 @@
-xvfb-run: unrecognized option '--backend'
-gui exit 1
