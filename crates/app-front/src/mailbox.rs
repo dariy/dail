@@ -7,8 +7,13 @@ use app_core::{
 
 /// A mailbox's label: its role's name, else the last path segment.
 pub fn mailbox_name(mailbox: &Mailbox) -> String {
+    mailbox_name_in(crate::i18n::current(), mailbox)
+}
+
+/// [`mailbox_name`] in `lang`.
+pub fn mailbox_name_in(lang: crate::i18n::Lang, mailbox: &Mailbox) -> String {
     if let Some(role) = mailbox.role {
-        return role_title(role).to_owned();
+        return crate::i18n::text(lang, role_key(role)).to_owned();
     }
     mailbox
         .path
@@ -20,15 +25,20 @@ pub fn mailbox_name(mailbox: &Mailbox) -> String {
 
 /// The display name of a role.
 pub fn role_title(role: MailboxRole) -> &'static str {
+    crate::i18n::s(role_key(role))
+}
+
+/// The key of a role's display name.
+const fn role_key(role: MailboxRole) -> Key {
     match role {
-        MailboxRole::Inbox => crate::i18n::s(Key::Inbox),
-        MailboxRole::Sent => crate::i18n::s(Key::Sent),
-        MailboxRole::Drafts => crate::i18n::s(Key::Drafts),
-        MailboxRole::Trash => crate::i18n::s(Key::Trash),
-        MailboxRole::Archive => crate::i18n::s(Key::Archive),
-        MailboxRole::Junk => crate::i18n::s(Key::Junk),
-        MailboxRole::All => crate::i18n::s(Key::AllMail),
-        MailboxRole::Flagged => crate::i18n::s(Key::Starred),
+        MailboxRole::Inbox => Key::Inbox,
+        MailboxRole::Sent => Key::Sent,
+        MailboxRole::Drafts => Key::Drafts,
+        MailboxRole::Trash => Key::Trash,
+        MailboxRole::Archive => Key::Archive,
+        MailboxRole::Junk => Key::Junk,
+        MailboxRole::All => Key::AllMail,
+        MailboxRole::Flagged => Key::Starred,
     }
 }
 

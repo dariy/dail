@@ -498,7 +498,18 @@ impl Shell {
                             .max_size(height * 0.75)
                             .frame(egui::Frame::new().fill(t.canvas))
                             .show(ui, |ui| {
-                                self.composer.show(ui, &t, state, now_ms, &mut queue);
+                                // egui stores a resizable panel's size from what its content
+                                // used, so the composer draws in a child pinned to the panel's
+                                // rect: only the user's drag sizes the pane, and a composer
+                                // that comes out a few points short or long (a new attachment)
+                                // can't creep it to the minimum or the maximum.
+                                let rect = ui.max_rect();
+                                let mut pane = ui.new_child(
+                                    egui::UiBuilder::new().max_rect(rect).layout(*ui.layout()),
+                                );
+                                pane.set_clip_rect(rect.intersect(ui.clip_rect()));
+                                self.composer.show(&mut pane, &t, state, now_ms, &mut queue);
+                                ui.advance_cursor_after_rect(rect);
                             });
                         let rest = ui.available_rect_before_wrap();
                         ui.scope_builder(egui::UiBuilder::new().max_rect(rest), |ui| {

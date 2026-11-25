@@ -6,6 +6,7 @@ mod account;
 mod cli;
 mod doctor;
 mod exec;
+mod local;
 mod mcp_http;
 mod output;
 mod remote;
@@ -154,7 +155,8 @@ fn run(cli: Cli, terminal_ui: bool) -> anyhow::Result<ExitCode> {
         Some(Sub::Tui) => tui::tui(&cli.global),
         Some(Sub::Gui) | None => {
             let runtime = runtime::build()?;
-            let owned = runtime.block_on(runtime::own(&cli.global, runtime::Serve::No))?;
+            // Beside a running `dail serve`: its companion profile, a device of it (SRV-10).
+            let owned = runtime.block_on(local::own_for_gui(&cli.global))?;
             // The listener keeps serving agents while the window is open; `run` shuts the
             // session down when the window closes.
             let runtime::Owned {

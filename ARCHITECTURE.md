@@ -894,7 +894,13 @@ the OS when the process dies). Long-running owners — the GUI, `dail tui` and `
 or on Windows the named pipe `dail-<FNV-64 of the profile path>`; a stale socket left by a crashed owner is replaced).
 `dail exec`, `dail batch`, `dail account add`, `dail tui` and `dail mcp` first `ipc::claim` the profile: connect to the socket
 (→ `Claim::Attached(IpcClient)`), else take the lock (→ `Claim::Owned`, open the profile here), else retry for up to 10 s
-(`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does. Front-ends talk
+(`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does, except `dail serve`
+(`listening.json` present and its socket answering): then it opens the profile's companion, `local` (`<name>-local`;
+`<dir>-local` for `--profile-dir`), a device of that server (`app-cli/src/local.rs`, SRV-10). On the companion's first
+start it is paired over loopback without typing anything: `connect_server` to a loopback address of a listener (an
+unspecified one is reached on loopback), the offered fingerprint compared with the one in `listening.json` (user-only,
+like the socket), a code from `start_pairing` (`cli`, device name `local`) submitted on the server's socket, then
+`trust_server`. Later starts open it as the remote profile it is. Front-ends talk
 to a `Connection`: `Local(SessionClient)`, `Attached(IpcClient)` or `Remote(RemoteSession)` (a session of this process
 that may be a device of a dail server, §5.6 *Remote profiles*; `Session::connection()` gives it, and the IPC listener
 serves it, so an attached `dail exec` is forwarded to the server like the owner's own commands). `SessionClient` is a cloneable handle of a `Session`
@@ -902,7 +908,12 @@ serves it, so an attached `dail exec` is forwarded to the server like the owner'
 always drives the same state the user is looking at, and the GUI repaints live when an agent archives a thread. With
 `--backend memory` a session is private unless `--profile-dir` is given, which then provides the lock and socket only.
 
-Protocol: newline-delimited JSON-RPC 2.0, requests answered in order. `submit {origin, command}` → `{"ok": receipt}` or
+Protocol: newline-delimited JSON-RPC 2.0, requests answered in order. `hello` → `{version, schema}`: the build's
+version and `ipc::wire_schema()`, a hash of `app_core::registry::wire_schema()` (the schemas of `Command`, `AppState`,
+`CommandReceipt` and `CoreError`). `IpcClient::connect` says `hello` first and refuses an owner whose hash is not its own,
+or that answers `-32601` (a build older than the check), with `ERR214` (`SyncError::OwnerMismatch`, both versions named):
+two builds would misread each other's JSON. `ipc::claim` returns that error at once instead of waiting for a busy
+profile. `submit {origin, command}` → `{"ok": receipt}` or
 `{"rejected": CoreError}`; `preview {origin, command}` → `{"ok": Preview}` or `{"rejected": …}` (a dry run); `flush` → `null`; `state` → the `AppState` snapshot. `watch` → `null`, after which the connection only
 carries `{"method": "changed"}` notifications, one after each burst of state changes (coalesced by the session's `watch`
 channel), until either side closes it. `Connection::subscribe()` gives every front-end the same
@@ -1440,12 +1451,14 @@ and that every `Palette` entry is offered by the palette.
   key, and `g <letter>` on the mailboxes of the current account.
 - **Composer:** plain text in the MVP, with To/Cc/Bcc chips and attachments by path / file dialog (`rfd`, XDG portal on Linux, kept in app-gui).
   It shows `view.composer` in place of the reader, or, for a reply to a message of the open conversation, docked under
-  it in a resizable bottom panel (55% of the pane, at most 75%); the reader, clipped to the rest so it never paints
-  over the composer (MISC-36), then scrolls to its end once (UI-13). New drafts and forwards keep the
+  it in a resizable bottom panel (55% of the pane, at most 75%). Only a drag sizes that panel: the composer draws in a
+  child pinned to its rect, since egui keeps a resizable panel at the size its content used. The reader, clipped to the
+  rest so it never paints over the composer (MISC-36), then scrolls to its end once (UI-13), and leaves out the
+  server's copy of the draft being written. New drafts and forwards keep the
   whole pane (UI-8: a header with the title, the save state and *Close*; labelled
   hairline rows for From, To, Cc, Bcc and Subject; the body in `body_lg`; the attachment chips; a footer with
   *Attach files…*, *Discard* and *Send*). Header, attachments and footer stay fixed and the rows and body scroll between
-  them, so the composer fits a docked panel. A recipient row keeps its label in the label column, and its chips and
+  them, in the height the attachments and footer measured last frame, so the composer fits a docked panel. A recipient row keeps its label in the label column, and its chips and
   field wrap beside it, the field on the chips' line while it has room. A chip remembers its width, starts a new
   row when it did not fit, and cuts its text short rather than outgrow the row. Subject and body are typed into local buffers and written back with
   one `update_draft` when typing pauses for a second, the field loses the focus, or before a key command (Ctrl+Enter
@@ -1495,8 +1508,11 @@ and that every `Palette` entry is offered by the palette.
   top bar draw with the theme's chrome group. There is no status bar: the top bar holds the status (below).
 - **Status** (`app_gui::topbar` over `app_front::status`, a projection of `status`, the accounts and the outbox), in the
   top bar: a status dot (filled when synced, a ring while syncing, a crossed ring when a login failed: shape, not
-  colour) and `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs
-  `sync_now`; a status chip (`2 pending`, `1 pending · 1 failed`, the first problem and `+N`, `searching the
+  colour) and the heavy work in flight (`app_front::status::activity`: `loading folders…` while an account has no
+  mailbox yet, `loading new mail · Inbox (+3)` for `status.fetching`, `loading older mail · 1240 of 8000` for
+  `status.backfilling` with a progress bar beside it, `downloading 12 messages` for two or more `bodies_in_flight`),
+  else `syncing…` or `synced 2m ago` (the oldest `last_sync_ms` of all accounts), a button that runs `sync_now`
+  (`status::sync_text`, which the TUI's status line and the touch frames show too); a status chip (`2 pending`, `1 pending · 1 failed`, the first problem and `+N`, `searching the
   server…`) whose popover lists `N pending · M failed` with the ops' errors on hover and *retry*
   (`retry_pending_ops`); `searching the server…`; store, keyring, login and sync failures in the
   error colour with a hint and their diagnostic on hover, and the fix `app_front::status` picks from the diagnostic

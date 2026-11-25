@@ -1008,6 +1008,17 @@ const PATTERNS: &[(&str, Tr)] = &[
         ],
     ),
     (
+        "the profile {} is open in another build of dail (version {}; this one is {}) whose data this one cannot read; quit it (for `dail serve`: stop it and start it again with this build), then try again",
+        [
+            "le profil {} est ouvert dans une autre compilation de dail (version {} ; celle-ci est la {}) dont celle-ci ne sait pas lire les données ; quittez-la (pour `dail serve` : arrêtez-le et relancez-le avec cette compilation), puis réessayez",
+            "el perfil {} está abierto en otra compilación de dail (versión {}; esta es la {}) cuyos datos esta no sabe leer; ciérrala (para `dail serve`: detenlo y vuelve a iniciarlo con esta compilación) y reinténtalo",
+            "profilul {} este deschis în altă versiune compilată de dail (versiunea {}; aceasta este {}) ale cărei date aceasta nu le poate citi; închideți-o (pentru `dail serve`: opriți-l și porniți-l din nou cu această versiune), apoi reîncercați",
+            "o perfil {} está aberto em outra compilação do dail (versão {}; esta é a {}) cujos dados esta não consegue ler; feche-a (para o `dail serve`: pare-o e inicie-o de novo com esta compilação) e tente de novo",
+            "o perfil {} está aberto noutra compilação do dail (versão {}; esta é a {}) cujos dados esta não consegue ler; feche-a (para o `dail serve`: pare-o e inicie-o novamente com esta compilação) e tente novamente",
+            "profilum {} in alia aedificatione dail apertum est (versio {}; haec est {}) cuius data haec legere non potest; eam claude (pro `dail serve`: siste et iterum cum hac aedificatione incipe), deinde iterum conare",
+        ],
+    ),
+    (
         "the profile {} is in use",
         [
             "le profil {} est utilisé",

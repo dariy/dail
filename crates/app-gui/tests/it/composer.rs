@@ -472,3 +472,82 @@ fn edit_on_a_draft_message_opens_the_composer() {
     assert_eq!(h.state().engine.state().view.composer, Some(id));
     h.get(By::new().role(Role::Button).label_contains("Send"));
 }
+
+/// The top of the docked composer's `To` field.
+fn composer_top(h: &Harness<'static, Gui>) -> f32 {
+    h.get(By::new().label("To").role(Role::TextInput))
+        .rect()
+        .min
+        .y
+}
+
+#[test]
+fn a_docked_reply_keeps_its_height() {
+    let (mut h, message) = reading();
+    let receipt = apply(
+        &mut h,
+        Command::Reply {
+            message,
+            body: None,
+        },
+    );
+    let id: DraftId = serde_json::from_value(receipt.data["id"].clone()).unwrap();
+    apply(&mut h, Command::OpenComposer { id });
+    let top = composer_top(&h);
+    // egui keeps a resizable panel at the size its content used: a composer a few points short
+    // or long of its pane moved the border every frame, to the minimum or the maximum.
+    for _ in 0..30 {
+        h.step();
+    }
+    assert_eq!(composer_top(&h), top, "the border stays put");
+    apply(
+        &mut h,
+        Command::AttachFile {
+            draft: id,
+            path: "/home/alice/q3.pdf".into(),
+            index: None,
+        },
+    );
+    for _ in 0..30 {
+        h.step();
+    }
+    h.get_by_label("📎 q3.pdf");
+    assert_eq!(composer_top(&h), top, "an attachment doesn't move it");
+    h.get(By::new().role(Role::Button).label_contains("Send"));
+}
+
+#[test]
+fn the_conversation_hides_the_reply_being_written() {
+    let (mut h, message) = reading();
+    let receipt = apply(
+        &mut h,
+        Command::Reply {
+            message,
+            body: None,
+        },
+    );
+    let id: DraftId = serde_json::from_value(receipt.data["id"].clone()).unwrap();
+    // The server's copy of the draft, fetched into the conversation.
+    let mut state = h.state().engine.state().clone();
+    let header = state.drafts[&id].message_id_hdr.clone();
+    let thread = state.view.thread.unwrap();
+    let copy: app_core::MessageId =
+        serde_json::from_value(serde_json::json!("00000000-0000-0000-0000-00000000d4a7")).unwrap();
+    let mut envelope = state.messages[&message].clone();
+    envelope.id = copy;
+    envelope.flags.draft = true;
+    envelope.message_id_hdr = Some(header);
+    state.messages.insert(copy, envelope);
+    state.threads.get_mut(&thread).unwrap().messages.push(copy);
+    h.state_mut().engine = app_core::Engine::new(state);
+    h.run();
+    let edit = By::new()
+        .role(Role::Button)
+        .label_contains("Edit, message from");
+    assert!(h.query(edit.clone()).is_some(), "shown while not composing");
+    apply(&mut h, Command::OpenComposer { id });
+    assert!(
+        h.query(edit).is_none(),
+        "hidden while it is in the composer"
+    );
+}

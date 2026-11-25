@@ -9,6 +9,7 @@
 //! The protocol is newline-delimited JSON-RPC 2.0, one request per line, answered in order:
 //!
 //! ```text
+//! → {"jsonrpc":"2.0","id":0,"method":"hello"}                    ← {"jsonrpc":"2.0","id":0,"result":{"version":"0.9.0","schema":"3f2a…"}}
 //! → {"jsonrpc":"2.0","id":1,"method":"submit","params":{"origin":"cli","command":{"cmd":"undo","args":{}}}}
 //! ← {"jsonrpc":"2.0","id":1,"result":{"ok":{…receipt…}}}        (or {"rejected":{…CoreError…}})
 //! → {"jsonrpc":"2.0","id":5,"method":"preview","params":{…as submit…}}  ← {"result":{"ok":{…Preview…}}}  (a dry run)
@@ -17,6 +18,11 @@
 //! → {"jsonrpc":"2.0","id":4,"method":"watch"}                    ← {"jsonrpc":"2.0","id":4,"result":null}
 //!                                                                 ← {"jsonrpc":"2.0","method":"changed"}  (after changes)
 //! ```
+//!
+//! [`IpcClient::connect`] says `hello` first and refuses an owner whose wire schema
+//! ([`wire_schema`]: a hash of the command, state, receipt and error schemas) is not its own, or
+//! that does not know `hello` (a build older than the check): the two would misread each other's
+//! JSON. The error ([`SyncError::OwnerMismatch`]) names both versions.
 //!
 //! After `watch` the connection only carries `changed` notifications: one after each burst of state
 //! changes (coalesced), until either side closes it. A client watches on a connection of its own
@@ -136,6 +142,30 @@ impl IpcEndpoint {
     }
 }
 
+/// The hash of [`app_core::registry::wire_schema`] (hex, 16 bytes of SHA-256), computed once:
+/// equal in two builds exactly when they read each other's socket JSON alike.
+pub fn wire_schema() -> &'static str {
+    static HASH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    HASH.get_or_init(|| {
+        use sha2::Digest as _;
+        let schema = app_core::registry::wire_schema().to_string();
+        let digest = sha2::Sha256::digest(schema.as_bytes());
+        digest
+            .iter()
+            .take(16)
+            .fold(String::with_capacity(32), |mut out, byte| {
+                use std::fmt::Write as _;
+                let _ = write!(out, "{byte:02x}");
+                out
+            })
+    })
+}
+
+/// This build's answer to `hello`.
+fn hello_answer() -> Value {
+    json!({ "version": env!("CARGO_PKG_VERSION"), "schema": wire_schema() })
+}
+
 /// Who gets to drive a profile.
 #[derive(Debug)]
 pub enum Claim {
@@ -152,8 +182,11 @@ pub async fn claim(root: &Path) -> Result<Claim, SyncError> {
     let lock_path = root.join("lock");
     let deadline = tokio::time::Instant::now() + CLAIM_TIMEOUT;
     loop {
-        if let Ok(client) = IpcClient::connect(&endpoint).await {
-            return Ok(Claim::Attached(client));
+        match IpcClient::connect(&endpoint).await {
+            Ok(client) => return Ok(Claim::Attached(client)),
+            // An owner of another build: waiting does not help.
+            Err(err @ SyncError::OwnerMismatch { .. }) => return Err(err),
+            Err(_) => {}
         }
         if let Some(lock) = ProfileLock::try_acquire(&lock_path)? {
             return Ok(Claim::Owned(lock));
@@ -324,6 +357,7 @@ async fn respond(line: &str, session: &Connection) -> Value {
     };
     let id = request.id;
     let outcome = match request.method.as_str() {
+        "hello" => Ok(hello_answer()),
         "submit" => submit(request.params, session).await,
         "preview" => preview(request.params, session).await,
         "flush" => session
@@ -424,12 +458,37 @@ fn ipc_error(err: CallError) -> SyncError {
 }
 
 impl IpcClient {
-    /// Connects to `endpoint`; fails if nobody listens there.
+    /// Connects to `endpoint` and says `hello`; fails if nobody listens there, or with
+    /// [`SyncError::OwnerMismatch`] if the owner is a build whose wire schema is not this one's.
     pub async fn connect(endpoint: &IpcEndpoint) -> Result<Self, SyncError> {
-        Ok(Self {
+        let client = Self {
             endpoint: endpoint.clone(),
             rpc: RpcClient::new(dial(endpoint).await?),
-        })
+        };
+        client.hello().await?;
+        Ok(client)
+    }
+
+    /// Checks that the owner reads and writes the socket's JSON as this build does.
+    async fn hello(&self) -> Result<(), SyncError> {
+        let mismatch = |version: &str| SyncError::OwnerMismatch {
+            profile: endpoint_profile(&self.endpoint),
+            owner: version.to_owned(),
+            this: env!("CARGO_PKG_VERSION"),
+        };
+        let answer = match self.rpc.call("hello", Value::Null).await {
+            Ok(answer) => answer,
+            // A build older than the check.
+            Err(CallError::Refused { code, .. }) if code == METHOD_NOT_FOUND => {
+                return Err(mismatch("older"));
+            }
+            Err(err) => return Err(ipc_error(err)),
+        };
+        let version = answer["version"].as_str().unwrap_or("unknown");
+        if answer["schema"].as_str() != Some(wire_schema()) {
+            return Err(mismatch(version));
+        }
+        Ok(())
     }
 
     /// Submits a command to the owner's session, like [`crate::SessionClient::submit`].
@@ -519,6 +578,15 @@ impl IpcClient {
     async fn call(&self, method: &str, params: Value) -> Result<Value, SyncError> {
         self.rpc.call(method, params).await.map_err(ipc_error)
     }
+}
+
+/// The profile directory of `endpoint`, for messages (the pipe name on Windows).
+fn endpoint_profile(endpoint: &IpcEndpoint) -> String {
+    endpoint
+        .name
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map_or_else(|| endpoint.display(), |parent| parent.display().to_string())
 }
 
 /// Connects to the local socket of `endpoint`.
