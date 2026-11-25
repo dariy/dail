@@ -5,6 +5,8 @@
 
 use std::path::PathBuf;
 
+use redb::ReadableTable as _;
+
 use app_core::{
     Account, AccountId, AccountStatus, AppState, ApprovalId, ApprovalRequest, BodyState, Draft,
     DraftId, Endpoint, Envelope, FlagKind, Flags, MailDelta, Mailbox, MailboxId, MailboxRole,
@@ -297,8 +299,9 @@ fn unreadable_drafts_are_quarantined_not_dropped() {
     let table: redb::TableDefinition<u128, &[u8]> = redb::TableDefinition::new("quarantine");
     let held = txn.open_table(table).unwrap();
     assert_eq!(held.len().unwrap(), 1);
-    let raw = held.get(900).unwrap().unwrap();
-    let raw: serde_json::Value = serde_json::from_slice(raw.value()).unwrap();
+    let guard = held.get(900).unwrap().unwrap();
+    let raw: serde_json::Value = serde_json::from_slice(guard.value()).unwrap();
+    drop(guard);
     assert_eq!(held_bytes(&raw), br#"{"id":"not a draft"}"#);
     assert!(raw.get("lossy").is_none());
     drop(held);
