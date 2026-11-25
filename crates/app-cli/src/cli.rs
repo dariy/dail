@@ -16,7 +16,7 @@ pub struct Cli {
 }
 
 /// Options shared by every subcommand.
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Args)]
 pub struct GlobalArgs {
     /// Where effects run: `live` (IMAP/SMTP, from M1) or `memory` (offline fake server).
     #[arg(long, value_enum, default_value_t = BackendKind::Live, global = true)]

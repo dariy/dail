@@ -1354,6 +1354,10 @@ Design in ADR 0017. All new text ships in the 7 languages.
 - [x] SRV-9 (S) [sync][cli]: the profile socket says `hello` (version and wire-schema hash); a `dail` of another build
   than the owner (`dail serve` left running across an upgrade) is refused at once with `ERR214`, both versions named,
   instead of misreading the owner's JSON *(CLI stderr; the GUI's and TUI's start errors are the same message)*
+- [x] SRV-10 (S) [cli]: the desktop beside a running `dail serve`: plain `dail` opens the companion profile `local`
+  (`<name>-local`), paired with the local server over loopback on its first start (a code through the profile socket,
+  the fingerprint from `serve/listening.json`), instead of refusing to start *(GUI only: the TUI, exec, batch and mcp
+  already attach to the socket. ARCHITECTURE §5.4)*
 - [ ] SRV-8 [user]: live check: `dail serve` under systemd on the home server with the `ai@darii.net` profile, the
   desktop over Tailscale, then the phone. Covers triage offline and reconnect, an MCP send approved from the phone,
   and rules sorting overnight with every device closed

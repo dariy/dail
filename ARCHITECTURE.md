@@ -894,7 +894,13 @@ the OS when the process dies). Long-running owners — the GUI, `dail tui` and `
 or on Windows the named pipe `dail-<FNV-64 of the profile path>`; a stale socket left by a crashed owner is replaced).
 `dail exec`, `dail batch`, `dail account add`, `dail tui` and `dail mcp` first `ipc::claim` the profile: connect to the socket
 (→ `Claim::Attached(IpcClient)`), else take the lock (→ `Claim::Owned`, open the profile here), else retry for up to 10 s
-(`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does. Front-ends talk
+(`ProfileBusy` after that). The GUI must own the profile; it refuses to start while another process does, except `dail serve`
+(`listening.json` present and its socket answering): then it opens the profile's companion, `local` (`<name>-local`;
+`<dir>-local` for `--profile-dir`), a device of that server (`app-cli/src/local.rs`, SRV-10). On the companion's first
+start it is paired over loopback without typing anything: `connect_server` to a loopback address of a listener (an
+unspecified one is reached on loopback), the offered fingerprint compared with the one in `listening.json` (user-only,
+like the socket), a code from `start_pairing` (`cli`, device name `local`) submitted on the server's socket, then
+`trust_server`. Later starts open it as the remote profile it is. Front-ends talk
 to a `Connection`: `Local(SessionClient)`, `Attached(IpcClient)` or `Remote(RemoteSession)` (a session of this process
 that may be a device of a dail server, §5.6 *Remote profiles*; `Session::connection()` gives it, and the IPC listener
 serves it, so an attached `dail exec` is forwarded to the server like the owner's own commands). `SessionClient` is a cloneable handle of a `Session`
