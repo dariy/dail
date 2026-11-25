@@ -498,6 +498,7 @@ impl Tui {
     /// The background requests the current state calls for (the reader's bodies). The runner
     /// calls it before each frame.
     pub fn refresh(&mut self, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         self.palette.sync(state);
         if let Some(pair) = &mut self.pair {
             pair.dialog.sync(state);
@@ -614,8 +615,16 @@ impl Tui {
             .map(|(text, _)| text.as_str())
     }
 
+    /// Makes the language of the last frame the process's again before keys, replies or the
+    /// palette's rows read it: the language is process-wide, and another `Tui` (a parallel test)
+    /// may have drawn in another since.
+    fn use_lang(&self) {
+        app_front::i18n::set_current(self.lang);
+    }
+
     /// Handles one input event and returns the commands it issued, in order.
     pub fn input(&mut self, input: Input, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         let requests = self.input_inner(input, state);
         // A `start_pairing` from the palette or a key shows its code in the pairing dialog.
         let requests: Vec<Request> = requests
@@ -1013,6 +1022,7 @@ impl Tui {
 
     /// Takes the results of earlier requests; returns follow-up requests.
     pub fn replies(&mut self, replies: Vec<Reply>, state: &AppState) -> Vec<Request> {
+        self.use_lang();
         let mut out = Vec::new();
         for reply in replies {
             match reply.tag {
