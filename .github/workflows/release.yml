@@ -195,3 +195,34 @@ jobs:
           releaseFiles: aab/*.aab
           track: internal
           status: ${{ vars.DAIL_PLAY_STATUS || 'draft' }}
+
+  # Tags only (DIST-3): the new version's MSI to winget, as a pull request on microsoft/winget-pkgs from the
+  # `dariy/winget-pkgs` fork (`scripts/release-winget.sh update`; komac pinned by sha256). The PAT is a classic one with
+  # `public_repo`, in the `release` environment. Until the first version is in winget-pkgs (submitted by hand with
+  # `scripts/release-winget.sh new`) or the secret exists, the job says so without failing the release.
+  winget:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the token and the package
+        id: ready
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$WINGET_TOKEN" ]; then
+            echo "::notice::secret WINGET_TOKEN is not set; no winget pull request is opened"
+            echo "ready=false" >>"$GITHUB_OUTPUT"
+          elif ! gh api repos/microsoft/winget-pkgs/contents/manifests/d/dariy/dail --silent 2>/dev/null; then
+            echo "::notice::dariy.dail is not in winget-pkgs yet; submit the first version with scripts/release-winget.sh new"
+            echo "ready=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >>"$GITHUB_OUTPUT"
+          fi
+      - if: steps.ready.outputs.ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: ./scripts/release-winget.sh update "${GITHUB_REF_NAME#v}"

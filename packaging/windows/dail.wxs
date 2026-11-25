@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The MSI of dail (Wave 7 R1), built with WiX v5 by scripts/release-windows.ps1:
      `wix build -arch x64 -d Version=<x.y.z> -d Exe=<path to dail.exe> -d Icon=<path to dail.ico> -o dail.msi packaging/windows/dail.wxs`.
-     A per-machine install into Program Files\dail with a Start menu shortcut. The UpgradeCode never changes, so a
+     A per-machine install into Program Files\dail with a Start menu shortcut, and that folder appended to the
+     system PATH (DSK-3), so `dail mcp`, `dail exec` and `dail tui` are found in a new terminal and by an agent's MCP
+     configuration; uninstalling removes the entry. The UpgradeCode never changes, so a
      newer MSI replaces an older one (MajorUpgrade); a downgrade is refused. -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="dail" Manufacturer="dail developers" Version="$(Version)"
@@ -22,6 +24,8 @@
         <File Id="DailExe" Source="$(Exe)" KeyPath="yes">
           <Shortcut Name="dail" Directory="ProgramMenuFolder" Arguments="gui" WorkingDirectory="INSTALLFOLDER" />
         </File>
+        <Environment Id="PathEntry" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes"
+                     Permanent="no" />
       </Component>
     </Feature>
   </Package>

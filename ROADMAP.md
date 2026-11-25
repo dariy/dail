@@ -1248,15 +1248,18 @@ knowledge: **read the current rules before DIST-3, DIST-5 and DIST-6.** It does 
 - [ ] DSK-2 (M) [cli][gui][packaging]: dail as the default mail app: `dail gui <mailto-url>` (through the IPC attach
   when an instance runs; `app_front::mailto` already parses the links), `MimeType=x-scheme-handler/mailto;` with `%u` in
   `dail.desktop`, and the Windows registration in the MSI
-- [ ] DSK-3 (S) [packaging]: `dail` on `PATH` after the MSI, so that `dail mcp`, `dail exec` and `dail tui` are found in
-  a terminal and by an agent's MCP configuration
+- [x] DSK-3 (S) [packaging]: `dail` on `PATH` after the MSI, so that `dail mcp`, `dail exec` and `dail tui` are found in
+  a terminal and by an agent's MCP configuration *(`dail.wxs` appends the install folder to the system `PATH`; not yet
+  seen on a Windows machine)*
 - [ ] DSK-4 (M) [user][ci][packaging]: sign the Windows exe and MSI. The certificate or signing service is the user's
   choice and cost
 
 ### C — The package managers
 - [ ] DIST-3 (S) [packaging][ci]: winget: a manifest for the MSI (identifier, silent install, machine scope, SHA-256
   from the release), submitted to `microsoft/winget-pkgs`, and a release step that opens the update PR. After DSK-3;
-  better after DSK-4
+  better after DSK-4 *(package `dariy.dail`; `scripts/release-winget.sh` and `release.yml`'s `winget` job, komac
+  pinned, done. Open: the `WINGET_TOKEN` secret and the first submission, `scripts/release-winget.sh new`, of the first
+  release with DSK-3's MSI; tick when it is merged into `winget-pkgs`)*
 - [ ] DIST-4 (M) [packaging][ci]: an apt repository: signed, built in `release.yml` from the `.deb`s and published on
   static hosting, with a `dail.sources` file and its keyring, and install lines in the README. A Launchpad PPA or Debian
   itself is not worth it before 1.0

@@ -2745,7 +2745,9 @@ or a booted device it reports "cannot run". CI runs it as the `android-emulator`
 `/usr/bin/dail`, the entry and the icon; dependencies come from the binary (`$auto`), a keyring service is recommended.
 `scripts/release-ubuntu.sh` also builds an AppImage (`linux/AppRun`, appimagetool pinned by sha256; it needs
 `desktop-file-validate` from `desktop-file-utils`) and
-`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode). The icons (desktop
+`scripts/release-windows.ps1` an MSI (WiX v5, `windows/dail.wxs`, per-machine, fixed UpgradeCode, its folder on the
+system `PATH`, DSK-3). On a tag, `release.yml`'s `winget` job sends the MSI to `microsoft/winget-pkgs` as package
+`dariy.dail` (`scripts/release-winget.sh`, komac pinned by sha256; DIST-3). The icons (desktop
 window, `dail.exe` resource, MSI, iOS `AppIcon`) are committed renderings of `linux/dail.svg` from `cargo xtask icons`,
 re-rendered by `icons.yml` only when the SVG changes (MISC-39). `release.yml` runs on
 `vX.Y.Z` tags behind a guard job (`cargo xtask release check-tag`; the version sites are `SITES` in
